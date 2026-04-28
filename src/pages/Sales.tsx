@@ -219,6 +219,7 @@ export default function Sales() {
 
           <TabsContent value="source_performance" className="space-y-6">
             <LeadSourcePerformanceDashboard />
+            <QFormsElevenLabsConversionAnalytics />
           </TabsContent>
 
           <TabsContent value="my_leads" className="space-y-6">
