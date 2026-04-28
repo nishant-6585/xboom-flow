@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS idx_repairs_created_at ON public.repairs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_drone_operations_activity_datetime ON public.drone_operations(activity_datetime DESC);
