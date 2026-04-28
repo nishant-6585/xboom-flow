@@ -21,6 +21,9 @@ type WooOrder = {
   woo_created_at: string | null;
   woo_updated_at: string | null;
   payment_status: string | null;
+  customer_note?: string | null;
+  internal_notes?: string | null;
+  sales_notes?: string | null;
 };
 
 type ActivityType =
@@ -39,12 +42,12 @@ type ManualEntry = {
 
 type TimelineItem = {
   id: string;
-  type: ActivityType | "created" | "updated";
+  type: ActivityType | "created" | "updated" | "woo_note" | "woo_customer_note";
   label: string;
   description?: string;
   actor?: string;
   at: string;
-  source: "derived" | "manual";
+  source: "derived" | "manual" | "woo";
   ownedByMe?: boolean;
 };
 
@@ -58,6 +61,8 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   followup: Calendar,
   created: Activity,
   updated: RefreshCw,
+  woo_note: StickyNote,
+  woo_customer_note: MessageCircle,
 };
 
 const ICON_TONE: Record<string, string> = {
@@ -70,6 +75,16 @@ const ICON_TONE: Record<string, string> = {
   followup: "bg-teal-500/15 text-teal-600 dark:text-teal-300",
   created: "bg-primary/15 text-primary",
   updated: "bg-muted text-muted-foreground",
+  woo_note: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
+  woo_customer_note: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+};
+
+type WooNote = {
+  id: number;
+  author: string;
+  date: string;
+  note: string;
+  customer_note: boolean;
 };
 
 export function WooLeadActivityLog({ order }: { order: WooOrder }) {
@@ -79,6 +94,13 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
   const [submitting, setSubmitting] = useState(false);
   const [newType, setNewType] = useState<ActivityType>("note");
   const [newText, setNewText] = useState("");
+  const [wooNotes, setWooNotes] = useState<WooNote[]>([]);
+  const [wooNotesLoading, setWooNotesLoading] = useState(false);
+  const [storedNotes, setStoredNotes] = useState<{
+    customer_note: string | null;
+    internal_notes: string | null;
+    sales_notes: string | null;
+  }>({ customer_note: null, internal_notes: null, sales_notes: null });
 
   const wooId = order.woo_order_id;
 
@@ -101,6 +123,48 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
         setEntries((data ?? []) as ManualEntry[]);
       }
       setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [wooId]);
+
+  // Fetch the heavier note fields lazily for the open lead only.
+  useEffect(() => {
+    if (!order.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("woocommerce_orders")
+        .select("internal_notes,sales_notes,raw_data")
+        .eq("id", order.id)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const raw = data.raw_data as { customer_note?: string } | null;
+      setStoredNotes({
+        customer_note: raw?.customer_note?.trim() || null,
+        internal_notes: data.internal_notes,
+        sales_notes: data.sales_notes,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [order.id]);
+
+  // Fetch WooCommerce order notes (customer-facing + private) for this lead.
+  useEffect(() => {
+    if (!wooId) { setWooNotes([]); return; }
+    let cancelled = false;
+    setWooNotesLoading(true);
+    (async () => {
+      const { data, error } = await supabase.functions.invoke("get-woo-order-notes", {
+        body: { woo_order_id: wooId },
+      });
+      if (cancelled) return;
+      if (error) {
+        console.warn("[WooLeadActivityLog] woo notes fetch failed", error);
+        setWooNotes([]);
+      } else {
+        setWooNotes(((data as { notes?: WooNote[] })?.notes) ?? []);
+      }
+      setWooNotesLoading(false);
     })();
     return () => { cancelled = true; };
   }, [wooId]);
@@ -153,10 +217,58 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
       });
     }
 
+    // Stored Woo single-field notes (loaded on demand)
+    if (storedNotes.customer_note) {
+      items.push({
+        id: `woo-customer-note-${order.id}`,
+        type: "woo_customer_note",
+        label: "Customer note (checkout)",
+        description: storedNotes.customer_note,
+        actor: "Customer",
+        at: order.woo_created_at ?? new Date().toISOString(),
+        source: "woo",
+      });
+    }
+    if (storedNotes.internal_notes?.trim()) {
+      items.push({
+        id: `woo-internal-note-${order.id}`,
+        type: "woo_note",
+        label: "Internal note",
+        description: storedNotes.internal_notes,
+        actor: "WooCommerce",
+        at: order.woo_created_at ?? new Date().toISOString(),
+        source: "woo",
+      });
+    }
+    if (storedNotes.sales_notes?.trim()) {
+      items.push({
+        id: `woo-sales-note-${order.id}`,
+        type: "woo_note",
+        label: "Sales note",
+        description: storedNotes.sales_notes,
+        actor: "WooCommerce",
+        at: order.woo_created_at ?? new Date().toISOString(),
+        source: "woo",
+      });
+    }
+
+    // Live-fetched Woo order notes (customer + private)
+    for (const n of wooNotes) {
+      items.push({
+        id: `woo-note-${n.id}`,
+        type: n.customer_note ? "woo_customer_note" : "woo_note",
+        label: n.customer_note ? "Customer-facing note" : "Order note",
+        description: n.note,
+        actor: n.author || "WooCommerce",
+        at: n.date,
+        source: "woo",
+      });
+    }
+
     return items.sort(
       (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
     );
-  }, [entries, order, user]);
+  }, [entries, order, user, wooNotes, storedNotes]);
 
   const addEntry = async () => {
     const text = newText.trim();
@@ -212,6 +324,11 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
         <span className="text-xs text-muted-foreground">
           {timeline.length} {timeline.length === 1 ? "event" : "events"}
         </span>
+        {wooNotesLoading && (
+          <span className="ml-auto text-[11px] text-muted-foreground inline-flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" /> Syncing WooCommerce notes
+          </span>
+        )}
       </div>
 
       {/* Composer */}
