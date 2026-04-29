@@ -29,6 +29,7 @@ import { CompanyCreationTrend } from './CompanyCreationTrend';
 import { CompanyIndustryChart } from './CompanyIndustryChart';
 import { CompanyOwnerChart } from './CompanyOwnerChart';
 import { useProfileNames } from '@/hooks/useProfileNames';
+import { useCompanyPrimaryContacts } from '@/hooks/useCompanyPrimaryContacts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBulkUpdateCompanies, useCompanySavedViews } from '@/hooks/useCompanyCrm';
 import { classifyCompanies, type Bucket } from '@/lib/companyBuckets';
@@ -49,6 +50,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const { companies, loading, addCompany, updateCompany, adding } = useCompanies();
   const { user, userName } = useAuth();
   const { resolveName: resolveOwnerName } = useProfileNames();
+  const { primaryContactByCompany } = useCompanyPrimaryContacts();
   const { syncAllLeadsToCompanies } = usePushToCompany();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -625,6 +627,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <TableHead className="w-14">Tier</TableHead>
                   <TableHead className="w-24">Health</TableHead>
                   <TableHead>Company</TableHead>
+                  <TableHead>Contact Person</TableHead>
                   <TableHead>Industry</TableHead>
                   <TableHead>Account Manager</TableHead>
                   <TableHead>Status</TableHead>
@@ -681,7 +684,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
@@ -715,6 +718,32 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                           {company.name && company.name.trim() && company.name.trim() !== '-' ? company.name : 'Unnamed company'}
                         </div>
                         {company.city && <div className="text-xs text-muted-foreground">{company.city}{company.state ? `, ${company.state}` : ''}</div>}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const c = primaryContactByCompany.get(company.id);
+                          if (!c || !c.name) {
+                            return <span className="text-xs italic text-muted-foreground">—</span>;
+                          }
+                          return (
+                            <div className="min-w-[140px]">
+                              <div className="text-sm font-medium flex items-center gap-1">
+                                {c.name}
+                                {c.is_primary && (
+                                  <Badge className="text-[9px] px-1 py-0 h-4 bg-primary/15 text-primary border-0">Primary</Badge>
+                                )}
+                              </div>
+                              {c.designation && (
+                                <div className="text-[11px] text-muted-foreground">{c.designation}</div>
+                              )}
+                              {(c.phone || c.email) && (
+                                <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                                  {c.phone || c.email}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Select
