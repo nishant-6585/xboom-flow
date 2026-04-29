@@ -21,6 +21,8 @@ import { CompanyBucketAnalysis } from './CompanyBucketAnalysis';
 import { CompanyBucketBadge } from './CompanyBucketBadge';
 import { CompanyTierBadge } from './CompanyTierBadge';
 import { CompanyHealthBadge } from './CompanyHealthBadge';
+import { CompanyEngagementCard } from './CompanyEngagementCard';
+import { useCompanyEngagementMap, type EngagementBucket } from '@/hooks/useCompanyEngagement';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBulkUpdateCompanies, useCompanySavedViews } from '@/hooks/useCompanyCrm';
 import { classifyCompanies, type Bucket } from '@/lib/companyBuckets';
@@ -45,6 +47,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [bucketFilter, setBucketFilter] = useState<'all' | Bucket>('all');
   const [tierFilter, setTierFilter] = useState<string>('all');
   const [healthFilter, setHealthFilter] = useState<string>('all');
+  const [engagementFilter, setEngagementFilter] = useState<'all' | EngagementBucket | 'engaged'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const bulkUpdate = useBulkUpdateCompanies();
   const { views, saveView, deleteView } = useCompanySavedViews();
@@ -74,6 +77,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   }, [selectedLeadId, loading, companies]);
 
   const classification = useMemo(() => classifyCompanies(companies), [companies]);
+  const engagement = useCompanyEngagementMap(companies);
 
   const filtered = useMemo(() => {
     let list = [...companies];
@@ -90,8 +94,15 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     if (bucketFilter !== 'all') list = list.filter(c => classification.get(c.id) === bucketFilter);
     if (tierFilter !== 'all') list = list.filter(c => (c.tier || 'untiered') === tierFilter);
     if (healthFilter !== 'all') list = list.filter(c => (c.health_band || 'watch') === healthFilter);
+    if (engagementFilter !== 'all') {
+      list = list.filter(c => {
+        const b = engagement.map.get(c.id) ?? 'none';
+        if (engagementFilter === 'engaged') return b !== 'none';
+        return b === engagementFilter;
+      });
+    }
     return list;
-  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, classification]);
+  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, classification, engagement.map]);
 
   const allSelected = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
   const toggleAll = () => {
@@ -209,6 +220,12 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
       {/* Dashboard Visuals */}
       <CompanyDashboard companies={companies} />
 
+      {/* Engagement Coverage (Prospects vs Pipeline) */}
+      <CompanyEngagementCard
+        companies={companies}
+        onCompanyClick={(c) => { setSelectedCompany(c); setDrawerOpen(true); }}
+      />
+
       {/* ABC Bucket Analysis */}
       <CompanyBucketAnalysis companies={companies} />
 
@@ -320,6 +337,19 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <SelectItem value="watch">Watch</SelectItem>
                   <SelectItem value="at_risk">At Risk</SelectItem>
                   <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={engagementFilter} onValueChange={(v) => setEngagementFilter(v as any)}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Engagement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Engagement</SelectItem>
+                  <SelectItem value="engaged">Any Engagement</SelectItem>
+                  <SelectItem value="prospect">In Prospects only</SelectItem>
+                  <SelectItem value="pipeline">In Pipeline only</SelectItem>
+                  <SelectItem value="both">In Both</SelectItem>
+                  <SelectItem value="none">Not Engaged</SelectItem>
                 </SelectContent>
               </Select>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
