@@ -408,6 +408,18 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Industry" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">All Industries</SelectItem>
+                  <SelectItem value="__none__">— Not set —</SelectItem>
+                  {INDUSTRY_OPTIONS.map(opt => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />Add</Button>
