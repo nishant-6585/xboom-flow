@@ -391,6 +391,19 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <SelectItem value="none">Not Engaged</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                <SelectTrigger className="w-[170px]">
+                  <SelectValue placeholder="Account Manager" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">All Managers</SelectItem>
+                  {ownerOptions.map(o => (
+                    <SelectItem key={o.key} value={o.key}>
+                      {o.name} ({o.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />Add</Button>
