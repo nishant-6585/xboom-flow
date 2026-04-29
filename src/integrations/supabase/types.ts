@@ -8598,6 +8598,7 @@ export type Database = {
       }
       pipeline_orders: {
         Row: {
+          company_id: string | null
           created_at: string
           created_by: string
           customer_company: string
@@ -8629,6 +8630,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           created_by: string
           customer_company: string
@@ -8660,6 +8662,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           created_by?: string
           customer_company?: string
@@ -8691,6 +8694,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pipeline_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pipeline_orders_enquiry_id_fkey"
             columns: ["enquiry_id"]
@@ -12824,6 +12834,10 @@ export type Database = {
           product_name: string
           similarity_score: number
         }[]
+      }
+      find_or_create_company: {
+        Args: { _name: string; _owner: string }
+        Returns: string
       }
       generate_payment_reminders: { Args: never; Returns: undefined }
       generate_salary_sheets: { Args: never; Returns: undefined }
