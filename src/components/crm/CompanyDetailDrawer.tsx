@@ -103,10 +103,58 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                 </div>
                 <div>
                   <SheetTitle className="text-xl">
-                    {company.name && company.name.trim() && company.name.trim() !== '-'
-                      ? company.name
-                      : <span className="italic text-muted-foreground">Unnamed company</span>}
+                    {editingName ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={nameDraft}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          className="h-8 text-base font-semibold"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && nameDraft.trim()) {
+                              updateCompany({ id: company.id, name: nameDraft.trim() } as any);
+                              setEditingName(false);
+                            }
+                            if (e.key === 'Escape') setEditingName(false);
+                          }}
+                        />
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => {
+                          if (nameDraft.trim()) {
+                            updateCompany({ id: company.id, name: nameDraft.trim() } as any);
+                            setEditingName(false);
+                          }
+                        }}><Save className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingName(false)}><XIcon className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setNameDraft(company.name || ''); setEditingName(true); }}
+                        className="inline-flex items-center gap-1.5 hover:text-primary transition-colors group"
+                        title="Click to rename"
+                      >
+                        {company.name && company.name.trim() && company.name.trim() !== '-' && !/^\d+$/.test(company.name.trim())
+                          ? company.name
+                          : <span className="italic text-muted-foreground">{company.name?.trim() || 'Unnamed company'}</span>}
+                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                      </button>
+                    )}
                   </SheetTitle>
+                  {/* Suggest rename when name looks like a number/code and orders have a real customer_company */}
+                  {!editingName && company.name && /^\d+$/.test(company.name.trim()) && (orders[0] as any)?.customer_company && (orders[0] as any).customer_company !== company.name && (
+                    <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="h-3 w-3" />
+                      Looks like a code. Rename to
+                      <button
+                        type="button"
+                        onClick={() => updateCompany({ id: company.id, name: (orders[0] as any).customer_company } as any)}
+                        className="font-semibold underline hover:text-amber-700"
+                      >
+                        "{(orders[0] as any).customer_company}"
+                      </button>
+                      ?
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <Badge className={cn('text-[10px] border-0', company.status === 'customer' ? 'bg-green-500/20 text-green-700' : 'bg-blue-500/20 text-blue-700')}>
                       {company.status}
