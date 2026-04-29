@@ -46,6 +46,11 @@ export function isValidCompanyName(input?: string | null): boolean {
   if (!n) return false;
   if (SKIP_VALUES.has(n)) return false;
   if (n.length < 2) return false;
+  // Reject B2C order/enquiry numbers and phone-like strings.
+  // A real company name must contain at least one letter.
+  if (!/[a-z]/i.test(n)) return false;
+  // Reject pure numeric or numeric-with-symbols
+  if (/^[0-9\s\-+()]+$/.test(input || '')) return false;
   return true;
 }
 
