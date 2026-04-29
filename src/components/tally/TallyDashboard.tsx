@@ -479,16 +479,17 @@ export function TallyDashboard() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
+    const has = (v: unknown) => typeof v === "string" && v.toLowerCase().includes(q);
     const list = q
       ? rows.filter((r) =>
-          r.orderNumber.toLowerCase().includes(q) ||
-          r.customerName.toLowerCase().includes(q) ||
-          r.customerCompany.toLowerCase().includes(q) ||
-          r.productName.toLowerCase().includes(q) ||
-          r.invoiceNumber.toLowerCase().includes(q) ||
-          r.poNumber.toLowerCase().includes(q) ||
-          r.supplierName.toLowerCase().includes(q) ||
-          r.customerGst.toLowerCase().includes(q)
+          has(r.orderNumber) ||
+          has(r.customerName) ||
+          has(r.customerCompany) ||
+          has(r.productName) ||
+          has(r.invoiceNumber) ||
+          has(r.poNumber) ||
+          has(r.supplierName) ||
+          has(r.customerGst)
         )
       : rows;
     return [...list].sort((a, b) => {
