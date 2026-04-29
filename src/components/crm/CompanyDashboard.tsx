@@ -3,11 +3,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Company } from '@/hooks/useCompanies';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { CompanyDetailDrawer } from './CompanyDetailDrawer';
+import { useAllCompanyFollowups } from '@/hooks/useCompanyFollowups';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Clock, AlertCircle, Calendar } from 'lucide-react';
+import { format, isPast, formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(262, 83%, 58%)', 'hsl(0, 84%, 60%)'];
 
 export function CompanyDashboard({ companies }: { companies: Company[] }) {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [showFollowupsList, setShowFollowupsList] = useState(false);
+  const { followups: companyFollowups } = useAllCompanyFollowups();
+
+  const followupStats = useMemo(() => {
+    const now = new Date();
+    const overdue = companyFollowups.filter(f => f.status === 'pending' && new Date(f.followup_at) < now).length;
+    const today = companyFollowups.filter(f => {
+      const d = new Date(f.followup_at);
+      return f.status === 'pending' && d.toDateString() === now.toDateString();
+    }).length;
+    const upcoming = companyFollowups.filter(f => f.status === 'pending' && new Date(f.followup_at) >= now).length;
+    return { overdue, today, upcoming, total: companyFollowups.length };
+  }, [companyFollowups]);
+
+  const companyById = useMemo(() => {
+    const m = new Map<string, Company>();
+    companies.forEach(c => m.set(c.id, c));
+    return m;
+  }, [companies]);
   const statusData = useMemo(() => {
     const leads = companies.filter(c => c.status === 'lead').length;
     const customers = companies.filter(c => c.status === 'customer').length;
