@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 export interface Followup {
   id: string;
   user_id: string;
-  source_type: 'prospect' | 'pipeline' | 'enquiry' | 'lead';
+  source_type: 'prospect' | 'pipeline' | 'enquiry' | 'lead' | 'company';
   source_id: string;
   customer_name: string;
   customer_company: string | null;
@@ -28,7 +28,7 @@ export interface Followup {
 }
 
 export interface FollowupFormData {
-  source_type: 'prospect' | 'pipeline' | 'enquiry' | 'lead';
+  source_type: 'prospect' | 'pipeline' | 'enquiry' | 'lead' | 'company';
   source_id: string;
   customer_name: string;
   customer_company?: string | null;
