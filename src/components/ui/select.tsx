@@ -101,9 +101,24 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName;
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, value, ...props }, ref) => {
+  // Guard: Radix Select forbids empty string values. Substitute a safe sentinel
+  // and warn in dev so the offending call site can be fixed.
+  let safeValue = value;
+  if (typeof safeValue !== "string" || safeValue === "") {
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[SelectItem] Empty/invalid `value` prop detected. Falling back to '__empty__'. Children:",
+        children,
+      );
+    }
+    safeValue = "__empty__";
+  }
+  return (
   <SelectPrimitive.Item
     ref={ref}
+    value={safeValue}
     className={cn(
       "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground",
       className,
@@ -118,7 +133,8 @@ const SelectItem = React.forwardRef<
 
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
-));
+  );
+});
 SelectItem.displayName = SelectPrimitive.Item.displayName;
 
 const SelectSeparator = React.forwardRef<
