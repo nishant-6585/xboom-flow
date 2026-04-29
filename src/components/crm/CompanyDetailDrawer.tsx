@@ -99,7 +99,11 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                   <Building2 className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <SheetTitle className="text-xl">{company.name}</SheetTitle>
+                  <SheetTitle className="text-xl">
+                    {company.name && company.name.trim() && company.name.trim() !== '-'
+                      ? company.name
+                      : <span className="italic text-muted-foreground">Unnamed company</span>}
+                  </SheetTitle>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge className={cn('text-[10px] border-0', company.status === 'customer' ? 'bg-green-500/20 text-green-700' : 'bg-blue-500/20 text-blue-700')}>
                       {company.status}
