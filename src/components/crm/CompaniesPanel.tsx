@@ -624,9 +624,33 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <TableHead>Industry</TableHead>
                   <TableHead>Account Manager</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Orders</TableHead>
-                  <TableHead>Total Value</TableHead>
-                  <TableHead>Pipeline</TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('orders')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Orders <SortIcon k="orders" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('total_value')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Total Value <SortIcon k="total_value" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('pipeline')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Pipeline <SortIcon k="pipeline" />
+                    </button>
+                  </TableHead>
                   <TableHead>Recurring</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
