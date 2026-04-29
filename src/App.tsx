@@ -59,6 +59,7 @@ import BankReconciliation from "./pages/BankReconciliation";
 import DroneOperations from "./pages/DroneOperations";
 import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
+import CompanyCleanup from "./pages/CompanyCleanup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +114,7 @@ function AppInner() {
         <Route path="/payroll-reconciliation" element={<ProtectedRoute><PayrollReconciliation /></ProtectedRoute>} />
         <Route path="/daily-flow" element={<ProtectedRoute><DailyFlow /></ProtectedRoute>} />
         <Route path="/admin/ai-automation" element={<ProtectedRoute><AIAutomation /></ProtectedRoute>} />
+        <Route path="/admin/company-cleanup" element={<ProtectedRoute><CompanyCleanup /></ProtectedRoute>} />
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
