@@ -192,125 +192,24 @@ export function XboomWebsiteLeadsPanel() {
     });
   };
 
-  const leads = useMemo(
-    () => wooOrders.filter((o) => isWooLeadStatus(o.order_status)),
-    [wooOrders],
-  );
+  // Server-paginated rows ARE the current page already.
+  const leads = rows;
+  const filtered = rows;
+  const paged = rows;
 
-  // Detect status transitions across refreshes and log them as
-  // `status_change` activities so the drawer history reflects the change.
-  useEffect(() => {
-    if (loading || !user || wooOrders.length === 0) return;
-
-    const prevMap = statusSnapshotRef.current;
-    const performerName =
-      ((user.user_metadata as Record<string, unknown> | null)?.full_name as string) ||
-      user.email ||
-      "System";
-
-    // First pass after data loads — snapshot only, do not log historical states.
-    if (!initialSnapshotTakenRef.current) {
-      for (const o of wooOrders) {
-        if (o.woo_order_id) {
-          prevMap.set(o.woo_order_id, (o.order_status || "").toLowerCase());
-        }
-      }
-      initialSnapshotTakenRef.current = true;
-      return;
-    }
-
-    const transitions: Array<{
-      woo_order_id: string;
-      prev: string;
-      next: string;
-    }> = [];
-
-    for (const o of wooOrders) {
-      const wooId = o.woo_order_id;
-      if (!wooId) continue;
-      const next = (o.order_status || "").toLowerCase();
-      const prev = prevMap.get(wooId);
-      if (prev !== undefined && prev !== next) {
-        const key = `${wooId}|${prev}|${next}`;
-        if (!loggedTransitionsRef.current.has(key)) {
-          loggedTransitionsRef.current.add(key);
-          transitions.push({ woo_order_id: wooId, prev, next });
-        }
-      }
-      prevMap.set(wooId, next);
-    }
-
-    if (transitions.length === 0) return;
-
-    void (async () => {
-      const rows = transitions.map((t) => ({
-        woo_order_id: t.woo_order_id,
-        activity_type: "status_change",
-        description: `Status changed from "${t.prev || "unknown"}" to "${t.next || "unknown"}" (detected on refresh).`,
-        performed_by: user.id,
-        performed_by_name: performerName,
-      }));
-      const { error } = await supabase.from("woo_lead_activities").insert(rows);
-      if (error) {
-        console.warn("[XboomWebsiteLeadsPanel] status transition log failed", error);
-        // Allow retry on next refresh by clearing the dedupe keys
-        for (const t of transitions) {
-          loggedTransitionsRef.current.delete(`${t.woo_order_id}|${t.prev}|${t.next}`);
-        }
-      }
-    })();
-  }, [wooOrders, loading, user]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return leads.filter((l) => {
-      const status = (l.order_status || "").toLowerCase();
-      if (statusFilter !== "all" && status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        (l.order_number ?? "").toLowerCase().includes(q) ||
-        (l.woo_order_id ?? "").toLowerCase().includes(q) ||
-        (l.customer_name ?? "").toLowerCase().includes(q) ||
-        (l.customer_email ?? "").toLowerCase().includes(q) ||
-        (l.customer_phone ?? "").toLowerCase().includes(q) ||
-        (l.product_name ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [leads, search, statusFilter]);
-
-  // Client-side pagination — reduces DOM nodes from hundreds to PAGE_SIZE,
-  // which removes the perceived "loading delay" once data arrives.
-  const PAGE_SIZE = 50;
-  const [page, setPage] = useState(1);
   // Reset to page 1 whenever the filter set changes
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter, viewMode]);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const paged = useMemo(
-    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filtered, safePage],
-  );
-  const pageStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const pageEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
 
-  const stats = useMemo(() => {
-    const total = leads.length;
-    const counts: Record<string, number> = {
-      pending: 0, "on-hold": 0, failed: 0, cancelled: 0, refunded: 0,
-    };
-    for (const l of leads) {
-      const s = (l.order_status ?? "").toLowerCase();
-      if (s in counts) counts[s] += 1;
-    }
-    const lostValue = leads.reduce((s, l) => s + (Number(l.total_sales_amount) || 0), 0);
-    return { total, counts, lostValue };
-  }, [leads]);
+  const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = filteredCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(safePage * PAGE_SIZE, filteredCount);
 
   const selected = useMemo(
-    () => leads.find((l) => l.id === selectedId) ?? null,
-    [leads, selectedId],
+    () => rows.find((l) => l.id === selectedId) ?? null,
+    [rows, selectedId],
   );
 
   // Reset draft whenever the drawer's selected lead changes
@@ -411,13 +310,13 @@ export function XboomWebsiteLeadsPanel() {
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Pending Payment</p>
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.counts.pending.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{(stats.counts.pending ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Failed / Cancelled</p>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{(stats.counts.failed + stats.counts.cancelled).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{((stats.counts.failed ?? 0) + (stats.counts.cancelled ?? 0)).toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
@@ -505,10 +404,10 @@ export function XboomWebsiteLeadsPanel() {
             <Skeleton key={i} className="h-16 w-full rounded-md" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filteredCount === 0 ? (
         (() => {
           const hasFilters = search.trim() !== "" || statusFilter !== "all";
-          const hasAnyLeads = leads.length > 0;
+          const hasAnyLeads = stats.total > 0;
           const isFilteredEmpty = hasAnyLeads && hasFilters;
           const statusOnly = statusFilter !== "all" && search.trim() === "";
           return (
@@ -522,7 +421,7 @@ export function XboomWebsiteLeadsPanel() {
                     </p>
                     <p className="text-sm mt-1">
                       Nothing matches the “{statusFilter.replace(/-/g, " ")}” status right now.
-                      {leads.length > 0 && ` ${leads.length.toLocaleString()} lead${leads.length === 1 ? "" : "s"} in other statuses.`}
+                      {stats.total > 0 && ` ${stats.total.toLocaleString()} lead${stats.total === 1 ? "" : "s"} in other statuses.`}
                     </p>
                     <Button
                       variant="outline"
@@ -537,7 +436,7 @@ export function XboomWebsiteLeadsPanel() {
                   <>
                     <p className="font-medium">No leads match your filters</p>
                     <p className="text-sm mt-1">
-                      {leads.length.toLocaleString()} total lead{leads.length === 1 ? "" : "s"} available — try clearing filters.
+                      {stats.total.toLocaleString()} total lead{stats.total === 1 ? "" : "s"} available — try clearing filters.
                     </p>
                     <Button
                       variant="outline"
@@ -754,12 +653,12 @@ export function XboomWebsiteLeadsPanel() {
       )}
 
       {/* Pagination */}
-      {!loading && filtered.length > PAGE_SIZE && (
+      {!loading && filteredCount > PAGE_SIZE && (
         <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
           <span>
             Showing <span className="font-medium text-foreground">{pageStart}</span>–
             <span className="font-medium text-foreground">{pageEnd}</span> of{" "}
-            <span className="font-medium text-foreground">{filtered.length}</span> leads
+            <span className="font-medium text-foreground">{filteredCount}</span> leads
           </span>
           <div className="flex items-center gap-2">
             <Button
