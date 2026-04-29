@@ -41,17 +41,33 @@ export function useInteraktLeads() {
   const { data: leads = [], isLoading: loading, refetch } = useQuery({
     queryKey: ['interakt-leads'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('interakt_leads')
-        .select('*')
-        // Sort by the lead's actual creation time on Interakt (shown in
-        // the "Created On" column), not the row's DB sync time, so the
-        // newest leads always appear at the top of the list.
-        .order('interakt_created_at', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false });
+      // Supabase caps a single .select() at 1000 rows by default, which
+      // was causing the Interakt tab and analytics to permanently show
+      // a "1000" count even when there are thousands of leads. Page
+      // through the table in 1000-row chunks so we always return the
+      // full set, sorted by the lead's actual Interakt creation time
+      // (shown in the "Created On" column) so the newest appear first.
+      const PAGE = 1000;
+      const all: InteraktLead[] = [];
+      let from = 0;
+      // Hard safety cap to avoid runaway loops if the table ever grows
+      // unexpectedly large; bump if needed.
+      const MAX_ROWS = 100000;
+      while (from < MAX_ROWS) {
+        const { data, error } = await supabase
+          .from('interakt_leads')
+          .select('*')
+          .order('interakt_created_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE - 1);
 
-      if (error) throw error;
-      return data as unknown as InteraktLead[];
+        if (error) throw error;
+        const batch = (data ?? []) as unknown as InteraktLead[];
+        all.push(...batch);
+        if (batch.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
     },
   });
 
