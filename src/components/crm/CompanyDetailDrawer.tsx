@@ -197,38 +197,147 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                   <div className="text-center py-6 text-xs text-muted-foreground">No contacts added yet</div>
                 ) : (
                   <div className="space-y-2">
-                    {contacts.map(c => (
-                      <Card key={c.id} className="border-border/50">
-                        <CardContent className="p-3 flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-sm flex items-center gap-1.5">
-                              {c.name}
-                              {c.is_primary && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                    {contacts.map(c => {
+                      const isExpanded = expandedContactId === c.id;
+                      const isEditing = editingContactId === c.id;
+                      return (
+                        <Card key={c.id} className="border-border/50 overflow-hidden">
+                          <CardContent
+                            className="p-3 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors"
+                            onClick={() => {
+                              if (isEditing) return;
+                              setExpandedContactId(isExpanded ? null : c.id);
+                            }}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                              <div className="min-w-0">
+                                <div className="font-medium text-sm flex items-center gap-1.5">
+                                  {c.name}
+                                  {c.is_primary && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                                </div>
+                                {c.designation && <div className="text-xs text-muted-foreground truncate">{c.designation}</div>}
+                                {!isExpanded && (
+                                  <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                                    {c.phone && <span className="flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{c.phone}</span>}
+                                    {c.email && <span className="flex items-center gap-1 truncate"><Mail className="h-2.5 w-2.5" />{c.email}</span>}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            {c.designation && <div className="text-xs text-muted-foreground">{c.designation}</div>}
-                            <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                              {c.phone && <span className="flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{c.phone}</span>}
-                              {c.email && <span className="flex items-center gap-1"><Mail className="h-2.5 w-2.5" />{c.email}</span>}
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              {c.phone && !isEditing && (
+                                <CallButton
+                                  phoneNumber={c.phone}
+                                  entityType="company"
+                                  entityId={company.id}
+                                  iconOnly
+                                  variant="ghost"
+                                  className="h-7 w-7"
+                                />
+                              )}
+                              {!isEditing && (
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteContact(c.id)}>
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              )}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {c.phone && (
-                              <CallButton
-                                phoneNumber={c.phone}
-                                entityType="company"
-                                entityId={company.id}
-                                iconOnly
-                                variant="ghost"
-                                className="h-7 w-7"
-                              />
-                            )}
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteContact(c.id)}>
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                          {isExpanded && (
+                            <div className="border-t border-border/50 p-3 bg-muted/20 space-y-3" onClick={(e) => e.stopPropagation()}>
+                              {!isEditing ? (
+                                <>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                      <div className="text-muted-foreground">Phone</div>
+                                      <div className="font-medium flex items-center gap-1">
+                                        {c.phone ? <><Phone className="h-3 w-3" />{c.phone}</> : <span className="text-muted-foreground">—</span>}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-muted-foreground">Email</div>
+                                      <div className="font-medium flex items-center gap-1 truncate">
+                                        {c.email ? <><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{c.email}</span></> : <span className="text-muted-foreground">—</span>}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-muted-foreground">Designation</div>
+                                      <div className="font-medium">{c.designation || <span className="text-muted-foreground">—</span>}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-muted-foreground">Added</div>
+                                      <div className="font-medium flex items-center gap-1"><Calendar className="h-3 w-3" />{format(new Date(c.created_at), 'dd MMM yyyy')}</div>
+                                    </div>
+                                  </div>
+                                  {c.notes && (
+                                    <div className="text-xs">
+                                      <div className="text-muted-foreground mb-0.5">Notes</div>
+                                      <div className="whitespace-pre-wrap">{c.notes}</div>
+                                    </div>
+                                  )}
+                                  <div className="flex gap-2 pt-1">
+                                    <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => {
+                                      setEditingContactId(c.id);
+                                      setEditForm({
+                                        name: c.name,
+                                        designation: c.designation || '',
+                                        phone: c.phone || '',
+                                        email: c.email || '',
+                                        notes: c.notes || '',
+                                      });
+                                    }}>
+                                      <Pencil className="h-3 w-3" />Edit
+                                    </Button>
+                                    {!c.is_primary && (
+                                      <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={async () => {
+                                        // Demote others, promote this
+                                        for (const other of contacts.filter(x => x.is_primary && x.id !== c.id)) {
+                                          await updateContact({ id: other.id, is_primary: false });
+                                        }
+                                        await updateContact({ id: c.id, is_primary: true });
+                                      }}>
+                                        <Star className="h-3 w-3" />Set Primary
+                                      </Button>
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div><Label className="text-xs">Name *</Label><Input className="h-8 text-xs" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} /></div>
+                                    <div><Label className="text-xs">Designation</Label><Input className="h-8 text-xs" value={editForm.designation} onChange={e => setEditForm(f => ({ ...f, designation: e.target.value }))} /></div>
+                                    <div><Label className="text-xs">Phone</Label><Input className="h-8 text-xs" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} /></div>
+                                    <div><Label className="text-xs">Email</Label><Input className="h-8 text-xs" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} /></div>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Notes</Label>
+                                    <Input className="h-8 text-xs" value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button size="sm" className="text-xs h-7 gap-1" onClick={async () => {
+                                      await updateContact({
+                                        id: c.id,
+                                        name: editForm.name,
+                                        designation: editForm.designation || null,
+                                        phone: editForm.phone || null,
+                                        email: editForm.email || null,
+                                        notes: editForm.notes || null,
+                                      });
+                                      setEditingContactId(null);
+                                    }} disabled={!editForm.name.trim()}>
+                                      <Save className="h-3 w-3" />Save
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="text-xs h-7 gap-1" onClick={() => setEditingContactId(null)}>
+                                      <XIcon className="h-3 w-3" />Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>
