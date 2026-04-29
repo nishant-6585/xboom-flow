@@ -98,9 +98,21 @@ const SelectLabel = React.forwardRef<
 ));
 SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
+/**
+ * Compile-time guard: forbid empty-string `value` on SelectItem.
+ * Radix throws at runtime if value is "" — this catches it during typechecking.
+ */
+type NonEmptyString<T extends string> = T extends "" ? never : T;
+type SelectItemProps<V extends string = string> = Omit<
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>,
+  "value"
+> & {
+  value: NonEmptyString<V>;
+};
+
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
+  SelectItemProps
 >(({ className, children, value, ...props }, ref) => {
   // Guard: Radix Select forbids empty string values. Substitute a safe sentinel
   // and warn in dev so the offending call site can be fixed.
