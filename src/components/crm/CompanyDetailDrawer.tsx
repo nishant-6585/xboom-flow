@@ -83,9 +83,9 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={v => !v && onClose()}>
-      <SheetContent className="w-full sm:max-w-xl p-0">
-        <ScrollArea className="h-full">
-          <div className="p-6">
+      <SheetContent className="w-full sm:max-w-2xl p-0 overflow-hidden">
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 max-w-full">
             <SheetHeader className="text-left">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-xl bg-primary/10">
@@ -427,19 +427,19 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                       <Layers className="h-3 w-3" />Prospects ({prospects.length})
                     </div>
                     <div className="space-y-2">
-                      {prospects.map((p: any) => {
+              {prospects.map((p: any) => {
                         const unit = Number(p.quoted_price ?? p.default_price ?? 0);
                         const qty = Number(p.quantity ?? 1);
                         const total = unit * qty;
                         return (
-                          <Card key={p.id} className="border-border/50">
-                            <CardContent className="p-3 space-y-2">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium flex items-center gap-1.5 flex-wrap">
-                                    <Package className="h-3.5 w-3.5 text-primary shrink-0" />
-                                    <span className="truncate">{p.product_name || 'Unknown product'}</span>
-                                    {p.is_a_category && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                          <Card key={p.id} className="border-border/50 overflow-hidden">
+                            <CardContent className="p-3 space-y-2 min-w-0">
+                              <div className="flex items-start justify-between gap-2 min-w-0">
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm font-medium flex items-start gap-1.5 min-w-0">
+                                    <Package className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                                    <span className="break-words min-w-0 flex-1">{p.product_name || 'Unknown product'}</span>
+                                    {p.is_a_category && <Star className="h-3 w-3 text-amber-500 fill-amber-500 shrink-0 mt-0.5" />}
                                   </div>
                                   <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
                                     {p.product_category && <span className="flex items-center gap-1"><Tag className="h-2.5 w-2.5" />{p.product_category}</span>}
@@ -491,18 +491,18 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                       <TrendingUp className="h-3 w-3" />Pipeline Deals ({pipeline.length})
                     </div>
                     <div className="space-y-2">
-                      {pipeline.map((p: any) => {
+              {pipeline.map((p: any) => {
                         const value = Number(p.expected_price ?? 0);
                         const qty = Number(p.quantity ?? 1);
                         return (
-                          <Card key={p.id} className="border-border/50">
-                            <CardContent className="p-3 space-y-2">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium flex items-center gap-1.5 flex-wrap">
-                                    <Package className="h-3.5 w-3.5 text-primary shrink-0" />
-                                    <span className="truncate">{p.product_name || 'Unknown product'}</span>
-                                    {p.is_mega_deal && <Badge className="text-[9px] border-0 bg-amber-500/20 text-amber-700">MEGA</Badge>}
+                          <Card key={p.id} className="border-border/50 overflow-hidden">
+                            <CardContent className="p-3 space-y-2 min-w-0">
+                              <div className="flex items-start justify-between gap-2 min-w-0">
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm font-medium flex items-start gap-1.5 min-w-0">
+                                    <Package className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                                    <span className="break-words min-w-0 flex-1">{p.product_name || 'Unknown product'}</span>
+                                    {p.is_mega_deal && <Badge className="text-[9px] border-0 bg-amber-500/20 text-amber-700 shrink-0">MEGA</Badge>}
                                   </div>
                                   <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
                                     {p.product_category && <span className="flex items-center gap-1"><Tag className="h-2.5 w-2.5" />{p.product_category}</span>}
@@ -557,7 +557,7 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
               </TabsContent>
             </Tabs>
           </div>
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );
