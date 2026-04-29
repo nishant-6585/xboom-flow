@@ -443,7 +443,7 @@ Deno.serve(async (req) => {
         const name = parsed.name || extractLeadName(lead.submission_data);
         const phone = parsed.phone;
         const email = parsed.email;
-        const company = extractField(lead.submission_data, "COMPANY_NAME", "COMPANY", "ORGANIZATION") || "Unknown";
+        const company = extractField(lead.submission_data, "COMPANY_NAME", "COMPANY", "ORGANIZATION") || null;
         const city = parsed.city;
         const productInterest = extractField(lead.submission_data, "PRODUCT", "PRODUCT_TYPE", "WHAT_ARE_YOU_LOOKING_FOR", "INTERESTED_IN", "MODEL");
 

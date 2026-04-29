@@ -55,6 +55,7 @@ export function LeadCompanyCoverage() {
                     <TableHead>Source</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">With Company</TableHead>
+                    <TableHead className="text-right">Placeholder</TableHead>
                     <TableHead className="text-right">Coverage</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -64,6 +65,13 @@ export function LeadCompanyCoverage() {
                       <TableCell className="font-medium">{r.source}</TableCell>
                       <TableCell className="text-right text-muted-foreground">{r.total.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-semibold">{r.withCompany.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        {r.badPlaceholder > 0 ? (
+                          <Badge variant="destructive" className="text-xs">{r.badPlaceholder.toLocaleString()}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">0</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={r.pct >= 50 ? "default" : r.pct >= 20 ? "secondary" : "outline"}>
                           {r.pct}%
