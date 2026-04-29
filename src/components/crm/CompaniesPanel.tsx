@@ -19,6 +19,10 @@ import { CompanyDashboard } from './CompanyDashboard';
 import { LeadCompanyCoverage } from './LeadCompanyCoverage';
 import { CompanyBucketAnalysis } from './CompanyBucketAnalysis';
 import { CompanyBucketBadge } from './CompanyBucketBadge';
+import { CompanyTierBadge } from './CompanyTierBadge';
+import { CompanyHealthBadge } from './CompanyHealthBadge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useBulkUpdateCompanies, useCompanySavedViews } from '@/hooks/useCompanyCrm';
 import { classifyCompanies, type Bucket } from '@/lib/companyBuckets';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -39,6 +43,13 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [bucketFilter, setBucketFilter] = useState<'all' | Bucket>('all');
+  const [tierFilter, setTierFilter] = useState<string>('all');
+  const [healthFilter, setHealthFilter] = useState<string>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const bulkUpdate = useBulkUpdateCompanies();
+  const { views, saveView, deleteView } = useCompanySavedViews();
+  const [saveViewName, setSaveViewName] = useState('');
+  const [showSaveView, setShowSaveView] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -77,8 +88,67 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     }
     if (statusFilter !== 'all') list = list.filter(c => c.status === statusFilter);
     if (bucketFilter !== 'all') list = list.filter(c => classification.get(c.id) === bucketFilter);
+    if (tierFilter !== 'all') list = list.filter(c => (c.tier || '') === tierFilter);
+    if (healthFilter !== 'all') list = list.filter(c => (c.health_band || 'watch') === healthFilter);
     return list;
-  }, [companies, search, statusFilter, bucketFilter, classification]);
+  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, classification]);
+
+  const allSelected = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
+  const toggleAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map(c => c.id)));
+  };
+  const toggleOne = (id: string) => {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
+  const applyBulkTier = (t: 'A' | 'B' | 'C') => {
+    if (selectedIds.size === 0) return;
+    bulkUpdate.mutate(
+      { ids: Array.from(selectedIds), updates: { tier: t, tier_source: 'manual', tier_locked_at: new Date().toISOString(), tier_locked_by: user?.id } },
+      { onSuccess: () => setSelectedIds(new Set()) }
+    );
+  };
+
+  const exportCsv = () => {
+    const rows = filtered.map(c => ({
+      name: c.name, tier: c.tier || '', health_score: c.health_score || '', health_band: c.health_band || '',
+      industry: c.industry || '', city: c.city || '', status: c.status, orders: c.total_orders_count,
+      total_value: c.total_order_value, potential: c.potential_value || 0, pipeline: c.pipeline_value || 0,
+      last_order_at: c.last_order_at || '', last_activity_at: c.last_activity_at || '',
+    }));
+    const headers = Object.keys(rows[0] || { name: '' });
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => JSON.stringify((r as any)[h] ?? '')).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `companies_${Date.now()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSaveView = async () => {
+    if (!saveViewName.trim() || !user) return;
+    await saveView({
+      user_id: user.id,
+      name: saveViewName,
+      filters: { search, statusFilter, bucketFilter, tierFilter, healthFilter },
+    });
+    setSaveViewName('');
+    setShowSaveView(false);
+  };
+
+  const applyView = (v: any) => {
+    const f = v.filters || {};
+    setSearch(f.search || '');
+    setStatusFilter(f.statusFilter || 'all');
+    setBucketFilter(f.bucketFilter || 'all');
+    setTierFilter(f.tierFilter || 'all');
+    setHealthFilter(f.healthFilter || 'all');
+  };
 
   const totalCustomers = companies.filter(c => c.status === 'customer').length;
   const totalLeads = companies.filter(c => c.status === 'lead').length;
