@@ -58,7 +58,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [engagementFilter, setEngagementFilter] = useState<'all' | EngagementBucket | 'engaged'>('all');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [industryFilter, setIndustryFilter] = useState<string>('all');
-  const [sortKey, setSortKey] = useState<'orders' | 'total_value' | 'pipeline' | 'prospect' | null>(null);
+  const [sortKey, setSortKey] = useState<'orders' | 'total_value' | 'pipeline' | 'prospect' | 'created' | null>('created');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const bulkUpdate = useBulkUpdateCompanies();
@@ -128,6 +128,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
         if (sortKey === 'total_value') return Number(c.total_order_value || 0);
         if (sortKey === 'pipeline') return Number(engagement.pipelineValueById?.get(c.id) || 0);
         if (sortKey === 'prospect') return Number(engagement.prospectValueById?.get(c.id) || 0);
+        if (sortKey === 'created') return new Date((c as any).created_at || 0).getTime();
         return 0;
       };
       list.sort((a, b) => {
@@ -138,7 +139,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     return list;
   }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, ownerFilter, industryFilter, classification, engagement.map, sortKey, sortDir]);
 
-  const toggleSort = (key: 'orders' | 'total_value' | 'pipeline' | 'prospect') => {
+  const toggleSort = (key: 'orders' | 'total_value' | 'pipeline' | 'prospect' | 'created') => {
     if (sortKey === key) {
       if (sortDir === 'desc') setSortDir('asc');
       else { setSortKey(null); setSortDir('desc'); }
@@ -148,7 +149,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     }
   };
 
-  const SortIcon = ({ k }: { k: 'orders' | 'total_value' | 'pipeline' | 'prospect' }) => {
+  const SortIcon = ({ k }: { k: 'orders' | 'total_value' | 'pipeline' | 'prospect' | 'created' }) => {
     if (sortKey !== k) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
     return sortDir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />;
   };
