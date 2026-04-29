@@ -79,16 +79,32 @@ const relativeTime = (iso?: string | null) => {
 };
 
 export function XboomWebsiteLeadsPanel() {
-  // Only load the last 90 days of WooCommerce rows that are NOT fulfilled
-  // orders (i.e. real leads). Older history is excluded for performance —
-  // the table contains 20k+ rows and the leads team only actions recent
-  // pending / failed / cancelled / on-hold / refunded carts.
-  const { wooOrders, loading, refetch } = useWooCommerceOrders({
+  const { user } = useAuth();
+  // Filters / pagination state — declared up-front because the data hook
+  // pushes them down to Postgres (server-side pagination & search).
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+
+  // Server-paginated leads. Only the visible page is fetched; stats are a
+  // separate lightweight aggregate. Older history was already cleaned up.
+  const {
+    rows,
+    filteredCount,
+    stats,
+    loading,
+    statsLoading,
+    refetch,
+  } = useWooLeadsPaginated({
+    page,
+    pageSize: PAGE_SIZE,
+    search,
+    status: statusFilter,
     sinceDays: 90,
-    leadOnly: true,
     excludeLost: true,
   });
-  const { user } = useAuth();
 
   // Salespeople available for assignment (admin / sales / sales_manager).
   const [salespeople, setSalespeople] = useState<
