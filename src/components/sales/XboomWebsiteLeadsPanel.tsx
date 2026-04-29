@@ -19,7 +19,7 @@ import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useWooCommerceOrders } from "@/hooks/useWooCommerceOrders";
+import { useWooLeadsPaginated } from "@/hooks/useWooLeadsPaginated";
 import { isWooLeadStatus } from "@/lib/wooOrderStatuses";
 import { WooLeadActivityLog } from "./WooLeadActivityLog";
 import { supabase } from "@/integrations/supabase/client";
