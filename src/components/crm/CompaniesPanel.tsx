@@ -24,6 +24,7 @@ import { CompanyHealthBadge } from './CompanyHealthBadge';
 import { CompanyEngagementCard } from './CompanyEngagementCard';
 import { useCompanyEngagementMap, type EngagementBucket } from '@/hooks/useCompanyEngagement';
 import { CompanyCreationTrend } from './CompanyCreationTrend';
+import { CompanyIndustryChart } from './CompanyIndustryChart';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBulkUpdateCompanies, useCompanySavedViews } from '@/hooks/useCompanyCrm';
 import { classifyCompanies, type Bucket } from '@/lib/companyBuckets';
@@ -223,6 +224,12 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
 
       {/* Company Creation Trend (timeline-selectable) */}
       <CompanyCreationTrend companies={companies} />
+
+      {/* Industry-wise Distribution */}
+      <CompanyIndustryChart
+        companies={companies}
+        onCompanyClick={(c) => { setSelectedCompany(c); setDrawerOpen(true); }}
+      />
 
       {/* Engagement Coverage (Prospects vs Pipeline) */}
       <CompanyEngagementCard
