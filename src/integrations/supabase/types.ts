@@ -12687,6 +12687,7 @@ export type Database = {
       }
       generate_payment_reminders: { Args: never; Returns: undefined }
       generate_salary_sheets: { Args: never; Returns: undefined }
+      get_cron_secret: { Args: never; Returns: string }
       get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
       get_employee_kpi: {
         Args: { p_employee_id: string; p_month?: string }
