@@ -58,7 +58,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [engagementFilter, setEngagementFilter] = useState<'all' | EngagementBucket | 'engaged'>('all');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [industryFilter, setIndustryFilter] = useState<string>('all');
-  const [sortKey, setSortKey] = useState<'orders' | 'total_value' | 'pipeline' | 'prospect' | null>(null);
+  const [sortKey, setSortKey] = useState<'orders' | 'total_value' | 'pipeline' | 'prospect' | 'created' | null>('created');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const bulkUpdate = useBulkUpdateCompanies();
@@ -128,6 +128,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
         if (sortKey === 'total_value') return Number(c.total_order_value || 0);
         if (sortKey === 'pipeline') return Number(engagement.pipelineValueById?.get(c.id) || 0);
         if (sortKey === 'prospect') return Number(engagement.prospectValueById?.get(c.id) || 0);
+        if (sortKey === 'created') return new Date((c as any).created_at || 0).getTime();
         return 0;
       };
       list.sort((a, b) => {
@@ -138,7 +139,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     return list;
   }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, ownerFilter, industryFilter, classification, engagement.map, sortKey, sortDir]);
 
-  const toggleSort = (key: 'orders' | 'total_value' | 'pipeline' | 'prospect') => {
+  const toggleSort = (key: 'orders' | 'total_value' | 'pipeline' | 'prospect' | 'created') => {
     if (sortKey === key) {
       if (sortDir === 'desc') setSortDir('asc');
       else { setSortKey(null); setSortDir('desc'); }
@@ -148,7 +149,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     }
   };
 
-  const SortIcon = ({ k }: { k: 'orders' | 'total_value' | 'pipeline' | 'prospect' }) => {
+  const SortIcon = ({ k }: { k: 'orders' | 'total_value' | 'pipeline' | 'prospect' | 'created' }) => {
     if (sortKey !== k) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
     return sortDir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />;
   };
@@ -665,13 +666,22 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                     </button>
                   </TableHead>
                   <TableHead>Recurring</TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('created')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Created <SortIcon k="created" />
+                    </button>
+                  </TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
@@ -701,7 +711,9 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                         <CompanyHealthBadge score={company.health_score} band={company.health_band as any} />
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-sm">{company.name}</div>
+                        <div className={cn('font-medium text-sm', (!company.name || company.name.trim() === '' || company.name.trim() === '-') && 'italic text-muted-foreground')}>
+                          {company.name && company.name.trim() && company.name.trim() !== '-' ? company.name : 'Unnamed company'}
+                        </div>
                         {company.city && <div className="text-xs text-muted-foreground">{company.city}{company.state ? `, ${company.state}` : ''}</div>}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -787,6 +799,11 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                             <RefreshCw className="h-2.5 w-2.5 mr-0.5" />Recurring
                           </Badge>
                         ) : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {(company as any).created_at ? new Date((company as any).created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                        </span>
                       </TableCell>
                       <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
                     </TableRow>

@@ -25,15 +25,19 @@ export function useCompanyEngagementSources() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('prospects')
-        .select('customer_company, company, status, quoted_price, default_price, quantity')
+        .select('customer_company, company, company_id, status, quoted_price, default_price, quantity')
         .not('status', 'in', `(${OPEN_PROSPECT_BLOCK.join(',')})`);
       if (error) throw error;
       const set = new Set<string>();
       const valueByName = new Map<string, number>();
+      const valueById = new Map<string, number>();
       (data || []).forEach((r: any) => {
         const unit = Number(r.quoted_price ?? r.default_price ?? 0);
         const qty = Number(r.quantity ?? 1);
         const v = unit * qty;
+        if (r.company_id) {
+          valueById.set(r.company_id, (valueById.get(r.company_id) || 0) + v);
+        }
         [r.customer_company, r.company].forEach((raw: string) => {
           const n = norm(raw);
           if (!n) return;
@@ -41,7 +45,7 @@ export function useCompanyEngagementSources() {
           valueByName.set(n, (valueByName.get(n) || 0) + v);
         });
       });
-      return { set, valueByName };
+      return { set, valueByName, valueById };
     },
     staleTime: 60_000,
   });
@@ -51,18 +55,23 @@ export function useCompanyEngagementSources() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pipeline_orders')
-        .select('customer_company, status, expected_price')
+        .select('customer_company, company_id, status, expected_price')
         .not('status', 'in', `(${OPEN_PIPELINE_BLOCK.join(',')})`);
       if (error) throw error;
       const set = new Set<string>();
       const valueByName = new Map<string, number>();
+      const valueById = new Map<string, number>();
       (data || []).forEach((r: any) => {
+        const v = Number(r.expected_price || 0);
+        if (r.company_id) {
+          valueById.set(r.company_id, (valueById.get(r.company_id) || 0) + v);
+        }
         const n = norm(r.customer_company);
         if (!n) return;
         set.add(n);
-        valueByName.set(n, (valueByName.get(n) || 0) + Number(r.expected_price || 0));
+        valueByName.set(n, (valueByName.get(n) || 0) + v);
       });
-      return { set, valueByName };
+      return { set, valueByName, valueById };
     },
     staleTime: 60_000,
   });
@@ -72,6 +81,8 @@ export function useCompanyEngagementSources() {
     pipelineNames: pipelineQ.data?.set ?? new Set<string>(),
     prospectValueByName: prospectsQ.data?.valueByName ?? new Map<string, number>(),
     pipelineValueByName: pipelineQ.data?.valueByName ?? new Map<string, number>(),
+    prospectValueByCompanyId: prospectsQ.data?.valueById ?? new Map<string, number>(),
+    pipelineValueByCompanyId: pipelineQ.data?.valueById ?? new Map<string, number>(),
     loading: prospectsQ.isLoading || pipelineQ.isLoading,
   };
 }
@@ -79,7 +90,12 @@ export function useCompanyEngagementSources() {
 export type EngagementBucket = 'prospect' | 'pipeline' | 'both' | 'none';
 
 export function useCompanyEngagementMap(companies: Company[]) {
-  const { prospectNames, pipelineNames, prospectValueByName, pipelineValueByName, loading } = useCompanyEngagementSources();
+  const {
+    prospectNames, pipelineNames,
+    prospectValueByName, pipelineValueByName,
+    prospectValueByCompanyId, pipelineValueByCompanyId,
+    loading,
+  } = useCompanyEngagementSources();
 
   return useMemo(() => {
     const map = new Map<string, EngagementBucket>();
@@ -93,10 +109,15 @@ export function useCompanyEngagementMap(companies: Company[]) {
 
     companies.forEach((c) => {
       const n = norm(c.name);
-      const p = n ? prospectNames.has(n) : false;
-      const pl = n ? pipelineNames.has(n) : false;
-      const pv = n ? (prospectValueByName.get(n) || 0) : 0;
-      const plv = n ? (pipelineValueByName.get(n) || 0) : 0;
+      // Prefer FK match (company_id), fall back to normalized name match
+      const pvById = prospectValueByCompanyId.get(c.id) || 0;
+      const plvById = pipelineValueByCompanyId.get(c.id) || 0;
+      const pvByName = n ? (prospectValueByName.get(n) || 0) : 0;
+      const plvByName = n ? (pipelineValueByName.get(n) || 0) : 0;
+      const pv = Math.max(pvById, pvByName);
+      const plv = Math.max(plvById, plvByName);
+      const p = pvById > 0 || (n ? prospectNames.has(n) : false);
+      const pl = plvById > 0 || (n ? pipelineNames.has(n) : false);
       prospectValueById.set(c.id, pv);
       pipelineValueById.set(c.id, plv);
       let bucket: EngagementBucket = 'none';
@@ -129,5 +150,5 @@ export function useCompanyEngagementMap(companies: Company[]) {
       ids: { prospect: inProspect, pipeline: inPipeline, both: inBoth, none },
       loading,
     };
-  }, [companies, prospectNames, pipelineNames, prospectValueByName, pipelineValueByName, loading]);
+  }, [companies, prospectNames, pipelineNames, prospectValueByName, pipelineValueByName, prospectValueByCompanyId, pipelineValueByCompanyId, loading]);
 }
