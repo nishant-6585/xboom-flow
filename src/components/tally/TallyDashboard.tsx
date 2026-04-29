@@ -393,6 +393,10 @@ export function TallyDashboard() {
       const pendingPayment = salesValue - amountReceived;
 
       // Calculate procurement cost with robust fallbacks across procurement sources
+      // Calculate procurement cost. Track whether ANY source had real pricing,
+      // so rows with procurements awaiting supplier pricing don't display ₹0
+      // and inflate the profit / margin columns.
+      const itemsHavePricing = items.some(i => (i.procurement_rate ?? 0) > 0);
       const itemsProcCost = items.reduce((sum, item) => {
         const rate = item.procurement_rate || 0;
         const qty = item.quantity_procured && item.quantity_procured > 0
@@ -402,18 +406,31 @@ export function TallyDashboard() {
         return sum + ((rate + gst) * qty);
       }, 0);
 
+      const orderHasPricing = (o.procurement_rate ?? 0) > 0;
       const orderLevelProcCost = (o.procurement_rate || 0) * (o.quantity || 0);
 
+      const procsHavePricing = procs.some(p => (p.total_amount ?? 0) > 0 || (p.unit_price ?? 0) > 0);
       const procTableCost = procs.reduce((sum, p) => {
         const total = p.total_amount || 0;
         if (total > 0) return sum + total;
         return sum + ((p.unit_price || 0) * (p.quantity || 0));
       }, 0);
 
-      const procurementValue = itemsProcCost || orderLevelProcCost || procTableCost;
+      let procurementValue = 0;
+      let procurementCostKnown = false;
+      if (itemsHavePricing) {
+        procurementValue = itemsProcCost;
+        procurementCostKnown = true;
+      } else if (orderHasPricing) {
+        procurementValue = orderLevelProcCost;
+        procurementCostKnown = true;
+      } else if (procsHavePricing) {
+        procurementValue = procTableCost;
+        procurementCostKnown = true;
+      }
 
-      const profit = salesValue - procurementValue;
-      const profitMargin = salesValue > 0 ? (profit / salesValue) * 100 : 0;
+      const profit = procurementCostKnown ? salesValue - procurementValue : 0;
+      const profitMargin = procurementCostKnown && salesValue > 0 ? (profit / salesValue) * 100 : 0;
 
       const procPayStatuses = procs.map((p) => p.payment_status);
       const procPaymentStatus = procPayStatuses.length === 0
@@ -460,6 +477,7 @@ export function TallyDashboard() {
         amountReceived,
         pendingPayment,
         procurementValue,
+        procurementCostKnown,
         profit,
         profitMargin,
         orderStatus: o.status,
