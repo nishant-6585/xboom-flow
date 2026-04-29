@@ -310,13 +310,13 @@ export function XboomWebsiteLeadsPanel() {
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Pending Payment</p>
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.counts.pending.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{(stats.counts.pending ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Failed / Cancelled</p>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{(stats.counts.failed + stats.counts.cancelled).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{((stats.counts.failed ?? 0) + (stats.counts.cancelled ?? 0)).toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
@@ -404,10 +404,10 @@ export function XboomWebsiteLeadsPanel() {
             <Skeleton key={i} className="h-16 w-full rounded-md" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filteredCount === 0 ? (
         (() => {
           const hasFilters = search.trim() !== "" || statusFilter !== "all";
-          const hasAnyLeads = leads.length > 0;
+          const hasAnyLeads = stats.total > 0;
           const isFilteredEmpty = hasAnyLeads && hasFilters;
           const statusOnly = statusFilter !== "all" && search.trim() === "";
           return (
@@ -421,7 +421,7 @@ export function XboomWebsiteLeadsPanel() {
                     </p>
                     <p className="text-sm mt-1">
                       Nothing matches the “{statusFilter.replace(/-/g, " ")}” status right now.
-                      {leads.length > 0 && ` ${leads.length.toLocaleString()} lead${leads.length === 1 ? "" : "s"} in other statuses.`}
+                      {stats.total > 0 && ` ${stats.total.toLocaleString()} lead${stats.total === 1 ? "" : "s"} in other statuses.`}
                     </p>
                     <Button
                       variant="outline"
@@ -436,7 +436,7 @@ export function XboomWebsiteLeadsPanel() {
                   <>
                     <p className="font-medium">No leads match your filters</p>
                     <p className="text-sm mt-1">
-                      {leads.length.toLocaleString()} total lead{leads.length === 1 ? "" : "s"} available — try clearing filters.
+                      {stats.total.toLocaleString()} total lead{stats.total === 1 ? "" : "s"} available — try clearing filters.
                     </p>
                     <Button
                       variant="outline"
