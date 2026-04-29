@@ -28,7 +28,7 @@ export function useCompanyFollowups(companyId: string | null) {
  */
 export function useAllCompanyFollowups() {
   const { data = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ['all-company-followups'],
+    queryKey: ['all-company-followups', 'v2-unified'],
     queryFn: async (): Promise<Followup[]> => {
       const { data, error } = await (supabase as any).rpc('get_all_company_followups');
       if (error) throw error;
@@ -36,7 +36,8 @@ export function useAllCompanyFollowups() {
         (a.followup_at || '').localeCompare(b.followup_at || '')
       ) as unknown as Followup[];
     },
-    staleTime: 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchOnMount: true,
   });
 
   return { followups: data, loading, refetch };
