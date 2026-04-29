@@ -298,6 +298,30 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <SelectItem value="C">Bucket C</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={tierFilter} onValueChange={setTierFilter}>
+                <SelectTrigger className="w-[110px]">
+                  <SelectValue placeholder="Tier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tiers</SelectItem>
+                  <SelectItem value="A">Tier A</SelectItem>
+                  <SelectItem value="B">Tier B</SelectItem>
+                  <SelectItem value="C">Tier C</SelectItem>
+                  <SelectItem value="">Untiered</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={healthFilter} onValueChange={setHealthFilter}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Health" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Health</SelectItem>
+                  <SelectItem value="healthy">Healthy</SelectItem>
+                  <SelectItem value="watch">Watch</SelectItem>
+                  <SelectItem value="at_risk">At Risk</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />Add</Button>
