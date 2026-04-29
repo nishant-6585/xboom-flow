@@ -37,7 +37,8 @@ interface SuspectCompany {
 }
 
 export default function CompanyCleanup() {
-  const { user, isApproved, isAdmin, loading } = useAuth();
+  const { user, isApproved, roles, loading } = useAuth();
+  const isAdmin = (roles as string[] | undefined)?.includes("admin") ?? false;
   const navigate = useNavigate();
   const { toast } = useToast();
   const qc = useQueryClient();
