@@ -23,6 +23,7 @@ import { CompanyTierBadge } from './CompanyTierBadge';
 import { CompanyHealthBadge } from './CompanyHealthBadge';
 import { CompanyEngagementCard } from './CompanyEngagementCard';
 import { useCompanyEngagementMap, type EngagementBucket } from '@/hooks/useCompanyEngagement';
+import { CompanyCreationTrend } from './CompanyCreationTrend';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBulkUpdateCompanies, useCompanySavedViews } from '@/hooks/useCompanyCrm';
 import { classifyCompanies, type Bucket } from '@/lib/companyBuckets';
@@ -219,6 +220,9 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     <div className="space-y-6">
       {/* Dashboard Visuals */}
       <CompanyDashboard companies={companies} />
+
+      {/* Company Creation Trend (timeline-selectable) */}
+      <CompanyCreationTrend companies={companies} />
 
       {/* Engagement Coverage (Prospects vs Pipeline) */}
       <CompanyEngagementCard
