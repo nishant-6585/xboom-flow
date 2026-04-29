@@ -3952,6 +3952,7 @@ export type Database = {
           ai_score: number | null
           campaign_id: string | null
           campaign_name: string | null
+          company_id: string | null
           conversion_date: string | null
           conversion_value: number
           created_at: string
@@ -4010,6 +4011,7 @@ export type Database = {
           ai_score?: number | null
           campaign_id?: string | null
           campaign_name?: string | null
+          company_id?: string | null
           conversion_date?: string | null
           conversion_value?: number
           created_at?: string
@@ -4068,6 +4070,7 @@ export type Database = {
           ai_score?: number | null
           campaign_id?: string | null
           campaign_name?: string | null
+          company_id?: string | null
           conversion_date?: string | null
           conversion_value?: number
           created_at?: string
@@ -4115,6 +4118,13 @@ export type Database = {
           urgency?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "enquiries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "enquiries_email_lead_id_fkey"
             columns: ["email_lead_id"]
@@ -12896,10 +12906,9 @@ export type Database = {
           similarity_score: number
         }[]
       }
-      find_or_create_company: {
-        Args: { _name: string; _owner: string }
-        Returns: string
-      }
+      find_or_create_company:
+        | { Args: { _name: string; _owner: string }; Returns: string }
+        | { Args: { p_name: string }; Returns: string }
       generate_payment_reminders: { Args: never; Returns: undefined }
       generate_salary_sheets: { Args: never; Returns: undefined }
       get_cron_secret: { Args: never; Returns: string }
@@ -13121,6 +13130,7 @@ export type Database = {
         Returns: string
       }
       needs_step_up_auth: { Args: { p_user_id: string }; Returns: boolean }
+      normalize_company_name: { Args: { p_name: string }; Returns: string }
       recompute_company_health: {
         Args: { _company_id: string }
         Returns: undefined
