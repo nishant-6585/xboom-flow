@@ -21,6 +21,7 @@ import { CompanyBucketAnalysis } from './CompanyBucketAnalysis';
 import { CompanyBucketBadge } from './CompanyBucketBadge';
 import { CompanyTierBadge } from './CompanyTierBadge';
 import { CompanyTierPicker } from './CompanyTierPicker';
+import { CompanyOwnerPicker } from './CompanyOwnerPicker';
 import { CompanyHealthBadge } from './CompanyHealthBadge';
 import { CompanyEngagementCard } from './CompanyEngagementCard';
 import { useCompanyEngagementMap, type EngagementBucket } from '@/hooks/useCompanyEngagement';
@@ -720,12 +721,12 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
-                        {company.account_owner_id ? (
-                          <span className="text-xs font-medium text-foreground">{resolveOwnerName(company.account_owner_id)}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">Unassigned</span>
-                        )}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <CompanyOwnerPicker
+                          ownerId={company.account_owner_id}
+                          ownerName={company.account_owner_id ? resolveOwnerName(company.account_owner_id) : null}
+                          onChange={(uid) => updateCompany({ id: company.id, account_owner_id: uid as any })}
+                        />
                       </TableCell>
                       <TableCell>
                         <Badge className={cn('text-[10px] border-0', company.status === 'customer' ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-blue-500/20 text-blue-700 dark:text-blue-400')}>
