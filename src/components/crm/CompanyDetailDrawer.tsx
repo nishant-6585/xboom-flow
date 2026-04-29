@@ -13,7 +13,8 @@ import { Company, useCompanyContacts, useCompanyOrders, useCompanyProspects, use
 import { format } from 'date-fns';
 import {
   Building2, Phone, Mail, Globe, MapPin, Plus, Trash2, User, Package,
-  TrendingUp, IndianRupee, RefreshCw, Loader2, Star, Activity, Sparkles
+  TrendingUp, IndianRupee, RefreshCw, Loader2, Star, Activity, Sparkles,
+  ChevronDown, ChevronRight, Pencil, Save, X as XIcon, Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallButton } from '@/components/calls/CallButton';
@@ -40,13 +41,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function CompanyDetailDrawer({ company, open, onClose }: Props) {
-  const { contacts, addContact, deleteContact } = useCompanyContacts(company?.id || null);
+  const { contacts, addContact, deleteContact, updateContact } = useCompanyContacts(company?.id || null);
   const { orders } = useCompanyOrders(company?.id || null);
   const { prospects } = useCompanyProspects(company?.id || null);
   const { pipeline } = useCompanyPipeline(company?.name || null);
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', designation: '', phone: '', email: '' });
   const [addingContact, setAddingContact] = useState(false);
+  const [expandedContactId, setExpandedContactId] = useState<string | null>(null);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', designation: '', phone: '', email: '', notes: '' });
 
   if (!company) return null;
 
