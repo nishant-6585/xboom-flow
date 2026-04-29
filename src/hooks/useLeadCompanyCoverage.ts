@@ -12,7 +12,10 @@ export interface SourceCoverage {
 export function useLeadCompanyCoverage() {
   return useQuery({
     queryKey: ["lead-company-coverage"],
-    staleTime: 5 * 60 * 1000,
+    // Keep this short so cleanup actions are reflected promptly
+    staleTime: 30 * 1000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<SourceCoverage[]> => {
       const { data, error } = await supabase.rpc("lead_company_coverage");
       if (error) throw error;
