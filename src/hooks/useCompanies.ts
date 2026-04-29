@@ -46,6 +46,8 @@ export interface CompanyContact {
   company_id: string;
   name: string;
   designation: string | null;
+  department: string | null;
+  city: string | null;
   phone: string | null;
   email: string | null;
   is_primary: boolean;
