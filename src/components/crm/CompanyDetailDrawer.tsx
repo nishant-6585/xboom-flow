@@ -27,6 +27,8 @@ import { CompanyTierBadge } from './CompanyTierBadge';
 import { CompanyHealthBadge } from './CompanyHealthBadge';
 import { CompanyTimelineTab } from './CompanyTimelineTab';
 import { CompanyAccountTab } from './CompanyAccountTab';
+import { ContactFieldCombo } from './ContactFieldCombo';
+import { DEPARTMENT_OPTIONS, DESIGNATION_OPTIONS, CITY_OPTIONS } from './ContactFieldOptions';
 
 interface Props {
   company: Company | null;
@@ -54,7 +56,7 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
   const { resolveName: resolveOwnerName } = useProfileNames();
   const { followups: companyFollowups } = useCompanyFollowups(company?.id || null);
   const [showAddContact, setShowAddContact] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: '', designation: '', phone: '', email: '' });
+  const [contactForm, setContactForm] = useState({ name: '', designation: '', department: '', city: '', phone: '', email: '' });
   const [addingContact, setAddingContact] = useState(false);
   const [expandedContactId, setExpandedContactId] = useState<string | null>(null);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
@@ -73,10 +75,12 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
         company_id: company.id,
         name: contactForm.name,
         designation: contactForm.designation || null,
+        department: contactForm.department || null,
+        city: contactForm.city || null,
         phone: contactForm.phone || null,
         email: contactForm.email || null,
-      });
-      setContactForm({ name: '', designation: '', phone: '', email: '' });
+      } as any);
+      setContactForm({ name: '', designation: '', department: '', city: '', phone: '', email: '' });
       setShowAddContact(false);
     } finally {
       setAddingContact(false);
