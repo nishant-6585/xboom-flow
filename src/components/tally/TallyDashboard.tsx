@@ -111,6 +111,7 @@ interface TallyRow {
   amountReceived: number;
   pendingPayment: number;
   procurementValue: number;
+  procurementCostKnown: boolean;
   profit: number;
   profitMargin: number;
   orderStatus: string;
