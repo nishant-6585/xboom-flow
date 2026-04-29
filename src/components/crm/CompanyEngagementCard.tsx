@@ -25,16 +25,23 @@ const BUCKET_META: Record<EngagementBucket, { label: string; icon: any; tone: st
 };
 
 export function CompanyEngagementCard({ companies, onCompanyClick }: Props) {
-  const { counts, ids, loading } = useCompanyEngagementMap(companies);
+  const { counts, ids, values, loading } = useCompanyEngagementMap(companies);
   const [openBucket, setOpenBucket] = useState<EngagementBucket | null>(null);
   const [search, setSearch] = useState('');
 
   const total = companies.length;
-  const tiles: { bucket: EngagementBucket; count: number }[] = [
-    { bucket: 'prospect', count: counts.prospect },
-    { bucket: 'pipeline', count: counts.pipeline },
-    { bucket: 'both', count: counts.both },
-    { bucket: 'none', count: counts.none },
+  const fmtINR = (v: number) => {
+    if (!v) return null;
+    if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)} Cr`;
+    if (v >= 100000) return `₹${(v / 100000).toFixed(2)} L`;
+    if (v >= 1000) return `₹${(v / 1000).toFixed(1)} K`;
+    return `₹${Math.round(v)}`;
+  };
+  const tiles: { bucket: EngagementBucket; count: number; value: number | null }[] = [
+    { bucket: 'prospect', count: counts.prospect, value: values.prospect },
+    { bucket: 'pipeline', count: counts.pipeline, value: values.pipeline },
+    { bucket: 'both', count: counts.both, value: values.both },
+    { bucket: 'none', count: counts.none, value: null },
   ];
 
   const dialogList = useMemo(() => {
@@ -62,10 +69,11 @@ export function CompanyEngagementCard({ companies, onCompanyClick }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {tiles.map(({ bucket, count }) => {
+          {tiles.map(({ bucket, count, value }) => {
             const meta = BUCKET_META[bucket];
             const Icon = meta.icon;
             const pct = total ? Math.round((count / total) * 100) : 0;
+            const valueLabel = value != null ? fmtINR(value) : null;
             return (
               <button
                 key={bucket}
@@ -89,6 +97,11 @@ export function CompanyEngagementCard({ companies, onCompanyClick }: Props) {
                   <span className={cn('text-2xl font-bold', meta.tone)}>{count}</span>
                   <span className="text-[10px] text-muted-foreground">· {pct}%</span>
                 </div>
+                {valueLabel && (
+                  <div className={cn('text-[11px] font-semibold mt-1', meta.tone)}>
+                    {valueLabel} <span className="text-[9px] text-muted-foreground font-normal">open value</span>
+                  </div>
+                )}
                 <div className="text-[10px] text-muted-foreground/80 mt-0.5 group-hover:text-foreground transition-colors">
                   {count > 0 ? 'Click to view companies →' : 'No companies'}
                 </div>
