@@ -34,7 +34,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Search, Building2, Plus, Filter, ChevronRight, Loader2,
-  RefreshCw, Users, TrendingUp, IndianRupee, Download, Check, ChevronsUpDown, UserPlus
+  RefreshCw, Users, TrendingUp, IndianRupee, Download, Check, ChevronsUpDown, UserPlus,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +56,8 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [engagementFilter, setEngagementFilter] = useState<'all' | EngagementBucket | 'engaged'>('all');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [industryFilter, setIndustryFilter] = useState<string>('all');
+  const [sortKey, setSortKey] = useState<'orders' | 'total_value' | 'pipeline' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const bulkUpdate = useBulkUpdateCompanies();
   const { views, saveView, deleteView } = useCompanySavedViews();
@@ -117,8 +120,35 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     if (industryFilter !== 'all') {
       list = list.filter(c => (c.industry || '__none__') === industryFilter);
     }
+    if (sortKey) {
+      const getVal = (c: Company) => {
+        if (sortKey === 'orders') return Number(c.total_orders_count || 0);
+        if (sortKey === 'total_value') return Number(c.total_order_value || 0);
+        if (sortKey === 'pipeline') return Number(c.pipeline_value || 0);
+        return 0;
+      };
+      list.sort((a, b) => {
+        const diff = getVal(a) - getVal(b);
+        return sortDir === 'asc' ? diff : -diff;
+      });
+    }
     return list;
-  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, ownerFilter, industryFilter, classification, engagement.map]);
+  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, ownerFilter, industryFilter, classification, engagement.map, sortKey, sortDir]);
+
+  const toggleSort = (key: 'orders' | 'total_value' | 'pipeline') => {
+    if (sortKey === key) {
+      if (sortDir === 'desc') setSortDir('asc');
+      else { setSortKey(null); setSortDir('desc'); }
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
+
+  const SortIcon = ({ k }: { k: 'orders' | 'total_value' | 'pipeline' }) => {
+    if (sortKey !== k) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+    return sortDir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />;
+  };
 
   const ownerOptions = useMemo(() => {
     const m = new Map<string, { key: string; name: string; count: number }>();
@@ -594,9 +624,33 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <TableHead>Industry</TableHead>
                   <TableHead>Account Manager</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Orders</TableHead>
-                  <TableHead>Total Value</TableHead>
-                  <TableHead>Pipeline</TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('orders')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Orders <SortIcon k="orders" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('total_value')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Total Value <SortIcon k="total_value" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('pipeline')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Pipeline <SortIcon k="pipeline" />
+                    </button>
+                  </TableHead>
                   <TableHead>Recurring</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
