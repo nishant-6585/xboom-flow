@@ -526,7 +526,12 @@ export function TallyDashboard() {
     const totalPending = rows.reduce((s, r) => s + r.pendingPayment, 0);
     const totalProcurement = rows.reduce((s, r) => s + r.procurementValue, 0);
     const totalProfit = rows.reduce((s, r) => s + r.profit, 0);
-    const avgMargin = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0;
+    // Margin only over rows where procurement cost is known, so pending-cost
+    // orders don't artificially inflate margin.
+    const knownRows = rows.filter(r => r.procurementCostKnown);
+    const knownSales = knownRows.reduce((s, r) => s + r.salesValue, 0);
+    const knownProfit = knownRows.reduce((s, r) => s + r.profit, 0);
+    const avgMargin = knownSales > 0 ? (knownProfit / knownSales) * 100 : 0;
     return { totalSales, totalReceived, totalPending, totalProcurement, totalProfit, avgMargin };
   }, [rows]);
 
