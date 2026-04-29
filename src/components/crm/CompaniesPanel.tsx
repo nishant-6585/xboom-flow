@@ -576,6 +576,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <TableHead className="w-24">Health</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>Industry</TableHead>
+                  <TableHead>Account Manager</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Orders</TableHead>
                   <TableHead>Total Value</TableHead>
@@ -587,7 +588,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
@@ -613,6 +614,13 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                         {company.city && <div className="text-xs text-muted-foreground">{company.city}{company.state ? `, ${company.state}` : ''}</div>}
                       </TableCell>
                       <TableCell><span className="text-sm">{company.industry || '—'}</span></TableCell>
+                      <TableCell>
+                        {company.account_owner_id ? (
+                          <span className="text-xs font-medium text-foreground">{resolveOwnerName(company.account_owner_id)}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge className={cn('text-[10px] border-0', company.status === 'customer' ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-blue-500/20 text-blue-700 dark:text-blue-400')}>
                           {company.status}
