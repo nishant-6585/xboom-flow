@@ -12911,6 +12911,65 @@ export type Database = {
         | { Args: { p_name: string }; Returns: string }
       generate_payment_reminders: { Args: never; Returns: undefined }
       generate_salary_sheets: { Args: never; Returns: undefined }
+      get_all_company_followups: {
+        Args: never
+        Returns: {
+          company_id: string
+          completed_at: string
+          completed_by: string
+          completed_by_name: string
+          created_at: string
+          created_by: string
+          created_by_name: string
+          customer_company: string
+          customer_name: string
+          email: string
+          followup_at: string
+          id: string
+          is_a_category: boolean
+          phone: string
+          product_name: string
+          remark: string
+          reminder_sent: boolean
+          source_id: string
+          source_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      get_company_followups: {
+        Args: { _company_id: string }
+        Returns: {
+          completed_at: string | null
+          completed_by: string | null
+          completed_by_name: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string
+          customer_company: string | null
+          customer_name: string
+          email: string | null
+          followup_at: string
+          id: string
+          is_a_category: boolean | null
+          phone: string | null
+          product_name: string | null
+          remark: string | null
+          reminder_sent: boolean | null
+          source_id: string
+          source_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "followups"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_cron_secret: { Args: never; Returns: string }
       get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
       get_employee_kpi: {
