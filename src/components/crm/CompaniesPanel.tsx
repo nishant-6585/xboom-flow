@@ -684,7 +684,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
