@@ -44,6 +44,10 @@ export function useInteraktLeads() {
       const { data, error } = await supabase
         .from('interakt_leads')
         .select('*')
+        // Sort by the lead's actual creation time on Interakt (shown in
+        // the "Created On" column), not the row's DB sync time, so the
+        // newest leads always appear at the top of the list.
+        .order('interakt_created_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
