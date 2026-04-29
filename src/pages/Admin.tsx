@@ -707,6 +707,10 @@ const Admin = () => {
                   <Shield className="w-4 h-4" />
                   Audit Logs
                 </TabsTrigger>
+                <TabsTrigger value="company-cleanup" className="flex items-center gap-2" onClick={() => navigate("/admin/company-cleanup")}>
+                  <Building2 className="w-4 h-4" />
+                  Company Cleanup
+                </TabsTrigger>
               </>
             )}
           </TabsList>
