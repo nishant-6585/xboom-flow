@@ -20,6 +20,14 @@ Deno.serve(async (req) => {
     const cronSecret = req.headers.get('X-Cron-Secret');
     const expectedCronSecret = Deno.env.get('CRON_SECRET');
 
+    console.log('[auto-checkout] auth check', {
+      hasAuthHeader: !!authHeader,
+      hasCronSecret: !!cronSecret,
+      cronSecretLen: cronSecret?.length ?? 0,
+      expectedLen: expectedCronSecret?.length ?? 0,
+      match: !!cronSecret && !!expectedCronSecret && cronSecret === expectedCronSecret,
+    });
+
     if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
       // Authenticated via cron secret
     } else if (authHeader?.startsWith('Bearer ')) {
