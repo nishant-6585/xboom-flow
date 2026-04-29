@@ -39,10 +39,12 @@ export function CompanyCreationTrend({ companies: _companies }: { companies: Com
   }, [series]);
 
   const peak = useMemo(() => {
-    return series.reduce((p, c) => {
+    let best: { label: string; t: number } | null = null;
+    series.forEach((c) => {
       const t = c.companies + c.prospects + c.pipeline;
-      return t > (p?.t ?? -1) ? { ...c, t } : p;
-    }, null as null | (typeof series[0] & { t: number }));
+      if (!best || t > best.t) best = { label: c.label, t };
+    });
+    return best;
   }, [series]);
 
   const toggle = (s: Series) => setEnabled((e) => ({ ...e, [s]: !e[s] }));
