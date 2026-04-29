@@ -13035,6 +13035,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      infer_industry_from_name: { Args: { p_name: string }; Returns: string }
       is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_reporting_manager: {
         Args: { _employee_id: string; _manager_id: string }
