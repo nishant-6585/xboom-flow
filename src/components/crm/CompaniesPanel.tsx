@@ -20,6 +20,7 @@ import { LeadCompanyCoverage } from './LeadCompanyCoverage';
 import { CompanyBucketAnalysis } from './CompanyBucketAnalysis';
 import { CompanyBucketBadge } from './CompanyBucketBadge';
 import { CompanyTierBadge } from './CompanyTierBadge';
+import { CompanyTierPicker } from './CompanyTierPicker';
 import { CompanyHealthBadge } from './CompanyHealthBadge';
 import { CompanyEngagementCard } from './CompanyEngagementCard';
 import { useCompanyEngagementMap, type EngagementBucket } from '@/hooks/useCompanyEngagement';
@@ -684,8 +685,16 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                       <TableCell>
                         <CompanyBucketBadge bucket={classification.get(company.id) ?? 'C'} />
                       </TableCell>
-                      <TableCell>
-                        <CompanyTierBadge tier={company.tier as any} source={company.tier_source as any} />
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <CompanyTierPicker
+                          tier={company.tier as any}
+                          source={company.tier_source as any}
+                          onChange={(t) => updateCompany({
+                            id: company.id,
+                            tier: t as any,
+                            tier_source: (t ? 'manual' : null) as any,
+                          })}
+                        />
                       </TableCell>
                       <TableCell>
                         <CompanyHealthBadge score={company.health_score} band={company.health_band as any} />
