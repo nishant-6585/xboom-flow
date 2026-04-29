@@ -26,13 +26,8 @@ Deno.serve(async (req) => {
     let vaultCronSecret: string | null = null;
     try {
       const adminForVault = createClient(supabaseUrl, serviceRoleKey);
-      const { data: vaultRow } = await adminForVault
-        .from('vault.decrypted_secrets' as any)
-        .select('decrypted_secret')
-        .eq('name', 'CRON_SECRET')
-        .limit(1)
-        .maybeSingle();
-      vaultCronSecret = (vaultRow as any)?.decrypted_secret ?? null;
+      const { data: vaultVal } = await adminForVault.rpc('get_cron_secret' as any);
+      vaultCronSecret = (vaultVal as any) ?? null;
     } catch (_e) {
       // ignore; vault access may be restricted
     }
