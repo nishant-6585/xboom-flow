@@ -30,9 +30,9 @@ export function CompanyDashboard({ companies }: { companies: Company[] }) {
     return [...companies]
       .filter(c => c.total_order_value > 0)
       .sort((a, b) => b.total_order_value - a.total_order_value)
-      .slice(0, 8)
+      .slice(0, 10)
       .map(c => ({
-        name: c.name.length > 15 ? c.name.substring(0, 15) + '…' : c.name,
+        name: c.name.length > 22 ? c.name.substring(0, 22) + '…' : c.name,
         value: Math.round(c.total_order_value / 1000),
         orders: c.total_orders_count,
         recurring: c.is_recurring,
@@ -96,14 +96,14 @@ export function CompanyDashboard({ companies }: { companies: Company[] }) {
       {/* Top Companies by Value */}
       <Card className="border-border/50 md:col-span-2">
         <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Top Companies by Revenue (₹K)</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">Top 10 Companies by Revenue (₹K)</CardTitle>
         </CardHeader>
         <CardContent className="pb-4 px-4">
           {topCompanies.length > 0 ? (
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={320}>
               <BarChart data={topCompanies} layout="vertical" margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
                 <XAxis type="number" tick={{ fontSize: 10 }} />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} />
+                <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 10 }} interval={0} />
                 <Tooltip
                   formatter={(v: number) => [`₹${v}K`, 'Revenue']}
                   labelFormatter={(name) => {
