@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Sparkles, RefreshCw, Lock, Unlock } from 'lucide-react';
+import { Loader2, Sparkles, RefreshCw, Lock, Unlock, Wand2 } from 'lucide-react';
 import { Company } from '@/hooks/useCompanies';
 import {
   useGenerateAccountBrief, useUpdateCompanyTier, useUpdateCompanyAccount, useRecomputeHealth,
@@ -15,6 +15,65 @@ import { CompanyTierBadge } from './CompanyTierBadge';
 import { CompanyHealthBadge } from './CompanyHealthBadge';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+function useOpportunityAutoValues(company: Company) {
+  return useQuery({
+    queryKey: ['company-opportunity-auto', company.id, company.name],
+    queryFn: async () => {
+      const name = (company.name || '').trim();
+
+      // Prospects → Potential value (open prospects only)
+      const prospectsQ = supabase
+        .from('prospects')
+        .select('quoted_price, default_price, quantity, company_id, customer_company, status')
+        .not('status', 'in', '(converted,lost,closed,cancelled)');
+      const { data: prospectsByCo } = await supabase
+        .from('prospects')
+        .select('quoted_price, default_price, quantity, status')
+        .eq('company_id', company.id)
+        .not('status', 'in', '(converted,lost,closed,cancelled)');
+      let prospects = prospectsByCo || [];
+      if ((!prospects || prospects.length === 0) && name) {
+        const { data: byName } = await supabase
+          .from('prospects')
+          .select('quoted_price, default_price, quantity, status')
+          .ilike('customer_company', name)
+          .not('status', 'in', '(converted,lost,closed,cancelled)');
+        prospects = byName || [];
+      }
+      void prospectsQ;
+      const potential = (prospects || []).reduce((s, p: any) => {
+        const unit = Number(p.quoted_price ?? p.default_price ?? 0) || 0;
+        const qty = Number(p.quantity ?? 1) || 1;
+        return s + unit * qty;
+      }, 0);
+
+      // Pipeline orders → Pipeline value (open deals only)
+      let pipeline = 0;
+      if (name) {
+        const { data: deals } = await supabase
+          .from('pipeline_orders')
+          .select('expected_price, quantity, status')
+          .ilike('customer_company', name)
+          .not('status', 'in', '(won,lost,cancelled,converted)');
+        pipeline = (deals || []).reduce((s, d: any) => {
+          const unit = Number(d.expected_price ?? 0) || 0;
+          const qty = Number(d.quantity ?? 1) || 1;
+          return s + unit * qty;
+        }, 0);
+      }
+
+      return {
+        potential: Math.round(potential),
+        pipeline: Math.round(pipeline),
+        prospectCount: (prospects || []).length,
+      };
+    },
+    staleTime: 60_000,
+  });
+}
 
 interface Props { company: Company; }
 
@@ -33,6 +92,8 @@ export function CompanyAccountTab({ company }: Props) {
   const [nextActionType, setNextActionType] = useState(company.next_action_type || '');
   const [nextActionNotes, setNextActionNotes] = useState(company.next_action_notes || '');
 
+  const autoValues = useOpportunityAutoValues(company);
+
   useEffect(() => {
     setTier(company.tier || '');
     setTierNotes(company.tier_notes || '');
@@ -42,6 +103,25 @@ export function CompanyAccountTab({ company }: Props) {
     setNextActionType(company.next_action_type || '');
     setNextActionNotes(company.next_action_notes || '');
   }, [company.id]);
+
+  // Auto-prefill from modules when stored values are empty
+  useEffect(() => {
+    if (!autoValues.data) return;
+    const storedPotential = Number(company.potential_value || 0);
+    const storedPipeline = Number(company.pipeline_value || 0);
+    if (storedPotential === 0 && autoValues.data.potential > 0) {
+      setPotential(String(autoValues.data.potential));
+    }
+    if (storedPipeline === 0 && autoValues.data.pipeline > 0) {
+      setPipeline(String(autoValues.data.pipeline));
+    }
+  }, [autoValues.data, company.id, company.potential_value, company.pipeline_value]);
+
+  const applyAutoValues = () => {
+    if (!autoValues.data) return;
+    setPotential(String(autoValues.data.potential));
+    setPipeline(String(autoValues.data.pipeline));
+  };
 
   return (
     <div className="space-y-4">
@@ -105,15 +185,38 @@ export function CompanyAccountTab({ company }: Props) {
 
       <Card className="border-border/50">
         <CardContent className="p-3 space-y-2">
-          <div className="text-xs font-semibold text-muted-foreground">Opportunity</div>
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold text-muted-foreground">Opportunity</div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px] gap-1"
+              onClick={applyAutoValues}
+              disabled={autoValues.isLoading || !autoValues.data}
+              title="Pull latest from Prospects & Pipeline"
+            >
+              {autoValues.isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+              Auto-fill
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs">Potential value (₹)</Label>
               <Input className="h-8 text-xs" type="number" value={potential} onChange={e => setPotential(e.target.value)} />
+              {autoValues.data && (
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  From Prospects: ₹{autoValues.data.potential.toLocaleString('en-IN')}
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-xs">Pipeline value (₹)</Label>
               <Input className="h-8 text-xs" type="number" value={pipeline} onChange={e => setPipeline(e.target.value)} />
+              {autoValues.data && (
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  From Pipeline: ₹{autoValues.data.pipeline.toLocaleString('en-IN')}
+                </div>
+              )}
             </div>
           </div>
           <Button size="sm" className="text-xs h-8 w-full" disabled={updateAccount.isPending}
