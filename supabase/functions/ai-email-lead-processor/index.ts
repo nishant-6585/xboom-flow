@@ -203,7 +203,9 @@ async function createEnquiryFromLead(
 
   const enquiryData: Record<string, unknown> = {
     customer_name: aiResult.name !== "Unknown" ? aiResult.name : lead.customer_name,
-    customer_company: aiResult.company !== "Unknown" ? aiResult.company : (lead.customer_company || "Unknown"),
+    customer_company: aiResult.company && aiResult.company !== "Unknown"
+      ? aiResult.company
+      : (lead.customer_company && lead.customer_company !== "Unknown" ? lead.customer_company : null),
     product_name: aiResult.product_interest || lead.product_name || "General Enquiry",
     product_code: lead.product_code || "EMAIL-AUTO",
     product_category: aiResult.product_category || lead.product_category || "Consumer Drones",
