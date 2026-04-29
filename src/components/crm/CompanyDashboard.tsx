@@ -104,6 +104,53 @@ export function CompanyDashboard({ companies }: { companies: Company[] }) {
         </CardContent>
       </Card>
 
+      {/* Company Follow-ups */}
+      <Card className="border-border/50 md:col-span-2">
+        <CardHeader className="pb-2 pt-4 px-4 flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Clock className="h-4 w-4" /> Company Follow-ups
+          </CardTitle>
+          <button
+            type="button"
+            onClick={() => setShowFollowupsList(true)}
+            disabled={followupStats.total === 0}
+            className="text-[11px] text-primary hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed"
+          >
+            View list →
+          </button>
+        </CardHeader>
+        <CardContent className="pb-4 px-4">
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => followupStats.overdue > 0 && setShowFollowupsList(true)}
+              className={cn('rounded-lg border p-2 text-center transition-colors', followupStats.overdue > 0 ? 'border-red-500/40 bg-red-500/10 hover:bg-red-500/20 cursor-pointer' : 'border-border/40')}
+            >
+              <div className="text-xl font-bold text-red-600 dark:text-red-400">{followupStats.overdue}</div>
+              <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1 mt-0.5">
+                <AlertCircle className="h-3 w-3" /> Overdue
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => followupStats.today > 0 && setShowFollowupsList(true)}
+              className={cn('rounded-lg border p-2 text-center transition-colors', followupStats.today > 0 ? 'border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer' : 'border-border/40')}
+            >
+              <div className="text-xl font-bold text-amber-600 dark:text-amber-400">{followupStats.today}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">Due Today</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => followupStats.upcoming > 0 && setShowFollowupsList(true)}
+              className={cn('rounded-lg border p-2 text-center transition-colors', followupStats.upcoming > 0 ? 'border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer' : 'border-border/40')}
+            >
+              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{followupStats.upcoming}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">Upcoming</div>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Recurring Breakdown */}
       <Card className="border-border/50">
         <CardHeader className="pb-2 pt-4 px-4">
@@ -166,6 +213,55 @@ export function CompanyDashboard({ companies }: { companies: Company[] }) {
         open={!!selectedCompany}
         onClose={() => setSelectedCompany(null)}
       />
+
+      <Dialog open={showFollowupsList} onOpenChange={setShowFollowupsList}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Pending Company Follow-ups ({companyFollowups.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto -mx-2 px-2 space-y-2">
+            {companyFollowups.length === 0 && (
+              <div className="text-center py-8 text-xs text-muted-foreground">No pending follow-ups</div>
+            )}
+            {companyFollowups.map(f => {
+              const overdue = isPast(new Date(f.followup_at));
+              const comp = companyById.get(f.source_id);
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => {
+                    if (comp) {
+                      setSelectedCompany(comp);
+                      setShowFollowupsList(false);
+                    }
+                  }}
+                  className={cn(
+                    'w-full text-left rounded-lg border p-3 hover:bg-muted/50 transition-colors',
+                    overdue ? 'border-red-500/40' : 'border-border/40'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="font-medium text-sm truncate">{comp?.name || f.customer_name}</div>
+                    <Badge className={cn('text-[10px] border', overdue ? 'bg-red-500/15 text-red-700 border-red-500/30' : 'bg-amber-500/15 text-amber-700 border-amber-500/30')}>
+                      {overdue ? 'Overdue' : f.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{format(new Date(f.followup_at), 'd MMM, h:mm a')}</span>
+                    <span className={cn(overdue && 'text-red-500 font-medium')}>
+                      {overdue ? `Overdue ${formatDistanceToNow(new Date(f.followup_at))}` : `in ${formatDistanceToNow(new Date(f.followup_at))}`}
+                    </span>
+                    {f.created_by_name && <span className="ml-auto">by {f.created_by_name}</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
