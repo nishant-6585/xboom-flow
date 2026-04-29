@@ -872,19 +872,31 @@ export function TallyDashboard() {
                         </button>
                       </TableCell>
                       <TableCell className="text-right">
-                        <button onClick={() => openProcDialog(r.orderId)} className="text-sm cursor-pointer hover:text-primary hover:underline transition-colors" title="View Procurement">
-                          {fmt(r.procurementValue)}
+                        <button
+                          onClick={() => openProcDialog(r.orderId)}
+                          className={`text-sm cursor-pointer hover:text-primary hover:underline transition-colors ${r.procurementCostKnown ? '' : 'text-amber-600 dark:text-amber-400'}`}
+                          title={r.procurementCostKnown ? 'View Procurement' : 'Procurement created but supplier pricing not set yet'}
+                        >
+                          {r.procurementCostKnown ? fmt(r.procurementValue) : 'Pending'}
                         </button>
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        <span className={r.profit >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
-                          {fmt(r.profit)}
-                        </span>
+                        {r.procurementCostKnown ? (
+                          <span className={r.profit >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
+                            {fmt(r.profit)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground" title="Awaiting procurement cost">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        <span className={r.profitMargin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                          {r.profitMargin.toFixed(1)}%
-                        </span>
+                        {r.procurementCostKnown ? (
+                          <span className={r.profitMargin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                            {r.profitMargin.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <button onClick={() => openOrderDialog(r.orderId)} className="cursor-pointer hover:opacity-80 transition-opacity" title="View Payment Details">
