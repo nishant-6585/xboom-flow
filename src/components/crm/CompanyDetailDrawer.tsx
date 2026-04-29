@@ -13,10 +13,14 @@ import { Company, useCompanyContacts, useCompanyOrders, useCompanyProspects, use
 import { format } from 'date-fns';
 import {
   Building2, Phone, Mail, Globe, MapPin, Plus, Trash2, User, Package,
-  TrendingUp, IndianRupee, RefreshCw, Loader2, Star
+  TrendingUp, IndianRupee, RefreshCw, Loader2, Star, Activity, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallButton } from '@/components/calls/CallButton';
+import { CompanyTierBadge } from './CompanyTierBadge';
+import { CompanyHealthBadge } from './CompanyHealthBadge';
+import { CompanyTimelineTab } from './CompanyTimelineTab';
+import { CompanyAccountTab } from './CompanyAccountTab';
 
 interface Props {
   company: Company | null;
@@ -94,6 +98,8 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                       </Badge>
                     )}
                     {company.industry && <Badge variant="outline" className="text-[10px]">{company.industry}</Badge>}
+                    <CompanyTierBadge tier={company.tier as any} source={company.tier_source as any} />
+                    <CompanyHealthBadge score={company.health_score} band={company.health_band as any} />
                   </div>
                 </div>
               </div>
@@ -144,12 +150,22 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
 
             <Separator className="my-4" />
 
-            <Tabs defaultValue="contacts" className="space-y-3">
-              <TabsList className="w-full">
+            <Tabs defaultValue="account" className="space-y-3">
+              <TabsList className="w-full flex-wrap h-auto">
+                <TabsTrigger value="account" className="flex-1 text-xs gap-1"><Sparkles className="h-3 w-3" />Account</TabsTrigger>
+                <TabsTrigger value="timeline" className="flex-1 text-xs gap-1"><Activity className="h-3 w-3" />Timeline</TabsTrigger>
                 <TabsTrigger value="contacts" className="flex-1 text-xs gap-1"><User className="h-3 w-3" />Contacts ({contacts.length})</TabsTrigger>
                 <TabsTrigger value="orders" className="flex-1 text-xs gap-1"><Package className="h-3 w-3" />Orders ({orders.length})</TabsTrigger>
                 <TabsTrigger value="pipeline" className="flex-1 text-xs gap-1"><TrendingUp className="h-3 w-3" />Pipeline ({prospects.length + pipeline.length})</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="account">
+                <CompanyAccountTab company={company} />
+              </TabsContent>
+
+              <TabsContent value="timeline">
+                <CompanyTimelineTab companyId={company.id} companyName={company.name} />
+              </TabsContent>
 
               {/* Contacts Tab */}
               <TabsContent value="contacts" className="space-y-3">
