@@ -9,7 +9,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Company, useCompanyContacts, useCompanyOrders, useCompanyProspects, useCompanyPipeline } from '@/hooks/useCompanies';
+import { Company, useCompanyContacts, useCompanyOrders, useCompanyProspects, useCompanyPipeline, useCompanies } from '@/hooks/useCompanies';
+import { useProfileNames } from '@/hooks/useProfileNames';
+import { CompanyOwnerPicker } from './CompanyOwnerPicker';
 import { format } from 'date-fns';
 import {
   Building2, Phone, Mail, Globe, MapPin, Plus, Trash2, User, Package,
@@ -46,6 +48,8 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
   const { orders } = useCompanyOrders(company?.id || null);
   const { prospects } = useCompanyProspects(company?.id || null);
   const { pipeline } = useCompanyPipeline(company?.name || null);
+  const { updateCompany } = useCompanies();
+  const { resolveName: resolveOwnerName } = useProfileNames();
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', designation: '', phone: '', email: '' });
   const [addingContact, setAddingContact] = useState(false);
@@ -129,6 +133,16 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
               )}
               {company.email && <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="h-3 w-3" />{company.email}</div>}
               {company.website && <div className="flex items-center gap-1.5 text-muted-foreground"><Globe className="h-3 w-3" />{company.website}</div>}
+            </div>
+
+            {/* Account Owner */}
+            <div className="mt-3 flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Account Owner:</span>
+              <CompanyOwnerPicker
+                ownerId={company.account_owner_id}
+                ownerName={company.account_owner_id ? resolveOwnerName(company.account_owner_id) : null}
+                onChange={(uid) => updateCompany({ id: company.id, account_owner_id: uid as any })}
+              />
             </div>
 
             {/* Quick Stats */}
