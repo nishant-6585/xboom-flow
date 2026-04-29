@@ -625,6 +625,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <TableHead>Industry</TableHead>
                   <TableHead>Account Manager</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Engagement</TableHead>
                   <TableHead>
                     <button
                       type="button"
@@ -668,7 +669,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
@@ -721,6 +722,28 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                         <Badge className={cn('text-[10px] border-0', company.status === 'customer' ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-blue-500/20 text-blue-700 dark:text-blue-400')}>
                           {company.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const stage = (company as any).engagement_stage || 'lead_only';
+                          const styles: Record<string, string> = {
+                            won: 'bg-green-500/20 text-green-700 dark:text-green-400',
+                            pipeline: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
+                            prospect: 'bg-amber-500/20 text-amber-700 dark:text-amber-400',
+                            lead_only: 'bg-rose-500/20 text-rose-700 dark:text-rose-400',
+                          };
+                          const labels: Record<string, string> = {
+                            won: 'Won',
+                            pipeline: 'Pipeline',
+                            prospect: 'Prospect',
+                            lead_only: 'Lead only',
+                          };
+                          return (
+                            <Badge className={cn('text-[10px] border-0', styles[stage] || styles.lead_only)}>
+                              {labels[stage] || 'Lead only'}
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell><span className="text-sm font-medium">{company.total_orders_count}</span></TableCell>
                       <TableCell>
