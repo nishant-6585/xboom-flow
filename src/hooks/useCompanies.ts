@@ -194,7 +194,7 @@ export function useCompanyProspects(companyId: string | null) {
       if (!companyId) return [];
       const { data, error } = await supabase
         .from('prospects')
-        .select('id, customer_name, phone_number, email, product_name, status, city, created_at')
+        .select('id, customer_name, phone_number, email, product_name, product_category, product_code, quantity, quoted_price, default_price, discount_amount, discount_percentage, status, city, urgency, requested_timeline, purpose_of_purchase, lead_source, lead_quality, prospect_type, customer_type, is_a_category, notes, created_by_name, created_at, updated_at')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -212,7 +212,7 @@ export function useCompanyPipeline(companyName: string | null) {
       if (!companyName) return [];
       const { data, error } = await supabase
         .from('pipeline_orders')
-        .select('id, customer_name, product_name, expected_price, status, lead_temperature, created_at')
+        .select('id, customer_name, customer_phone, customer_email, customer_state, product_name, product_category, product_code, quantity, expected_price, expected_closure_date, probability, status, lead_temperature, lead_source, priority, sales_person_name, customer_type, is_mega_deal, internal_notes, created_at, updated_at')
         .ilike('customer_company', companyName)
         .order('created_at', { ascending: false });
       if (error) throw error;

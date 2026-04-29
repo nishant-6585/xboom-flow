@@ -14,7 +14,8 @@ import { format } from 'date-fns';
 import {
   Building2, Phone, Mail, Globe, MapPin, Plus, Trash2, User, Package,
   TrendingUp, IndianRupee, RefreshCw, Loader2, Star, Activity, Sparkles,
-  ChevronDown, ChevronRight, Pencil, Save, X as XIcon, Calendar
+  ChevronDown, ChevronRight, Pencil, Save, X as XIcon, Calendar,
+  Tag, Hash, Flame, Target, Clock, AlertTriangle, Layers
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallButton } from '@/components/calls/CallButton';
@@ -390,47 +391,166 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
 
               {/* Pipeline Tab */}
               <TabsContent value="pipeline" className="space-y-3">
+                {/* Aggregate strip */}
+                {(prospects.length > 0 || pipeline.length > 0) && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <Card className="border-border/50">
+                      <CardContent className="p-2 text-center">
+                        <div className="text-sm font-bold">{prospects.length}</div>
+                        <div className="text-[10px] text-muted-foreground">Prospects</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-border/50">
+                      <CardContent className="p-2 text-center">
+                        <div className="text-sm font-bold">{pipeline.length}</div>
+                        <div className="text-[10px] text-muted-foreground">Pipeline</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-border/50">
+                      <CardContent className="p-2 text-center">
+                        <div className="text-sm font-bold">
+                          ₹{((
+                            prospects.reduce((s: number, p: any) => s + (Number(p.quoted_price ?? p.default_price ?? 0) * Number(p.quantity ?? 1)), 0) +
+                            pipeline.reduce((s: number, p: any) => s + Number(p.expected_price ?? 0), 0)
+                          ) / 100000).toFixed(1)}L
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">Open Value</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Prospects list */}
                 {prospects.length > 0 && (
                   <div>
-                    <div className="text-xs font-medium text-muted-foreground mb-2">Prospects</div>
-                    {prospects.map(p => (
-                      <Card key={p.id} className="border-border/50 mb-2">
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-sm font-medium">{p.customer_name}</div>
-                              <div className="text-xs text-muted-foreground">{p.product_name || 'No product'} • {p.city || '—'}</div>
-                            </div>
-                            <Badge className={cn('text-[9px] border-0', STATUS_COLORS[p.status] || 'bg-muted')}>{p.status}</Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Layers className="h-3 w-3" />Prospects ({prospects.length})
+                    </div>
+                    <div className="space-y-2">
+                      {prospects.map((p: any) => {
+                        const unit = Number(p.quoted_price ?? p.default_price ?? 0);
+                        const qty = Number(p.quantity ?? 1);
+                        const total = unit * qty;
+                        return (
+                          <Card key={p.id} className="border-border/50">
+                            <CardContent className="p-3 space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium flex items-center gap-1.5 flex-wrap">
+                                    <Package className="h-3.5 w-3.5 text-primary shrink-0" />
+                                    <span className="truncate">{p.product_name || 'Unknown product'}</span>
+                                    {p.is_a_category && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
+                                    {p.product_category && <span className="flex items-center gap-1"><Tag className="h-2.5 w-2.5" />{p.product_category}</span>}
+                                    {p.product_code && <span className="flex items-center gap-1"><Hash className="h-2.5 w-2.5" />{p.product_code}</span>}
+                                  </div>
+                                </div>
+                                <Badge className={cn('text-[9px] border-0 shrink-0', STATUS_COLORS[p.status] || 'bg-muted')}>{p.status}</Badge>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2 text-[11px]">
+                                <div>
+                                  <div className="text-muted-foreground">Qty</div>
+                                  <div className="font-medium">{qty}</div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">Unit Price</div>
+                                  <div className="font-medium">{unit > 0 ? `₹${unit.toLocaleString('en-IN')}` : '—'}</div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">Total</div>
+                                  <div className="font-semibold text-primary">{total > 0 ? `₹${(total / 1000).toFixed(1)}K` : '—'}</div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
+                                {p.urgency && <Badge variant="outline" className="text-[9px] gap-1"><Flame className="h-2.5 w-2.5" />{p.urgency}</Badge>}
+                                {p.lead_quality && <Badge variant="outline" className="text-[9px]">{p.lead_quality}</Badge>}
+                                {p.prospect_type && <Badge variant="outline" className="text-[9px]">{p.prospect_type}</Badge>}
+                                {p.lead_source && <Badge variant="outline" className="text-[9px]">{p.lead_source}</Badge>}
+                                {p.requested_timeline && <Badge variant="outline" className="text-[9px] gap-1"><Clock className="h-2.5 w-2.5" />{p.requested_timeline}</Badge>}
+                              </div>
+
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span className="flex items-center gap-1"><User className="h-2.5 w-2.5" />{p.created_by_name || 'Unassigned'}</span>
+                                <span className="flex items-center gap-1"><Calendar className="h-2.5 w-2.5" />{p.created_at ? format(new Date(p.created_at), 'dd MMM yy') : '—'}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
+
+                {/* Pipeline list */}
                 {pipeline.length > 0 && (
                   <div>
-                    <div className="text-xs font-medium text-muted-foreground mb-2">Pipeline Deals</div>
-                    {pipeline.map(p => (
-                      <Card key={p.id} className="border-border/50 mb-2">
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-sm font-medium">{p.customer_name}</div>
-                              <div className="text-xs text-muted-foreground">{p.product_name} • ₹{((p.expected_price || 0) / 1000).toFixed(0)}K</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              {p.lead_temperature && (
-                                <Badge variant="outline" className="text-[9px]">{p.lead_temperature}</Badge>
-                              )}
-                              <Badge className={cn('text-[9px] border-0', STATUS_COLORS[p.status] || 'bg-muted')}>{p.status}</Badge>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <TrendingUp className="h-3 w-3" />Pipeline Deals ({pipeline.length})
+                    </div>
+                    <div className="space-y-2">
+                      {pipeline.map((p: any) => {
+                        const value = Number(p.expected_price ?? 0);
+                        const qty = Number(p.quantity ?? 1);
+                        return (
+                          <Card key={p.id} className="border-border/50">
+                            <CardContent className="p-3 space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium flex items-center gap-1.5 flex-wrap">
+                                    <Package className="h-3.5 w-3.5 text-primary shrink-0" />
+                                    <span className="truncate">{p.product_name || 'Unknown product'}</span>
+                                    {p.is_mega_deal && <Badge className="text-[9px] border-0 bg-amber-500/20 text-amber-700">MEGA</Badge>}
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
+                                    {p.product_category && <span className="flex items-center gap-1"><Tag className="h-2.5 w-2.5" />{p.product_category}</span>}
+                                    {p.product_code && <span className="flex items-center gap-1"><Hash className="h-2.5 w-2.5" />{p.product_code}</span>}
+                                  </div>
+                                </div>
+                                <Badge className={cn('text-[9px] border-0 shrink-0', STATUS_COLORS[p.status] || 'bg-muted')}>{p.status}</Badge>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2 text-[11px]">
+                                <div>
+                                  <div className="text-muted-foreground">Qty</div>
+                                  <div className="font-medium">{qty}</div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">Expected Value</div>
+                                  <div className="font-semibold text-primary">{value > 0 ? `₹${(value / 1000).toFixed(1)}K` : '—'}</div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground flex items-center gap-1"><Target className="h-2.5 w-2.5" />Probability</div>
+                                  <div className="font-medium">{p.probability != null ? `${p.probability}%` : '—'}</div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
+                                {p.lead_temperature && <Badge variant="outline" className="text-[9px] gap-1"><Flame className="h-2.5 w-2.5" />{p.lead_temperature}</Badge>}
+                                {p.priority && <Badge variant="outline" className="text-[9px] gap-1"><AlertTriangle className="h-2.5 w-2.5" />{p.priority}</Badge>}
+                                {p.customer_type && <Badge variant="outline" className="text-[9px]">{p.customer_type}</Badge>}
+                                {p.lead_source && <Badge variant="outline" className="text-[9px]">{p.lead_source}</Badge>}
+                                {p.expected_closure_date && (
+                                  <Badge variant="outline" className="text-[9px] gap-1">
+                                    <Calendar className="h-2.5 w-2.5" />Close {format(new Date(p.expected_closure_date), 'dd MMM yy')}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span className="flex items-center gap-1"><User className="h-2.5 w-2.5" />{p.sales_person_name || 'Unassigned'}</span>
+                                <span className="flex items-center gap-1"><Calendar className="h-2.5 w-2.5" />{p.created_at ? format(new Date(p.created_at), 'dd MMM yy') : '—'}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
+
                 {prospects.length === 0 && pipeline.length === 0 && (
                   <div className="text-center py-6 text-xs text-muted-foreground">No prospects or pipeline deals linked</div>
                 )}
