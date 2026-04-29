@@ -18,17 +18,40 @@ Deno.serve(async (req) => {
     // Authentication: require admin JWT or cron secret
     const authHeader = req.headers.get('Authorization');
     const cronSecret = req.headers.get('X-Cron-Secret');
-    const expectedCronSecret = Deno.env.get('CRON_SECRET');
+    const envCronSecret = Deno.env.get('CRON_SECRET');
+
+    // Also fetch CRON_SECRET from the vault as a fallback so cron jobs that read
+    // the vault value continue to work even if the edge-function env secret was
+    // rotated separately. This avoids 401 loops when the two values drift.
+    let vaultCronSecret: string | null = null;
+    try {
+      const adminForVault = createClient(supabaseUrl, serviceRoleKey);
+      const { data: vaultRow } = await adminForVault
+        .from('vault.decrypted_secrets' as any)
+        .select('decrypted_secret')
+        .eq('name', 'CRON_SECRET')
+        .limit(1)
+        .maybeSingle();
+      vaultCronSecret = (vaultRow as any)?.decrypted_secret ?? null;
+    } catch (_e) {
+      // ignore; vault access may be restricted
+    }
+
+    const cronSecretMatches =
+      !!cronSecret &&
+      ((envCronSecret && cronSecret === envCronSecret) ||
+        (vaultCronSecret && cronSecret === vaultCronSecret));
 
     console.log('[auto-checkout] auth check', {
       hasAuthHeader: !!authHeader,
       hasCronSecret: !!cronSecret,
       cronSecretLen: cronSecret?.length ?? 0,
-      expectedLen: expectedCronSecret?.length ?? 0,
-      match: !!cronSecret && !!expectedCronSecret && cronSecret === expectedCronSecret,
+      envLen: envCronSecret?.length ?? 0,
+      vaultLen: vaultCronSecret?.length ?? 0,
+      match: cronSecretMatches,
     });
 
-    if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
+    if (cronSecretMatches) {
       // Authenticated via cron secret
     } else if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '');
