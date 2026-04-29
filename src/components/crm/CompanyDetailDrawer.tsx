@@ -263,7 +263,35 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                     <CardContent className="p-3 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <div><Label className="text-xs">Name *</Label><Input className="h-8 text-xs" value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} /></div>
-                        <div><Label className="text-xs">Designation</Label><Input className="h-8 text-xs" value={contactForm.designation} onChange={e => setContactForm(f => ({ ...f, designation: e.target.value }))} /></div>
+                        <div>
+                          <Label className="text-xs">Designation</Label>
+                          <ContactFieldCombo
+                            value={contactForm.designation}
+                            onChange={v => setContactForm(f => ({ ...f, designation: v }))}
+                            options={DESIGNATION_OPTIONS}
+                            placeholder="Select designation…"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Department</Label>
+                          <ContactFieldCombo
+                            value={contactForm.department}
+                            onChange={v => setContactForm(f => ({ ...f, department: v }))}
+                            options={DEPARTMENT_OPTIONS}
+                            placeholder="Select department…"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">City</Label>
+                          <ContactFieldCombo
+                            value={contactForm.city}
+                            onChange={v => setContactForm(f => ({ ...f, city: v }))}
+                            options={CITY_OPTIONS}
+                            placeholder="Select city…"
+                          />
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div><Label className="text-xs">Phone</Label><Input className="h-8 text-xs" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} /></div>
