@@ -88,7 +88,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     }
     if (statusFilter !== 'all') list = list.filter(c => c.status === statusFilter);
     if (bucketFilter !== 'all') list = list.filter(c => classification.get(c.id) === bucketFilter);
-    if (tierFilter !== 'all') list = list.filter(c => (c.tier || '') === tierFilter);
+    if (tierFilter !== 'all') list = list.filter(c => (c.tier || 'untiered') === tierFilter);
     if (healthFilter !== 'all') list = list.filter(c => (c.health_band || 'watch') === healthFilter);
     return list;
   }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, classification]);
@@ -307,7 +307,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <SelectItem value="A">Tier A</SelectItem>
                   <SelectItem value="B">Tier B</SelectItem>
                   <SelectItem value="C">Tier C</SelectItem>
-                  <SelectItem value="">Untiered</SelectItem>
+                  <SelectItem value="untiered">Untiered</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={healthFilter} onValueChange={setHealthFilter}>
