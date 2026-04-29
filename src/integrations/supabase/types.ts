@@ -13032,6 +13032,15 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      lead_company_coverage: {
+        Args: never
+        Returns: {
+          bad_placeholder: number
+          source: string
+          total: number
+          with_company: number
+        }[]
+      }
       list_resume_access_failures: {
         Args: {
           _actor_role?: Database["public"]["Enums"]["app_role"]
