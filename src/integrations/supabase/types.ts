@@ -6556,6 +6556,21 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_assignment_state: {
+        Row: {
+          id: number
+          next_index: number
+        }
+        Insert: {
+          id?: number
+          next_index?: number
+        }
+        Update: {
+          id?: number
+          next_index?: number
+        }
+        Relationships: []
+      }
       lead_tags: {
         Row: {
           color: string | null
@@ -12678,6 +12693,13 @@ export type Database = {
       }
     }
     Functions: {
+      allowed_website_lead_assignees: {
+        Args: never
+        Returns: {
+          uid: string
+          uname: string
+        }[]
+      }
       approve_invitation_atomic: {
         Args: {
           p_admin_name: string
