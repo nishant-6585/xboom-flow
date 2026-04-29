@@ -646,6 +646,15 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <TableHead>
                     <button
                       type="button"
+                      onClick={() => toggleSort('prospect')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Prospect <SortIcon k="prospect" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
                       onClick={() => toggleSort('pipeline')}
                       className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
                     >
@@ -720,9 +729,24 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs text-muted-foreground">
-                          {company.pipeline_value && company.pipeline_value > 0 ? `₹${(company.pipeline_value / 100000).toFixed(1)}L` : '—'}
-                        </span>
+                        {(() => {
+                          const v = engagement.prospectValueById?.get(company.id) || 0;
+                          return v > 0 ? (
+                            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                              ₹{(v / 100000).toFixed(1)}L
+                            </span>
+                          ) : <span className="text-xs text-muted-foreground">—</span>;
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const v = engagement.pipelineValueById?.get(company.id) || 0;
+                          return v > 0 ? (
+                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                              ₹{(v / 100000).toFixed(1)}L
+                            </span>
+                          ) : <span className="text-xs text-muted-foreground">—</span>;
+                        })()}
                       </TableCell>
                       <TableCell>
                         {company.is_recurring ? (
