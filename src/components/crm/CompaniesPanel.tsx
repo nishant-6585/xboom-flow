@@ -666,13 +666,22 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                     </button>
                   </TableHead>
                   <TableHead>Recurring</TableHead>
+                  <TableHead>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('created')}
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Created <SortIcon k="created" />
+                    </button>
+                  </TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
@@ -702,7 +711,9 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                         <CompanyHealthBadge score={company.health_score} band={company.health_band as any} />
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-sm">{company.name}</div>
+                        <div className={cn('font-medium text-sm', (!company.name || company.name.trim() === '' || company.name.trim() === '-') && 'italic text-muted-foreground')}>
+                          {company.name && company.name.trim() && company.name.trim() !== '-' ? company.name : 'Unnamed company'}
+                        </div>
                         {company.city && <div className="text-xs text-muted-foreground">{company.city}{company.state ? `, ${company.state}` : ''}</div>}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -788,6 +799,11 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                             <RefreshCw className="h-2.5 w-2.5 mr-0.5" />Recurring
                           </Badge>
                         ) : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {(company as any).created_at ? new Date((company as any).created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                        </span>
                       </TableCell>
                       <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
                     </TableRow>
