@@ -2681,6 +2681,57 @@ export type Database = {
           },
         ]
       }
+      data_quality_findings: {
+        Row: {
+          bad_value: string
+          customer_name: string | null
+          detected_at: string
+          field_name: string
+          id: string
+          owner_name: string | null
+          owner_user_id: string | null
+          product_name: string | null
+          reason: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          source_id: string
+          source_table: string
+        }
+        Insert: {
+          bad_value: string
+          customer_name?: string | null
+          detected_at?: string
+          field_name?: string
+          id?: string
+          owner_name?: string | null
+          owner_user_id?: string | null
+          product_name?: string | null
+          reason: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_id: string
+          source_table: string
+        }
+        Update: {
+          bad_value?: string
+          customer_name?: string | null
+          detected_at?: string
+          field_name?: string
+          id?: string
+          owner_name?: string | null
+          owner_user_id?: string | null
+          product_name?: string | null
+          reason?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_id?: string
+          source_table?: string
+        }
+        Relationships: []
+      }
       demand_forecasts: {
         Row: {
           avg_consumption_30d: number | null
@@ -13116,6 +13167,7 @@ export type Database = {
         Args: { _dlq_id: string }
         Returns: string
       }
+      scan_company_field_quality: { Args: never; Returns: number }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sync_profiles_to_employees: { Args: never; Returns: number }
