@@ -21,6 +21,24 @@ export interface Company {
   created_by_name: string;
   created_at: string;
   updated_at: string;
+  // Premium CRM fields
+  tier?: 'A' | 'B' | 'C' | null;
+  tier_source?: 'auto' | 'manual' | null;
+  tier_locked_by?: string | null;
+  tier_locked_at?: string | null;
+  tier_notes?: string | null;
+  potential_value?: number | null;
+  pipeline_value?: number | null;
+  health_score?: number | null;
+  health_band?: 'healthy' | 'watch' | 'at_risk' | 'critical' | null;
+  last_activity_at?: string | null;
+  last_order_at?: string | null;
+  account_owner_id?: string | null;
+  next_action_at?: string | null;
+  next_action_type?: string | null;
+  next_action_notes?: string | null;
+  ai_brief?: string | null;
+  ai_brief_generated_at?: string | null;
 }
 
 export interface CompanyContact {
