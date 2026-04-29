@@ -443,7 +443,42 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                 {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Sync from Leads
               </Button>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={exportCsv}>
+                <Download className="h-4 w-4" />CSV
+              </Button>
             </div>
+          </div>
+          {/* Saved views + bulk toolbar */}
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Views:</span>
+            {views.length === 0 && <span className="text-[10px] text-muted-foreground">No saved views yet</span>}
+            {views.map(v => (
+              <div key={v.id} className="flex items-center gap-1 rounded-md border border-border/50 px-2 py-0.5 text-[11px]">
+                <button onClick={() => applyView(v)} className="hover:underline">{v.name}{v.is_shared ? ' 🔗' : ''}</button>
+                {v.user_id === user?.id && (
+                  <button onClick={() => deleteView(v.id)} className="text-muted-foreground hover:text-destructive">×</button>
+                )}
+              </div>
+            ))}
+            <Popover open={showSaveView} onOpenChange={setShowSaveView}>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-6 text-[11px] gap-1"><Plus className="h-3 w-3" />Save current</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2 space-y-2" align="start">
+                <Input className="h-8 text-xs" placeholder="View name..." value={saveViewName} onChange={e => setSaveViewName(e.target.value)} />
+                <Button size="sm" className="w-full text-xs h-8" onClick={handleSaveView} disabled={!saveViewName.trim()}>Save view</Button>
+              </PopoverContent>
+            </Popover>
+            {selectedIds.size > 0 && (
+              <div className="ml-auto flex items-center gap-2 rounded-md bg-primary/10 px-2 py-1">
+                <span className="text-xs font-medium">{selectedIds.size} selected</span>
+                <span className="text-[10px] text-muted-foreground">Bulk re-tier:</span>
+                <Button size="sm" variant="outline" className="h-6 text-[11px] px-2" onClick={() => applyBulkTier('A')}>A</Button>
+                <Button size="sm" variant="outline" className="h-6 text-[11px] px-2" onClick={() => applyBulkTier('B')}>B</Button>
+                <Button size="sm" variant="outline" className="h-6 text-[11px] px-2" onClick={() => applyBulkTier('C')}>C</Button>
+                <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -451,12 +486,18 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                  </TableHead>
                   <TableHead className="w-14">Bucket</TableHead>
+                  <TableHead className="w-14">Tier</TableHead>
+                  <TableHead className="w-24">Health</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>Industry</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Orders</TableHead>
                   <TableHead>Total Value</TableHead>
+                  <TableHead>Pipeline</TableHead>
                   <TableHead>Recurring</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
@@ -464,7 +505,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
@@ -473,8 +514,17 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => { setSelectedCompany(company); setDrawerOpen(true); }}
                     >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox checked={selectedIds.has(company.id)} onCheckedChange={() => toggleOne(company.id)} />
+                      </TableCell>
                       <TableCell>
                         <CompanyBucketBadge bucket={classification.get(company.id) ?? 'C'} />
+                      </TableCell>
+                      <TableCell>
+                        <CompanyTierBadge tier={company.tier as any} source={company.tier_source as any} />
+                      </TableCell>
+                      <TableCell>
+                        <CompanyHealthBadge score={company.health_score} band={company.health_band as any} />
                       </TableCell>
                       <TableCell>
                         <div className="font-medium text-sm">{company.name}</div>
@@ -490,6 +540,11 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                       <TableCell>
                         <span className="text-sm font-medium">
                           {company.total_order_value > 0 ? `₹${(company.total_order_value / 100000).toFixed(1)}L` : '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground">
+                          {company.pipeline_value && company.pipeline_value > 0 ? `₹${(company.pipeline_value / 100000).toFixed(1)}L` : '—'}
                         </span>
                       </TableCell>
                       <TableCell>
