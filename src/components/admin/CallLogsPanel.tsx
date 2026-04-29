@@ -386,13 +386,27 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         });
       }
 
-      // Sort by start_time desc
+      // Sort by start_time desc — normalize mixed formats (Unix seconds vs ISO)
+      // to a millisecond timestamp before comparing, otherwise lexicographic
+      // sort places old numeric `_st` values above ISO "2026-…" timestamps.
+      const toMs = (v: string | number | null | undefined): number => {
+        if (v == null) return 0;
+        const s = String(v).trim();
+        if (!s) return 0;
+        if (/^\d+$/.test(s)) {
+          const n = Number(s);
+          // 10-digit = seconds, 13-digit = ms
+          return n < 1e12 ? n * 1000 : n;
+        }
+        const t = Date.parse(s);
+        return Number.isNaN(t) ? 0 : t;
+      };
       grouped.sort((a, b) => {
         const aInfo = deriveCallInfo(a);
         const bInfo = deriveCallInfo(b);
-        const aTime = String(aInfo.startTime || a.created_at);
-        const bTime = String(bInfo.startTime || b.created_at);
-        return bTime.localeCompare(aTime);
+        const aMs = toMs(aInfo.startTime) || toMs(a.created_at);
+        const bMs = toMs(bInfo.startTime) || toMs(b.created_at);
+        return bMs - aMs;
       });
 
       const currentIds = new Set(grouped.map((l) => l.id));
