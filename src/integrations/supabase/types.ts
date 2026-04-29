@@ -2277,8 +2277,10 @@ export type Database = {
       }
       company_contacts: {
         Row: {
+          city: string | null
           company_id: string
           created_at: string
+          department: string | null
           designation: string | null
           email: string | null
           id: string
@@ -2289,8 +2291,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          city?: string | null
           company_id: string
           created_at?: string
+          department?: string | null
           designation?: string | null
           email?: string | null
           id?: string
@@ -2301,8 +2305,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          city?: string | null
           company_id?: string
           created_at?: string
+          department?: string | null
           designation?: string | null
           email?: string | null
           id?: string
