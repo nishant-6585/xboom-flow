@@ -43,7 +43,7 @@ interface CompaniesPanelProps {
 }
 
 export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
-  const { companies, loading, addCompany, adding } = useCompanies();
+  const { companies, loading, addCompany, updateCompany, adding } = useCompanies();
   const { user, userName } = useAuth();
   const { resolveName: resolveOwnerName } = useProfileNames();
   const { syncAllLeadsToCompanies } = usePushToCompany();
@@ -54,6 +54,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [healthFilter, setHealthFilter] = useState<string>('all');
   const [engagementFilter, setEngagementFilter] = useState<'all' | EngagementBucket | 'engaged'>('all');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
+  const [industryFilter, setIndustryFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const bulkUpdate = useBulkUpdateCompanies();
   const { views, saveView, deleteView } = useCompanySavedViews();
@@ -113,8 +114,11 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
         return k === ownerFilter;
       });
     }
+    if (industryFilter !== 'all') {
+      list = list.filter(c => (c.industry || '__none__') === industryFilter);
+    }
     return list;
-  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, ownerFilter, classification, engagement.map]);
+  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, ownerFilter, industryFilter, classification, engagement.map]);
 
   const ownerOptions = useMemo(() => {
     const m = new Map<string, { key: string; name: string; count: number }>();
