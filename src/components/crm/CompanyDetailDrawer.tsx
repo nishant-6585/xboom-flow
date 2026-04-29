@@ -19,7 +19,7 @@ import {
   Building2, Phone, Mail, Globe, MapPin, Plus, Trash2, User, Package,
   TrendingUp, IndianRupee, RefreshCw, Loader2, Star, Activity, Sparkles,
   ChevronDown, ChevronRight, Pencil, Save, X as XIcon, Calendar,
-  Tag, Hash, Flame, Target, Clock, AlertTriangle, Layers
+  Tag, Hash, Flame, Target, Clock, AlertTriangle, Layers, FileText, MapPinned
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallButton } from '@/components/calls/CallButton';
@@ -59,6 +59,9 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
   const [expandedContactId, setExpandedContactId] = useState<string | null>(null);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', designation: '', phone: '', email: '', notes: '' });
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   if (!company) return null;
 
