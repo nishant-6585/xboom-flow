@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Clock, CheckCircle2, XCircle, AlertCircle, Calendar, User as UserIcon } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, XCircle, AlertCircle, Calendar, User as UserIcon, ExternalLink } from 'lucide-react';
 import { format, isPast, formatDistanceToNow } from 'date-fns';
 import { useCompanyFollowups } from '@/hooks/useCompanyFollowups';
 import { useFollowups } from '@/hooks/useFollowups';
@@ -23,10 +24,19 @@ const STATUS_META: Record<string, { label: string; cls: string; Icon: any }> = {
   cancelled: { label: 'Cancelled', cls: 'bg-slate-500/15 text-slate-700 dark:text-slate-400 border-slate-500/30', Icon: XCircle },
 };
 
+const SOURCE_META: Record<string, { label: string; cls: string; route?: (id: string) => string }> = {
+  prospect: { label: 'Prospect', cls: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30', route: (id) => `/sales?tab=crm&prospect=${id}` },
+  pipeline: { label: 'Pipeline', cls: 'bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30', route: (id) => `/sales?tab=pipeline&pipeline=${id}` },
+  enquiry:  { label: 'Enquiry',  cls: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-500/30', route: (id) => `/sales?tab=enquiries&enquiry=${id}` },
+  company:  { label: 'Company',  cls: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' },
+  lead:     { label: 'Lead',     cls: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30', route: (id) => `/leads?lead=${id}` },
+};
+
 export function CompanyFollowupsTab({ company }: Props) {
   const { followups, refetch } = useCompanyFollowups(company.id);
   const { completeFollowup, cancelFollowup } = useFollowups();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [showSchedule, setShowSchedule] = useState(false);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [remark, setRemark] = useState('');
@@ -70,6 +80,7 @@ export function CompanyFollowupsTab({ company }: Props) {
             const meta = STATUS_META[f.status] || STATUS_META.pending;
             const Icon = meta.Icon;
             const overdue = f.status === 'pending' && isPast(new Date(f.followup_at));
+            const src = SOURCE_META[f.source_type] || SOURCE_META.company;
             return (
               <Card key={f.id} className={cn('border-border/50', overdue && 'border-red-500/40')}>
                 <CardContent className="p-3 space-y-2">
@@ -79,7 +90,22 @@ export function CompanyFollowupsTab({ company }: Props) {
                       <span className="text-xs font-medium truncate">{f.customer_name}</span>
                       {f.is_a_category && <Badge className="text-[9px] h-4 px-1 bg-amber-500/20 text-amber-700">A</Badge>}
                     </div>
-                    <Badge className={cn('text-[10px] border', meta.cls)}>{meta.label}</Badge>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {src.route ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate(src.route!(f.source_id))}
+                          className={cn('text-[10px] border rounded px-1.5 py-0.5 inline-flex items-center gap-1 hover:opacity-80 transition', src.cls)}
+                          title={`Open ${src.label}`}
+                        >
+                          {src.label}
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </button>
+                      ) : (
+                        <Badge className={cn('text-[10px] border', src.cls)}>{src.label}</Badge>
+                      )}
+                      <Badge className={cn('text-[10px] border', meta.cls)}>{meta.label}</Badge>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
