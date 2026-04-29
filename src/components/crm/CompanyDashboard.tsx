@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Company } from '@/hooks/useCompanies';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { CompanyDetailDrawer } from './CompanyDetailDrawer';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(262, 83%, 58%)', 'hsl(0, 84%, 60%)'];
 
 export function CompanyDashboard({ companies }: { companies: Company[] }) {
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const statusData = useMemo(() => {
     const leads = companies.filter(c => c.status === 'lead').length;
     const customers = companies.filter(c => c.status === 'customer').length;
@@ -32,6 +34,8 @@ export function CompanyDashboard({ companies }: { companies: Company[] }) {
       .sort((a, b) => b.total_order_value - a.total_order_value)
       .slice(0, 10)
       .map(c => ({
+        id: c.id,
+        fullName: c.name,
         name: c.name.length > 22 ? c.name.substring(0, 22) + '…' : c.name,
         value: Math.round(c.total_order_value / 1000),
         orders: c.total_orders_count,
@@ -101,17 +105,29 @@ export function CompanyDashboard({ companies }: { companies: Company[] }) {
         <CardContent className="pb-4 px-4">
           {topCompanies.length > 0 ? (
             <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={topCompanies} layout="vertical" margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
+              <BarChart
+                data={topCompanies}
+                layout="vertical"
+                margin={{ left: 0, right: 10, top: 0, bottom: 0 }}
+                onClick={(state: any) => {
+                  const idx = state?.activeTooltipIndex;
+                  if (idx == null) return;
+                  const row = topCompanies[idx];
+                  if (!row) return;
+                  const full = companies.find(c => c.id === row.id);
+                  if (full) setSelectedCompany(full);
+                }}
+              >
                 <XAxis type="number" tick={{ fontSize: 10 }} />
                 <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 10 }} interval={0} />
                 <Tooltip
                   formatter={(v: number) => [`₹${v}K`, 'Revenue']}
                   labelFormatter={(name) => {
                     const c = topCompanies.find(t => t.name === name);
-                    return `${name}${c?.recurring ? ' 🔄' : ''} (${c?.orders} orders)`;
+                    return `${c?.fullName || name}${c?.recurring ? ' 🔄' : ''} (${c?.orders} orders) — click for details`;
                   }}
                 />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} cursor="pointer" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -119,6 +135,12 @@ export function CompanyDashboard({ companies }: { companies: Company[] }) {
           )}
         </CardContent>
       </Card>
+
+      <CompanyDetailDrawer
+        company={selectedCompany}
+        open={!!selectedCompany}
+        onClose={() => setSelectedCompany(null)}
+      />
     </div>
   );
 }
