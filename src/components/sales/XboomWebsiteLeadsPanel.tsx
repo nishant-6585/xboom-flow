@@ -153,9 +153,6 @@ export function XboomWebsiteLeadsPanel() {
     refetch();
   };
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statusDraft, setStatusDraft] = useState<string>("");
