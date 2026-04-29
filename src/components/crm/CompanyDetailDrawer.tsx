@@ -19,7 +19,7 @@ import {
   Building2, Phone, Mail, Globe, MapPin, Plus, Trash2, User, Package,
   TrendingUp, IndianRupee, RefreshCw, Loader2, Star, Activity, Sparkles,
   ChevronDown, ChevronRight, Pencil, Save, X as XIcon, Calendar,
-  Tag, Hash, Flame, Target, Clock, AlertTriangle, Layers
+  Tag, Hash, Flame, Target, Clock, AlertTriangle, Layers, FileText, MapPinned
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallButton } from '@/components/calls/CallButton';
@@ -59,6 +59,9 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
   const [expandedContactId, setExpandedContactId] = useState<string | null>(null);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', designation: '', phone: '', email: '', notes: '' });
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   if (!company) return null;
 
@@ -100,10 +103,58 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                 </div>
                 <div>
                   <SheetTitle className="text-xl">
-                    {company.name && company.name.trim() && company.name.trim() !== '-'
-                      ? company.name
-                      : <span className="italic text-muted-foreground">Unnamed company</span>}
+                    {editingName ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={nameDraft}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          className="h-8 text-base font-semibold"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && nameDraft.trim()) {
+                              updateCompany({ id: company.id, name: nameDraft.trim() } as any);
+                              setEditingName(false);
+                            }
+                            if (e.key === 'Escape') setEditingName(false);
+                          }}
+                        />
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => {
+                          if (nameDraft.trim()) {
+                            updateCompany({ id: company.id, name: nameDraft.trim() } as any);
+                            setEditingName(false);
+                          }
+                        }}><Save className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingName(false)}><XIcon className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setNameDraft(company.name || ''); setEditingName(true); }}
+                        className="inline-flex items-center gap-1.5 hover:text-primary transition-colors group"
+                        title="Click to rename"
+                      >
+                        {company.name && company.name.trim() && company.name.trim() !== '-' && !/^\d+$/.test(company.name.trim())
+                          ? company.name
+                          : <span className="italic text-muted-foreground">{company.name?.trim() || 'Unnamed company'}</span>}
+                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                      </button>
+                    )}
                   </SheetTitle>
+                  {/* Suggest rename when name looks like a number/code and orders have a real customer_company */}
+                  {!editingName && company.name && /^\d+$/.test(company.name.trim()) && (orders[0] as any)?.customer_company && (orders[0] as any).customer_company !== company.name && (
+                    <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="h-3 w-3" />
+                      Looks like a code. Rename to
+                      <button
+                        type="button"
+                        onClick={() => updateCompany({ id: company.id, name: (orders[0] as any).customer_company } as any)}
+                        className="font-semibold underline hover:text-amber-700"
+                      >
+                        "{(orders[0] as any).customer_company}"
+                      </button>
+                      ?
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <Badge className={cn('text-[10px] border-0', company.status === 'customer' ? 'bg-green-500/20 text-green-700' : 'bg-blue-500/20 text-blue-700')}>
                       {company.status}
@@ -374,43 +425,76 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                 {orders.length === 0 ? (
                   <div className="text-center py-6 text-xs text-muted-foreground">No orders linked to this company</div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs">Product</TableHead>
-                          <TableHead className="text-xs">Amount</TableHead>
-                          <TableHead className="text-xs">Status</TableHead>
-                          <TableHead className="text-xs">Date</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {orders.map(o => (
-                          <TableRow key={o.id}>
-                            <TableCell className="text-xs">
-                              <div className="flex items-center gap-1">
-                                {o.product_name}
-                                {recurringProducts.has(o.product_name || '') && (
-                                  <Badge className="text-[8px] px-1 py-0 bg-amber-500/20 text-amber-700 border-0">
-                                    <RefreshCw className="h-2 w-2 mr-0.5" />repeat
-                                  </Badge>
+                  <div className="space-y-2">
+                    {orders.map(o => {
+                      const oa = o as any;
+                      const isOpen = expandedOrderId === o.id;
+                      const paid = Number(oa.amount_paid || 0);
+                      const total = Number(oa.total_sales_amount || 0);
+                      const balance = total - paid;
+                      return (
+                        <Card key={o.id} className="border-border/50">
+                          <CardContent className="p-3">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedOrderId(isOpen ? null : o.id)}
+                              className="w-full text-left flex items-start justify-between gap-3"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-semibold">{oa.order_number ? `#${oa.order_number}` : '—'}</span>
+                                  <Badge className={cn('text-[9px] border-0', STATUS_COLORS[o.status] || 'bg-muted')}>{o.status}</Badge>
+                                  {oa.payment_status && (
+                                    <Badge className="text-[9px] border-0 bg-violet-500/20 text-violet-700 dark:text-violet-400">
+                                      {oa.payment_status}
+                                    </Badge>
+                                  )}
+                                  {recurringProducts.has(o.product_name || '') && (
+                                    <Badge className="text-[8px] px-1 py-0 bg-amber-500/20 text-amber-700 border-0">
+                                      <RefreshCw className="h-2 w-2 mr-0.5" />repeat
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-xs text-foreground mt-0.5 truncate">{o.product_name}</div>
+                                <div className="text-[10px] text-muted-foreground mt-0.5">
+                                  {oa.customer_name && <span>{oa.customer_name}</span>}
+                                  {oa.order_date && <span> · {format(new Date(oa.order_date), 'dd MMM yy')}</span>}
+                                  {oa.sales_person_name && <span> · {oa.sales_person_name}</span>}
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="text-sm font-bold">₹{total.toLocaleString('en-IN')}</div>
+                                {balance > 0 && (
+                                  <div className="text-[10px] text-red-500 dark:text-red-400">Bal ₹{balance.toLocaleString('en-IN')}</div>
+                                )}
+                                <ChevronDown className={cn('h-3 w-3 ml-auto mt-1 transition-transform text-muted-foreground', isOpen && 'rotate-180')} />
+                              </div>
+                            </button>
+
+                            {isOpen && (
+                              <div className="mt-3 pt-3 border-t border-border/40 grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
+                                {oa.product_code && <div><span className="text-muted-foreground">Code:</span> <span className="font-medium">{oa.product_code}</span></div>}
+                                {oa.product_category && <div><span className="text-muted-foreground">Category:</span> <span className="font-medium">{oa.product_category}</span></div>}
+                                {oa.quantity != null && <div><span className="text-muted-foreground">Qty:</span> <span className="font-medium">{oa.quantity}</span></div>}
+                                {oa.selling_price != null && <div><span className="text-muted-foreground">Unit price:</span> <span className="font-medium">₹{Number(oa.selling_price).toLocaleString('en-IN')}</span></div>}
+                                {paid > 0 && <div><span className="text-muted-foreground">Paid:</span> <span className="font-medium text-green-600">₹{paid.toLocaleString('en-IN')}</span></div>}
+                                {oa.payment_terms && <div><span className="text-muted-foreground">Terms:</span> <span className="font-medium">{oa.payment_terms}</span></div>}
+                                {oa.payment_due_date && <div><span className="text-muted-foreground">Due:</span> <span className="font-medium">{format(new Date(oa.payment_due_date), 'dd MMM yy')}</span></div>}
+                                {oa.lead_source && <div><span className="text-muted-foreground">Source:</span> <span className="font-medium">{oa.lead_source}</span></div>}
+                                {oa.customer_email && <div className="col-span-2"><span className="text-muted-foreground">Email:</span> <span className="font-medium">{oa.customer_email}</span></div>}
+                                {oa.customer_gst && <div className="col-span-2"><span className="text-muted-foreground">GST:</span> <span className="font-medium font-mono">{oa.customer_gst}</span></div>}
+                                {oa.shipping_address && (
+                                  <div className="col-span-2 flex items-start gap-1">
+                                    <MapPinned className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
+                                    <span className="font-medium whitespace-pre-wrap">{oa.shipping_address}</span>
+                                  </div>
                                 )}
                               </div>
-                              {o.order_number && <div className="text-[10px] text-muted-foreground">#{o.order_number}</div>}
-                            </TableCell>
-                            <TableCell className="text-xs font-medium">
-                              {o.total_sales_amount ? `₹${(o.total_sales_amount / 1000).toFixed(0)}K` : '—'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={cn('text-[9px] border-0', STATUS_COLORS[o.status] || 'bg-muted')}>{o.status}</Badge>
-                            </TableCell>
-                            <TableCell className="text-[10px] text-muted-foreground">
-                              {o.order_date ? format(new Date(o.order_date), 'dd MMM yy') : '—'}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>
