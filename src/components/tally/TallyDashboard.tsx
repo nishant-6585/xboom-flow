@@ -12,11 +12,14 @@ import {
   IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Calendar as CalendarComp } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format, eachDayOfInterval, isWithinInterval, startOfDay,
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay, startOfYear, startOfQuarter, endOfQuarter, subDays,
 } from "date-fns";
 import { OrderDialog } from "@/components/OrderDialog";
 import { ProcurementOrderDialog } from "@/components/procurement/ProcurementOrderDialog";
@@ -126,7 +129,7 @@ interface TallyRow {
 
 type SortField = "orderNumber" | "salesValue" | "pendingPayment" | "procurementValue" | "profit" | "profitMargin";
 type SortDir = "asc" | "desc";
-type TimePeriod = "this_week" | "this_month" | "prev_month";
+type TimePeriod = "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "prev_month" | "last_3_months" | "this_quarter" | "last_quarter" | "ytd" | "all" | "custom";
 
 const fmt = (v: number) => {
   if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)}Cr`;
@@ -138,13 +141,38 @@ const fmt = (v: number) => {
 function getDateRange(period: TimePeriod): { start: Date; end: Date } {
   const now = new Date();
   switch (period) {
+    case "today":
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case "yesterday": {
+      const y = subDays(now, 1);
+      return { start: startOfDay(y), end: endOfDay(y) };
+    }
     case "this_week":
       return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
+    case "last_week": {
+      const lw = subDays(now, 7);
+      return { start: startOfWeek(lw, { weekStartsOn: 1 }), end: endOfWeek(lw, { weekStartsOn: 1 }) };
+    }
     case "this_month":
       return { start: startOfMonth(now), end: now };
-    case "prev_month":
+    case "prev_month": {
       const prev = subMonths(now, 1);
       return { start: startOfMonth(prev), end: endOfMonth(prev) };
+    }
+    case "last_3_months":
+      return { start: startOfMonth(subMonths(now, 2)), end: endOfDay(now) };
+    case "this_quarter":
+      return { start: startOfQuarter(now), end: endOfDay(now) };
+    case "last_quarter": {
+      const lq = subMonths(now, 3);
+      return { start: startOfQuarter(lq), end: endOfQuarter(lq) };
+    }
+    case "ytd":
+      return { start: startOfYear(now), end: endOfDay(now) };
+    case "all":
+      return { start: new Date(2000, 0, 1), end: endOfDay(now) };
+    case "custom":
+      return { start: startOfDay(now), end: endOfDay(now) };
   }
 }
 
@@ -160,6 +188,8 @@ export function TallyDashboard() {
   const [sortField, setSortField] = useState<SortField>("orderNumber");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("this_month");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>("all");
 
   // Drill-down dialog state
@@ -282,14 +312,22 @@ export function TallyDashboard() {
 
   // Filter orders by date range and salesperson
   const orders = useMemo(() => {
-    const { start, end } = getDateRange(timePeriod);
+    let start: Date; let end: Date;
+    if (timePeriod === "custom") {
+      if (!customStart || !customEnd) return [];
+      start = startOfDay(customStart);
+      end = endOfDay(customEnd);
+    } else {
+      const r = getDateRange(timePeriod);
+      start = r.start; end = r.end;
+    }
     return allOrders.filter((o) => {
       const d = new Date(o.order_date || o.created_at);
       const inRange = isWithinInterval(d, { start: startOfDay(start), end });
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
       return inRange && matchesPerson;
     });
-  }, [allOrders, timePeriod, salesPersonFilter]);
+  }, [allOrders, timePeriod, customStart, customEnd, salesPersonFilter]);
 
   // Build lookup maps
   const procByOrder = useMemo(() => {
@@ -529,7 +567,23 @@ export function TallyDashboard() {
     </Button>
   );
 
-  const periodLabel = timePeriod === "this_week" ? "This Week" : timePeriod === "this_month" ? "Month Till Date" : "Previous Month";
+  const periodLabels: Record<TimePeriod, string> = {
+    today: "Today",
+    yesterday: "Yesterday",
+    this_week: "This Week",
+    last_week: "Last Week",
+    this_month: "Month Till Date",
+    prev_month: "Previous Month",
+    last_3_months: "Last 3 Months",
+    this_quarter: "This Quarter",
+    last_quarter: "Last Quarter",
+    ytd: "Year To Date",
+    all: "All Time",
+    custom: customStart && customEnd
+      ? `${format(customStart, "dd MMM yyyy")} – ${format(customEnd, "dd MMM yyyy")}`
+      : "Custom Range",
+  };
+  const periodLabel = periodLabels[timePeriod];
 
   if (loading) {
     return (
@@ -566,16 +620,52 @@ export function TallyDashboard() {
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-muted-foreground" />
           <Select value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
-            <SelectTrigger className="w-[160px] h-9">
+            <SelectTrigger className="w-[180px] h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
               <SelectItem value="this_week">This Week</SelectItem>
+              <SelectItem value="last_week">Last Week</SelectItem>
               <SelectItem value="this_month">This Month</SelectItem>
               <SelectItem value="prev_month">Previous Month</SelectItem>
+              <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+              <SelectItem value="this_quarter">This Quarter</SelectItem>
+              <SelectItem value="last_quarter">Last Quarter</SelectItem>
+              <SelectItem value="ytd">Year To Date</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        {timePeriod === "custom" && (
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-9 justify-start text-left font-normal", !customStart && "text-muted-foreground")}>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {customStart ? format(customStart, "dd MMM yyyy") : "From"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComp mode="single" selected={customStart} onSelect={setCustomStart} initialFocus className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
+            <span className="text-muted-foreground text-sm">to</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-9 justify-start text-left font-normal", !customEnd && "text-muted-foreground")}>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {customEnd ? format(customEnd, "dd MMM yyyy") : "To"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComp mode="single" selected={customEnd} onSelect={setCustomEnd} disabled={(d) => (customStart ? d < customStart : false)} initialFocus className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <User className="w-4 h-4 text-muted-foreground" />
           <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
