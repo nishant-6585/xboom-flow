@@ -2107,6 +2107,8 @@ export type Database = {
           created_by: string
           created_by_name: string
           email: string | null
+          engagement_stage: string | null
+          engagement_stage_updated_at: string | null
           health_band: string | null
           health_score: number | null
           id: string
@@ -2144,6 +2146,8 @@ export type Database = {
           created_by: string
           created_by_name?: string
           email?: string | null
+          engagement_stage?: string | null
+          engagement_stage_updated_at?: string | null
           health_band?: string | null
           health_score?: number | null
           id?: string
@@ -2181,6 +2185,8 @@ export type Database = {
           created_by?: string
           created_by_name?: string
           email?: string | null
+          engagement_stage?: string | null
+          engagement_stage_updated_at?: string | null
           health_band?: string | null
           health_score?: number | null
           id?: string
@@ -13063,6 +13069,11 @@ export type Database = {
           p_status: string
           p_user_id?: string
         }
+        Returns: undefined
+      }
+      refresh_all_company_engagement_stages: { Args: never; Returns: number }
+      refresh_company_engagement_stage: {
+        Args: { _company_id: string }
         Returns: undefined
       }
       register_trusted_device:
