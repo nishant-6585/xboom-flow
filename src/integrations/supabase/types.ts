@@ -2098,66 +2098,176 @@ export type Database = {
       }
       companies: {
         Row: {
+          account_owner_id: string | null
           address: string | null
+          ai_brief: string | null
+          ai_brief_generated_at: string | null
           city: string | null
           created_at: string
           created_by: string
           created_by_name: string
           email: string | null
+          health_band: string | null
+          health_score: number | null
           id: string
           industry: string | null
           is_recurring: boolean | null
+          last_activity_at: string | null
+          last_order_at: string | null
           name: string
+          next_action_at: string | null
+          next_action_notes: string | null
+          next_action_type: string | null
           notes: string | null
           phone: string | null
+          pipeline_value: number | null
+          potential_value: number | null
           state: string | null
           status: string
+          tier: string | null
+          tier_locked_at: string | null
+          tier_locked_by: string | null
+          tier_notes: string | null
+          tier_source: string | null
           total_order_value: number | null
           total_orders_count: number | null
           updated_at: string
           website: string | null
         }
         Insert: {
+          account_owner_id?: string | null
           address?: string | null
+          ai_brief?: string | null
+          ai_brief_generated_at?: string | null
           city?: string | null
           created_at?: string
           created_by: string
           created_by_name?: string
           email?: string | null
+          health_band?: string | null
+          health_score?: number | null
           id?: string
           industry?: string | null
           is_recurring?: boolean | null
+          last_activity_at?: string | null
+          last_order_at?: string | null
           name: string
+          next_action_at?: string | null
+          next_action_notes?: string | null
+          next_action_type?: string | null
           notes?: string | null
           phone?: string | null
+          pipeline_value?: number | null
+          potential_value?: number | null
           state?: string | null
           status?: string
+          tier?: string | null
+          tier_locked_at?: string | null
+          tier_locked_by?: string | null
+          tier_notes?: string | null
+          tier_source?: string | null
           total_order_value?: number | null
           total_orders_count?: number | null
           updated_at?: string
           website?: string | null
         }
         Update: {
+          account_owner_id?: string | null
           address?: string | null
+          ai_brief?: string | null
+          ai_brief_generated_at?: string | null
           city?: string | null
           created_at?: string
           created_by?: string
           created_by_name?: string
           email?: string | null
+          health_band?: string | null
+          health_score?: number | null
           id?: string
           industry?: string | null
           is_recurring?: boolean | null
+          last_activity_at?: string | null
+          last_order_at?: string | null
           name?: string
+          next_action_at?: string | null
+          next_action_notes?: string | null
+          next_action_type?: string | null
           notes?: string | null
           phone?: string | null
+          pipeline_value?: number | null
+          potential_value?: number | null
           state?: string | null
           status?: string
+          tier?: string | null
+          tier_locked_at?: string | null
+          tier_locked_by?: string | null
+          tier_notes?: string | null
+          tier_source?: string | null
           total_order_value?: number | null
           total_orders_count?: number | null
           updated_at?: string
           website?: string | null
         }
         Relationships: []
+      }
+      company_activities: {
+        Row: {
+          activity_type: string
+          amount: number | null
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          occurred_at: string
+          reference_id: string | null
+          reference_table: string | null
+          source: string
+          title: string
+        }
+        Insert: {
+          activity_type: string
+          amount?: number | null
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string
+          reference_id?: string | null
+          reference_table?: string | null
+          source: string
+          title: string
+        }
+        Update: {
+          activity_type?: string
+          amount?: number | null
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string
+          reference_id?: string | null
+          reference_table?: string | null
+          source?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_activities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_contacts: {
         Row: {
@@ -2205,6 +2315,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      company_saved_views: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          is_shared: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_shared?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_shared?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       credit_cards: {
         Row: {
@@ -12838,6 +12978,21 @@ export type Database = {
           user_agent: string
         }[]
       }
+      log_company_activity: {
+        Args: {
+          _amount?: number
+          _company_id: string
+          _description?: string
+          _metadata?: Json
+          _occurred_at?: string
+          _reference_id?: string
+          _reference_table?: string
+          _source: string
+          _title: string
+          _type: string
+        }
+        Returns: string
+      }
       log_resume_access_failure:
         | {
             Args: {
@@ -12882,6 +13037,11 @@ export type Database = {
         Returns: string
       }
       needs_step_up_auth: { Args: { p_user_id: string }; Returns: boolean }
+      recompute_company_health: {
+        Args: { _company_id: string }
+        Returns: undefined
+      }
+      recompute_company_tiers: { Args: never; Returns: undefined }
       record_login_attempt: {
         Args: {
           p_email: string
