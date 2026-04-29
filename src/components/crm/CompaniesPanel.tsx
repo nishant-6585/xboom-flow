@@ -25,6 +25,8 @@ import { CompanyEngagementCard } from './CompanyEngagementCard';
 import { useCompanyEngagementMap, type EngagementBucket } from '@/hooks/useCompanyEngagement';
 import { CompanyCreationTrend } from './CompanyCreationTrend';
 import { CompanyIndustryChart } from './CompanyIndustryChart';
+import { CompanyOwnerChart } from './CompanyOwnerChart';
+import { useProfileNames } from '@/hooks/useProfileNames';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBulkUpdateCompanies, useCompanySavedViews } from '@/hooks/useCompanyCrm';
 import { classifyCompanies, type Bucket } from '@/lib/companyBuckets';
@@ -43,6 +45,7 @@ interface CompaniesPanelProps {
 export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const { companies, loading, addCompany, adding } = useCompanies();
   const { user, userName } = useAuth();
+  const { resolveName: resolveOwnerName } = useProfileNames();
   const { syncAllLeadsToCompanies } = usePushToCompany();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -50,6 +53,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [tierFilter, setTierFilter] = useState<string>('all');
   const [healthFilter, setHealthFilter] = useState<string>('all');
   const [engagementFilter, setEngagementFilter] = useState<'all' | EngagementBucket | 'engaged'>('all');
+  const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const bulkUpdate = useBulkUpdateCompanies();
   const { views, saveView, deleteView } = useCompanySavedViews();
@@ -103,8 +107,26 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
         return b === engagementFilter;
       });
     }
+    if (ownerFilter !== 'all') {
+      list = list.filter(c => {
+        const k = c.account_owner_id || '__unassigned__';
+        return k === ownerFilter;
+      });
+    }
     return list;
-  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, classification, engagement.map]);
+  }, [companies, search, statusFilter, bucketFilter, tierFilter, healthFilter, engagementFilter, ownerFilter, classification, engagement.map]);
+
+  const ownerOptions = useMemo(() => {
+    const m = new Map<string, { key: string; name: string; count: number }>();
+    companies.forEach(c => {
+      const key = c.account_owner_id || '__unassigned__';
+      const name = c.account_owner_id ? resolveOwnerName(c.account_owner_id) : 'Unassigned';
+      const slot = m.get(key) || { key, name, count: 0 };
+      slot.count += 1;
+      m.set(key, slot);
+    });
+    return Array.from(m.values()).sort((a, b) => b.count - a.count);
+  }, [companies, resolveOwnerName]);
 
   const allSelected = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
   const toggleAll = () => {
@@ -227,6 +249,12 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
 
       {/* Industry-wise Distribution */}
       <CompanyIndustryChart
+        companies={companies}
+        onCompanyClick={(c) => { setSelectedCompany(c); setDrawerOpen(true); }}
+      />
+
+      {/* Companies by Account Manager */}
+      <CompanyOwnerChart
         companies={companies}
         onCompanyClick={(c) => { setSelectedCompany(c); setDrawerOpen(true); }}
       />
@@ -361,6 +389,19 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <SelectItem value="pipeline">In Pipeline only</SelectItem>
                   <SelectItem value="both">In Both</SelectItem>
                   <SelectItem value="none">Not Engaged</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                <SelectTrigger className="w-[170px]">
+                  <SelectValue placeholder="Account Manager" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">All Managers</SelectItem>
+                  {ownerOptions.map(o => (
+                    <SelectItem key={o.key} value={o.key}>
+                      {o.name} ({o.count})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -535,6 +576,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <TableHead className="w-24">Health</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>Industry</TableHead>
+                  <TableHead>Account Manager</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Orders</TableHead>
                   <TableHead>Total Value</TableHead>
@@ -546,7 +588,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
@@ -572,6 +614,13 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                         {company.city && <div className="text-xs text-muted-foreground">{company.city}{company.state ? `, ${company.state}` : ''}</div>}
                       </TableCell>
                       <TableCell><span className="text-sm">{company.industry || '—'}</span></TableCell>
+                      <TableCell>
+                        {company.account_owner_id ? (
+                          <span className="text-xs font-medium text-foreground">{resolveOwnerName(company.account_owner_id)}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge className={cn('text-[10px] border-0', company.status === 'customer' ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-blue-500/20 text-blue-700 dark:text-blue-400')}>
                           {company.status}
