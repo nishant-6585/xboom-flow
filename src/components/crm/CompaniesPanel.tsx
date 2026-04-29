@@ -629,7 +629,23 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                         <div className="font-medium text-sm">{company.name}</div>
                         {company.city && <div className="text-xs text-muted-foreground">{company.city}{company.state ? `, ${company.state}` : ''}</div>}
                       </TableCell>
-                      <TableCell><span className="text-sm">{company.industry || '—'}</span></TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Select
+                          value={company.industry || ''}
+                          onValueChange={(v) => updateCompany({ id: company.id, industry: v })}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-[150px] border-dashed">
+                            <SelectValue placeholder="Set industry…">
+                              {company.industry || <span className="text-muted-foreground">—</span>}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            {INDUSTRY_OPTIONS.map(opt => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         {company.account_owner_id ? (
                           <span className="text-xs font-medium text-foreground">{resolveOwnerName(company.account_owner_id)}</span>
