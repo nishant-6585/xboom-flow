@@ -12681,6 +12681,10 @@ export type Database = {
         Returns: undefined
       }
       auto_assign_woo_leads: { Args: never; Returns: number }
+      bulk_delete_companies: {
+        Args: { _ids: string[]; _unlink_first?: boolean }
+        Returns: Json
+      }
       bump_notification_rate: {
         Args: { _delta?: number; _provider: string }
         Returns: undefined
@@ -13159,6 +13163,10 @@ export type Database = {
             }
             Returns: string
           }
+      relink_companies: {
+        Args: { _source_ids: string[]; _target_id: string }
+        Returns: Json
+      }
       resolve_agent_user: {
         Args: { _agent_id: string; _agent_phone: string; _provider: string }
         Returns: string
@@ -13168,6 +13176,22 @@ export type Database = {
         Returns: string
       }
       scan_company_field_quality: { Args: never; Returns: number }
+      scan_suspect_companies: {
+        Args: never
+        Returns: {
+          activities_count: number
+          contacts_count: number
+          created_at: string
+          created_by_name: string
+          id: string
+          name: string
+          orders_count: number
+          pipeline_count: number
+          prospects_count: number
+          reason: string
+          total_orders_count: number
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sync_profiles_to_employees: { Args: never; Returns: number }
