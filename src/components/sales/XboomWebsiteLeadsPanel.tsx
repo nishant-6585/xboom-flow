@@ -653,12 +653,12 @@ export function XboomWebsiteLeadsPanel() {
       )}
 
       {/* Pagination */}
-      {!loading && filtered.length > PAGE_SIZE && (
+      {!loading && filteredCount > PAGE_SIZE && (
         <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
           <span>
             Showing <span className="font-medium text-foreground">{pageStart}</span>–
             <span className="font-medium text-foreground">{pageEnd}</span> of{" "}
-            <span className="font-medium text-foreground">{filtered.length}</span> leads
+            <span className="font-medium text-foreground">{filteredCount}</span> leads
           </span>
           <div className="flex items-center gap-2">
             <Button
