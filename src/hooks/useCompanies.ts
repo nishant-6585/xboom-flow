@@ -176,7 +176,7 @@ export function useCompanyOrders(companyId: string | null) {
       if (!companyId) return [];
       const { data, error } = await supabase
         .from('orders')
-        .select('id, order_number, customer_name, product_name, quantity, total_sales_amount, status, order_date, created_at')
+        .select('id, order_number, customer_name, customer_company, customer_email, customer_gst, product_name, product_code, product_category, quantity, selling_price, total_sales_amount, amount_paid, payment_status, payment_terms, payment_due_date, shipping_address, sales_person_name, lead_source, status, order_date, created_at')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
       if (error) throw error;
