@@ -42,7 +42,7 @@ export function FollowupsPanel() {
     product_name: '',
     phone: '',
     email: '',
-    source_type: 'prospect' as 'prospect' | 'pipeline' | 'enquiry' | 'lead',
+    source_type: 'prospect' as 'prospect' | 'pipeline' | 'enquiry' | 'lead' | 'company',
     followup_at: '',
   });
 
