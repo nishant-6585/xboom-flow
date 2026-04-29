@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Company, useCompanyContacts, useCompanyOrders, useCompanyProspects, useCompanyPipeline, useCompanies } from '@/hooks/useCompanies';
 import { useProfileNames } from '@/hooks/useProfileNames';
 import { CompanyOwnerPicker } from './CompanyOwnerPicker';
+import { CompanyFollowupsTab } from './CompanyFollowupsTab';
+import { useCompanyFollowups } from '@/hooks/useCompanyFollowups';
 import { format } from 'date-fns';
 import {
   Building2, Phone, Mail, Globe, MapPin, Plus, Trash2, User, Package,
@@ -50,6 +52,7 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
   const { pipeline } = useCompanyPipeline(company?.name || null);
   const { updateCompany } = useCompanies();
   const { resolveName: resolveOwnerName } = useProfileNames();
+  const { followups: companyFollowups } = useCompanyFollowups(company?.id || null);
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', designation: '', phone: '', email: '' });
   const [addingContact, setAddingContact] = useState(false);
@@ -176,10 +179,15 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                 <TabsTrigger value="contacts" className="flex-1 text-xs gap-1"><User className="h-3 w-3" />Contacts ({contacts.length})</TabsTrigger>
                 <TabsTrigger value="orders" className="flex-1 text-xs gap-1"><Package className="h-3 w-3" />Orders ({orders.length})</TabsTrigger>
                 <TabsTrigger value="pipeline" className="flex-1 text-xs gap-1"><TrendingUp className="h-3 w-3" />Pipeline ({prospects.length + pipeline.length})</TabsTrigger>
+                <TabsTrigger value="followups" className="flex-1 text-xs gap-1"><Clock className="h-3 w-3" />Follow-ups ({companyFollowups.filter(f => f.status === 'pending').length})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="account">
                 <CompanyAccountTab company={company} />
+              </TabsContent>
+
+              <TabsContent value="followups">
+                <CompanyFollowupsTab company={company} />
               </TabsContent>
 
               <TabsContent value="timeline">
