@@ -111,6 +111,7 @@ interface TallyRow {
   amountReceived: number;
   pendingPayment: number;
   procurementValue: number;
+  procurementCostKnown: boolean;
   profit: number;
   profitMargin: number;
   orderStatus: string;
@@ -392,6 +393,10 @@ export function TallyDashboard() {
       const pendingPayment = salesValue - amountReceived;
 
       // Calculate procurement cost with robust fallbacks across procurement sources
+      // Calculate procurement cost. Track whether ANY source had real pricing,
+      // so rows with procurements awaiting supplier pricing don't display ₹0
+      // and inflate the profit / margin columns.
+      const itemsHavePricing = items.some(i => (i.procurement_rate ?? 0) > 0);
       const itemsProcCost = items.reduce((sum, item) => {
         const rate = item.procurement_rate || 0;
         const qty = item.quantity_procured && item.quantity_procured > 0
@@ -401,18 +406,31 @@ export function TallyDashboard() {
         return sum + ((rate + gst) * qty);
       }, 0);
 
+      const orderHasPricing = (o.procurement_rate ?? 0) > 0;
       const orderLevelProcCost = (o.procurement_rate || 0) * (o.quantity || 0);
 
+      const procsHavePricing = procs.some(p => (p.total_amount ?? 0) > 0 || (p.unit_price ?? 0) > 0);
       const procTableCost = procs.reduce((sum, p) => {
         const total = p.total_amount || 0;
         if (total > 0) return sum + total;
         return sum + ((p.unit_price || 0) * (p.quantity || 0));
       }, 0);
 
-      const procurementValue = itemsProcCost || orderLevelProcCost || procTableCost;
+      let procurementValue = 0;
+      let procurementCostKnown = false;
+      if (itemsHavePricing) {
+        procurementValue = itemsProcCost;
+        procurementCostKnown = true;
+      } else if (orderHasPricing) {
+        procurementValue = orderLevelProcCost;
+        procurementCostKnown = true;
+      } else if (procsHavePricing) {
+        procurementValue = procTableCost;
+        procurementCostKnown = true;
+      }
 
-      const profit = salesValue - procurementValue;
-      const profitMargin = salesValue > 0 ? (profit / salesValue) * 100 : 0;
+      const profit = procurementCostKnown ? salesValue - procurementValue : 0;
+      const profitMargin = procurementCostKnown && salesValue > 0 ? (profit / salesValue) * 100 : 0;
 
       const procPayStatuses = procs.map((p) => p.payment_status);
       const procPaymentStatus = procPayStatuses.length === 0
@@ -459,6 +477,7 @@ export function TallyDashboard() {
         amountReceived,
         pendingPayment,
         procurementValue,
+        procurementCostKnown,
         profit,
         profitMargin,
         orderStatus: o.status,
@@ -507,7 +526,12 @@ export function TallyDashboard() {
     const totalPending = rows.reduce((s, r) => s + r.pendingPayment, 0);
     const totalProcurement = rows.reduce((s, r) => s + r.procurementValue, 0);
     const totalProfit = rows.reduce((s, r) => s + r.profit, 0);
-    const avgMargin = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0;
+    // Margin only over rows where procurement cost is known, so pending-cost
+    // orders don't artificially inflate margin.
+    const knownRows = rows.filter(r => r.procurementCostKnown);
+    const knownSales = knownRows.reduce((s, r) => s + r.salesValue, 0);
+    const knownProfit = knownRows.reduce((s, r) => s + r.profit, 0);
+    const avgMargin = knownSales > 0 ? (knownProfit / knownSales) * 100 : 0;
     return { totalSales, totalReceived, totalPending, totalProcurement, totalProfit, avgMargin };
   }, [rows]);
 
@@ -853,19 +877,31 @@ export function TallyDashboard() {
                         </button>
                       </TableCell>
                       <TableCell className="text-right">
-                        <button onClick={() => openProcDialog(r.orderId)} className="text-sm cursor-pointer hover:text-primary hover:underline transition-colors" title="View Procurement">
-                          {fmt(r.procurementValue)}
+                        <button
+                          onClick={() => openProcDialog(r.orderId)}
+                          className={`text-sm cursor-pointer hover:text-primary hover:underline transition-colors ${r.procurementCostKnown ? '' : 'text-amber-600 dark:text-amber-400'}`}
+                          title={r.procurementCostKnown ? 'View Procurement' : 'Procurement created but supplier pricing not set yet'}
+                        >
+                          {r.procurementCostKnown ? fmt(r.procurementValue) : 'Pending'}
                         </button>
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        <span className={r.profit >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
-                          {fmt(r.profit)}
-                        </span>
+                        {r.procurementCostKnown ? (
+                          <span className={r.profit >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
+                            {fmt(r.profit)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground" title="Awaiting procurement cost">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        <span className={r.profitMargin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                          {r.profitMargin.toFixed(1)}%
-                        </span>
+                        {r.procurementCostKnown ? (
+                          <span className={r.profitMargin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                            {r.profitMargin.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <button onClick={() => openOrderDialog(r.orderId)} className="cursor-pointer hover:opacity-80 transition-opacity" title="View Payment Details">
