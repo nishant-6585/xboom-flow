@@ -29,6 +29,7 @@ import { CompanyCreationTrend } from './CompanyCreationTrend';
 import { CompanyIndustryChart } from './CompanyIndustryChart';
 import { CompanyOwnerChart } from './CompanyOwnerChart';
 import { useProfileNames } from '@/hooks/useProfileNames';
+import { useCompanyPrimaryContacts } from '@/hooks/useCompanyPrimaryContacts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBulkUpdateCompanies, useCompanySavedViews } from '@/hooks/useCompanyCrm';
 import { classifyCompanies, type Bucket } from '@/lib/companyBuckets';
@@ -49,6 +50,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const { companies, loading, addCompany, updateCompany, adding } = useCompanies();
   const { user, userName } = useAuth();
   const { resolveName: resolveOwnerName } = useProfileNames();
+  const { primaryContactByCompany } = useCompanyPrimaryContacts();
   const { syncAllLeadsToCompanies } = usePushToCompany();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
