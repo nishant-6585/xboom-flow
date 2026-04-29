@@ -37,15 +37,6 @@ Deno.serve(async (req) => {
       ((envCronSecret && cronSecret === envCronSecret) ||
         (vaultCronSecret && cronSecret === vaultCronSecret));
 
-    console.log('[auto-checkout] auth check', {
-      hasAuthHeader: !!authHeader,
-      hasCronSecret: !!cronSecret,
-      cronSecretLen: cronSecret?.length ?? 0,
-      envLen: envCronSecret?.length ?? 0,
-      vaultLen: vaultCronSecret?.length ?? 0,
-      match: cronSecretMatches,
-    });
-
     if (cronSecretMatches) {
       // Authenticated via cron secret
     } else if (authHeader?.startsWith('Bearer ')) {
