@@ -2291,6 +2291,20 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         open={paymentUploadOpen}
         onOpenChange={setPaymentUploadOpen}
       />
+
+      <DocumentViewer
+        open={invoiceViewer.open}
+        onOpenChange={(o) => {
+          if (!o && invoiceViewer.url?.startsWith('blob:')) {
+            const u = invoiceViewer.url;
+            setTimeout(() => URL.revokeObjectURL(u), 1000);
+          }
+          setInvoiceViewer((prev) => ({ ...prev, open: o }));
+        }}
+        url={invoiceViewer.url}
+        name={invoiceViewer.name}
+        fileType={invoiceViewer.fileType}
+      />
     </>
   );
 }
