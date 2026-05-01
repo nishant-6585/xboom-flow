@@ -116,6 +116,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [paymentDueDate, setPaymentDueDate] = useState('');
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [poUrl, setPoUrl] = useState<string | null>(null);
+  const [invoiceViewer, setInvoiceViewer] = useState<{ open: boolean; url: string | null; name: string; fileType: string }>({
+    open: false,
+    url: null,
+    name: 'Invoice',
+    fileType: '',
+  });
   const [invoiceNumber, setInvoiceNumber] = useState<string>('');
   const [editingInvoiceNumber, setEditingInvoiceNumber] = useState(false);
   const [poNumber, setPoNumber] = useState<string>('');
