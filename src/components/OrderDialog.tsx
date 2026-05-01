@@ -1602,35 +1602,46 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         const match = invoiceUrl.match(/\/invoices\/(.+)$/);
                         storagePath = match ? match[1] : invoiceUrl;
                       }
-                      try {
-                        const { data, error } = await supabase.storage
-                          .from('invoices')
-                          .createSignedUrl(storagePath, 300);
-                        if (error || !data?.signedUrl) {
-                          toast.error('Failed to open invoice. Please disable ad blocker and try again.');
-                          return;
-                        }
-                        // Fetch as blob and open via blob URL — bypasses ad blockers that
-                        // block direct navigation to the Supabase storage domain.
-                        try {
-                          const res = await fetch(data.signedUrl);
-                          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                          const blob = await res.blob();
-                          const blobUrl = URL.createObjectURL(blob);
-                          const win = window.open(blobUrl, '_blank');
-                          if (!win) {
-                            toast.error('Pop-up blocked. Please allow pop-ups and try again.');
-                          }
-                          // Revoke after a delay so the new tab has time to load
-                          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-                        } catch (fetchErr) {
-                          // Fallback to direct open if fetch fails (e.g., CORS)
-                          window.open(data.signedUrl, '_blank');
-                        }
-                      } catch (err: any) {
-                        console.error('Error opening invoice:', err);
-                        toast.error('Failed to open invoice. Please disable ad blocker and try again.');
-                      }
+                       try {
+                         const { data, error } = await supabase.storage
+                           .from('invoices')
+                           .createSignedUrl(storagePath, 300);
+                         if (error || !data?.signedUrl) {
+                           toast.error('Failed to open invoice. Please disable ad blocker and try again.');
+                           return;
+                         }
+                         // Fetch as blob, then trigger an <a> click to download/open.
+                         // Using an anchor element (instead of window.open with a blob: URL)
+                         // avoids Chrome's "blob is blocked" page that some setups show.
+                         try {
+                           const res = await fetch(data.signedUrl);
+                           if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                           const blob = await res.blob();
+                           const fileName = storagePath.split('/').pop() || 'invoice';
+                           const blobUrl = URL.createObjectURL(blob);
+                           const a = document.createElement('a');
+                           a.href = blobUrl;
+                           a.download = fileName;
+                           a.rel = 'noopener noreferrer';
+                           document.body.appendChild(a);
+                           a.click();
+                           document.body.removeChild(a);
+                           setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+                           toast.success('Invoice downloaded. Open it from your downloads.');
+                         } catch (fetchErr) {
+                           // Fallback: direct navigation to signed URL
+                           const a = document.createElement('a');
+                           a.href = data.signedUrl;
+                           a.target = '_blank';
+                           a.rel = 'noopener noreferrer';
+                           document.body.appendChild(a);
+                           a.click();
+                           document.body.removeChild(a);
+                         }
+                       } catch (err: any) {
+                         console.error('Error opening invoice:', err);
+                         toast.error('Failed to open invoice. Please disable ad blocker and try again.');
+                       }
                     }}
                   >
                     <FileText className="h-4 w-4" />
