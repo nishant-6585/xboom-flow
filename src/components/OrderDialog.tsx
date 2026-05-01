@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PricelistItem } from '@/hooks/usePricelist';
 import { InventoryFulfillmentPanel } from '@/components/order/InventoryFulfillmentPanel';
+import { DocumentViewer } from '@/components/hr/DocumentViewer';
 
 interface OrderDialogProps {
   order: Order | null;
