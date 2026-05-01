@@ -1617,34 +1617,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                            toast.error('Failed to open invoice. Please disable ad blocker and try again.');
                            return;
                          }
-                         // Fetch as blob, then trigger an <a> click to download/open.
-                         // Using an anchor element (instead of window.open with a blob: URL)
-                         // avoids Chrome's "blob is blocked" page that some setups show.
-                         try {
-                           const res = await fetch(data.signedUrl);
-                           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                           const blob = await res.blob();
-                           const fileName = storagePath.split('/').pop() || 'invoice';
-                           const blobUrl = URL.createObjectURL(blob);
-                           const a = document.createElement('a');
-                           a.href = blobUrl;
-                           a.download = fileName;
-                           a.rel = 'noopener noreferrer';
-                           document.body.appendChild(a);
-                           a.click();
-                           document.body.removeChild(a);
-                           setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-                           toast.success('Invoice downloaded. Open it from your downloads.');
-                         } catch (fetchErr) {
-                           // Fallback: direct navigation to signed URL
-                           const a = document.createElement('a');
-                           a.href = data.signedUrl;
-                           a.target = '_blank';
-                           a.rel = 'noopener noreferrer';
-                           document.body.appendChild(a);
-                           a.click();
-                           document.body.removeChild(a);
-                         }
+                        // Fetch as blob and render inside an in-app viewer dialog
+                        // (same pattern used for HR documents). Avoids new-tab/blob
+                        // navigation issues caused by ad blockers or Chrome.
+                        const fileName = storagePath.split('/').pop() || 'Invoice';
+                        const fileType = (fileName.split('.').pop() || '').toLowerCase();
+                        try {
+                          const res = await fetch(data.signedUrl);
+                          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                          const blob = await res.blob();
+                          const blobUrl = URL.createObjectURL(blob);
+                          // Revoke previous blob URL if any
+                          if (invoiceViewer.url) URL.revokeObjectURL(invoiceViewer.url);
+                          setInvoiceViewer({ open: true, url: blobUrl, name: fileName, fileType });
+                        } catch (fetchErr) {
+                          // Fallback: open viewer with the signed URL directly
+                          setInvoiceViewer({ open: true, url: data.signedUrl, name: fileName, fileType });
+                        }
                        } catch (err: any) {
                          console.error('Error opening invoice:', err);
                          toast.error('Failed to open invoice. Please disable ad blocker and try again.');
