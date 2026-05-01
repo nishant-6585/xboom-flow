@@ -51,13 +51,38 @@ export function DocumentViewer({ open, onOpenChange, url, name, fileType }: Docu
           </div>
         </DialogHeader>
         <div className="flex-1 overflow-hidden px-2 pb-2">
-          {isPDF || isDocx ? (
+          {isPDF ? (
+            // Render PDFs natively. Browsers (Chrome/Edge/Firefox) display PDFs
+            // inline, including blob: URLs. Avoid Google Docs viewer because it
+            // can't fetch blob URLs and fails on signed Supabase URLs too.
             <iframe
-              src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+              src={url}
               className="w-full h-full rounded-md border"
               title={name}
-              sandbox="allow-scripts allow-same-origin allow-popups"
             />
+          ) : isDocx ? (
+            // Office docs can't be rendered natively. Use Google Docs viewer
+            // only for http(s) URLs (it cannot fetch blob: URLs).
+            url.startsWith('blob:') ? (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-muted/30 rounded-md">
+                <p className="text-muted-foreground text-center mb-4">
+                  Preview not available for Office documents. Please download to view.
+                </p>
+                <a href={url} download={name}>
+                  <Button>
+                    <Download className="h-4 w-4 mr-1" />
+                    Download
+                  </Button>
+                </a>
+              </div>
+            ) : (
+              <iframe
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+                className="w-full h-full rounded-md border"
+                title={name}
+                sandbox="allow-scripts allow-same-origin allow-popups"
+              />
+            )
           ) : isImage ? (
             <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded-md overflow-auto">
               <img
