@@ -7768,6 +7768,7 @@ export type Database = {
           estimated_delivery: string | null
           id: string
           internal_notes: string | null
+          invoice_number: string | null
           invoice_url: string | null
           is_escalated: boolean
           is_refund_requested: boolean
@@ -7844,6 +7845,7 @@ export type Database = {
           estimated_delivery?: string | null
           id?: string
           internal_notes?: string | null
+          invoice_number?: string | null
           invoice_url?: string | null
           is_escalated?: boolean
           is_refund_requested?: boolean
@@ -7920,6 +7922,7 @@ export type Database = {
           estimated_delivery?: string | null
           id?: string
           internal_notes?: string | null
+          invoice_number?: string | null
           invoice_url?: string | null
           is_escalated?: boolean
           is_refund_requested?: boolean
