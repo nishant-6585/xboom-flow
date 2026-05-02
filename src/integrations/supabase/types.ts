@@ -13076,15 +13076,25 @@ export type Database = {
           safety_stock: number
         }[]
       }
-      get_order_profits: {
-        Args: { p_order_ids: string[] }
-        Returns: {
-          order_id: string
-          profit: number
-          total_cost: number
-          total_sales: number
-        }[]
-      }
+      get_order_profits:
+        | {
+            Args: { p_order_ids: string[] }
+            Returns: {
+              order_id: string
+              profit: number
+              total_cost: number
+              total_sales: number
+            }[]
+          }
+        | {
+            Args: { p_include_website?: boolean; p_order_ids: string[] }
+            Returns: {
+              order_id: string
+              profit: number
+              total_cost: number
+              total_sales: number
+            }[]
+          }
       get_pending_registrations: {
         Args: never
         Returns: {
@@ -13097,20 +13107,39 @@ export type Database = {
           user_id: string
         }[]
       }
-      get_sales_leaderboard: {
-        Args: { end_date?: string; start_date?: string }
-        Returns: {
-          leads_handled: number
-          orders_won: number
-          pipeline_created: number
-          rank: number
-          total_order_value: number
-          total_pipeline_value: number
-          total_points: number
-          user_id: string
-          user_name: string
-        }[]
-      }
+      get_sales_leaderboard:
+        | {
+            Args: { end_date?: string; start_date?: string }
+            Returns: {
+              leads_handled: number
+              orders_won: number
+              pipeline_created: number
+              rank: number
+              total_order_value: number
+              total_pipeline_value: number
+              total_points: number
+              user_id: string
+              user_name: string
+            }[]
+          }
+        | {
+            Args: {
+              end_date?: string
+              p_include_website?: boolean
+              start_date?: string
+            }
+            Returns: {
+              leads_handled: number
+              orders_won: number
+              pipeline_created: number
+              rank: number
+              total_order_value: number
+              total_pipeline_value: number
+              total_points: number
+              user_id: string
+              user_name: string
+            }[]
+          }
       get_sales_team: {
         Args: never
         Returns: {
