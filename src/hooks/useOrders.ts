@@ -377,7 +377,17 @@ export function useOrders() {
     },
   });
 
-  const orders = ordersQuery.data ?? [];
+  // Safety net: hide website-sourced orders dated before the cutover window
+  // (mirroring only started 2026-04-30). Prevents accidental backfill of old
+  // WooCommerce data from polluting the Orders tab UI.
+  const WEBSITE_ORDER_CUTOFF = new Date('2026-04-30T00:00:00Z').getTime();
+  const rawOrders = ordersQuery.data ?? [];
+  const orders = rawOrders.filter((o: any) => {
+    if ((o?.source || 'manual') !== 'website') return true;
+    const refDate = o.order_date || o.created_at;
+    if (!refDate) return false;
+    return new Date(refDate).getTime() >= WEBSITE_ORDER_CUTOFF;
+  });
   const loading = ordersQuery.isLoading;
   const refetch = useCallback(() => ordersQuery.refetch(), [ordersQuery]);
 
