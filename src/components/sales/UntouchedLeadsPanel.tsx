@@ -199,6 +199,13 @@ export function UntouchedLeadsPanel() {
     }));
   }, [stats.bySalesperson]);
 
+  // Chart: simple horizontal bar — total untouched per salesperson
+  const totalsBySalesperson = useMemo(() => {
+    return stats.bySalesperson
+      .map((sp) => ({ name: sp.name, total: sp.total }))
+      .sort((a, b) => b.total - a.total);
+  }, [stats.bySalesperson]);
+
   // Heatmap data
   const heatmapData = useMemo(() => {
     return stats.bySalesperson.map((sp) => ({
@@ -379,6 +386,37 @@ export function UntouchedLeadsPanel() {
         {/* Dashboard Charts */}
         <TabsContent value="charts">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Total Untouched by Salesperson — horizontal bars */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="w-4 h-4 text-destructive" />
+                  Total Untouched Leads — by Salesperson
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {totalsBySalesperson.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    🎉 No untouched leads — everyone is on top of their queue.
+                  </p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={Math.max(180, totalsBySalesperson.length * 36)}>
+                    <BarChart
+                      data={totalsBySalesperson}
+                      layout="vertical"
+                      margin={{ top: 8, right: 32, left: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} className="text-xs" />
+                      <YAxis type="category" dataKey="name" width={160} className="text-xs" />
+                      <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                      <Bar dataKey="total" name="Untouched" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Stacked Bar: Bucket vs Salesperson */}
             <Card>
               <CardHeader>
