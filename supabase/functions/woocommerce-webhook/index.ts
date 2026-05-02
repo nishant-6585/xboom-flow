@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { mirrorIntoInternalOrders } from "../_shared/woo-mirror.ts";
+export { mirrorIntoInternalOrders } from "../_shared/woo-mirror.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -111,24 +113,10 @@ Deno.serve(async (req) => {
   }
 });
 
-// Map WooCommerce status -> internal orders.status enum value
-// Internal enum: po_received, payment_received, partial_payment_received,
-// procurement_to_plan, procurement_in_process, procurement_done,
-// delivery_done, cancelled, to_ship, in_transit
-function mapWooStatusToInternal(wooStatus: string): string {
-  switch (wooStatus) {
-    case "processing": return "payment_received";
-    case "completed":
-    case "delivered": return "delivery_done";
-    case "cancelled": return "cancelled";
-    case "refunded": return "cancelled";
-    case "on-hold": return "po_received";
-    default: return "po_received";
-  }
-}
-
-// deno-lint-ignore no-explicit-any
-export async function mirrorIntoInternalOrders(supabase: any, payload: any, orderId: string, eventType: string) {
+// Mirror logic moved to ../_shared/woo-mirror.ts (re-exported above for back-compat).
+// The legacy inline implementation below is intentionally removed.
+/* deno-lint-ignore-file */
+async function _legacyMirrorRemoved(supabase: any, payload: any, orderId: string, eventType: string) {
   const wooStatus: string = (payload?.status || "").toLowerCase();
   const lineItems = payload?.line_items || [];
 
