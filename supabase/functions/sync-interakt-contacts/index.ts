@@ -151,16 +151,40 @@ Deno.serve(async (req) => {
     let filters: Array<Record<string, string>> = [
       { trait: "created_at_utc", op: "gt", val: "1970-01-01T00:00:00.000Z" },
     ];
+    let bodyLastSynced: string | null = null;
     try {
       const body = await req.json();
       if (body?.last_synced_at) {
-        filters = [
-          { trait: "created_at_utc", op: "gt", val: body.last_synced_at },
-        ];
+        bodyLastSynced = body.last_synced_at;
       }
     } catch {
       // No body or invalid JSON - use default full-sync filter
     }
+
+    // Auto-incremental: if caller did not supply last_synced_at, derive it from the
+    // most recent interakt_created_at already in the DB. This prevents the sync
+    // from re-paginating through old contacts and hitting the 1000-row safety cap
+    // before any new leads are reached.
+    const serviceClientForLookup = createClient(supabaseUrl, supabaseServiceKey);
+    let effectiveLastSynced = bodyLastSynced;
+    if (!effectiveLastSynced) {
+      const { data: latest } = await serviceClientForLookup
+        .from("interakt_leads")
+        .select("interakt_created_at")
+        .not("interakt_created_at", "is", null)
+        .order("interakt_created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest?.interakt_created_at) {
+        // Subtract 1 minute to handle clock skew / boundary inserts
+        const t = new Date(latest.interakt_created_at).getTime() - 60_000;
+        effectiveLastSynced = new Date(t).toISOString();
+      }
+    }
+    if (effectiveLastSynced) {
+      filters = [{ trait: "created_at_utc", op: "gt", val: effectiveLastSynced }];
+    }
+    console.log(JSON.stringify({ event: "interakt_sync_start", effectiveLastSynced }));
 
     // Fetch contacts from Interakt with pagination
     let offset = 0;
