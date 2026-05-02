@@ -7766,6 +7766,7 @@ export type Database = {
           escalated_by: string | null
           escalation_reason: string | null
           estimated_delivery: string | null
+          external_id: string | null
           id: string
           internal_notes: string | null
           invoice_number: string | null
@@ -7807,6 +7808,7 @@ export type Database = {
           sales_person_name: string
           selling_price: number | null
           shipping_address: string | null
+          source: string
           status: Database["public"]["Enums"]["order_status"]
           supplier_contact: string | null
           supplier_id: string | null
@@ -7843,6 +7845,7 @@ export type Database = {
           escalated_by?: string | null
           escalation_reason?: string | null
           estimated_delivery?: string | null
+          external_id?: string | null
           id?: string
           internal_notes?: string | null
           invoice_number?: string | null
@@ -7884,6 +7887,7 @@ export type Database = {
           sales_person_name: string
           selling_price?: number | null
           shipping_address?: string | null
+          source?: string
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
           supplier_id?: string | null
@@ -7920,6 +7924,7 @@ export type Database = {
           escalated_by?: string | null
           escalation_reason?: string | null
           estimated_delivery?: string | null
+          external_id?: string | null
           id?: string
           internal_notes?: string | null
           invoice_number?: string | null
@@ -7961,6 +7966,7 @@ export type Database = {
           sales_person_name?: string
           selling_price?: number | null
           shipping_address?: string | null
+          source?: string
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
           supplier_id?: string | null
@@ -12100,6 +12106,48 @@ export type Database = {
           performed_by_name?: string
           updated_at?: string
           woo_order_id?: string
+        }
+        Relationships: []
+      }
+      woo_sync_logs: {
+        Row: {
+          attempt: number
+          created_at: string
+          direction: string
+          error_message: string | null
+          event_type: string
+          id: string
+          internal_order_id: string | null
+          payload: Json | null
+          status: string
+          woo_order_id: string | null
+          woo_status: string | null
+        }
+        Insert: {
+          attempt?: number
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          internal_order_id?: string | null
+          payload?: Json | null
+          status: string
+          woo_order_id?: string | null
+          woo_status?: string | null
+        }
+        Update: {
+          attempt?: number
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          internal_order_id?: string | null
+          payload?: Json | null
+          status?: string
+          woo_order_id?: string | null
+          woo_status?: string | null
         }
         Relationships: []
       }
