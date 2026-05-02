@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LeadDistributionChart } from "./LeadDistributionChart";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
+import { IncludeWebsiteToggle } from "@/components/analytics/IncludeWebsiteToggle";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import html2canvas from "html2canvas";
@@ -93,12 +94,15 @@ export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) 
   return (
     <div className="space-y-6">
       {/* Download Button - Top */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">Dashboard Overview</h2>
-        <Button onClick={handleDownloadPDF} disabled={downloading} size="sm" className="gap-2">
-          {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          {downloading ? "Generating..." : "Download PDF Report"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <IncludeWebsiteToggle />
+          <Button onClick={handleDownloadPDF} disabled={downloading} size="sm" className="gap-2">
+            {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {downloading ? "Generating..." : "Download PDF Report"}
+          </Button>
+        </div>
       </div>
 
       {/* Capturable Dashboard Content */}
