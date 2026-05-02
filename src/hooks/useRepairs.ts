@@ -51,6 +51,9 @@ export interface Repair {
   created_by_name: string | null;
   created_at: string;
   updated_at: string;
+  email: string | null;
+  intake_payload: Record<string, unknown> | null;
+  source_lead_id: number | null;
 }
 
 export interface RepairFormData {

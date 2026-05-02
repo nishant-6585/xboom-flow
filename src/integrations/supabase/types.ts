@@ -9667,8 +9667,10 @@ export type Database = {
           date_completed: string | null
           date_of_receipt: string
           days_to_complete: number | null
+          email: string | null
           id: string
           inspection_charges: number | null
+          intake_payload: Json | null
           issue_details: string | null
           issue_type: Database["public"]["Enums"]["repair_issue_type"]
           model_name: string
@@ -9677,6 +9679,7 @@ export type Database = {
           profit: number | null
           repair_cost_charged: number | null
           repair_number: string | null
+          source_lead_id: number | null
           total_component_cost: number | null
           total_quote_amount: number | null
           updated_at: string
@@ -9694,8 +9697,10 @@ export type Database = {
           date_completed?: string | null
           date_of_receipt?: string
           days_to_complete?: number | null
+          email?: string | null
           id?: string
           inspection_charges?: number | null
+          intake_payload?: Json | null
           issue_details?: string | null
           issue_type?: Database["public"]["Enums"]["repair_issue_type"]
           model_name: string
@@ -9704,6 +9709,7 @@ export type Database = {
           profit?: number | null
           repair_cost_charged?: number | null
           repair_number?: string | null
+          source_lead_id?: number | null
           total_component_cost?: number | null
           total_quote_amount?: number | null
           updated_at?: string
@@ -9721,8 +9727,10 @@ export type Database = {
           date_completed?: string | null
           date_of_receipt?: string
           days_to_complete?: number | null
+          email?: string | null
           id?: string
           inspection_charges?: number | null
+          intake_payload?: Json | null
           issue_details?: string | null
           issue_type?: Database["public"]["Enums"]["repair_issue_type"]
           model_name?: string
@@ -9731,6 +9739,7 @@ export type Database = {
           profit?: number | null
           repair_cost_charged?: number | null
           repair_number?: string | null
+          source_lead_id?: number | null
           total_component_cost?: number | null
           total_quote_amount?: number | null
           updated_at?: string
