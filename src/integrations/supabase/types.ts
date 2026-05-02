@@ -11012,6 +11012,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_health_runs: {
+        Row: {
+          details: Json
+          email_sent: boolean
+          healthy_count: number
+          id: string
+          ran_at: string
+          stale_count: number
+          triggered_by: string
+        }
+        Insert: {
+          details?: Json
+          email_sent?: boolean
+          healthy_count?: number
+          id?: string
+          ran_at?: string
+          stale_count?: number
+          triggered_by?: string
+        }
+        Update: {
+          details?: Json
+          email_sent?: boolean
+          healthy_count?: number
+          id?: string
+          ran_at?: string
+          stale_count?: number
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_by: string | null

@@ -63,6 +63,9 @@ verify_jwt = false
 [functions.sync-interakt-contacts]
 verify_jwt = false
 
+[functions.sync-health-check]
+verify_jwt = false
+
 [functions.myoperator-webhook]
 verify_jwt = false
 

@@ -46,6 +46,7 @@ import {
 import { Navigate, useNavigate } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { WooCommerceSyncPanel } from "@/components/admin/WooCommerceSyncPanel";
+import { LeadSyncHealthPanel } from "@/components/admin/LeadSyncHealthPanel";
 import { MyOperatorSettingsPanel } from "@/components/admin/MyOperatorSettingsPanel";
 import { ExotelSettingsPanel } from "@/components/admin/ExotelSettingsPanel";
 import AgentMappingPanel from "@/components/admin/AgentMappingPanel";
@@ -1138,6 +1139,7 @@ const Admin = () => {
 
           <TabsContent value="integrations">
             <div className="space-y-6">
+              <LeadSyncHealthPanel />
               <SlackSettingsPanel />
               <MyOperatorSettingsPanel />
               <ExotelSettingsPanel />
