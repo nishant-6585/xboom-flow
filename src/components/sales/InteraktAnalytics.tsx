@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Target, Users, TrendingUp, Calendar } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { MessageCircle, Target, Users, TrendingUp, Calendar, AlarmClock } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell } from 'recharts';
 import { format, startOfDay, startOfWeek, startOfMonth, eachDayOfInterval, subDays, subWeeks } from 'date-fns';
 import type { InteraktLead } from '@/hooks/useInteraktLeads';
 import type { Prospect } from '@/hooks/useProspects';
@@ -120,6 +120,33 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
       statuses: Array.from(statusMap.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
     };
   }, [leads, period, todayStart, weekStart, monthStart]);
+
+  // Untouched leads per salesperson (no follow-up after 24h since creation).
+  // Mirrors the rule used in useUntouchedLeads: updated_at ≈ created_at AND
+  // age > 24h. Closed/converted statuses are excluded.
+  const untouchedBySalesperson = useMemo(() => {
+    const closedStatuses = new Set(['converted', 'closed', 'lost', 'won', 'order']);
+    const counts = new Map<string, number>();
+    for (const l of leads) {
+      const created = new Date(l.interakt_created_at || l.created_at).getTime();
+      const updated = new Date(l.updated_at || l.created_at).getTime();
+      const ageHours = (Date.now() - created) / (1000 * 60 * 60);
+      const touched = Math.abs(updated - created) >= 5000;
+      if (touched) continue;
+      if (ageHours <= 24) continue;
+      if (l.status && closedStatuses.has(l.status.toLowerCase())) continue;
+      const name = l.sales_person_name || 'Unassigned';
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [leads]);
+
+  const totalUntouched = useMemo(
+    () => untouchedBySalesperson.reduce((s, x) => s + x.count, 0),
+    [untouchedBySalesperson]
+  );
 
   const chartData = period === 'day' ? dailyData : period === 'week' ? weeklyData : monthlyData;
 
@@ -312,6 +339,54 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
               <Line type="monotone" dataKey="prospects" stroke="hsl(var(--chart-5))" strokeWidth={2} name="Prospects" dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Untouched Interakt leads per salesperson */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlarmClock className="h-4 w-4 text-rose-500" />
+              Untouched Interakt Leads — by Salesperson
+            </CardTitle>
+            <Badge variant="secondary" className="text-xs">
+              {totalUntouched} untouched · &gt; 24h old
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Interakt leads with no follow-up after 24 hours of creation, grouped by assigned salesperson.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {untouchedBySalesperson.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              🎉 No untouched Interakt leads — everyone is on top of their queue.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(180, untouchedBySalesperson.length * 36)}>
+              <BarChart
+                data={untouchedBySalesperson}
+                layout="vertical"
+                margin={{ top: 8, right: 32, left: 8, bottom: 8 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={140}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} />
+                <Bar dataKey="count" name="Untouched leads" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}>
+                  {untouchedBySalesperson.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     </div>
