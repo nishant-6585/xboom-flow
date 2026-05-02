@@ -879,10 +879,10 @@ export function TallyDashboard() {
                       <TableCell className="text-right">
                         <button
                           onClick={() => openProcDialog(r.orderId)}
-                          className={`text-sm cursor-pointer hover:text-primary hover:underline transition-colors ${r.procurementCostKnown ? '' : 'text-amber-600 dark:text-amber-400'}`}
-                          title={r.procurementCostKnown ? 'View Procurement' : 'Procurement created but supplier pricing not set yet'}
+                          className={`text-sm cursor-pointer hover:text-primary hover:underline transition-colors ${r.procurementCostKnown ? '' : 'text-muted-foreground italic'}`}
+                          title={r.procurementCostKnown ? 'View Procurement' : 'Supplier pricing not set yet — update procurement to see cost'}
                         >
-                          {r.procurementCostKnown ? fmt(r.procurementValue) : 'Pending'}
+                          {r.procurementCostKnown ? fmt(r.procurementValue) : 'Not set'}
                         </button>
                       </TableCell>
                       <TableCell className="text-right text-sm">
