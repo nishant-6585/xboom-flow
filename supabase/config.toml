@@ -110,3 +110,12 @@ verify_jwt = false
 
 [functions.update-order-status]
 verify_jwt = false
+
+[functions.woocommerce-orders-backfill]
+verify_jwt = false
+
+[functions.woocommerce-push-update]
+verify_jwt = false
+
+[functions.woocommerce-webhook]
+verify_jwt = false
