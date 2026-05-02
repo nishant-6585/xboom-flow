@@ -1140,6 +1140,7 @@ const Admin = () => {
               <SlackSettingsPanel />
               <MyOperatorSettingsPanel />
               <ExotelSettingsPanel />
+              <WooCommerceSyncPanel />
             </div>
           </TabsContent>
 
