@@ -124,7 +124,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     selling_price: totalAmount,
     total_sales_amount: totalAmount,
     amount_paid: isPaid ? totalAmount : 0,
-    payment_status: isPaid ? "paid" : "pending",
+    payment_status: isPaid ? "full" : "pending",
     shipping_address: shippingAddress,
     payment_terms: payload?.payment_method_title || payload?.payment_method || null,
     lead_source: "website",
