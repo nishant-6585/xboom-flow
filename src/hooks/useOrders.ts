@@ -89,6 +89,9 @@ export interface Order {
   cancellation_reason: string | null;
   cancelled_at: string | null;
   cancelled_by: string | null;
+  /** Order origin: 'manual' (default) or 'website' (WooCommerce). Used by analytics filters. */
+  source?: string | null;
+  external_id?: string | null;
 }
 
 export interface OrderFormData {

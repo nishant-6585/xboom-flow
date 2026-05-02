@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { useAnalyticsScope } from '@/contexts/AnalyticsScopeContext';
 
 export interface SalesDailyActivity {
   id: string;
@@ -285,14 +286,16 @@ export function useOutboundActivities() {
 
 export function useSalesLeaderboard(startDate?: string, endDate?: string) {
   const { user } = useAuth();
+  const { includeWebsite } = useAnalyticsScope();
 
   const { data: leaderboard, isLoading } = useQuery({
-    queryKey: ['sales-leaderboard', startDate, endDate],
+    queryKey: ['sales-leaderboard', startDate, endDate, includeWebsite],
     queryFn: async () => {
       const { data, error } = await supabase
         .rpc('get_sales_leaderboard', {
           start_date: startDate || null,
           end_date: endDate || null,
+          p_include_website: includeWebsite,
         });
       
       if (error) throw error;

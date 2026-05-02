@@ -15,6 +15,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useAnalyticsScope } from "@/contexts/AnalyticsScopeContext";
+import { IncludeWebsiteToggle } from "@/components/analytics/IncludeWebsiteToggle";
 
 const SOURCE_COLORS: Record<string, string> = {
   abandon_cart: "#F97316",
@@ -55,6 +57,7 @@ interface UpdateDialogState {
 
 export function LeadSourcePerformanceDashboard() {
   const { role } = useAuth();
+  const { includeWebsite } = useAnalyticsScope();
   const [period, setPeriod] = useState("this_month");
   const [tab, setTab] = useState("closures");
   const [updateDialog, setUpdateDialog] = useState<UpdateDialogState>({ open: false, table: "", id: "", customerName: "", currentSource: "" });
@@ -72,16 +75,23 @@ export function LeadSourcePerformanceDashboard() {
   }, [period]);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["lead-source-perf", dateRange.start, dateRange.end],
+    queryKey: ["lead-source-perf", dateRange.start, dateRange.end, includeWebsite],
     queryFn: async () => {
       const endDt = `${dateRange.end}T23:59:59`;
       const [pipelineRes, ordersRes, prospectsRes] = await Promise.all([
         supabase.from("pipeline_orders")
           .select("id, lead_source, status, sales_person_name, sales_person_id, customer_name, product_name, expected_price, created_at")
           .gte("created_at", dateRange.start).lte("created_at", endDt),
-        supabase.from("orders")
-          .select("id, lead_source, sales_person_name, sales_person_id, customer_name, product_name, total_amount, created_at")
-          .gte("created_at", dateRange.start).lte("created_at", endDt),
+        (() => {
+          let q = supabase.from("orders")
+            .select("id, lead_source, sales_person_name, sales_person_id, customer_name, product_name, total_amount, created_at, source")
+            .gte("created_at", dateRange.start).lte("created_at", endDt);
+          if (!includeWebsite) {
+            // Treat null source as 'manual'
+            q = q.or("source.is.null,source.neq.website");
+          }
+          return q;
+        })(),
         supabase.from("prospects")
           .select("id, lead_source, source_type, sales_person_name, sales_person_id, customer_name, product_name, status, created_at")
           .gte("created_at", dateRange.start).lte("created_at", endDt),
