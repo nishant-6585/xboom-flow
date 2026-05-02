@@ -127,6 +127,15 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                       <div className="font-medium">{repair.contact_no}</div>
                     </div>
                   </div>
+                  {repair.email && (
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm text-muted-foreground">Email</div>
+                        <div className="font-medium break-all">{repair.email}</div>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Wrench className="h-4 w-4 text-muted-foreground" />
                     <div>
@@ -143,6 +152,42 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                   </div>
                 </div>
               </div>
+
+              {/* Customer-submitted intake form data */}
+              {repair.intake_payload && Object.keys(repair.intake_payload).length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-semibold text-lg mb-3">Customer Intake Form</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {Object.entries(repair.intake_payload)
+                        .filter(([, v]) => v != null && v !== "")
+                        .map(([key, value]) => {
+                          const label = key
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, c => c.toUpperCase());
+                          const display =
+                            typeof value === "object"
+                              ? JSON.stringify(value)
+                              : String(value);
+                          return (
+                            <div
+                              key={key}
+                              className="p-3 bg-muted/50 rounded-lg border border-border/40"
+                            >
+                              <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                                {label}
+                              </div>
+                              <div className="font-medium mt-1 whitespace-pre-wrap break-words">
+                                {display}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <Separator />
 
