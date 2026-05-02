@@ -2,7 +2,8 @@
  * Sends customer-facing emails for website (WooCommerce) orders.
  *
  * Triggered by the `notify_website_order_email` DB trigger on the orders
- * table. Authenticates with X-Cron-Secret. Sends through Resend from
+ * table. Authenticates with X-Cron-Secret (validated against Vault via
+ * the shared cron-auth helper). Sends through Resend from
  * `support@xboom.in`.
  *
  * Events handled:
@@ -11,6 +12,7 @@
  *  - tracking_update  (tracking_number OR tracking_url changed)
  *  - delivered / cancelled / refunded
  */
+import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -129,9 +131,8 @@ Deno.serve(async (req) => {
       { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  // Auth: cron secret only — this function is for internal trigger use.
-  const cronSecret = Deno.env.get("CRON_SECRET");
-  if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) {
+  // Auth: cron secret validated against Vault (single source of truth).
+  if (!(await isAuthorizedCron(req))) {
     return new Response(JSON.stringify({ error: "Unauthorized" }),
       { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
