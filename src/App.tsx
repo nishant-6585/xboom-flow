@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AnalyticsScopeProvider } from "@/contexts/AnalyticsScopeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
