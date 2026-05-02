@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { mirrorIntoInternalOrders } from "../woocommerce-webhook/index.ts";
+import { mirrorIntoInternalOrders } from "../_shared/woo-mirror.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
