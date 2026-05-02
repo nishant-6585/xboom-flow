@@ -132,6 +132,14 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   const wooStatus: string = (payload?.status || "").toLowerCase();
   const lineItems = payload?.line_items || [];
 
+  // ---- Window guard ----------------------------------------------------
+  // Only orders dated 30-Apr-2026 or later are eligible to land in the
+  // internal `orders` table. Older WooCommerce data stays in
+  // woocommerce_orders only and is hidden / surfaced as leads.
+  const WINDOW_START_ISO = "2026-04-30";
+  const orderDateRaw: string = String(payload?.date_created || "").slice(0, 10);
+  const inWindow = orderDateRaw && orderDateRaw >= WINDOW_START_ISO;
+
   // Look up existing internal row by external_id
   const { data: existing, error: lookupErr } = await supabase
     .from("orders")
@@ -151,16 +159,19 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     return;
   }
 
-  // RULE: only CREATE when processing. Updates flow even when status leaves processing,
-  // but only if the row already exists (created earlier from a processing event).
-  if (!existing && wooStatus !== "processing") {
+  // RULE: only CREATE when processing AND inside the date window.
+  // Updates flow even when status leaves processing, but only if the row
+  // already exists (created earlier from a processing event).
+  if (!existing && (wooStatus !== "processing" || !inWindow)) {
     await supabase.from("woo_sync_logs").insert({
       woo_order_id: orderId,
       event_type: eventType,
       direction: "in",
       status: "skipped",
       woo_status: wooStatus,
-      error_message: `Status '${wooStatus}' not 'processing' and no existing internal order`,
+      error_message: !inWindow
+        ? `Order date ${orderDateRaw} before window ${WINDOW_START_ISO}`
+        : `Status '${wooStatus}' not 'processing' and no existing internal order`,
     });
     return;
   }
@@ -185,9 +196,18 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   const productName = lineItems.length === 1
     ? (firstItem.name || "Website Order")
     : `${firstItem.name || "Website Order"} + ${lineItems.length - 1} more`;
+  const productCode: string = (firstItem.sku || `WOO-${orderId}`).toString();
 
   const internalStatus = mapWooStatusToInternal(wooStatus);
   const isPaid = wooStatus === "processing" || wooStatus === "completed" || wooStatus === "delivered";
+
+  // Tracking details from Woo meta (OR with internal value on update)
+  const wooTracking = extractTrackingFromWoo(payload);
+
+  // System "website" sales user — required by NOT NULL columns on `orders`.
+  // Resolved once per call.
+  const SYSTEM_USER_ID = "a8050cc3-7d17-44ac-a083-d8023d505331"; // Vishal (admin)
+  const SYSTEM_USER_NAME = "Website (Auto)";
 
   const orderRow: Record<string, unknown> = {
     external_id: String(orderId),
@@ -197,6 +217,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     customer_email: customerEmail,
     customer_company: billing.company || null,
     product_name: productName,
+    product_code: productCode,
     product_category: "Consumer Drones",
     quantity: totalQty,
     selling_price: totalAmount,
@@ -209,6 +230,9 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     order_type: "website",
     status: internalStatus,
     order_date: payload?.date_created ? String(payload.date_created).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    sales_person_id: SYSTEM_USER_ID,
+    sales_person_name: SYSTEM_USER_NAME,
+    created_by: SYSTEM_USER_ID,
   };
 
   // Apply lifecycle side-effects
@@ -230,6 +254,19 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 
   let internalId: string | null = existing?.id ?? null;
   if (existing) {
+    // Tracking OR-merge: prefer existing internal value, otherwise take Woo
+    // meta value. (We don't overwrite a manually entered tracking number.)
+    const { data: cur } = await supabase
+      .from("orders")
+      .select("tracking_number, tracking_url")
+      .eq("id", existing.id)
+      .maybeSingle();
+    if (!cur?.tracking_number && wooTracking.number) {
+      orderRow.tracking_number = wooTracking.number;
+    }
+    if (!cur?.tracking_url && wooTracking.url) {
+      orderRow.tracking_url = wooTracking.url;
+    }
     const { error: updErr } = await supabase
       .from("orders")
       .update(orderRow)
@@ -243,6 +280,8 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       return;
     }
   } else {
+    if (wooTracking.number) orderRow.tracking_number = wooTracking.number;
+    if (wooTracking.url) orderRow.tracking_url = wooTracking.url;
     const { data: ins, error: insErr } = await supabase
       .from("orders")
       .insert(orderRow)
@@ -284,6 +323,33 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     status: "success",
     woo_status: wooStatus,
   });
+}
+
+/**
+ * Pull tracking number + URL out of a Woo order payload. Looks at the
+ * common locations used by Advanced Shipment Tracking, YITH, WC Shipment
+ * Tracking, and the generic meta_data array.
+ */
+function extractTrackingFromWoo(payload: any): { number: string | null; url: string | null } {
+  let number: string | null = null;
+  let url: string | null = null;
+
+  const meta = Array.isArray(payload?.meta_data) ? payload.meta_data : [];
+  for (const m of meta) {
+    const k = String(m?.key || "").toLowerCase();
+    const v = m?.value;
+    if (!v) continue;
+    if (!number && /tracking[_-]?(number|no|id)$/.test(k)) number = String(v);
+    if (!url && /tracking[_-]?(url|link)$/.test(k)) url = String(v);
+    if (!number && k === "_wc_shipment_tracking_items" && Array.isArray(v) && v[0]) {
+      number = v[0].tracking_number || null;
+      url = url || v[0].tracking_url || null;
+    }
+  }
+  // YITH / generic fields on root
+  if (!number && payload?.tracking_number) number = String(payload.tracking_number);
+  if (!url && payload?.tracking_url) url = String(payload.tracking_url);
+  return { number, url };
 }
 
 // deno-lint-ignore no-explicit-any
