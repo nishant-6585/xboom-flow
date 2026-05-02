@@ -365,7 +365,13 @@ export function useOrders() {
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    // Always refetch on mount when cached data is empty so a transient
+    // failure (or stale empty cache) does not leave the UI showing
+    // "No orders found" indefinitely.
+    refetchOnMount: (query) => {
+      const data = query.state.data as unknown[] | undefined;
+      return !data || data.length === 0 ? 'always' : false;
+    },
   });
 
   const orders = ordersQuery.data ?? [];
