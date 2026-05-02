@@ -26,14 +26,9 @@ async function loadVaultSecret(): Promise<string | null> {
 
   try {
     const sb = createClient(url, key);
-    const { data, error } = await sb
-      .schema("vault" as any)
-      .from("decrypted_secrets")
-      .select("decrypted_secret")
-      .eq("name", "CRON_SECRET")
-      .maybeSingle();
-    if (error || !data?.decrypted_secret) return null;
-    cachedSecret = data.decrypted_secret as string;
+    const { data, error } = await sb.rpc("get_cron_secret");
+    if (error || !data) return null;
+    cachedSecret = data as string;
     cachedAt = now;
     return cachedSecret;
   } catch (_e) {
