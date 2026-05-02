@@ -15,6 +15,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
+import { useAnalyticsScope } from "@/contexts/AnalyticsScopeContext";
+import { IncludeWebsiteToggle } from "@/components/analytics/IncludeWebsiteToggle";
 
 interface KeyMetrics {
   // Sales metrics
@@ -40,6 +42,7 @@ interface KeyMetrics {
 
 export function KeyMetricsDashboard() {
   const { role } = useAuth();
+  const { includeWebsite } = useAnalyticsScope();
   const [metrics, setMetrics] = useState<KeyMetrics>({
     totalPipeline: 0,
     pipelineValue: 0,
@@ -74,7 +77,7 @@ export function KeyMetricsDashboard() {
           expectedPaymentsRes
         ] = await Promise.all([
           supabase.from("pipeline_orders").select("id, expected_price, probability, status"),
-          supabase.from("orders").select("id, status, created_at, order_date, payment_status, total_sales_amount, amount_paid"),
+          supabase.from("orders").select("id, status, created_at, order_date, payment_status, total_sales_amount, amount_paid, source"),
           supabase.from("inventory_procurements").select("id, payment_status"),
           supabase.from("supplier_payments").select("id, amount, payment_date"),
           supabase.from("payment_records").select("id, amount, status, created_at"),
@@ -88,7 +91,10 @@ export function KeyMetricsDashboard() {
         const pipelineValue = activePipeline.reduce((sum, p) => sum + (p.expected_price || 0), 0);
 
         // Calculate order metrics
-        const orders = ordersRes.data || [];
+        const allOrders = ordersRes.data || [];
+        const orders = includeWebsite
+          ? allOrders
+          : allOrders.filter((o: any) => (o.source ?? "manual") !== "website");
         const activeOrders = orders.filter(o => !["delivery_done", "cancelled"].includes(o.status));
         const pendingDelivery = orders.filter(o => o.status === "procurement_done");
         const ordersThisMonth = orders.filter(o => new Date(o.order_date || o.created_at) >= new Date(startOfMonth));
@@ -142,7 +148,7 @@ export function KeyMetricsDashboard() {
     };
 
     fetchMetrics();
-  }, []);
+  }, [includeWebsite]);
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) {
@@ -292,6 +298,9 @@ export function KeyMetricsDashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-end">
+        <IncludeWebsiteToggle />
+      </div>
       {/* Sales & Pipeline Metrics */}
       {canViewSalesMetrics && (
         <div className="space-y-3">

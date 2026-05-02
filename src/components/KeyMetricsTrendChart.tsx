@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAnalyticsScope } from "@/contexts/AnalyticsScopeContext";
 import { Loader2, TrendingUp } from "lucide-react";
 import { format, subDays, subWeeks, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachWeekOfInterval, eachMonthOfInterval, isWithinInterval } from "date-fns";
 
@@ -18,6 +19,7 @@ type ViewMode = "weekly" | "monthly";
 
 export function KeyMetricsTrendChart() {
   const { role } = useAuth();
+  const { includeWebsite } = useAnalyticsScope();
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [data, setData] = useState<TrendData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,12 +59,15 @@ export function KeyMetricsTrendChart() {
 
         // Fetch all data
         const [ordersRes, pipelineRes, paymentsRes] = await Promise.all([
-          supabase.from("orders").select("id, created_at, order_date, total_sales_amount"),
+          supabase.from("orders").select("id, created_at, order_date, total_sales_amount, source"),
           supabase.from("pipeline_orders").select("id, created_at, expected_price"),
           supabase.from("payment_records").select("id, created_at, amount, status").eq("status", "approved"),
         ]);
 
-        const orders = ordersRes.data || [];
+        const ordersRaw = ordersRes.data || [];
+        const orders = includeWebsite
+          ? ordersRaw
+          : ordersRaw.filter((o: any) => (o.source ?? "manual") !== "website");
         const pipeline = pipelineRes.data || [];
         const payments = paymentsRes.data || [];
 
@@ -95,7 +100,7 @@ export function KeyMetricsTrendChart() {
     };
 
     fetchTrendData();
-  }, [viewMode]);
+  }, [viewMode, includeWebsite]);
 
   const formatValue = (value: number) => {
     if (value >= 10000000) return `${(value / 10000000).toFixed(1)}Cr`;
