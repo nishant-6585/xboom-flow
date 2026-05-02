@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { WOO_ORDER_STATUSES } from '@/lib/wooOrderStatuses';
+
+/**
+ * Cutover for mirroring website orders into the internal Orders tab.
+ * Processing orders dated BEFORE this never made it across, so we surface
+ * them in the Leads tab instead (so the team can still action them).
+ */
+const WEBSITE_ORDER_CUTOFF_ISO = '2026-04-30T00:00:00Z';
 import type { WooCommerceOrder } from './useWooCommerceOrders';
 
 /**
@@ -83,11 +90,17 @@ export function useWooLeadsPaginated(opts: UseWooLeadsPaginatedOptions) {
         .from('woocommerce_orders')
         .select(selectExpr, withCount ? { count: 'exact' } : undefined);
 
-      // Lead-only: exclude fulfilled order statuses
-      q = q.not(
-        'order_status',
-        'in',
-        `(${(WOO_ORDER_STATUSES as readonly string[]).join(',')})`,
+      // Lead-only: exclude fulfilled order statuses (completed / delivered),
+      // and exclude `processing` ONLY when it falls within the post-cutover
+      // window (those rows live in the internal Orders tab instead).
+      // i.e. a row is a lead if EITHER:
+      //   - status is not in WOO_ORDER_STATUSES, OR
+      //   - status = 'processing' AND woo_created_at < cutoff
+      q = q.or(
+        [
+          `order_status.not.in.(${(WOO_ORDER_STATUSES as readonly string[]).join(',')})`,
+          `and(order_status.eq.processing,woo_created_at.lt.${WEBSITE_ORDER_CUTOFF_ISO})`,
+        ].join(','),
       );
 
       if (sinceIso) q = q.gte('woo_created_at', sinceIso);
@@ -151,10 +164,11 @@ export function useWooLeadsPaginated(opts: UseWooLeadsPaginatedOptions) {
       let q = supabase
         .from('woocommerce_orders')
         .select('order_status, total_sales_amount')
-        .not(
-          'order_status',
-          'in',
-          `(${(WOO_ORDER_STATUSES as readonly string[]).join(',')})`,
+        .or(
+          [
+            `order_status.not.in.(${(WOO_ORDER_STATUSES as readonly string[]).join(',')})`,
+            `and(order_status.eq.processing,woo_created_at.lt.${WEBSITE_ORDER_CUTOFF_ISO})`,
+          ].join(','),
         );
       if (sinceIso) q = q.gte('woo_created_at', sinceIso);
       if (excludeLost) q = q.eq('is_lost_lead', false);
