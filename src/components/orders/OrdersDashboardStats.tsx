@@ -13,6 +13,8 @@ import {
 } from "date-fns";
 import { Order } from "@/hooks/useOrders";
 import { supabase } from "@/integrations/supabase/client";
+import { useAnalyticsScope, filterByAnalyticsScope } from "@/contexts/AnalyticsScopeContext";
+import { IncludeWebsiteToggle } from "@/components/analytics/IncludeWebsiteToggle";
 
 type TimePeriod = "this_week" | "this_month" | "prev_month";
 
@@ -52,22 +54,31 @@ export function OrdersDashboardStats({
   salesPersonFilter,
   onSalesPersonFilterChange,
 }: OrdersDashboardStatsProps) {
+  const { includeWebsite } = useAnalyticsScope();
+
+  // Scope all dashboard math to the analytics-scope toggle. Operational order
+  // lists elsewhere are unaffected — only this dashboard filters.
+  const scopedOrders = useMemo(
+    () => filterByAnalyticsScope(orders, includeWebsite),
+    [orders, includeWebsite],
+  );
+
   const salesPersons = useMemo(() => {
     const names = new Set<string>();
-    orders.forEach((o) => { if (o.sales_person_name) names.add(o.sales_person_name); });
+    scopedOrders.forEach((o) => { if (o.sales_person_name) names.add(o.sales_person_name); });
     return Array.from(names).sort();
-  }, [orders]);
+  }, [scopedOrders]);
 
   const filteredOrders = useMemo(() => {
     const { start, end } = getDateRange(timePeriod);
-    return orders.filter((o) => {
+    return scopedOrders.filter((o) => {
       if (o.status === "cancelled") return false;
       const d = new Date(o.order_date || o.created_at);
       const inRange = isWithinInterval(d, { start: startOfDay(start), end });
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
       return inRange && matchesPerson;
     });
-  }, [orders, timePeriod, salesPersonFilter]);
+  }, [scopedOrders, timePeriod, salesPersonFilter]);
 
   // Fetch profit data from order_items via DB function
   const [profitData, setProfitData] = useState<Record<string, { profit: number; total_sales: number }>>({});
@@ -80,7 +91,10 @@ export function OrdersDashboardStats({
     }
     
     const fetchProfits = async () => {
-      const { data, error } = await supabase.rpc('get_order_profits', { p_order_ids: orderIds });
+      const { data, error } = await supabase.rpc('get_order_profits', {
+        p_order_ids: orderIds,
+        p_include_website: includeWebsite,
+      });
       if (!error && data) {
         const map: Record<string, { profit: number; total_sales: number }> = {};
         (data as any[]).forEach((row: any) => {
@@ -90,7 +104,7 @@ export function OrdersDashboardStats({
       }
     };
     fetchProfits();
-  }, [filteredOrders]);
+  }, [filteredOrders, includeWebsite]);
 
   const totals = useMemo(() => {
     const totalOrders = filteredOrders.length;
@@ -118,7 +132,7 @@ export function OrdersDashboardStats({
     const days = Array.from({ length: dayOfMonth }, (_, i) => i + 1);
 
     return days.map((day) => {
-      const currentDayOrders = orders.filter((o) => {
+      const currentDayOrders = scopedOrders.filter((o) => {
         if (o.status === "cancelled") return false;
         const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
@@ -126,7 +140,7 @@ export function OrdersDashboardStats({
           d.getFullYear() === currentMonthStart.getFullYear() &&
           (salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter);
       });
-      const prevDayOrders = orders.filter((o) => {
+      const prevDayOrders = scopedOrders.filter((o) => {
         if (o.status === "cancelled") return false;
         const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
@@ -140,7 +154,7 @@ export function OrdersDashboardStats({
         prevMonth: prevDayOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0),
       };
     });
-  }, [orders, salesPersonFilter]);
+  }, [scopedOrders, salesPersonFilter]);
 
   const currentMonthLabel = format(new Date(), "MMM yyyy");
   const prevMonthLabel = format(subMonths(new Date(), 1), "MMM yyyy");
@@ -195,6 +209,9 @@ export function OrdersDashboardStats({
         <Badge variant="outline" className="text-xs">
           {periodLabel} · {filteredOrders.length} orders
         </Badge>
+        <div className="sm:ml-auto">
+          <IncludeWebsiteToggle />
+        </div>
       </div>
 
       {/* Stats Cards */}
