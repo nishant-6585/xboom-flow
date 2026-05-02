@@ -128,7 +128,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     shipping_address: shippingAddress,
     payment_terms: payload?.payment_method_title || payload?.payment_method || null,
     lead_source: "website",
-    order_type: "website",
+    order_type: "prepaid",
     status: internalStatus,
     order_date: orderDateRaw || new Date().toISOString().slice(0, 10),
     sales_person_id: SYSTEM_USER_ID,
