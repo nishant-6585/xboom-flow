@@ -159,10 +159,12 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppInner />
-          <ErrorBoundary fallback={null}>
-            <SessionHealthDebug />
-          </ErrorBoundary>
+          <AnalyticsScopeProvider>
+            <AppInner />
+            <ErrorBoundary fallback={null}>
+              <SessionHealthDebug />
+            </ErrorBoundary>
+          </AnalyticsScopeProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
