@@ -53,7 +53,19 @@ export default function Orders() {
   // Only treat processing/completed/delivered as Xboom website ORDERS.
   // All other statuses (pending, on-hold, failed, cancelled, refunded …) are
   // routed to Sales > Leads > Xboom Website. See src/lib/wooOrderStatuses.ts.
-  const wooOrders = wooOrdersAll.filter((o) => isWooOrderStatus(o.order_status));
+  // Additionally, `processing` orders dated BEFORE the website-mirror cutover
+  // (2026-04-30) never made it into the internal Orders tab — they are shown
+  // in the Leads tab instead. Hide them here too so the two views agree.
+  const WEBSITE_ORDER_CUTOFF_MS = new Date('2026-04-30T00:00:00Z').getTime();
+  const wooOrders = wooOrdersAll.filter((o) => {
+    if (!isWooOrderStatus(o.order_status)) return false;
+    const status = (o.order_status || '').toLowerCase();
+    if (status === 'processing') {
+      const created = o.woo_created_at ? new Date(o.woo_created_at).getTime() : 0;
+      if (created && created < WEBSITE_ORDER_CUTOFF_MS) return false;
+    }
+    return true;
+  });
   const wooTotalCount = wooOrders.length;
 
   // Recompute stats from the order-only subset so dashboards on the Orders
