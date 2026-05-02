@@ -7,18 +7,17 @@ import {
 
 /**
  * Routing contract for WooCommerce (Xboom website) rows:
- *   - processing / completed / delivered  -> Orders page only
- *   - everything else (pending, on-hold, failed, cancelled, refunded, …)
+ *   - processing / on-hold / completed / delivered  -> Orders page only
+ *   - everything else (pending, failed, cancelled, refunded, …)
  *     -> Sales > Leads > Xboom Website only
  *
  * The two predicates MUST be mutually exclusive and collectively exhaustive
  * so a row can never appear in both views or be silently dropped.
  */
 
-const ORDER_FIXTURES = ["processing", "completed", "delivered"];
+const ORDER_FIXTURES = ["processing", "on-hold", "completed", "delivered"];
 const LEAD_FIXTURES = [
   "pending",
-  "on-hold",
   "failed",
   "cancelled",
   "refunded",
@@ -31,7 +30,7 @@ const LEAD_FIXTURES = [
 describe("wooOrderStatuses routing", () => {
   it("treats only processing/completed/delivered as orders", () => {
     expect([...WOO_ORDER_STATUSES].sort()).toEqual(
-      ["completed", "delivered", "processing"],
+      ["completed", "delivered", "on-hold", "processing"],
     );
   });
 
@@ -49,7 +48,7 @@ describe("wooOrderStatuses routing", () => {
     expect(isWooOrderStatus("PROCESSING")).toBe(true);
     expect(isWooOrderStatus("Completed")).toBe(true);
     expect(isWooLeadStatus("PENDING")).toBe(true);
-    expect(isWooLeadStatus("On-Hold")).toBe(true);
+    expect(isWooOrderStatus("On-Hold")).toBe(true);
   });
 
   it("treats null/undefined as a lead (safe default — never hide a row from sales)", () => {
@@ -81,8 +80,8 @@ describe("wooOrderStatuses routing", () => {
     const orders = rows.filter((r) => isWooOrderStatus(r.order_status));
     const leads = rows.filter((r) => isWooLeadStatus(r.order_status));
 
-    expect(orders.map((o) => o.id)).toEqual(["1", "2", "3"]);
-    expect(leads.map((l) => l.id)).toEqual(["4", "5", "6", "7", "8", "9"]);
+    expect(orders.map((o) => o.id)).toEqual(["1", "2", "3", "5"]);
+    expect(leads.map((l) => l.id)).toEqual(["4", "6", "7", "8", "9"]);
     expect(orders.length + leads.length).toBe(rows.length);
   });
 });
