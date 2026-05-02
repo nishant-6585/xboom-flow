@@ -288,27 +288,45 @@ export default function QFormsPanel() {
   };
 
   // Build LeadContactData for drawer
-  const drawerData: LeadContactData | null = drawerLead ? {
-    id: String(drawerLead.id),
-    source_type: 'lead',
-    customer_name: drawerLead.name ?? "—",
-    phone: drawerLead.phone,
-    email: drawerLead.email,
-    company: drawerLead.company,
-    city: drawerLead.location,
-    notes: drawerLead.message,
-    status: drawerLead.status,
-    assigned_to_name: drawerLead.assigned_to_name,
-    created_at: drawerLead.created_at,
-    extras: {
+  const drawerData: LeadContactData | null = drawerLead ? (() => {
+    // Merge fixed columns with raw payload so the drawer shows every field the user filled in
+    const base: Record<string, string | number | boolean | null> = {
       "Form type": drawerLead.form_type,
       "Subject": drawerLead.subject,
       "Urgency": drawerLead.urgency,
       "Sector": drawerLead.sector,
       "Role": drawerLead.role,
       "Page URL": drawerLead.page_url,
-    },
-  } : null;
+    };
+    if (drawerLead.payload && typeof drawerLead.payload === "object") {
+      for (const [k, v] of Object.entries(drawerLead.payload)) {
+        if (v == null || v === "") continue;
+        // Skip duplicates already shown as primary fields
+        const lower = k.toLowerCase();
+        if (["name", "email", "phone", "company", "message", "subject"].includes(lower)) continue;
+        const label = k.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        if (typeof v === "object") {
+          base[label] = JSON.stringify(v);
+        } else {
+          base[label] = v as string | number | boolean;
+        }
+      }
+    }
+    return {
+      id: String(drawerLead.id),
+      source_type: 'lead',
+      customer_name: drawerLead.name ?? "—",
+      phone: drawerLead.phone,
+      email: drawerLead.email,
+      company: drawerLead.company,
+      city: drawerLead.location,
+      notes: drawerLead.message,
+      status: drawerLead.status,
+      assigned_to_name: drawerLead.assigned_to_name,
+      created_at: drawerLead.created_at,
+      extras: base,
+    };
+  })() : null;
 
   return (
     <div className="space-y-4">
