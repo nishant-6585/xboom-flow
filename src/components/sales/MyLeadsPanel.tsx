@@ -8,6 +8,21 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Search, Phone, Mail, Building2, MapPin, Calendar, Bell, BellOff, Package, TrendingUp, Clock, AlertTriangle } from "lucide-react";
+import { CallButton } from "@/components/calls/CallButton";
+import type { CallEntityType } from "@/hooks/useInitiateCall";
+
+const SOURCE_TO_ENTITY: Record<string, CallEntityType> = {
+  "Google Ads": "lead",
+  "ElevenLabs": "lead",
+  "Email": "lead",
+  "Interakt": "lead",
+  "MyOperator": "lead",
+  "IndiaMART": "lead",
+  "Form": "lead",
+  "Q-Form": "lead",
+  "Enquiry": "enquiry",
+  "Prospect": "prospect",
+};
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
@@ -361,11 +376,15 @@ export function MyLeadsPanel() {
                         <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             {lead.phone && (
-                              <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
-                                <a href={`tel:${lead.phone}`}>
-                                  <Phone className="h-3.5 w-3.5 text-blue-600" />
-                                </a>
-                              </Button>
+                              <CallButton
+                                phoneNumber={lead.phone}
+                                entityType={SOURCE_TO_ENTITY[lead.source] ?? "lead"}
+                                entityId={lead.id}
+                                iconOnly
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600"
+                              />
                             )}
                             {lead.phone && (
                               <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
