@@ -49,6 +49,7 @@ import { ElevenLabsLeadsPanel } from './ElevenLabsLeadsPanel';
 import { XboomWebsiteLeadsPanel } from './XboomWebsiteLeadsPanel';
 import { Globe } from 'lucide-react';
 import { Bot } from 'lucide-react';
+import { TouchedDashboard } from './TouchedDashboard';
 
 /**
  * Source filter options for the All Leads tab.
