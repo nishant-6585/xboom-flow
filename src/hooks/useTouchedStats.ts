@@ -215,6 +215,7 @@ interface ActivityRow {
   source_id: string;
   created_by_name: string | null;
   value?: number | null;
+  created_at?: string | null;
 }
 
 async function fetchActivity(
@@ -223,7 +224,7 @@ async function fetchActivity(
 ): Promise<{
   followups: ActivityRow[];
   prospects: ActivityRow[];
-  pipeline: { sales_person_name: string | null; value: number; enquiry_id: string | null }[];
+  pipeline: { sales_person_name: string | null; value: number; enquiry_id: string | null; created_at: string | null }[];
 }> {
   const sourceType = SOURCE_TYPE_MAP[source];
   const PAGE = 1000;
@@ -247,13 +248,13 @@ async function fetchActivity(
   };
 
   const [followupsRaw, prospectsRaw] = await Promise.all([
-    pull<any>("followups", "source_type, source_id, created_by_name", "source_type", sourceType),
-    pull<any>("prospects", "source_type, source_id, created_by_name, quoted_price", "source_type", sourceType),
+    pull<any>("followups", "source_type, source_id, created_by_name, created_at", "source_type", sourceType),
+    pull<any>("prospects", "source_type, source_id, created_by_name, quoted_price, created_at", "source_type", sourceType),
   ]);
 
   const followups = followupsRaw
     .filter((r) => leadIds.has(String(r.source_id)))
-    .map((r) => ({ source_type: r.source_type, source_id: r.source_id, created_by_name: r.created_by_name }));
+    .map((r) => ({ source_type: r.source_type, source_id: r.source_id, created_by_name: r.created_by_name, created_at: r.created_at ?? null }));
 
   const prospects = prospectsRaw
     .filter((r) => leadIds.has(String(r.source_id)))
@@ -262,10 +263,11 @@ async function fetchActivity(
       source_id: r.source_id,
       created_by_name: r.created_by_name,
       value: Number(r.quoted_price ?? 0) || 0,
+      created_at: r.created_at ?? null,
     }));
 
   // Pipeline orders only have a direct link via enquiry_id (for enquiries source)
-  let pipeline: { sales_person_name: string | null; value: number; enquiry_id: string | null }[] = [];
+  let pipeline: { sales_person_name: string | null; value: number; enquiry_id: string | null; created_at: string | null }[] = [];
   if (source === "enquiries" && leadIds.size > 0) {
     const ids = Array.from(leadIds);
     const CHUNK = 500;
@@ -273,7 +275,7 @@ async function fetchActivity(
       const slice = ids.slice(i, i + CHUNK);
       const { data, error } = await (supabase as any)
         .from("pipeline_orders")
-        .select("sales_person_name, expected_price, quantity, enquiry_id")
+        .select("sales_person_name, expected_price, quantity, enquiry_id, created_at")
         .in("enquiry_id", slice);
       if (error) throw error;
       (data ?? []).forEach((p: any) => {
@@ -281,6 +283,7 @@ async function fetchActivity(
           sales_person_name: p.sales_person_name,
           value: (Number(p.expected_price ?? 0) || 0) * (Number(p.quantity ?? 1) || 1),
           enquiry_id: p.enquiry_id,
+          created_at: p.created_at ?? null,
         });
       });
     }
@@ -291,7 +294,7 @@ async function fetchActivity(
 
 function aggregate(
   rows: NormalizedLead[],
-  activity: { followups: ActivityRow[]; prospects: ActivityRow[]; pipeline: { sales_person_name: string | null; value: number }[] },
+  activity: { followups: ActivityRow[]; prospects: ActivityRow[]; pipeline: { sales_person_name: string | null; value: number; created_at?: string | null }[] },
 ): TouchedStats {
   const total = rows.length;
   const touched = rows.filter((r) => r.touched).length;
@@ -352,13 +355,35 @@ function aggregate(
   };
 }
 
-export function useTouchedStats(source: TouchedSource) {
+export interface DateRange {
+  from: Date | null;
+  to: Date | null;
+}
+
+function inRange(iso: string | null | undefined, range?: DateRange | null): boolean {
+  if (!range || (!range.from && !range.to)) return true;
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (range.from && t < range.from.getTime()) return false;
+  if (range.to && t > range.to.getTime()) return false;
+  return true;
+}
+
+export function useTouchedStats(source: TouchedSource, range?: DateRange | null) {
+  const fromKey = range?.from ? range.from.toISOString() : "";
+  const toKey = range?.to ? range.to.toISOString() : "";
   return useQuery({
-    queryKey: ["touched-stats", source, "v2"],
+    queryKey: ["touched-stats", source, "v3", fromKey, toKey],
     queryFn: async () => {
-      const rows = await fetchSource(source);
-      const ids = new Set(rows.map((r) => String(r.id)));
-      const activity = await fetchActivity(source, ids);
+      const allRows = await fetchSource(source);
+      const ids = new Set(allRows.map((r) => String(r.id)));
+      const allActivity = await fetchActivity(source, ids);
+      const rows = allRows.filter((r) => inRange(r.created_at, range));
+      const activity = {
+        followups: allActivity.followups.filter((f) => inRange(f.created_at, range)),
+        prospects: allActivity.prospects.filter((p) => inRange(p.created_at, range)),
+        pipeline: allActivity.pipeline.filter((p) => inRange(p.created_at, range)),
+      };
       return aggregate(rows, activity);
     },
     staleTime: 60_000,
