@@ -8,6 +8,21 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Search, Phone, Mail, Building2, MapPin, Calendar, Bell, BellOff, Package, TrendingUp, Clock, AlertTriangle } from "lucide-react";
+import { CallButton } from "@/components/calls/CallButton";
+import type { CallEntityType } from "@/hooks/useInitiateCall";
+
+const SOURCE_TO_ENTITY: Record<string, CallEntityType> = {
+  "Google Ads": "lead",
+  "ElevenLabs": "lead",
+  "Email": "lead",
+  "Interakt": "lead",
+  "MyOperator": "lead",
+  "IndiaMART": "lead",
+  "Form": "lead",
+  "Q-Form": "lead",
+  "Enquiry": "enquiry",
+  "Prospect": "prospect",
+};
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
