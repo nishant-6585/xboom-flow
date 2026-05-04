@@ -270,18 +270,34 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get existing leads for duplicate detection and date repair
-    const { data: existingLeads } = await serviceClient
-      .from("interakt_leads")
-      .select("phone_number, interakt_created_at");
-
-    const existingLeadMap = new Map(
-      (existingLeads || []).map((lead: { phone_number: string; interakt_created_at: string | null }) => [
-        lead.phone_number,
-        lead.interakt_created_at,
-      ])
-    );
+    // Get existing leads for duplicate detection and date repair.
+    // IMPORTANT: Postgres/PostgREST caps a single select() at 1000 rows, so
+    // we MUST paginate — otherwise existing phones beyond row 1000 look "new"
+    // and the insert below blows up on the unique_phone_number constraint,
+    // which rolls back the entire chunk and prevents new leads from being saved.
+    const existingLeadMap = new Map<string, string | null>();
+    {
+      const PAGE = 1000;
+      let from = 0;
+      // Safety cap to avoid runaway loops
+      const MAX = 200000;
+      while (from < MAX) {
+        const { data, error } = await serviceClient
+          .from("interakt_leads")
+          .select("phone_number, interakt_created_at")
+          .range(from, from + PAGE - 1);
+        if (error) {
+          console.error("Failed to fetch existing leads page:", error.message);
+          break;
+        }
+        const batch = (data || []) as Array<{ phone_number: string; interakt_created_at: string | null }>;
+        for (const row of batch) existingLeadMap.set(row.phone_number, row.interakt_created_at);
+        if (batch.length < PAGE) break;
+        from += PAGE;
+      }
+    }
     const existingPhones = new Set(existingLeadMap.keys());
+    console.log(JSON.stringify({ event: "interakt_existing_loaded", count: existingPhones.size }));
 
     // Prepare batch insert
     let created = 0;
@@ -357,8 +373,11 @@ Deno.serve(async (req) => {
       created++;
     }
 
-    // Batch insert in chunks of 50
+    // Batch insert in chunks of 50, with per-row fallback so a single
+    // duplicate (e.g. phone number race condition) does not abort the
+    // entire chunk and silently drop all the other new leads.
     const CHUNK_SIZE = 50;
+    let actuallyInserted = 0;
     for (let i = 0; i < newLeads.length; i += CHUNK_SIZE) {
       const chunk = newLeads.slice(i, i + CHUNK_SIZE);
       const { error: insertError } = await serviceClient
@@ -366,9 +385,28 @@ Deno.serve(async (req) => {
         .insert(chunk);
 
       if (insertError) {
-        console.error("Insert error for chunk:", insertError.message);
+        console.error(
+          "Insert error for chunk, falling back to per-row inserts:",
+          insertError.message
+        );
+        for (const row of chunk) {
+          const { error: rowError } = await serviceClient
+            .from("interakt_leads")
+            .insert(row);
+          if (rowError) {
+            console.error(
+              `Skipping row (phone=${row.phone_number}):`,
+              rowError.message
+            );
+          } else {
+            actuallyInserted++;
+          }
+        }
+      } else {
+        actuallyInserted += chunk.length;
       }
     }
+    created = actuallyInserted;
 
     // Repair incorrect/missing interakt_created_at values on existing leads
     let backfilled = 0;
