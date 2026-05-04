@@ -18,6 +18,10 @@ export interface NormalizedLead {
   sales_person_id: string | null;
   sales_person_name: string | null;
   touched: boolean;
+  customer_name: string | null;
+  status: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export interface SalespersonTouchStats {
@@ -34,6 +38,7 @@ export interface TouchedStats {
   untouched: number;
   touchedPct: number;
   bySalesperson: SalespersonTouchStats[];
+  rows: NormalizedLead[];
 }
 
 /**
@@ -70,77 +75,109 @@ async function fetchSource(source: TouchedSource): Promise<NormalizedLead[]> {
 
   switch (source) {
     case "enquiries": {
-      const rows = await pull<any>("enquiries", "id, sales_person_id, sales_person_name, status, notes, response_notes, lost_reason_notes, outcome_updated_at");
+      const rows = await pull<any>("enquiries", "id, customer_name, sales_person_id, sales_person_name, status, notes, response_notes, lost_reason_notes, outcome_updated_at, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: r.sales_person_id,
         sales_person_name: r.sales_person_name,
         touched: r.status !== "pending" || !!norm(r.notes) || !!r.response_notes || !!r.lost_reason_notes || !!r.outcome_updated_at,
+        customer_name: r.customer_name ?? null,
+        status: r.status ?? null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
       }));
     }
     case "qforms": {
-      const rows = await pull<any>("leads", "id, assigned_to, assigned_to_name, status, form_type");
+      const rows = await pull<any>("leads", "id, name, assigned_to, assigned_to_name, status, form_type, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: r.assigned_to,
         sales_person_name: r.assigned_to_name,
         touched: r.status !== "new",
+        customer_name: r.name ?? null,
+        status: r.status ?? null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
       }));
     }
     case "interakt": {
-      const rows = await pull<any>("interakt_leads", "id, sales_person_id, sales_person_name, status, notes");
+      const rows = await pull<any>("interakt_leads", "id, customer_name, sales_person_id, sales_person_name, status, notes, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: r.sales_person_id,
         sales_person_name: r.sales_person_name,
         touched: r.status !== "new" || !!norm(r.notes),
+        customer_name: r.customer_name ?? null,
+        status: r.status ?? null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
       }));
     }
     case "myoperator":
     case "elevenlabs":
     case "call-tracker": {
-      const rows = await pull<any>("call_logs", "id, sales_person_id, sales_person_name, lead_status, notes, lead_created");
+      const rows = await pull<any>("call_logs", "id, customer_name, sales_person_id, sales_person_name, lead_status, notes, lead_created, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: r.sales_person_id,
         sales_person_name: r.sales_person_name,
         touched: (r.lead_status && r.lead_status !== "New") || !!norm(r.notes) || r.lead_created === true,
+        customer_name: r.customer_name ?? null,
+        status: r.lead_status ?? null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
       }));
     }
     case "emails": {
-      const rows = await pull<any>("email_leads", "id, sales_person_id, sales_person_name, status, notes");
+      const rows = await pull<any>("email_leads", "id, customer_name, sales_person_id, sales_person_name, status, notes, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: r.sales_person_id,
         sales_person_name: r.sales_person_name,
         touched: r.status !== "pending" || !!norm(r.notes),
+        customer_name: r.customer_name ?? null,
+        status: r.status ?? null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
       }));
     }
     case "form-leads": {
-      const rows = await pull<any>("form_leads", "id, sales_person_id, sales_person_name, status, notes");
+      const rows = await pull<any>("form_leads", "id, customer_name, sales_person_id, sales_person_name, status, notes, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: r.sales_person_id,
         sales_person_name: r.sales_person_name,
         touched: r.status !== "new" || !!norm(r.notes),
+        customer_name: r.customer_name ?? null,
+        status: r.status ?? null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
       }));
     }
     case "google-ads": {
-      const rows = await pull<any>("google_ads_leads", "id, sales_person_id, sales_person_name, status, notes");
+      const rows = await pull<any>("google_ads_leads", "id, customer_name, sales_person_id, sales_person_name, status, notes, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: r.sales_person_id,
         sales_person_name: r.sales_person_name,
         touched: r.status !== "pending" || !!norm(r.notes),
+        customer_name: r.customer_name ?? null,
+        status: r.status ?? null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
       }));
     }
     case "xboom-website": {
-      const rows = await pull<any>("woocommerce_orders", "id, order_status, internal_notes, sales_notes");
+      const rows = await pull<any>("woocommerce_orders", "id, customer_name, order_status, internal_notes, sales_notes, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: null,
         sales_person_name: "Website",
         touched: !!norm(r.internal_notes) || !!norm(r.sales_notes) || (r.order_status && !["pending", "processing"].includes(r.order_status)),
+        customer_name: r.customer_name ?? null,
+        status: r.order_status ?? null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
       }));
     }
   }
@@ -173,6 +210,7 @@ function aggregate(rows: NormalizedLead[]): TouchedStats {
     untouched,
     touchedPct: total === 0 ? 0 : Math.round((touched / total) * 100),
     bySalesperson,
+    rows,
   };
 }
 
