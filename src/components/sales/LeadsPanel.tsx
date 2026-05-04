@@ -390,6 +390,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     <div className="space-y-6">
       {/* Prospect Analytics */}
       <ProspectAnalyticsCards prospects={prospects} sourceType="enquiry" />
+      {/* Touched vs Untouched */}
+      <TouchedDashboard source="enquiries" />
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
@@ -745,6 +747,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       {/* QForms Tab */}
       <TabsContent value="qforms" className="space-y-6">
+        <TouchedDashboard source="qforms" />
         <QFormsPanel />
       </TabsContent>
 
@@ -753,6 +756,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <div className="space-y-6">
           {/* Prospect Analytics for Interakt */}
           <ProspectAnalyticsCards prospects={prospects} sourceType="interakt" />
+
+          {/* Touched vs Untouched */}
+          <TouchedDashboard source="interakt" />
 
           {/* Interakt Analytics Dashboard */}
           <InteraktAnalytics leads={interaktLeads} prospects={prospects} />
@@ -1097,31 +1103,52 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
       </TabsContent>
 
       <TabsContent value="myoperator">
+        <div className="space-y-6">
+        <TouchedDashboard source="myoperator" />
         <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
+        </div>
       </TabsContent>
 
       <TabsContent value="elevenlabs">
+        <div className="space-y-6">
+        <TouchedDashboard source="elevenlabs" />
         <ElevenLabsLeadsPanel />
+        </div>
       </TabsContent>
 
       <TabsContent value="xboom-website">
+        <div className="space-y-6">
+        <TouchedDashboard source="xboom-website" />
         <XboomWebsiteLeadsPanel />
+        </div>
       </TabsContent>
 
       <TabsContent value="call-tracker">
+        <div className="space-y-6">
+        <TouchedDashboard source="call-tracker" />
         <OutboundCallTracker />
+        </div>
       </TabsContent>
 
       <TabsContent value="emails">
+        <div className="space-y-6">
+        <TouchedDashboard source="emails" />
         <EmailLeadsPanel />
+        </div>
       </TabsContent>
 
       <TabsContent value="form-leads">
+        <div className="space-y-6">
+        <TouchedDashboard source="form-leads" />
         <FormsLeadsPanel />
+        </div>
       </TabsContent>
 
       <TabsContent value="google-ads">
+        <div className="space-y-6">
+        <TouchedDashboard source="google-ads" />
         <GoogleAdsSyncPanel />
+        </div>
       </TabsContent>
     </Tabs>
   );
