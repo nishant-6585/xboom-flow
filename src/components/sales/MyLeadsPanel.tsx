@@ -376,11 +376,15 @@ export function MyLeadsPanel() {
                         <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             {lead.phone && (
-                              <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
-                                <a href={`tel:${lead.phone}`}>
-                                  <Phone className="h-3.5 w-3.5 text-blue-600" />
-                                </a>
-                              </Button>
+                              <CallButton
+                                phoneNumber={lead.phone}
+                                entityType={SOURCE_TO_ENTITY[lead.source] ?? "lead"}
+                                entityId={lead.id}
+                                iconOnly
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600"
+                              />
                             )}
                             {lead.phone && (
                               <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
