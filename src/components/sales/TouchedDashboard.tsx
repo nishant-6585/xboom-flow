@@ -4,10 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
-import { Activity, CheckCircle2, AlertCircle } from "lucide-react";
-import { useTouchedStats, type TouchedSource } from "@/hooks/useTouchedStats";
+import { Activity, CheckCircle2, AlertCircle, CalendarIcon } from "lucide-react";
+import { useTouchedStats, type TouchedSource, type DateRange as TouchedDateRange } from "@/hooks/useTouchedStats";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface Props {
   source: TouchedSource;
@@ -21,7 +25,26 @@ interface Props {
  * outcome recorded).
  */
 export function TouchedDashboard({ source, title }: Props) {
-  const { data, isLoading } = useTouchedStats(source);
+  type Preset = "all" | "today" | "week" | "month" | "custom";
+  const [preset, setPreset] = useState<Preset>("all");
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
+  const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
+
+  const range: TouchedDateRange | null = useMemo(() => {
+    const now = new Date();
+    if (preset === "today") return { from: startOfDay(now), to: endOfDay(now) };
+    if (preset === "week") return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
+    if (preset === "month") return { from: startOfMonth(now), to: endOfMonth(now) };
+    if (preset === "custom" && (customFrom || customTo)) {
+      return {
+        from: customFrom ? startOfDay(customFrom) : null,
+        to: customTo ? endOfDay(customTo) : null,
+      };
+    }
+    return null;
+  }, [preset, customFrom, customTo]);
+
+  const { data, isLoading } = useTouchedStats(source, range);
   const [drill, setDrill] = useState<{ name: string; status: "touched" | "untouched" | "all" } | null>(null);
 
   const drillRows = useMemo(() => {
@@ -43,11 +66,65 @@ export function TouchedDashboard({ source, title }: Props) {
       </Card>
     );
   }
+  const presets: { key: Preset; label: string }[] = [
+    { key: "all", label: "All time" },
+    { key: "today", label: "Today" },
+    { key: "week", label: "This week" },
+    { key: "month", label: "This month" },
+    { key: "custom", label: "Custom" },
+  ];
+  const FilterBar = (
+    <div className="flex items-center gap-1 flex-wrap">
+      {presets.map((p) => (
+        <Button
+          key={p.key}
+          size="sm"
+          variant={preset === p.key ? "default" : "outline"}
+          className="h-7 px-2 text-xs"
+          onClick={() => setPreset(p.key)}
+        >
+          {p.label}
+        </Button>
+      ))}
+      {preset === "custom" && (
+        <>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className={cn("h-7 px-2 text-xs", !customFrom && "text-muted-foreground")}>
+                <CalendarIcon className="h-3 w-3 mr-1" />
+                {customFrom ? format(customFrom, "dd MMM") : "From"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className={cn("h-7 px-2 text-xs", !customTo && "text-muted-foreground")}>
+                <CalendarIcon className="h-3 w-3 mr-1" />
+                {customTo ? format(customTo, "dd MMM") : "To"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={customTo} onSelect={setCustomTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+        </>
+      )}
+    </div>
+  );
+
   if (!data || data.total === 0) {
     return (
       <Card className="glass">
-        <CardHeader><CardTitle className="text-base">{title ?? "Touched vs Untouched"}</CardTitle></CardHeader>
-        <CardContent><p className="text-sm text-muted-foreground">No leads in this source yet.</p></CardContent>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-base">{title ?? "Touched vs Untouched"}</CardTitle>
+            {FilterBar}
+          </div>
+        </CardHeader>
+        <CardContent><p className="text-sm text-muted-foreground">No leads in this range.</p></CardContent>
       </Card>
     );
   }
@@ -75,6 +152,9 @@ export function TouchedDashboard({ source, title }: Props) {
             <Activity className="h-4 w-4 text-primary" />
             {title ?? "Touched vs Untouched by Salesperson"}
           </CardTitle>
+          {FilterBar}
+        </div>
+        <div className="flex items-center justify-end flex-wrap gap-2 mt-2">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline">Total: <span className="ml-1 font-semibold">{data.total}</span></Badge>
             <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30">
