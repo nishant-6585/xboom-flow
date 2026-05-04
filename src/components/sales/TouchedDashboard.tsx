@@ -58,6 +58,15 @@ export function TouchedDashboard({ source, title }: Props) {
     Untouched: s.untouched,
   }));
 
+  const fmtMoney = (n: number) =>
+    n >= 10000000
+      ? `₹${(n / 10000000).toFixed(2)}Cr`
+      : n >= 100000
+      ? `₹${(n / 100000).toFixed(2)}L`
+      : n >= 1000
+      ? `₹${(n / 1000).toFixed(1)}k`
+      : `₹${Math.round(n)}`;
+
   return (
     <Card className="glass">
       <CardHeader className="pb-3">
@@ -75,6 +84,15 @@ export function TouchedDashboard({ source, title }: Props) {
             <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30">
               <AlertCircle className="h-3 w-3 mr-1" />
               Untouched: {data.untouched}
+            </Badge>
+            <Badge variant="outline" className="border-blue-500/40 text-blue-700">
+              Follow-ups: {data.followupsTotal}
+            </Badge>
+            <Badge variant="outline" className="border-violet-500/40 text-violet-700">
+              Prospects: {data.prospectsTotal} ({fmtMoney(data.prospectsValueTotal)})
+            </Badge>
+            <Badge variant="outline" className="border-indigo-500/40 text-indigo-700">
+              Pipeline: {data.pipelineTotal} ({fmtMoney(data.pipelineValueTotal)})
             </Badge>
           </div>
         </div>
@@ -127,6 +145,11 @@ export function TouchedDashboard({ source, title }: Props) {
                 <TableHead className="text-right">Touched</TableHead>
                 <TableHead className="text-right">Untouched</TableHead>
                 <TableHead className="text-right">Touched %</TableHead>
+                <TableHead className="text-right">Follow-ups</TableHead>
+                <TableHead className="text-right">Prospects</TableHead>
+                <TableHead className="text-right">Prospect ₹</TableHead>
+                <TableHead className="text-right">Pipeline</TableHead>
+                <TableHead className="text-right">Pipeline ₹</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -165,6 +188,11 @@ export function TouchedDashboard({ source, title }: Props) {
                       {s.touchedPct}%
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-right text-blue-600">{s.followups}</TableCell>
+                  <TableCell className="text-right text-violet-600">{s.prospects}</TableCell>
+                  <TableCell className="text-right text-violet-600 text-xs">{fmtMoney(s.prospectsValue)}</TableCell>
+                  <TableCell className="text-right text-indigo-600">{s.pipeline}</TableCell>
+                  <TableCell className="text-right text-indigo-600 text-xs">{fmtMoney(s.pipelineValue)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
