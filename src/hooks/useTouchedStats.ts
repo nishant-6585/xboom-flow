@@ -30,6 +30,11 @@ export interface SalespersonTouchStats {
   touched: number;
   untouched: number;
   touchedPct: number;
+  followups: number;
+  prospects: number;
+  prospectsValue: number;
+  pipeline: number;
+  pipelineValue: number;
 }
 
 export interface TouchedStats {
@@ -39,6 +44,11 @@ export interface TouchedStats {
   touchedPct: number;
   bySalesperson: SalespersonTouchStats[];
   rows: NormalizedLead[];
+  followupsTotal: number;
+  prospectsTotal: number;
+  prospectsValueTotal: number;
+  pipelineTotal: number;
+  pipelineValueTotal: number;
 }
 
 /**
