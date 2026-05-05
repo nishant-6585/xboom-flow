@@ -239,7 +239,7 @@ export function MyLeadsPanel() {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-primary mb-1">
@@ -274,6 +274,15 @@ export function MyLeadsPanel() {
               <span className="text-xs font-medium">Overdue</span>
             </div>
             <p className="text-2xl font-bold">{followupStats.overdue}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-orange-600 mb-1">
+              <Clock className="w-4 h-4" />
+              <span className="text-xs font-medium">Untouched (&gt;24h)</span>
+            </div>
+            <p className="text-2xl font-bold">{totalUntouched}</p>
           </CardContent>
         </Card>
       </div>
