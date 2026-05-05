@@ -188,6 +188,31 @@ export function MyLeadsPanel() {
     return { withFu, withoutFu, overdue, total: filtered.length };
   }, [filtered]);
 
+  // Untouched stats grouped by source (Sales-person specific — uses already-scoped `filtered` is wrong;
+  // use the user's full lead list `leads` so the breakdown reflects assignments regardless of current filter chips)
+  const untouchedBySource = useMemo(() => {
+    const map = new Map<string, { t1: number; t2: number; t3: number; tPlus: number; total: number }>();
+    leads.forEach(l => {
+      const b = getUntouchedBucket(l.created_at).label;
+      if (!b) return;
+      const cur = map.get(l.source) || { t1: 0, t2: 0, t3: 0, tPlus: 0, total: 0 };
+      if (b === "T+1") cur.t1++;
+      else if (b === "T+2") cur.t2++;
+      else if (b === "T+3") cur.t3++;
+      else cur.tPlus++;
+      cur.total++;
+      map.set(l.source, cur);
+    });
+    return Array.from(map.entries())
+      .map(([source, stats]) => ({ source, ...stats }))
+      .sort((a, b) => b.total - a.total);
+  }, [leads]);
+
+  const totalUntouched = useMemo(
+    () => untouchedBySource.reduce((s, r) => s + r.total, 0),
+    [untouchedBySource]
+  );
+
   const dailyTrend = useMemo(() => {
     const map: Record<string, Record<string, number>> = {};
     const last14 = subDays(now, 14);
