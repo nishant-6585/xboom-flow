@@ -455,17 +455,19 @@ export function MyLeadsPanel() {
                   <TableHead>Assigned To</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Follow-up</TableHead>
+                  <TableHead>Untouched</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
                 ) : (
                   filtered.slice(0, 500).map(lead => {
                     const isOverdue = lead.has_followup && lead.followup_status === "pending" && lead.next_followup_at && isBefore(parseISO(lead.next_followup_at), now);
                     const sourceType = SOURCE_TYPE_MAP[lead.source] || 'lead';
+                    const untouched = getUntouchedBucket(lead.created_at);
                     return (
                       <TableRow key={`${lead.source}-${lead.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLead(lead)}>
                         <TableCell className="font-medium">{lead.customer_name}</TableCell>
@@ -502,6 +504,15 @@ export function MyLeadsPanel() {
                             </span>
                           )}
                         </TableCell>
+                        <TableCell>
+                          {untouched.label ? (
+                            <Badge variant="outline" className={`text-xs ${BUCKET_COLORS[untouched.label]}`}>
+                              {untouched.label}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{format(parseISO(lead.created_at), "dd MMM yyyy")}</TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -515,6 +526,17 @@ export function MyLeadsPanel() {
                                 size="sm"
                                 className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600"
                               />
+                            )}
+                            {lead.phone && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-blue-500 hover:text-blue-600"
+                                title="Log Call"
+                                onClick={(e) => { e.stopPropagation(); setLogCallLead(lead); }}
+                              >
+                                <PhoneCall className="h-3.5 w-3.5" />
+                              </Button>
                             )}
                             {lead.phone && (
                               <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
