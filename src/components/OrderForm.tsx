@@ -16,6 +16,8 @@ import { Supplier } from '@/hooks/useSuppliers';
 import { OrderItemsInput } from '@/components/OrderItemsInput';
 import { OrderItemFormData } from '@/hooks/useOrderItems';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { isValidHttpUrl } from '@/lib/urlValidation';
 
 interface FileWithPreview {
   file: File;
