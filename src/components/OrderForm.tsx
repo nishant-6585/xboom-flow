@@ -338,6 +338,11 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return;
     }
 
+    if (formData.tracking_url && !isValidHttpUrl(formData.tracking_url)) {
+      toast.error('Tracking URL must be a valid link starting with http:// or https://');
+      return;
+    }
+
     const firstItem = validItems[0];
     const updatedFormData = {
       ...formData,
