@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Loader2, Search, Phone, Mail, Building2, MapPin, Calendar, Bell, BellOff, Package, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { CallButton } from "@/components/calls/CallButton";
 import type { CallEntityType } from "@/hooks/useInitiateCall";
+import { LogCallDialog } from "./LogCallDialog";
+import { PhoneCall } from "lucide-react";
 
 const SOURCE_TO_ENTITY: Record<string, CallEntityType> = {
   "Google Ads": "lead",
@@ -43,6 +45,35 @@ const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'for
   "Google Ads": "google_ads",
   "Q-Form": "lead",
   "Prospect": "enquiry",
+};
+
+// Map MyLead.source → outbound_call_logs.lead_source enum
+const SOURCE_TO_LOG_CALL: Record<string, 'myoperator' | 'interakt' | 'prospect' | 'pipeline' | 'enquiry' | 'form' | 'email' | 'google_ads' | 'q_form' | 'elevenlabs'> = {
+  "Enquiry": "enquiry",
+  "MyOperator": "myoperator",
+  "ElevenLabs": "elevenlabs",
+  "Form": "form",
+  "Email": "email",
+  "Interakt": "interakt",
+  "Google Ads": "google_ads",
+  "Q-Form": "q_form",
+  "Prospect": "prospect",
+};
+
+// Untouched bucket helpers — mirror useUntouchedLeads logic
+function getUntouchedBucket(createdAt: string): { label: "T+1" | "T+2" | "T+3" | "T++" | null; hours: number } {
+  const hours = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
+  if (hours <= 24) return { label: null, hours };
+  if (hours <= 48) return { label: "T+1", hours };
+  if (hours <= 72) return { label: "T+2", hours };
+  if (hours <= 96) return { label: "T+3", hours };
+  return { label: "T++", hours };
+}
+const BUCKET_COLORS: Record<string, string> = {
+  "T+1": "bg-yellow-500/15 text-yellow-600 border-yellow-500/30",
+  "T+2": "bg-orange-500/15 text-orange-600 border-orange-500/30",
+  "T+3": "bg-red-500/15 text-red-600 border-red-500/30",
+  "T++": "bg-red-700/20 text-red-700 border-red-700/40",
 };
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -88,6 +119,7 @@ export function MyLeadsPanel() {
   const [period, setPeriod] = useState("all");
   const [customerTypeFilter, setCustomerTypeFilter] = useState("All");
   const [selectedLead, setSelectedLead] = useState<MyLead | null>(null);
+  const [logCallLead, setLogCallLead] = useState<MyLead | null>(null);
 
   const now = new Date();
 
