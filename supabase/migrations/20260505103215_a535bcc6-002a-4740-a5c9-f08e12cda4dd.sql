@@ -1,0 +1,3 @@
+ALTER TABLE public.outbound_call_logs DROP CONSTRAINT IF EXISTS outbound_call_logs_lead_source_check;
+ALTER TABLE public.outbound_call_logs ADD CONSTRAINT outbound_call_logs_lead_source_check
+  CHECK (lead_source = ANY (ARRAY['myoperator'::text, 'interakt'::text, 'prospect'::text, 'pipeline'::text, 'enquiry'::text, 'form'::text, 'email'::text, 'google_ads'::text, 'q_form'::text, 'elevenlabs'::text]));
