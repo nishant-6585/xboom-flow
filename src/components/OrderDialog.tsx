@@ -108,6 +108,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [paymentTerms, setPaymentTerms] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingUrl, setTrackingUrl] = useState('');
+  const [courierName, setCourierName] = useState('');
   const [committedTimeline, setCommittedTimeline] = useState('');
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
   const [actualDelivery, setActualDelivery] = useState('');
@@ -160,6 +161,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setPaymentTerms(order.payment_terms || '');
       setTrackingNumber(order.tracking_number || '');
       setTrackingUrl(order.tracking_url || '');
+      setCourierName((order as any).courier_name || '');
       setCommittedTimeline(order.committed_timeline || '');
       setEstimatedDelivery(order.estimated_delivery || '');
       setActualDelivery(order.actual_delivery || '');
@@ -390,6 +392,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       payment_due_date: paymentDueDate || null,
       tracking_number: trackingNumber || null,
       tracking_url: trackingUrl || null,
+      courier_name: courierName || null,
       committed_timeline: committedTimeline || null,
       estimated_delivery: estimatedDelivery || null,
       actual_delivery: actualDelivery || null,
@@ -446,6 +449,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('payment_due_date', order.payment_due_date, paymentDueDate || null);
     trackField('tracking_number', order.tracking_number, trackingNumber || null);
     trackField('tracking_url', order.tracking_url, trackingUrl || null);
+    trackField('courier_name', (order as any).courier_name, courierName || null);
     trackField('committed_timeline', order.committed_timeline, committedTimeline || null);
     trackField('estimated_delivery', order.estimated_delivery, estimatedDelivery || null);
     trackField('actual_delivery', order.actual_delivery, actualDelivery || null);
@@ -1494,6 +1498,16 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="inline_courier_name">Courier Name</Label>
+                    <Input
+                      id="inline_courier_name"
+                      value={courierName}
+                      onChange={e => setCourierName(e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g. DTDC, Delhivery, Bluedart"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="inline_estimated_delivery">Estimated Delivery</Label>
                     <Input
                       id="inline_estimated_delivery"
@@ -2121,6 +2135,19 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       value={trackingUrl}
                       onChange={e => setTrackingUrl(e.target.value)}
                       disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="courier_name">Courier Name</Label>
+                    <Input
+                      id="courier_name"
+                      value={courierName}
+                      onChange={e => setCourierName(e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g. DTDC, Delhivery, Bluedart"
                     />
                   </div>
                 </div>

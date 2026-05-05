@@ -50,6 +50,7 @@ export interface Order {
   status: OrderStatus;
   tracking_number: string | null;
   tracking_url: string | null;
+  courier_name?: string | null;
   committed_timeline: string | null;
   estimated_delivery: string | null;
   actual_delivery: string | null;
@@ -124,6 +125,7 @@ export interface OrderFormData {
   payment_due_date?: string;
   tracking_number?: string;
   tracking_url?: string;
+  courier_name?: string;
   committed_timeline?: string;
   estimated_delivery?: string;
   internal_notes?: string;

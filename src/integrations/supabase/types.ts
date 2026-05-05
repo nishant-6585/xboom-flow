@@ -7751,6 +7751,7 @@ export type Database = {
           cancelled_by: string | null
           committed_timeline: string | null
           company_id: string | null
+          courier_name: string | null
           created_at: string
           created_by: string
           customer_company: string | null
@@ -7830,6 +7831,7 @@ export type Database = {
           cancelled_by?: string | null
           committed_timeline?: string | null
           company_id?: string | null
+          courier_name?: string | null
           created_at?: string
           created_by: string
           customer_company?: string | null
@@ -7909,6 +7911,7 @@ export type Database = {
           cancelled_by?: string | null
           committed_timeline?: string | null
           company_id?: string | null
+          courier_name?: string | null
           created_at?: string
           created_by?: string
           customer_company?: string | null
