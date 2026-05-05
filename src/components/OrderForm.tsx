@@ -162,6 +162,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     payment_due_date: '',
     tracking_number: '',
     tracking_url: '',
+    courier_name: '',
     committed_timeline: '',
     estimated_delivery: '',
     internal_notes: initialData?.internal_notes || '',
@@ -385,6 +386,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         payment_due_date: '',
         tracking_number: '',
         tracking_url: '',
+        courier_name: '',
         committed_timeline: '',
         estimated_delivery: '',
         internal_notes: '',
@@ -1030,6 +1032,16 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                             onChange={e => setFormData(prev => ({ ...prev, tracking_url: e.target.value }))}
                             disabled={loading}
                             placeholder="https://..."
+                            className="h-11"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Courier Name</Label>
+                          <Input
+                            value={formData.courier_name || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, courier_name: e.target.value }))}
+                            disabled={loading}
+                            placeholder="e.g. DTDC, Delhivery"
                             className="h-11"
                           />
                         </div>
