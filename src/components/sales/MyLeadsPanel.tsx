@@ -651,6 +651,20 @@ export function MyLeadsPanel() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Log Call Dialog */}
+      {logCallLead && (
+        <LogCallDialog
+          open={!!logCallLead}
+          onOpenChange={(open) => { if (!open) setLogCallLead(null); }}
+          leadSource={SOURCE_TO_LOG_CALL[logCallLead.source] ?? 'myoperator'}
+          leadId={String(logCallLead.id)}
+          leadName={logCallLead.customer_name}
+          leadPhone={logCallLead.phone || ''}
+          leadCompany={logCallLead.company || undefined}
+          leadCreatedAt={logCallLead.created_at}
+        />
+      )}
     </div>
   );
 }
