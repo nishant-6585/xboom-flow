@@ -36,7 +36,7 @@ function playNotificationSound() {
 }
 
 export function FollowupReminderPopup() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { followups } = useFollowups();
   const [activeReminder, setActiveReminder] = useState<Followup | null>(null);
   const dismissedIds = useRef<Set<string>>(new Set());
@@ -46,6 +46,8 @@ export function FollowupReminderPopup() {
 
   const checkReminders = useCallback(() => {
     if (!followups.length || activeReminder) return;
+    // Reminders are only for sales people
+    if (role !== 'sales' && role !== 'sales_manager') return;
     const now = new Date();
     const nowMs = now.getTime();
     
@@ -71,10 +73,11 @@ export function FollowupReminderPopup() {
         break;
       }
     }
-  }, [followups, activeReminder]);
+  }, [followups, activeReminder, role]);
 
   useEffect(() => {
     if (!user) return;
+    if (role !== 'sales' && role !== 'sales_manager') return;
     checkReminders();
     checkIntervalRef.current = setInterval(checkReminders, 60000);
     return () => {
