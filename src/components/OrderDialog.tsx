@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
+import { isValidHttpUrl } from '@/lib/urlValidation';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -349,6 +350,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // Validate cancellation reason when status is cancelled
     if (status === 'cancelled' && !cancellationReason.trim()) {
       toast.error('Cancellation reason is required when marking order as cancelled');
+      return;
+    }
+
+    // Validate tracking URL is a proper http(s) link
+    if (trackingUrl && !isValidHttpUrl(trackingUrl)) {
+      toast.error('Tracking URL must be a valid link starting with http:// or https://');
       return;
     }
     

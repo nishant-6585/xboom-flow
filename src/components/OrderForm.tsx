@@ -16,6 +16,8 @@ import { Supplier } from '@/hooks/useSuppliers';
 import { OrderItemsInput } from '@/components/OrderItemsInput';
 import { OrderItemFormData } from '@/hooks/useOrderItems';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { isValidHttpUrl } from '@/lib/urlValidation';
 
 interface FileWithPreview {
   file: File;
@@ -333,6 +335,11 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     }
     
     if (!formData.customer_name || (!formData.is_website_order && !formData.sales_person_name)) {
+      return;
+    }
+
+    if (formData.tracking_url && !isValidHttpUrl(formData.tracking_url)) {
+      toast.error('Tracking URL must be a valid link starting with http:// or https://');
       return;
     }
 
