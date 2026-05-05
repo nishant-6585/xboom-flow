@@ -381,9 +381,62 @@ export function MyLeadsPanel() {
                 <SelectItem value="B2C">B2C</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={untouchedFilter} onValueChange={setUntouchedFilter}>
+              <SelectTrigger className="w-[210px]">
+                <span className="text-muted-foreground mr-1.5 text-xs font-medium">Untouched:</span>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {UNTOUCHED_FILTERS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
+
+      {/* Untouched leads by source */}
+      {untouchedBySource.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Clock className="w-4 h-4 text-orange-500" />
+              Untouched Leads by Source
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-center">T+1 (24-48h)</TableHead>
+                    <TableHead className="text-center">T+2 (48-72h)</TableHead>
+                    <TableHead className="text-center">T+3 (72-96h)</TableHead>
+                    <TableHead className="text-center">T++ (&gt;96h)</TableHead>
+                    <TableHead className="text-center">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {untouchedBySource.map(row => (
+                    <TableRow key={row.source}>
+                      <TableCell>
+                        <Badge variant="outline" style={{ borderColor: SOURCE_COLORS[row.source], color: SOURCE_COLORS[row.source] }}>
+                          {row.source}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{row.t1 || "—"}</TableCell>
+                      <TableCell className="text-center">{row.t2 || "—"}</TableCell>
+                      <TableCell className="text-center">{row.t3 || "—"}</TableCell>
+                      <TableCell className="text-center font-semibold text-red-600">{row.tPlus || "—"}</TableCell>
+                      <TableCell className="text-center font-bold">{row.total}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Table */}
       <Card>
