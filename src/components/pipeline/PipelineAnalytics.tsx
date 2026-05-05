@@ -27,8 +27,10 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const [drillDown, setDrillDown] = useState<{ title: string; orders: PipelineOrder[] } | null>(null);
 
   const isSalesView = role === 'sales';
+  const canExport = role === 'admin' || role === 'sales_manager';
 
   // Available sales persons for filter dropdown (only for non-sales roles)
   const availableSalesPersons = useMemo(() => {
