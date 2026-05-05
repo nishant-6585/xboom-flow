@@ -152,10 +152,14 @@ Deno.serve(async (req) => {
       { trait: "created_at_utc", op: "gt", val: "1970-01-01T00:00:00.000Z" },
     ];
     let bodyLastSynced: string | null = null;
+    let fullSync = false;
     try {
       const body = await req.json();
       if (body?.last_synced_at) {
         bodyLastSynced = body.last_synced_at;
+      }
+      if (body?.full_sync === true) {
+        fullSync = true;
       }
     } catch {
       // No body or invalid JSON - use default full-sync filter
@@ -167,7 +171,7 @@ Deno.serve(async (req) => {
     // before any new leads are reached.
     const serviceClientForLookup = createClient(supabaseUrl, supabaseServiceKey);
     let effectiveLastSynced = bodyLastSynced;
-    if (!effectiveLastSynced) {
+    if (!effectiveLastSynced && !fullSync) {
       const { data: latest } = await serviceClientForLookup
         .from("interakt_leads")
         .select("interakt_created_at")
@@ -176,15 +180,16 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (latest?.interakt_created_at) {
-        // Subtract 1 minute to handle clock skew / boundary inserts
-        const t = new Date(latest.interakt_created_at).getTime() - 60_000;
+        // Subtract 2 days to catch backdated contacts and any that prior
+        // sync runs missed. Dedup by phone makes refetching cheap.
+        const t = new Date(latest.interakt_created_at).getTime() - 2 * 24 * 60 * 60 * 1000;
         effectiveLastSynced = new Date(t).toISOString();
       }
     }
     if (effectiveLastSynced) {
       filters = [{ trait: "created_at_utc", op: "gt", val: effectiveLastSynced }];
     }
-    console.log(JSON.stringify({ event: "interakt_sync_start", effectiveLastSynced }));
+    console.log(JSON.stringify({ event: "interakt_sync_start", effectiveLastSynced, fullSync }));
 
     // Fetch contacts from Interakt with pagination
     let offset = 0;
@@ -250,8 +255,8 @@ Deno.serve(async (req) => {
       hasNextPage = extractHasNextPage(data, users.length);
       offset += PAGE_LIMIT;
 
-      // Safety: max 10 pages (1000 contacts per sync)
-      if (offset >= 1000) break;
+      // Safety: max 100 pages (10,000 contacts per sync) to avoid runaway loops
+      if (offset >= 10000) break;
     }
 
     if (allContacts.length === 0) {
