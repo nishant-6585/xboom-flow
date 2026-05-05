@@ -3,11 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { PipelineOrder, PIPELINE_STATUSES } from '@/hooks/usePipelineOrders';
 import { format, parseISO, startOfWeek, endOfWeek, addDays, isWithinInterval, startOfMonth, endOfMonth, addMonths, endOfDay, startOfDay } from 'date-fns';
-import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen, Filter } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen, Filter, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 
 interface PipelineAnalyticsProps {
   orders: PipelineOrder[];
@@ -22,8 +27,10 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const [drillDown, setDrillDown] = useState<{ title: string; orders: PipelineOrder[] } | null>(null);
 
   const isSalesView = role === 'sales';
+  const canExport = role === 'admin' || role === 'sales_manager';
 
   // Available sales persons for filter dropdown (only for non-sales roles)
   const availableSalesPersons = useMemo(() => {
@@ -177,8 +184,125 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
     return `₹${value.toFixed(0)}`;
   };
 
+  // ----- Export helpers -----
+  const buildRows = (list: PipelineOrder[]) =>
+    list.map(o => ({
+      'Customer': o.customer_name,
+      'Company': o.customer_company,
+      'Phone': o.customer_phone || '',
+      'Email': o.customer_email || '',
+      'Product': o.product_name,
+      'Category': o.product_category || 'Uncategorized',
+      'Quantity': o.quantity,
+      'Expected Price': o.expected_price || 0,
+      'Total Value': (o.expected_price || 0) * o.quantity,
+      'Status': PIPELINE_STATUSES.find(s => s.value === o.status)?.label || o.status,
+      'Sales Person': o.sales_person_name,
+      'Lead Source': o.lead_source || '',
+      'Temperature': o.lead_temperature,
+      'Probability %': o.probability ?? '',
+      'Expected Closure': o.expected_closure_date || '',
+      'Created': o.created_at ? format(parseISO(o.created_at), 'yyyy-MM-dd') : '',
+    }));
+
+  const filterByClosure = (list: PipelineOrder[], from: Date, to: Date) =>
+    list.filter(o => {
+      if (!o.expected_closure_date) return false;
+      const d = parseISO(o.expected_closure_date);
+      return isWithinInterval(d, { start: from, end: to });
+    });
+
+  const exportReport = (preset: 'this_week' | 'next_week' | 'this_month' | 'next_month' | 'all_pending' | 'by_category' | 'by_sales_person') => {
+    const now = new Date();
+    const pending = filteredOrders.filter(o => !['won', 'lost'].includes(o.status));
+    const wb = XLSX.utils.book_new();
+    let label = preset;
+
+    const addSheet = (name: string, rows: any[]) => {
+      const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Info: 'No data' }]);
+      XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+    };
+
+    if (preset === 'this_week' || preset === 'next_week') {
+      const offset = preset === 'this_week' ? 0 : 7;
+      const ws = startOfWeek(addDays(now, offset), { weekStartsOn: 1 });
+      const we = endOfWeek(ws, { weekStartsOn: 1 });
+      addSheet(preset === 'this_week' ? 'This Week' : 'Next Week', buildRows(filterByClosure(pending, ws, we)));
+      label = preset;
+    } else if (preset === 'this_month' || preset === 'next_month') {
+      const md = preset === 'this_month' ? now : addMonths(now, 1);
+      addSheet(format(md, 'MMM yyyy'), buildRows(filterByClosure(pending, startOfMonth(md), endOfMonth(md))));
+    } else if (preset === 'all_pending') {
+      addSheet('All Pending Pipeline', buildRows(pending));
+    } else if (preset === 'by_category') {
+      const grouped: Record<string, PipelineOrder[]> = {};
+      pending.forEach(o => {
+        const c = o.product_category || 'Uncategorized';
+        (grouped[c] = grouped[c] || []).push(o);
+      });
+      const summary = Object.entries(grouped).map(([category, list]) => ({
+        Category: category,
+        Orders: list.length,
+        'Total Value': list.reduce((s, o) => s + (o.expected_price || 0) * o.quantity, 0),
+      }));
+      addSheet('Summary', summary);
+      Object.entries(grouped).forEach(([category, list]) => addSheet(category, buildRows(list)));
+    } else if (preset === 'by_sales_person') {
+      const grouped: Record<string, PipelineOrder[]> = {};
+      pending.forEach(o => {
+        const k = o.sales_person_name || 'Unassigned';
+        (grouped[k] = grouped[k] || []).push(o);
+      });
+      const summary = Object.entries(grouped).map(([name, list]) => ({
+        'Sales Person': name,
+        Orders: list.length,
+        'Total Value': list.reduce((s, o) => s + (o.expected_price || 0) * o.quantity, 0),
+      }));
+      addSheet('Summary', summary);
+      Object.entries(grouped).forEach(([name, list]) => addSheet(name, buildRows(list)));
+    }
+
+    XLSX.writeFile(wb, `pipeline_${label}_${format(now, 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Report downloaded');
+  };
+
+  // Drill-down helpers
+  const openDrill = (title: string, list: PipelineOrder[]) => setDrillDown({ title, orders: list });
+  const drillByStatus = (statusValue: string) => {
+    let list: PipelineOrder[] = [];
+    if (statusValue === 'pending') list = filteredOrders.filter(o => !['won', 'lost'].includes(o.status));
+    else list = filteredOrders.filter(o => o.status === statusValue);
+    const label = statusValue === 'pending' ? 'Pending Orders' : (PIPELINE_STATUSES.find(s => s.value === statusValue)?.label || statusValue);
+    openDrill(label, list);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Export bar */}
+      {canExport && (
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Download className="h-4 w-4" /> Export Report
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>By Time Period</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => exportReport('this_week')}>This Week</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('next_week')}>Next Week</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('this_month')}>This Month</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('next_month')}>Next Month</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('all_pending')}>All Pending</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Grouped</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => exportReport('by_category')}>By Product Category</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('by_sales_person')}>By Sales Person</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
@@ -302,7 +426,17 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={analytics.weeklyData}>
+              <BarChart
+                data={analytics.weeklyData}
+                onClick={(e: any) => {
+                  const idx = e?.activeTooltipIndex;
+                  if (idx == null) return;
+                  const ws = startOfWeek(addDays(new Date(), idx * 7), { weekStartsOn: 1 });
+                  const we = endOfWeek(ws, { weekStartsOn: 1 });
+                  const pending = filteredOrders.filter(o => !['won','lost'].includes(o.status));
+                  openDrill(`Pipeline – Week of ${format(ws, 'dd MMM')}`, filterByClosure(pending, ws, we));
+                }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="week" fontSize={12} />
                 <YAxis tickFormatter={formatCurrency} fontSize={12} />
@@ -310,7 +444,7 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                   formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']}
                   labelFormatter={(label) => `${label}`}
                 />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} cursor="pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -325,14 +459,23 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={analytics.monthlyData}>
+              <LineChart
+                data={analytics.monthlyData}
+                onClick={(e: any) => {
+                  const idx = e?.activeTooltipIndex;
+                  if (idx == null) return;
+                  const md = addMonths(new Date(), idx);
+                  const pending = filteredOrders.filter(o => !['won','lost'].includes(o.status));
+                  openDrill(`Pipeline – ${format(md, 'MMMM yyyy')}`, filterByClosure(pending, startOfMonth(md), endOfMonth(md)));
+                }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" fontSize={12} />
                 <YAxis tickFormatter={formatCurrency} fontSize={12} />
                 <Tooltip 
                   formatter={(value: number, name) => [formatCurrency(value), 'Pipeline Value']}
                 />
-                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 6 }} />
+                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 6, cursor: 'pointer' }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -373,7 +516,14 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                 </thead>
                 <tbody>
                   {analytics.salesPersonData.map((sp, idx) => (
-                    <tr key={idx} className="border-b last:border-0">
+                    <tr
+                      key={idx}
+                      className="border-b last:border-0 cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        const list = filteredOrders.filter(o => !['won','lost'].includes(o.status) && o.sales_person_name === sp.name);
+                        openDrill(`Pipeline – ${sp.name}`, list);
+                      }}
+                    >
                       <td className="py-2">{sp.name}</td>
                       <td className="text-right py-2">{sp.count}</td>
                       <td className="text-right py-2 font-medium">{formatCurrency(sp.value)}</td>
@@ -418,7 +568,14 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                 </thead>
                 <tbody>
                   {analytics.categoryData.map((cat, idx) => (
-                    <tr key={idx} className="border-b last:border-0">
+                    <tr
+                      key={idx}
+                      className="border-b last:border-0 cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        const list = filteredOrders.filter(o => !['won','lost'].includes(o.status) && (o.product_category || 'Uncategorized') === cat.category);
+                        openDrill(`Pipeline – ${cat.category}`, list);
+                      }}
+                    >
                       <td className="py-2">{cat.category}</td>
                       <td className="text-right py-2">{cat.count}</td>
                       <td className="text-right py-2 font-medium">{formatCurrency(cat.value)}</td>
@@ -462,7 +619,14 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
             </ResponsiveContainer>
             <div className="flex flex-col justify-center space-y-2">
               {analytics.statusData.map((status, idx) => (
-                <div key={idx} className="flex items-center justify-between">
+                <div
+                  key={idx}
+                  className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
+                  onClick={() => {
+                    const sv = PIPELINE_STATUSES.find(s => s.label === status.label)?.value || '';
+                    drillByStatus(sv);
+                  }}
+                >
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                     <span>{status.label}</span>
@@ -477,6 +641,52 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
           </div>
         </CardContent>
       </Card>
+
+      {/* Drilldown Dialog */}
+      <Dialog open={!!drillDown} onOpenChange={(o) => !o && setDrillDown(null)}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{drillDown?.title} ({drillDown?.orders.length || 0})</DialogTitle>
+          </DialogHeader>
+          {drillDown && drillDown.orders.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b sticky top-0 bg-background">
+                  <tr>
+                    <th className="text-left py-2 px-2">Customer</th>
+                    <th className="text-left py-2 px-2">Product</th>
+                    <th className="text-left py-2 px-2">Category</th>
+                    <th className="text-right py-2 px-2">Qty</th>
+                    <th className="text-right py-2 px-2">Value</th>
+                    <th className="text-left py-2 px-2">Status</th>
+                    <th className="text-left py-2 px-2">Sales Person</th>
+                    <th className="text-left py-2 px-2">Closure</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {drillDown.orders.map(o => (
+                    <tr key={o.id} className="border-b">
+                      <td className="py-2 px-2">
+                        <div className="font-medium">{o.customer_name}</div>
+                        <div className="text-xs text-muted-foreground">{o.customer_company}</div>
+                      </td>
+                      <td className="py-2 px-2">{o.product_name}</td>
+                      <td className="py-2 px-2">{o.product_category || '—'}</td>
+                      <td className="text-right py-2 px-2">{o.quantity}</td>
+                      <td className="text-right py-2 px-2 font-medium">{formatCurrency((o.expected_price || 0) * o.quantity)}</td>
+                      <td className="py-2 px-2">{PIPELINE_STATUSES.find(s => s.value === o.status)?.label || o.status}</td>
+                      <td className="py-2 px-2">{o.sales_person_name}</td>
+                      <td className="py-2 px-2">{o.expected_closure_date ? format(parseISO(o.expected_closure_date), 'dd MMM yyyy') : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-muted-foreground py-8 text-center">No orders found.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
