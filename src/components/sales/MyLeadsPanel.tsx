@@ -103,6 +103,7 @@ const SOURCES = [
   "Prospect",
 ];
 const FOLLOWUP_FILTERS = ["All", "With Follow-up", "Without Follow-up", "Overdue"];
+const UNTOUCHED_FILTERS = ["All", "Untouched (T+1)", "Untouched (T+2)", "Untouched (T+3)", "Untouched (T++)", "Any Untouched"];
 const PERIODS = [
   { label: "All Time", value: "all" },
   { label: "Today", value: "today" },
@@ -118,6 +119,7 @@ export function MyLeadsPanel() {
   const [followupFilter, setFollowupFilter] = useState("All");
   const [period, setPeriod] = useState("all");
   const [customerTypeFilter, setCustomerTypeFilter] = useState("All");
+  const [untouchedFilter, setUntouchedFilter] = useState("All");
   const [selectedLead, setSelectedLead] = useState<MyLead | null>(null);
   const [logCallLead, setLogCallLead] = useState<MyLead | null>(null);
 
@@ -148,6 +150,15 @@ export function MyLeadsPanel() {
     if (customerTypeFilter === "B2B") list = list.filter(l => (l.customer_type || 'b2b') === 'b2b');
     else if (customerTypeFilter === "B2C") list = list.filter(l => l.customer_type === 'b2c');
 
+    // Untouched bucket filter
+    if (untouchedFilter !== "All") {
+      list = list.filter(l => {
+        const b = getUntouchedBucket(l.created_at).label;
+        if (untouchedFilter === "Any Untouched") return b !== null;
+        return `Untouched (${b})` === untouchedFilter;
+      });
+    }
+
     // Search
     if (search.trim()) {
       const s = search.toLowerCase();
@@ -161,7 +172,7 @@ export function MyLeadsPanel() {
     }
 
     return list;
-  }, [leads, search, sourceFilter, followupFilter, period, customerTypeFilter]);
+  }, [leads, search, sourceFilter, followupFilter, period, customerTypeFilter, untouchedFilter]);
 
   // Analytics
   const sourceStats = useMemo(() => {
