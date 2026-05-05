@@ -352,6 +352,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       toast.error('Cancellation reason is required when marking order as cancelled');
       return;
     }
+
+    // Validate tracking URL is a proper http(s) link
+    if (trackingUrl && !isValidHttpUrl(trackingUrl)) {
+      toast.error('Tracking URL must be a valid link starting with http:// or https://');
+      return;
+    }
     
     setLoading(true);
 
