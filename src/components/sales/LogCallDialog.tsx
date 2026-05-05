@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 interface LogCallDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  leadSource: 'myoperator' | 'interakt' | 'prospect' | 'pipeline';
+  leadSource: 'myoperator' | 'interakt' | 'prospect' | 'pipeline' | 'enquiry' | 'form' | 'email' | 'google_ads' | 'q_form' | 'elevenlabs';
   leadId: string;
   leadName: string;
   leadPhone: string;

@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Loader2, Search, Phone, Mail, Building2, MapPin, Calendar, Bell, BellOff, Package, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { CallButton } from "@/components/calls/CallButton";
 import type { CallEntityType } from "@/hooks/useInitiateCall";
+import { LogCallDialog } from "./LogCallDialog";
+import { PhoneCall } from "lucide-react";
 
 const SOURCE_TO_ENTITY: Record<string, CallEntityType> = {
   "Google Ads": "lead",
@@ -45,6 +47,35 @@ const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'for
   "Prospect": "enquiry",
 };
 
+// Map MyLead.source → outbound_call_logs.lead_source enum
+const SOURCE_TO_LOG_CALL: Record<string, 'myoperator' | 'interakt' | 'prospect' | 'pipeline' | 'enquiry' | 'form' | 'email' | 'google_ads' | 'q_form' | 'elevenlabs'> = {
+  "Enquiry": "enquiry",
+  "MyOperator": "myoperator",
+  "ElevenLabs": "elevenlabs",
+  "Form": "form",
+  "Email": "email",
+  "Interakt": "interakt",
+  "Google Ads": "google_ads",
+  "Q-Form": "q_form",
+  "Prospect": "prospect",
+};
+
+// Untouched bucket helpers — mirror useUntouchedLeads logic
+function getUntouchedBucket(createdAt: string): { label: "T+1" | "T+2" | "T+3" | "T++" | null; hours: number } {
+  const hours = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
+  if (hours <= 24) return { label: null, hours };
+  if (hours <= 48) return { label: "T+1", hours };
+  if (hours <= 72) return { label: "T+2", hours };
+  if (hours <= 96) return { label: "T+3", hours };
+  return { label: "T++", hours };
+}
+const BUCKET_COLORS: Record<string, string> = {
+  "T+1": "bg-yellow-500/15 text-yellow-600 border-yellow-500/30",
+  "T+2": "bg-orange-500/15 text-orange-600 border-orange-500/30",
+  "T+3": "bg-red-500/15 text-red-600 border-red-500/30",
+  "T++": "bg-red-700/20 text-red-700 border-red-700/40",
+};
+
 const SOURCE_COLORS: Record<string, string> = {
   "Enquiry": "#3B82F6",
   "MyOperator": "#10B981",
@@ -72,6 +103,7 @@ const SOURCES = [
   "Prospect",
 ];
 const FOLLOWUP_FILTERS = ["All", "With Follow-up", "Without Follow-up", "Overdue"];
+const UNTOUCHED_FILTERS = ["All", "Untouched (T+1)", "Untouched (T+2)", "Untouched (T+3)", "Untouched (T++)", "Any Untouched"];
 const PERIODS = [
   { label: "All Time", value: "all" },
   { label: "Today", value: "today" },
@@ -87,7 +119,9 @@ export function MyLeadsPanel() {
   const [followupFilter, setFollowupFilter] = useState("All");
   const [period, setPeriod] = useState("all");
   const [customerTypeFilter, setCustomerTypeFilter] = useState("All");
+  const [untouchedFilter, setUntouchedFilter] = useState("All");
   const [selectedLead, setSelectedLead] = useState<MyLead | null>(null);
+  const [logCallLead, setLogCallLead] = useState<MyLead | null>(null);
 
   const now = new Date();
 
@@ -116,6 +150,15 @@ export function MyLeadsPanel() {
     if (customerTypeFilter === "B2B") list = list.filter(l => (l.customer_type || 'b2b') === 'b2b');
     else if (customerTypeFilter === "B2C") list = list.filter(l => l.customer_type === 'b2c');
 
+    // Untouched bucket filter
+    if (untouchedFilter !== "All") {
+      list = list.filter(l => {
+        const b = getUntouchedBucket(l.created_at).label;
+        if (untouchedFilter === "Any Untouched") return b !== null;
+        return `Untouched (${b})` === untouchedFilter;
+      });
+    }
+
     // Search
     if (search.trim()) {
       const s = search.toLowerCase();
@@ -129,7 +172,7 @@ export function MyLeadsPanel() {
     }
 
     return list;
-  }, [leads, search, sourceFilter, followupFilter, period, customerTypeFilter]);
+  }, [leads, search, sourceFilter, followupFilter, period, customerTypeFilter, untouchedFilter]);
 
   // Analytics
   const sourceStats = useMemo(() => {
@@ -144,6 +187,31 @@ export function MyLeadsPanel() {
     const overdue = filtered.filter(l => l.has_followup && l.followup_status === "pending" && l.next_followup_at && isBefore(parseISO(l.next_followup_at), now)).length;
     return { withFu, withoutFu, overdue, total: filtered.length };
   }, [filtered]);
+
+  // Untouched stats grouped by source (Sales-person specific — uses already-scoped `filtered` is wrong;
+  // use the user's full lead list `leads` so the breakdown reflects assignments regardless of current filter chips)
+  const untouchedBySource = useMemo(() => {
+    const map = new Map<string, { t1: number; t2: number; t3: number; tPlus: number; total: number }>();
+    leads.forEach(l => {
+      const b = getUntouchedBucket(l.created_at).label;
+      if (!b) return;
+      const cur = map.get(l.source) || { t1: 0, t2: 0, t3: 0, tPlus: 0, total: 0 };
+      if (b === "T+1") cur.t1++;
+      else if (b === "T+2") cur.t2++;
+      else if (b === "T+3") cur.t3++;
+      else cur.tPlus++;
+      cur.total++;
+      map.set(l.source, cur);
+    });
+    return Array.from(map.entries())
+      .map(([source, stats]) => ({ source, ...stats }))
+      .sort((a, b) => b.total - a.total);
+  }, [leads]);
+
+  const totalUntouched = useMemo(
+    () => untouchedBySource.reduce((s, r) => s + r.total, 0),
+    [untouchedBySource]
+  );
 
   const dailyTrend = useMemo(() => {
     const map: Record<string, Record<string, number>> = {};
@@ -171,7 +239,7 @@ export function MyLeadsPanel() {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-primary mb-1">
@@ -206,6 +274,15 @@ export function MyLeadsPanel() {
               <span className="text-xs font-medium">Overdue</span>
             </div>
             <p className="text-2xl font-bold">{followupStats.overdue}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-orange-600 mb-1">
+              <Clock className="w-4 h-4" />
+              <span className="text-xs font-medium">Untouched (&gt;24h)</span>
+            </div>
+            <p className="text-2xl font-bold">{totalUntouched}</p>
           </CardContent>
         </Card>
       </div>
@@ -304,9 +381,62 @@ export function MyLeadsPanel() {
                 <SelectItem value="B2C">B2C</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={untouchedFilter} onValueChange={setUntouchedFilter}>
+              <SelectTrigger className="w-[210px]">
+                <span className="text-muted-foreground mr-1.5 text-xs font-medium">Untouched:</span>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {UNTOUCHED_FILTERS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
+
+      {/* Untouched leads by source */}
+      {untouchedBySource.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Clock className="w-4 h-4 text-orange-500" />
+              Untouched Leads by Source
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-center">T+1 (24-48h)</TableHead>
+                    <TableHead className="text-center">T+2 (48-72h)</TableHead>
+                    <TableHead className="text-center">T+3 (72-96h)</TableHead>
+                    <TableHead className="text-center">T++ (&gt;96h)</TableHead>
+                    <TableHead className="text-center">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {untouchedBySource.map(row => (
+                    <TableRow key={row.source}>
+                      <TableCell>
+                        <Badge variant="outline" style={{ borderColor: SOURCE_COLORS[row.source], color: SOURCE_COLORS[row.source] }}>
+                          {row.source}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{row.t1 || "—"}</TableCell>
+                      <TableCell className="text-center">{row.t2 || "—"}</TableCell>
+                      <TableCell className="text-center">{row.t3 || "—"}</TableCell>
+                      <TableCell className="text-center font-semibold text-red-600">{row.tPlus || "—"}</TableCell>
+                      <TableCell className="text-center font-bold">{row.total}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Table */}
       <Card>
@@ -325,17 +455,19 @@ export function MyLeadsPanel() {
                   <TableHead>Assigned To</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Follow-up</TableHead>
+                  <TableHead>Untouched</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
                 ) : (
                   filtered.slice(0, 500).map(lead => {
                     const isOverdue = lead.has_followup && lead.followup_status === "pending" && lead.next_followup_at && isBefore(parseISO(lead.next_followup_at), now);
                     const sourceType = SOURCE_TYPE_MAP[lead.source] || 'lead';
+                    const untouched = getUntouchedBucket(lead.created_at);
                     return (
                       <TableRow key={`${lead.source}-${lead.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLead(lead)}>
                         <TableCell className="font-medium">{lead.customer_name}</TableCell>
@@ -372,6 +504,15 @@ export function MyLeadsPanel() {
                             </span>
                           )}
                         </TableCell>
+                        <TableCell>
+                          {untouched.label ? (
+                            <Badge variant="outline" className={`text-xs ${BUCKET_COLORS[untouched.label]}`}>
+                              {untouched.label}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{format(parseISO(lead.created_at), "dd MMM yyyy")}</TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -385,6 +526,17 @@ export function MyLeadsPanel() {
                                 size="sm"
                                 className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600"
                               />
+                            )}
+                            {lead.phone && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-blue-500 hover:text-blue-600"
+                                title="Log Call"
+                                onClick={(e) => { e.stopPropagation(); setLogCallLead(lead); }}
+                              >
+                                <PhoneCall className="h-3.5 w-3.5" />
+                              </Button>
                             )}
                             {lead.phone && (
                               <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
@@ -499,6 +651,20 @@ export function MyLeadsPanel() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Log Call Dialog */}
+      {logCallLead && (
+        <LogCallDialog
+          open={!!logCallLead}
+          onOpenChange={(open) => { if (!open) setLogCallLead(null); }}
+          leadSource={SOURCE_TO_LOG_CALL[logCallLead.source] ?? 'myoperator'}
+          leadId={String(logCallLead.id)}
+          leadName={logCallLead.customer_name}
+          leadPhone={logCallLead.phone || ''}
+          leadCompany={logCallLead.company || undefined}
+          leadCreatedAt={logCallLead.created_at}
+        />
+      )}
     </div>
   );
 }
