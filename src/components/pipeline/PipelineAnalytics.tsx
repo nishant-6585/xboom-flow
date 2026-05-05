@@ -184,8 +184,125 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
     return `₹${value.toFixed(0)}`;
   };
 
+  // ----- Export helpers -----
+  const buildRows = (list: PipelineOrder[]) =>
+    list.map(o => ({
+      'Customer': o.customer_name,
+      'Company': o.customer_company,
+      'Phone': o.customer_phone || '',
+      'Email': o.customer_email || '',
+      'Product': o.product_name,
+      'Category': o.product_category || 'Uncategorized',
+      'Quantity': o.quantity,
+      'Expected Price': o.expected_price || 0,
+      'Total Value': (o.expected_price || 0) * o.quantity,
+      'Status': PIPELINE_STATUSES.find(s => s.value === o.status)?.label || o.status,
+      'Sales Person': o.sales_person_name,
+      'Lead Source': o.lead_source || '',
+      'Temperature': o.lead_temperature,
+      'Probability %': o.probability ?? '',
+      'Expected Closure': o.expected_closure_date || '',
+      'Created': o.created_at ? format(parseISO(o.created_at), 'yyyy-MM-dd') : '',
+    }));
+
+  const filterByClosure = (list: PipelineOrder[], from: Date, to: Date) =>
+    list.filter(o => {
+      if (!o.expected_closure_date) return false;
+      const d = parseISO(o.expected_closure_date);
+      return isWithinInterval(d, { start: from, end: to });
+    });
+
+  const exportReport = (preset: 'this_week' | 'next_week' | 'this_month' | 'next_month' | 'all_pending' | 'by_category' | 'by_sales_person') => {
+    const now = new Date();
+    const pending = filteredOrders.filter(o => !['won', 'lost'].includes(o.status));
+    const wb = XLSX.utils.book_new();
+    let label = preset;
+
+    const addSheet = (name: string, rows: any[]) => {
+      const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Info: 'No data' }]);
+      XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+    };
+
+    if (preset === 'this_week' || preset === 'next_week') {
+      const offset = preset === 'this_week' ? 0 : 7;
+      const ws = startOfWeek(addDays(now, offset), { weekStartsOn: 1 });
+      const we = endOfWeek(ws, { weekStartsOn: 1 });
+      addSheet(preset === 'this_week' ? 'This Week' : 'Next Week', buildRows(filterByClosure(pending, ws, we)));
+      label = preset;
+    } else if (preset === 'this_month' || preset === 'next_month') {
+      const md = preset === 'this_month' ? now : addMonths(now, 1);
+      addSheet(format(md, 'MMM yyyy'), buildRows(filterByClosure(pending, startOfMonth(md), endOfMonth(md))));
+    } else if (preset === 'all_pending') {
+      addSheet('All Pending Pipeline', buildRows(pending));
+    } else if (preset === 'by_category') {
+      const grouped: Record<string, PipelineOrder[]> = {};
+      pending.forEach(o => {
+        const c = o.product_category || 'Uncategorized';
+        (grouped[c] = grouped[c] || []).push(o);
+      });
+      const summary = Object.entries(grouped).map(([category, list]) => ({
+        Category: category,
+        Orders: list.length,
+        'Total Value': list.reduce((s, o) => s + (o.expected_price || 0) * o.quantity, 0),
+      }));
+      addSheet('Summary', summary);
+      Object.entries(grouped).forEach(([category, list]) => addSheet(category, buildRows(list)));
+    } else if (preset === 'by_sales_person') {
+      const grouped: Record<string, PipelineOrder[]> = {};
+      pending.forEach(o => {
+        const k = o.sales_person_name || 'Unassigned';
+        (grouped[k] = grouped[k] || []).push(o);
+      });
+      const summary = Object.entries(grouped).map(([name, list]) => ({
+        'Sales Person': name,
+        Orders: list.length,
+        'Total Value': list.reduce((s, o) => s + (o.expected_price || 0) * o.quantity, 0),
+      }));
+      addSheet('Summary', summary);
+      Object.entries(grouped).forEach(([name, list]) => addSheet(name, buildRows(list)));
+    }
+
+    XLSX.writeFile(wb, `pipeline_${label}_${format(now, 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Report downloaded');
+  };
+
+  // Drill-down helpers
+  const openDrill = (title: string, list: PipelineOrder[]) => setDrillDown({ title, orders: list });
+  const drillByStatus = (statusValue: string) => {
+    let list: PipelineOrder[] = [];
+    if (statusValue === 'pending') list = filteredOrders.filter(o => !['won', 'lost'].includes(o.status));
+    else list = filteredOrders.filter(o => o.status === statusValue);
+    const label = statusValue === 'pending' ? 'Pending Orders' : (PIPELINE_STATUSES.find(s => s.value === statusValue)?.label || statusValue);
+    openDrill(label, list);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Export bar */}
+      {canExport && (
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Download className="h-4 w-4" /> Export Report
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>By Time Period</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => exportReport('this_week')}>This Week</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('next_week')}>Next Week</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('this_month')}>This Month</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('next_month')}>Next Month</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('all_pending')}>All Pending</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Grouped</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => exportReport('by_category')}>By Product Category</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('by_sales_person')}>By Sales Person</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
