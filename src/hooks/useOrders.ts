@@ -50,7 +50,7 @@ export interface Order {
   status: OrderStatus;
   tracking_number: string | null;
   tracking_url: string | null;
-  courier_name: string | null;
+  courier_name?: string | null;
   committed_timeline: string | null;
   estimated_delivery: string | null;
   actual_delivery: string | null;
