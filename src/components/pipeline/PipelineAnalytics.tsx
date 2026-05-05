@@ -3,11 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { PipelineOrder, PIPELINE_STATUSES } from '@/hooks/usePipelineOrders';
 import { format, parseISO, startOfWeek, endOfWeek, addDays, isWithinInterval, startOfMonth, endOfMonth, addMonths, endOfDay, startOfDay } from 'date-fns';
-import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen, Filter } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen, Filter, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 
 interface PipelineAnalyticsProps {
   orders: PipelineOrder[];
