@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { recordAuditLog } from "@/lib/auditLog";
 
 export interface MonthlyPulse {
   id: string;
@@ -129,12 +130,12 @@ export function useUploadPulse() {
       if (error) throw error;
 
       // Audit log (fire and forget)
-      supabase.from("security_audit_log").insert({
-        user_id: user?.id,
-        action: "MONTHLY_PULSE_UPLOADED",
-        details: { pulse_id: data.id, title: input.title, month: input.month },
-        user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-      }).then(() => {});
+      if (user?.id) {
+        recordAuditLog(user.id, user.email ?? "unknown", {
+          action: "MONTHLY_PULSE_UPLOADED",
+          details: { pulse_id: data.id, title: input.title, month: input.month },
+        });
+      }
 
       return data as MonthlyPulse;
     },
