@@ -7159,6 +7159,79 @@ export type Database = {
           },
         ]
       }
+      monthly_pulse_reads: {
+        Row: {
+          id: string
+          pulse_id: string
+          seen_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          pulse_id: string
+          seen_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          pulse_id?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_pulse_reads_pulse_id_fkey"
+            columns: ["pulse_id"]
+            isOneToOne: false
+            referencedRelation: "monthly_pulses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monthly_pulses: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_url: string
+          id: string
+          is_active: boolean
+          month: string
+          title: string
+          uploaded_by: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_url: string
+          id?: string
+          is_active?: boolean
+          month: string
+          title: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_url?: string
+          id?: string
+          is_active?: boolean
+          month?: string
+          title?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_pulses_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       myoperator_config: {
         Row: {
           api_token: string
