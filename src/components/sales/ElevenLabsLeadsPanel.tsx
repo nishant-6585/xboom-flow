@@ -89,6 +89,47 @@ const formatPhone = (raw: string | null | undefined) => {
   return raw.startsWith("+") ? raw : `+${digits}`;
 };
 
+// A "real" phone number has between 10 and 13 digits (E.164 max 15, but in
+// practice Indian/intl customer numbers fit well within 10–13). ElevenLabs
+// chat conversations often produce a synthetic 18–22 digit session id in the
+// caller_number column — treat anything outside the realistic range as junk.
+const isLikelyRealPhone = (raw: string | null | undefined): boolean => {
+  if (!raw) return false;
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 13;
+};
+
+// Try to pull a customer phone number out of the conversation transcript.
+// Looks for 10-digit Indian mobiles, optionally prefixed by +91 / 91 / 0,
+// and also matches patterns like "my number is 9XXXXXXXXX".
+const extractPhone = (transcript: string | null): string | null => {
+  if (!transcript) return null;
+  // Normalise spaces/dashes inside numbers so "98765 43210" → "9876543210"
+  const cleaned = transcript.replace(/(\d)[\s\-](?=\d)/g, "$1");
+  // Prefer numbers introduced with a phrase
+  const phrase = cleaned.match(/(?:my\s+(?:number|phone|mobile|contact)\s+(?:is|number\s+is)?|number\s+is|contact\s+is|phone\s+is|reach\s+me\s+(?:on|at))\s*[:\-]?\s*(\+?\d[\d\s\-]{8,14}\d)/i);
+  if (phrase) {
+    const d = phrase[1].replace(/\D/g, "");
+    if (d.length >= 10 && d.length <= 13) return phrase[1].trim();
+  }
+  // Fallback: any 10-digit Indian mobile (starts 6-9), optional +91/91/0 prefix
+  const generic = cleaned.match(/(?:\+?91[\s\-]?|0)?([6-9]\d{9})\b/);
+  if (generic) return `+91 ${generic[1]}`;
+  return null;
+};
+
+const resolvePhone = (
+  lead: { caller_number: string | null; raw_transcript: string | null; notes: string | null }
+): { phone: string | null; isAvailable: boolean } => {
+  if (isLikelyRealPhone(lead.caller_number)) {
+    return { phone: lead.caller_number, isAvailable: true };
+  }
+  const fromTranscript =
+    extractPhone(lead.raw_transcript) || extractPhone(lead.notes);
+  if (fromTranscript) return { phone: fromTranscript, isAvailable: true };
+  return { phone: null, isAvailable: false };
+};
+
 const formatDuration = (s: number | null) => {
   if (!s) return "—";
   const m = Math.floor(s / 60);
