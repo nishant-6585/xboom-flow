@@ -150,6 +150,7 @@ const resolveName = (lead: ElevenLead): { name: string; isUnidentified: boolean 
   const candidate =
     (lead.customer_name && lead.customer_name !== "Unknown" ? lead.customer_name : "") ||
     extractName(lead.raw_transcript) ||
+    extractName(lead.notes) ||
     "";
   if (candidate) return { name: candidate, isUnidentified: false };
   return { name: "Unidentified Caller", isUnidentified: true };
