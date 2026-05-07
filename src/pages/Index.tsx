@@ -16,6 +16,8 @@ import { HotLeadsWidget } from "@/components/HotLeadsWidget";
 import { LeadTemperatureAnalytics } from "@/components/LeadTemperatureAnalytics";
 import { DashboardNoticesWidget } from "@/components/notices/DashboardNoticesWidget";
 import { NoticePopup } from "@/components/notices/NoticePopup";
+import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
+import { MonthlyPulsePopup } from "@/components/dashboard/MonthlyPulsePopup";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
 import {
@@ -384,6 +386,9 @@ const Index = () => {
                   </div>
                   <div>
                     <DashboardNoticesWidget />
+                    <div className="mt-4">
+                      <MonthlyPulseWidget />
+                    </div>
                   </div>
                 </div>
                 <HotLeadsWidget
@@ -804,6 +809,7 @@ const Index = () => {
 
       {/* Notice popup on login */}
       <ErrorBoundary fallback={null}><NoticePopup /></ErrorBoundary>
+      <ErrorBoundary fallback={null}><MonthlyPulsePopup /></ErrorBoundary>
     </div>
   );
 };
