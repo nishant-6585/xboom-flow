@@ -35,6 +35,8 @@ import { ChecklistPanel } from "@/components/hr/ChecklistPanel";
 import { LeaveHistoryPanel } from "@/components/hr/LeaveHistoryPanel";
 import { HiringPanel } from "@/components/hr/HiringPanel";
 import { ReferralsPanel } from "@/components/hr/ReferralsPanel";
+import { MonthlyPulsePanel } from "@/components/hr/MonthlyPulsePanel";
+import { Newspaper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
 
@@ -139,6 +141,9 @@ export default function HR() {
               <TabsTrigger value="hiring" className="gap-1.5 whitespace-nowrap"><Briefcase className="h-4 w-4 shrink-0" /><span>Hiring</span></TabsTrigger>
               <TabsTrigger value="referrals" className="gap-1.5 whitespace-nowrap"><Share2 className="h-4 w-4 shrink-0" /><span>Referrals</span></TabsTrigger>
               {isHROrAdmin && (
+                <TabsTrigger value="monthly_pulse" className="gap-1.5 whitespace-nowrap"><Newspaper className="h-4 w-4 shrink-0" /><span>Monthly Pulse</span></TabsTrigger>
+              )}
+              {isHROrAdmin && (
                 <TabsTrigger value="financial_list" className="gap-1.5 whitespace-nowrap"><Wallet className="h-4 w-4 shrink-0" /><span>Financial Details</span></TabsTrigger>
               )}
               {isHROrAdmin && (
@@ -240,6 +245,7 @@ export default function HR() {
           {isHROrAdmin && <TabsContent value="candidates"><CandidatesPanel /></TabsContent>}
           <TabsContent value="hiring"><HiringPanel /></TabsContent>
           <TabsContent value="referrals"><ReferralsPanel /></TabsContent>
+          {isHROrAdmin && <TabsContent value="monthly_pulse"><MonthlyPulsePanel /></TabsContent>}
           {isHROrAdmin && <TabsContent value="financial_list" className="space-y-6"><EmployeeFinancialDetailsPanel /><EmployeeFinancialDetailsList /></TabsContent>}
           {isHROrAdmin && <TabsContent value="bank_requests"><BankUpdateRequestsPanel /></TabsContent>}
           {(isHROrAdmin || isFinance) && <TabsContent value="salary"><SalarySheetsList /></TabsContent>}
