@@ -89,6 +89,47 @@ const formatPhone = (raw: string | null | undefined) => {
   return raw.startsWith("+") ? raw : `+${digits}`;
 };
 
+// A "real" phone number has between 10 and 13 digits (E.164 max 15, but in
+// practice Indian/intl customer numbers fit well within 10–13). ElevenLabs
+// chat conversations often produce a synthetic 18–22 digit session id in the
+// caller_number column — treat anything outside the realistic range as junk.
+const isLikelyRealPhone = (raw: string | null | undefined): boolean => {
+  if (!raw) return false;
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 13;
+};
+
+// Try to pull a customer phone number out of the conversation transcript.
+// Looks for 10-digit Indian mobiles, optionally prefixed by +91 / 91 / 0,
+// and also matches patterns like "my number is 9XXXXXXXXX".
+const extractPhone = (transcript: string | null): string | null => {
+  if (!transcript) return null;
+  // Normalise spaces/dashes inside numbers so "98765 43210" → "9876543210"
+  const cleaned = transcript.replace(/(\d)[\s\-](?=\d)/g, "$1");
+  // Prefer numbers introduced with a phrase
+  const phrase = cleaned.match(/(?:my\s+(?:number|phone|mobile|contact)\s+(?:is|number\s+is)?|number\s+is|contact\s+is|phone\s+is|reach\s+me\s+(?:on|at))\s*[:\-]?\s*(\+?\d[\d\s\-]{8,14}\d)/i);
+  if (phrase) {
+    const d = phrase[1].replace(/\D/g, "");
+    if (d.length >= 10 && d.length <= 13) return phrase[1].trim();
+  }
+  // Fallback: any 10-digit Indian mobile (starts 6-9), optional +91/91/0 prefix
+  const generic = cleaned.match(/(?:\+?91[\s\-]?|0)?([6-9]\d{9})\b/);
+  if (generic) return `+91 ${generic[1]}`;
+  return null;
+};
+
+const resolvePhone = (
+  lead: { caller_number: string | null; raw_transcript: string | null; notes: string | null }
+): { phone: string | null; isAvailable: boolean } => {
+  if (isLikelyRealPhone(lead.caller_number)) {
+    return { phone: lead.caller_number, isAvailable: true };
+  }
+  const fromTranscript =
+    extractPhone(lead.raw_transcript) || extractPhone(lead.notes);
+  if (fromTranscript) return { phone: fromTranscript, isAvailable: true };
+  return { phone: null, isAvailable: false };
+};
+
 const formatDuration = (s: number | null) => {
   if (!s) return "—";
   const m = Math.floor(s / 60);
@@ -109,6 +150,7 @@ const resolveName = (lead: ElevenLead): { name: string; isUnidentified: boolean 
   const candidate =
     (lead.customer_name && lead.customer_name !== "Unknown" ? lead.customer_name : "") ||
     extractName(lead.raw_transcript) ||
+    extractName(lead.notes) ||
     "";
   if (candidate) return { name: candidate, isUnidentified: false };
   return { name: "Unidentified Caller", isUnidentified: true };
@@ -561,7 +603,9 @@ export function ElevenLabsLeadsPanel() {
             {!loading && filtered.map(r => {
               const isOpen = expanded.has(r.id);
               const { name, isUnidentified } = resolveName(r);
-              const phone = formatPhone(r.caller_number);
+              const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
+              const phone = phoneAvailable ? formatPhone(resolvedPhone) : "Not available";
+              const phoneForActions = phoneAvailable ? (resolvedPhone as string) : "";
               const status = (r.lead_status ?? "New") as Status;
               const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
               const hot = isHotLead(r);
@@ -581,7 +625,7 @@ export function ElevenLabsLeadsPanel() {
                         sourceType="lead"
                         sourceId={r.id}
                         customerName={isUnidentified ? "Unknown" : name}
-                        phone={r.caller_number}
+                        phone={phoneForActions}
                         company={(r as any).company}
                         productName={r.requirement || ""}
                         urgency={r.priority}
@@ -604,7 +648,11 @@ export function ElevenLabsLeadsPanel() {
                       ) : name}
                     </TableCell>
                     <TableCell className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
-                      <a className="text-primary hover:underline" href={`tel:${r.caller_number}`}>{phone}</a>
+                      {phoneAvailable ? (
+                        <a className="text-primary hover:underline" href={`tel:${resolvedPhone}`}>{phone}</a>
+                      ) : (
+                        <span className="italic text-muted-foreground">Not available</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs">
                       <div className="flex items-center gap-1">
@@ -703,7 +751,9 @@ export function ElevenLabsLeadsPanel() {
           )}
           {!loading && filtered.map(r => {
             const { name, isUnidentified } = resolveName(r);
-            const phone = formatPhone(r.caller_number);
+            const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
+            const phone = phoneAvailable ? formatPhone(resolvedPhone) : "Not available";
+            const phoneForActions = phoneAvailable ? (resolvedPhone as string) : "";
             const status = (r.lead_status ?? "New") as Status;
             const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
             const hot = isHotLead(r);
@@ -732,7 +782,11 @@ export function ElevenLabsLeadsPanel() {
                 </div>
 
                 <div className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
-                  <a className="text-primary hover:underline" href={`tel:${r.caller_number}`}>{phone}</a>
+                  {phoneAvailable ? (
+                    <a className="text-primary hover:underline" href={`tel:${resolvedPhone}`}>{phone}</a>
+                  ) : (
+                    <span className="italic text-muted-foreground">Not available</span>
+                  )}
                 </div>
 
                 <div className="text-xs space-y-0.5">
@@ -776,17 +830,17 @@ export function ElevenLabsLeadsPanel() {
                     {relativeTime(r.last_contacted_at)}
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
-                      <a href={`tel:${r.caller_number}`} onClick={() => markContacted(r)}>
+                    <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call" disabled={!phoneAvailable}>
+                      <a href={phoneAvailable ? `tel:${resolvedPhone}` : undefined} onClick={() => phoneAvailable && markContacted(r)}>
                         <Phone className="h-3.5 w-3.5 text-blue-600" />
                       </a>
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp" onClick={() => { openWhatsApp(r.caller_number); markContacted(r); }}>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp" disabled={!phoneAvailable} onClick={() => { if (phoneAvailable) { openWhatsApp(resolvedPhone as string); markContacted(r); } }}>
                       <MessageCircle className="h-3.5 w-3.5 text-green-600" />
                     </Button>
-                    <ProspectButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
-                    <AttentionButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
-                    <EnquiryConvertButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} urgency={r.priority} notes={r.notes || r.raw_transcript} isAlreadyConverted={r.is_enquiry_converted} />
+                    <ProspectButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
+                    <AttentionButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
+                    <EnquiryConvertButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} urgency={r.priority} notes={r.notes || r.raw_transcript} isAlreadyConverted={r.is_enquiry_converted} />
                   </div>
                 </div>
               </Card>
@@ -800,6 +854,8 @@ export function ElevenLabsLeadsPanel() {
         <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
           {selected && (() => {
             const { name, isUnidentified } = resolveName(selected);
+            const { phone: selPhone, isAvailable: selPhoneOk } = resolvePhone(selected);
+            const selPhoneForActions = selPhoneOk ? (selPhone as string) : "";
             return (
               <>
                 <SheetHeader>
@@ -808,7 +864,7 @@ export function ElevenLabsLeadsPanel() {
                     <span className={isUnidentified ? "text-muted-foreground italic" : ""}>{name}</span>
                   </SheetTitle>
                   <SheetDescription className="font-mono flex flex-wrap items-center gap-1.5">
-                    <span>{formatPhone(selected.caller_number)}</span>
+                    <span>{selPhoneOk ? formatPhone(selPhone) : <span className="italic text-muted-foreground">Phone not available</span>}</span>
                     <span className="text-muted-foreground">·</span>
                     <span>{format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}</span>
                   </SheetDescription>
@@ -817,13 +873,13 @@ export function ElevenLabsLeadsPanel() {
                 <div className="mt-4 space-y-4">
                   <div className="grid grid-cols-2 gap-2">
                     <CallButton
-                      phoneNumber={selected.caller_number}
+                      phoneNumber={selPhoneForActions}
                       entityType="lead"
                       entityId={selected.id}
                       label="Call Now"
                       variant="default"
                     />
-                    <Button variant="outline" className="gap-2" onClick={() => openWhatsApp(selected.caller_number)}>
+                    <Button variant="outline" className="gap-2" disabled={!selPhoneOk} onClick={() => selPhoneOk && openWhatsApp(selPhoneForActions)}>
                       <MessageCircle className="h-4 w-4" /> WhatsApp
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => updateLeadStatus(selected.id, "Contacted")}>
@@ -836,7 +892,7 @@ export function ElevenLabsLeadsPanel() {
                       <ProspectButton
                         sourceType="lead" sourceId={selected.id}
                         customerName={isUnidentified ? "Unknown" : name}
-                        phoneNumber={selected.caller_number}
+                        phoneNumber={selPhoneForActions}
                         email={null} company={null} city={null}
                         productName={selected.requirement || ""}
                         notes={selected.notes || selected.raw_transcript}
@@ -844,7 +900,7 @@ export function ElevenLabsLeadsPanel() {
                       <AttentionButton
                         sourceType="lead" sourceId={selected.id}
                         customerName={isUnidentified ? "Unknown" : name}
-                        phoneNumber={selected.caller_number}
+                        phoneNumber={selPhoneForActions}
                         email={null} company={null} city={null}
                         productName={selected.requirement || ""}
                         notes={selected.notes || selected.raw_transcript}
@@ -852,7 +908,7 @@ export function ElevenLabsLeadsPanel() {
                       <EnquiryConvertButton
                         sourceType="lead" sourceId={selected.id}
                         customerName={isUnidentified ? "Unknown" : name}
-                        phoneNumber={selected.caller_number}
+                        phoneNumber={selPhoneForActions}
                         email={null} company={null} city={null}
                         productName={selected.requirement || ""}
                         urgency={selected.priority}
