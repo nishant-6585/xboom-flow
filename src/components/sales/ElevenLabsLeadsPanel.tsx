@@ -854,6 +854,8 @@ export function ElevenLabsLeadsPanel() {
         <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
           {selected && (() => {
             const { name, isUnidentified } = resolveName(selected);
+            const { phone: selPhone, isAvailable: selPhoneOk } = resolvePhone(selected);
+            const selPhoneForActions = selPhoneOk ? (selPhone as string) : "";
             return (
               <>
                 <SheetHeader>
@@ -862,7 +864,7 @@ export function ElevenLabsLeadsPanel() {
                     <span className={isUnidentified ? "text-muted-foreground italic" : ""}>{name}</span>
                   </SheetTitle>
                   <SheetDescription className="font-mono flex flex-wrap items-center gap-1.5">
-                    <span>{formatPhone(selected.caller_number)}</span>
+                    <span>{selPhoneOk ? formatPhone(selPhone) : <span className="italic text-muted-foreground">Phone not available</span>}</span>
                     <span className="text-muted-foreground">·</span>
                     <span>{format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}</span>
                   </SheetDescription>
@@ -871,13 +873,13 @@ export function ElevenLabsLeadsPanel() {
                 <div className="mt-4 space-y-4">
                   <div className="grid grid-cols-2 gap-2">
                     <CallButton
-                      phoneNumber={selected.caller_number}
+                      phoneNumber={selPhoneForActions}
                       entityType="lead"
                       entityId={selected.id}
                       label="Call Now"
                       variant="default"
                     />
-                    <Button variant="outline" className="gap-2" onClick={() => openWhatsApp(selected.caller_number)}>
+                    <Button variant="outline" className="gap-2" disabled={!selPhoneOk} onClick={() => selPhoneOk && openWhatsApp(selPhoneForActions)}>
                       <MessageCircle className="h-4 w-4" /> WhatsApp
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => updateLeadStatus(selected.id, "Contacted")}>
@@ -890,7 +892,7 @@ export function ElevenLabsLeadsPanel() {
                       <ProspectButton
                         sourceType="lead" sourceId={selected.id}
                         customerName={isUnidentified ? "Unknown" : name}
-                        phoneNumber={selected.caller_number}
+                        phoneNumber={selPhoneForActions}
                         email={null} company={null} city={null}
                         productName={selected.requirement || ""}
                         notes={selected.notes || selected.raw_transcript}
@@ -898,7 +900,7 @@ export function ElevenLabsLeadsPanel() {
                       <AttentionButton
                         sourceType="lead" sourceId={selected.id}
                         customerName={isUnidentified ? "Unknown" : name}
-                        phoneNumber={selected.caller_number}
+                        phoneNumber={selPhoneForActions}
                         email={null} company={null} city={null}
                         productName={selected.requirement || ""}
                         notes={selected.notes || selected.raw_transcript}
@@ -906,7 +908,7 @@ export function ElevenLabsLeadsPanel() {
                       <EnquiryConvertButton
                         sourceType="lead" sourceId={selected.id}
                         customerName={isUnidentified ? "Unknown" : name}
-                        phoneNumber={selected.caller_number}
+                        phoneNumber={selPhoneForActions}
                         email={null} company={null} city={null}
                         productName={selected.requirement || ""}
                         urgency={selected.priority}
