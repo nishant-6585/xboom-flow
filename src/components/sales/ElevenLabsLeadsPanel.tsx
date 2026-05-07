@@ -751,7 +751,9 @@ export function ElevenLabsLeadsPanel() {
           )}
           {!loading && filtered.map(r => {
             const { name, isUnidentified } = resolveName(r);
-            const phone = formatPhone(r.caller_number);
+            const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
+            const phone = phoneAvailable ? formatPhone(resolvedPhone) : "Not available";
+            const phoneForActions = phoneAvailable ? (resolvedPhone as string) : "";
             const status = (r.lead_status ?? "New") as Status;
             const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
             const hot = isHotLead(r);
@@ -780,7 +782,11 @@ export function ElevenLabsLeadsPanel() {
                 </div>
 
                 <div className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
-                  <a className="text-primary hover:underline" href={`tel:${r.caller_number}`}>{phone}</a>
+                  {phoneAvailable ? (
+                    <a className="text-primary hover:underline" href={`tel:${resolvedPhone}`}>{phone}</a>
+                  ) : (
+                    <span className="italic text-muted-foreground">Not available</span>
+                  )}
                 </div>
 
                 <div className="text-xs space-y-0.5">
@@ -824,17 +830,17 @@ export function ElevenLabsLeadsPanel() {
                     {relativeTime(r.last_contacted_at)}
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
-                      <a href={`tel:${r.caller_number}`} onClick={() => markContacted(r)}>
+                    <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call" disabled={!phoneAvailable}>
+                      <a href={phoneAvailable ? `tel:${resolvedPhone}` : undefined} onClick={() => phoneAvailable && markContacted(r)}>
                         <Phone className="h-3.5 w-3.5 text-blue-600" />
                       </a>
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp" onClick={() => { openWhatsApp(r.caller_number); markContacted(r); }}>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp" disabled={!phoneAvailable} onClick={() => { if (phoneAvailable) { openWhatsApp(resolvedPhone as string); markContacted(r); } }}>
                       <MessageCircle className="h-3.5 w-3.5 text-green-600" />
                     </Button>
-                    <ProspectButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
-                    <AttentionButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
-                    <EnquiryConvertButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} urgency={r.priority} notes={r.notes || r.raw_transcript} isAlreadyConverted={r.is_enquiry_converted} />
+                    <ProspectButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
+                    <AttentionButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
+                    <EnquiryConvertButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} urgency={r.priority} notes={r.notes || r.raw_transcript} isAlreadyConverted={r.is_enquiry_converted} />
                   </div>
                 </div>
               </Card>
