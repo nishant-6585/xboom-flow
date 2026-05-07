@@ -603,7 +603,9 @@ export function ElevenLabsLeadsPanel() {
             {!loading && filtered.map(r => {
               const isOpen = expanded.has(r.id);
               const { name, isUnidentified } = resolveName(r);
-              const phone = formatPhone(r.caller_number);
+              const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
+              const phone = phoneAvailable ? formatPhone(resolvedPhone) : "Not available";
+              const phoneForActions = phoneAvailable ? (resolvedPhone as string) : "";
               const status = (r.lead_status ?? "New") as Status;
               const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
               const hot = isHotLead(r);
@@ -623,7 +625,7 @@ export function ElevenLabsLeadsPanel() {
                         sourceType="lead"
                         sourceId={r.id}
                         customerName={isUnidentified ? "Unknown" : name}
-                        phone={r.caller_number}
+                        phone={phoneForActions}
                         company={(r as any).company}
                         productName={r.requirement || ""}
                         urgency={r.priority}
@@ -646,7 +648,11 @@ export function ElevenLabsLeadsPanel() {
                       ) : name}
                     </TableCell>
                     <TableCell className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
-                      <a className="text-primary hover:underline" href={`tel:${r.caller_number}`}>{phone}</a>
+                      {phoneAvailable ? (
+                        <a className="text-primary hover:underline" href={`tel:${resolvedPhone}`}>{phone}</a>
+                      ) : (
+                        <span className="italic text-muted-foreground">Not available</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs">
                       <div className="flex items-center gap-1">
