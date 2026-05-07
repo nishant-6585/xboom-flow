@@ -112,10 +112,11 @@ Deno.serve(async (req) => {
         const elapsedMs = now.getTime() - checkInTime.getTime();
         const elapsedMinutes = elapsedMs / (1000 * 60);
 
-        // Skip today's logs — employees may still check out manually
+        // HR policy: never auto-close same-day logs. Employees check out themselves
+        // whenever they're done, even if they've worked >9h. Auto-checkout is only
+        // a safety net for sessions left open from previous days.
         if (logDate === todayIST) {
-          // For today, only process if elapsed time exceeds threshold (same-day auto-checkout)
-          // This keeps the existing behavior for very long shifts
+          continue;
         }
 
         // Calculate total break minutes including ongoing breaks
