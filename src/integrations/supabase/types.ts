@@ -7222,15 +7222,7 @@ export type Database = {
           uploaded_by?: string | null
           version?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "monthly_pulses_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       myoperator_config: {
         Row: {

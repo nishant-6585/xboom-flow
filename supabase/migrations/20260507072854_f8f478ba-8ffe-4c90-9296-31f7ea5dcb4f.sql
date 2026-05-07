@@ -1,0 +1,1 @@
+ALTER TABLE public.monthly_pulses DROP CONSTRAINT IF EXISTS monthly_pulses_uploaded_by_fkey;
