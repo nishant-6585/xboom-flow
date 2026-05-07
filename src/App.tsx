@@ -96,6 +96,7 @@ function AppInner() {
         <Route path="/forms" element={<ProtectedRoute><Forms /></ProtectedRoute>} />
         <Route path="/repairs" element={<ProtectedRoute><Repairs /></ProtectedRoute>} />
         <Route path="/trainings" element={<ProtectedRoute><Navigate to="/hr?tab=training" replace /></ProtectedRoute>} />
+        <Route path="/hr/monthly-pulse" element={<ProtectedRoute><Navigate to="/hr?tab=monthly_pulse" replace /></ProtectedRoute>} />
         <Route path="/form-embed/:formId" element={<FormEmbed />} />
         <Route path="/public/drone-repair-enquiry" element={<PublicDroneRepairEnquiry />} />
         <Route path="/sample-payslip" element={<SamplePayslip />} />
