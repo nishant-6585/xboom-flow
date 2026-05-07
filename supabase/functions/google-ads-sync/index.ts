@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -271,12 +272,10 @@ Deno.serve(async (req) => {
   );
 
   // Auth: accept cron secret OR valid admin JWT
-  const cronSecret = req.headers.get("x-cron-secret");
-  const expectedCronSecret = Deno.env.get("CRON_SECRET");
   const authHeader = req.headers.get("authorization");
   let isAuthorized = false;
 
-  if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
+  if (await isAuthorizedCron(req)) {
     isAuthorized = true;
   } else if (authHeader) {
     const token = authHeader.replace("Bearer ", "");
