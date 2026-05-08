@@ -137,6 +137,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 <TableHead className="text-xs text-right">Min. Due</TableHead>
                 <TableHead className="text-xs text-right">Credit Limit</TableHead>
                 <TableHead className="text-xs text-right">Outstanding</TableHead>
+                <TableHead className="text-xs text-right">Amount Paid</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
                 <TableHead className="text-xs">Due Date</TableHead>
                 <TableHead className="text-xs text-right">Interest</TableHead>
@@ -147,7 +148,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={12} className="text-center text-xs text-muted-foreground py-8">
+                   <TableCell colSpan={13} className="text-center text-xs text-muted-foreground py-8">
                     No statements found. Upload a statement to get started.
                   </TableCell>
                 </TableRow>
@@ -156,6 +157,9 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                   const card = cards.find(c => c.id === s.card_id);
                   const outstanding = getStatementOutstanding(s, card);
                   const creditLimit = getStatementCreditLimit(s, card);
+                  const amountPaid = payments
+                    .filter(p => p.statement_id === s.id)
+                    .reduce((sum, p) => sum + (p.amount || 0), 0);
                   return (
                     <TableRow key={s.id} className="cursor-pointer hover:bg-muted/60" onClick={() => onViewStatement?.(s)}>
                       <TableCell className="text-xs font-medium">{card?.bank_name}</TableCell>
@@ -165,6 +169,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                       <TableCell className="text-xs text-right">{s.minimum_due > 0 ? fmt(s.minimum_due) : '—'}</TableCell>
                       <TableCell className="text-xs text-right">{creditLimit > 0 ? fmt(creditLimit) : '—'}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(outstanding)}</TableCell>
+                      <TableCell className="text-xs text-right">{amountPaid > 0 ? fmt(amountPaid) : '—'}</TableCell>
                       <TableCell>{statusBadge(s.payment_status)}</TableCell>
                       <TableCell className="text-xs">{new Date(s.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
                       <TableCell className="text-xs text-right">{s.interest_charged > 0 ? fmt(s.interest_charged) : '—'}</TableCell>
