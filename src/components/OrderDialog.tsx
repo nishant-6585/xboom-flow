@@ -2322,6 +2322,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         </DialogContent>
       </Dialog>
 
+      <datalist id="courier-partners-list">
+        {COURIER_NAMES.map((n) => (
+          <option key={n} value={n} />
+        ))}
+      </datalist>
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
