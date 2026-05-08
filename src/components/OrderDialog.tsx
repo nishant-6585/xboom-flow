@@ -20,6 +20,7 @@ import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
+import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -143,6 +144,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerGst, setCustomerGst] = useState('');
+
+  // Auto-generate tracking URL whenever courier name + tracking number change,
+  // unless the URL was already set to something that doesn't match the courier
+  // (i.e. user manually customized it).
+  useEffect(() => {
+    if (!courierName) return;
+    const generated = buildTrackingUrl(courierName, trackingNumber);
+    if (!generated) return;
+    let host = '';
+    try { host = new URL(generated).hostname; } catch { host = ''; }
+    setTrackingUrl((prev) => {
+      if (prev && host && !prev.includes(host)) return prev;
+      return generated;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courierName, trackingNumber]);
 
   useEffect(() => {
     if (order) {
@@ -1505,6 +1522,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       onChange={e => setCourierName(e.target.value)}
                       disabled={loading}
                       placeholder="e.g. DTDC, Delhivery, Bluedart"
+                      list="courier-partners-list"
                     />
                   </div>
                   <div className="space-y-2">
@@ -2148,6 +2166,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       onChange={e => setCourierName(e.target.value)}
                       disabled={loading}
                       placeholder="e.g. DTDC, Delhivery, Bluedart"
+                      list="courier-partners-list"
                     />
                   </div>
                 </div>
@@ -2302,6 +2321,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           </div>
         </DialogContent>
       </Dialog>
+
+      <datalist id="courier-partners-list">
+        {COURIER_NAMES.map((n) => (
+          <option key={n} value={n} />
+        ))}
+      </datalist>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
