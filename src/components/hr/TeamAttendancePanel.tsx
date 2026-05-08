@@ -743,14 +743,21 @@ function EmployeeCalendarView({
                       <tr key={dateStr} className={cn('border-b last:border-0 hover:bg-muted/30', isToday(day) && 'bg-primary/5')}>
                         <td className="px-3 py-2">{format(day, 'dd MMM, EEE')}</td>
                         <td className="px-3 py-2">
-                          <Badge variant="outline" className={cn('text-xs',
-                            status === 'present' && 'border-green-300 text-green-700',
-                            status === 'Absent' && 'border-red-300 text-red-700',
-                            status === 'On Leave' && 'border-purple-300 text-purple-700',
-                            status === 'Holiday' && 'border-blue-300 text-blue-700',
-                            status === 'Weekend' && 'border-muted text-muted-foreground',
-                            status === 'half_day' && 'border-yellow-300 text-yellow-700',
-                          )}>{status}</Badge>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="outline" className={cn('text-xs',
+                              status === 'present' && 'border-green-300 text-green-700',
+                              status === 'Absent' && 'border-red-300 text-red-700',
+                              status === 'On Leave' && 'border-purple-300 text-purple-700',
+                              status === 'Holiday' && 'border-blue-300 text-blue-700',
+                              status === 'Weekend' && 'border-muted text-muted-foreground',
+                              status === 'half_day' && 'border-yellow-300 text-yellow-700',
+                            )}>{status}</Badge>
+                            {(status === 'On Leave' || log?.status === 'on_leave') && leave && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-300 bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400">
+                                {EMP_LEAVE_LABELS[leave.leave_type] || leave.leave_type}
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">{log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</td>
                         <td className="px-3 py-2 text-muted-foreground">{log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</td>
