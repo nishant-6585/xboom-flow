@@ -20,7 +20,8 @@ import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
-import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
+import { COURIER_NAMES, buildTrackingUrl, findCourier } from '@/lib/courierTracking';
+import { CourierCombobox } from '@/components/CourierCombobox';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -146,16 +147,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerGst, setCustomerGst] = useState('');
 
   // Auto-generate tracking URL whenever courier name + tracking number change,
-  // unless the URL was already set to something that doesn't match the courier
-  // (i.e. user manually customized it).
+  // unless the URL is a manual one that doesn't belong to any known courier.
   useEffect(() => {
     if (!courierName) return;
     const generated = buildTrackingUrl(courierName, trackingNumber);
     if (!generated) return;
-    let host = '';
-    try { host = new URL(generated).hostname; } catch { host = ''; }
     setTrackingUrl((prev) => {
-      if (prev && host && !prev.includes(host)) return prev;
+      if (prev) {
+        // If the previous URL belongs to a known courier (any), it was auto-generated
+        // — overwrite with the new courier's URL. Only keep it if it's a fully custom URL.
+        const prevBelongsToKnownCourier = COURIER_NAMES.some((cn) => {
+          const u = buildTrackingUrl(cn, '');
+          if (!u) return false;
+          try { return prev.includes(new URL(u).hostname); } catch { return false; }
+        });
+        if (!prevBelongsToKnownCourier) return prev;
+      }
       return generated;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1516,13 +1523,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_courier_name">Courier Name</Label>
-                    <Input
+                    <CourierCombobox
                       id="inline_courier_name"
                       value={courierName}
-                      onChange={e => setCourierName(e.target.value)}
+                      onChange={setCourierName}
                       disabled={loading}
-                      placeholder="e.g. DTDC, Delhivery, Bluedart"
-                      list="courier-partners-list"
+                      placeholder="Select courier…"
                     />
                   </div>
                   <div className="space-y-2">
@@ -2160,13 +2166,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="courier_name">Courier Name</Label>
-                    <Input
+                    <CourierCombobox
                       id="courier_name"
                       value={courierName}
-                      onChange={e => setCourierName(e.target.value)}
+                      onChange={setCourierName}
                       disabled={loading}
-                      placeholder="e.g. DTDC, Delhivery, Bluedart"
-                      list="courier-partners-list"
+                      placeholder="Select courier…"
                     />
                   </div>
                 </div>
@@ -2321,12 +2326,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           </div>
         </DialogContent>
       </Dialog>
-
-      <datalist id="courier-partners-list">
-        {COURIER_NAMES.map((n) => (
-          <option key={n} value={n} />
-        ))}
-      </datalist>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
