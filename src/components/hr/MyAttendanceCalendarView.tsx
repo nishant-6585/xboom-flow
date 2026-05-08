@@ -408,10 +408,11 @@ export function MyAttendanceCalendarView({
                         statusBadge = <Badge className="bg-green-500 text-white text-[10px] px-1.5 py-0">Present</Badge>;
                       } else if (log.status === 'on_leave') {
                         statusBadge = <Badge className="bg-red-500 text-white text-[10px] px-1.5 py-0">Leave</Badge>;
+                        if (approvedLeave) remarks = LEAVE_TYPE_LABELS[approvedLeave.leave_type] || approvedLeave.leave_type;
                       } else if (log.status === 'half_day') {
                         statusBadge = <Badge className="bg-yellow-500 text-white text-[10px] px-1.5 py-0">Half Day</Badge>;
                       }
-                      if (log.notes) remarks = log.notes;
+                      if (log.notes && !remarks) remarks = log.notes;
                       if (log.is_provisional_checkout) {
                         statusBadge = <div className="flex items-center gap-1">{statusBadge}<Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-700">⚠</Badge></div>;
                       }
