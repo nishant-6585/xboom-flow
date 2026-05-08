@@ -41,6 +41,9 @@ interface Body {
   status?: string | null;
   tracking_number?: string | null;
   tracking_url?: string | null;
+  courier_name?: string | null;
+  estimated_delivery?: string | null;
+  shipping_address?: string | null;
   external_id?: string | null;
 }
 
@@ -53,6 +56,12 @@ function buildEmail(b: Body): { subject: string; html: string } {
   const status = escapeHtml(String(b.status || "").replace(/_/g, " "));
   const trackNum = escapeHtml(b.tracking_number || "");
   const trackUrl = b.tracking_url || "";
+  const courier = escapeHtml(b.courier_name || "");
+  const eta = b.estimated_delivery
+    ? escapeHtml(new Date(b.estimated_delivery).toLocaleDateString("en-IN", {
+        day: "numeric", month: "short", year: "numeric",
+      }))
+    : "";
 
   const head = `
     <div style="font-family:Arial,sans-serif;color:#0f172a;max-width:560px;margin:0 auto;padding:24px;">
@@ -79,13 +88,21 @@ function buildEmail(b: Body): { subject: string; html: string } {
         ${sig}`,
       };
     case "tracking_update":
+      const detailRows = [
+        courier   ? `<tr><td style="padding:6px 0;color:#64748b;font-size:13px;width:130px">Courier</td><td style="padding:6px 0;color:#0f172a;font-size:14px;font-weight:600">${courier}</td></tr>` : "",
+        trackNum  ? `<tr><td style="padding:6px 0;color:#64748b;font-size:13px">Tracking number</td><td style="padding:6px 0;color:#0f172a;font-size:14px;font-weight:600">${trackNum}</td></tr>` : "",
+        eta       ? `<tr><td style="padding:6px 0;color:#64748b;font-size:13px">Estimated delivery</td><td style="padding:6px 0;color:#0f172a;font-size:14px;font-weight:600">${eta}</td></tr>` : "",
+      ].join("");
       return {
         subject: `Tracking details for order #${orderNo}`,
         html: `${head}
-          <h3>Hi ${name}, your order is on the way 🚚</h3>
-          <p>Your order <b>#${orderNo}</b> (<b>${product}</b>) has been shipped.</p>
-          ${trackNum ? `<p><b>Tracking number:</b> ${trackNum}</p>` : ""}
-          ${trackUrl ? `<p><a href="${trackUrl}" style="background:#0ea5e9;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Track your package</a></p>` : ""}
+          <h3 style="margin:0 0 8px">Hi ${name}, your order is on the way 🚚</h3>
+          <p style="margin:0 0 16px;color:#475569">Great news! Your order <b>#${orderNo}</b> (<b>${product}</b>) has been shipped${courier ? ` via <b>${courier}</b>` : ""}.</p>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;margin:16px 0">
+            <table style="width:100%;border-collapse:collapse">${detailRows}</table>
+          </div>
+          ${trackUrl ? `<p style="text-align:center;margin:20px 0"><a href="${trackUrl}" style="background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600">Track your package</a></p>` : ""}
+          <p style="font-size:13px;color:#64748b;margin-top:20px">Tracking information may take a few hours to reflect on the courier's website after dispatch.</p>
         ${sig}`,
       };
     case "delivered":
