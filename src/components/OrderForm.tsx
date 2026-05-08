@@ -18,6 +18,7 @@ import { OrderItemFormData } from '@/hooks/useOrderItems';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
+import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 
 interface FileWithPreview {
   file: File;
