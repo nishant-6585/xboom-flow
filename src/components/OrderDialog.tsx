@@ -2166,6 +2166,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       onChange={e => setCourierName(e.target.value)}
                       disabled={loading}
                       placeholder="e.g. DTDC, Delhivery, Bluedart"
+                      list="courier-partners-list"
                     />
                   </div>
                 </div>
