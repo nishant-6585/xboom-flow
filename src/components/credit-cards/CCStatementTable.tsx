@@ -137,6 +137,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 <TableHead className="text-xs text-right">Min. Due</TableHead>
                 <TableHead className="text-xs text-right">Credit Limit</TableHead>
                 <TableHead className="text-xs text-right">Outstanding</TableHead>
+                <TableHead className="text-xs text-right">Amount Paid</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
                 <TableHead className="text-xs">Due Date</TableHead>
                 <TableHead className="text-xs text-right">Interest</TableHead>
@@ -148,6 +149,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
               {filtered.length === 0 ? (
                 <TableRow>
                    <TableCell colSpan={12} className="text-center text-xs text-muted-foreground py-8">
+
                     No statements found. Upload a statement to get started.
                   </TableCell>
                 </TableRow>
