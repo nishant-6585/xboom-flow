@@ -1019,7 +1019,21 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                           <Label>Tracking Number</Label>
                           <Input
                             value={formData.tracking_number || ''}
-                            onChange={e => setFormData(prev => ({ ...prev, tracking_number: e.target.value }))}
+                            onChange={e => {
+                              const tracking_number = e.target.value;
+                              setFormData(prev => {
+                                const generated = buildTrackingUrl(prev.courier_name, tracking_number);
+                                let host = '';
+                                try { host = generated ? new URL(generated).hostname : ''; } catch {}
+                                const keepExisting =
+                                  prev.tracking_url && host && !prev.tracking_url.includes(host);
+                                return {
+                                  ...prev,
+                                  tracking_number,
+                                  tracking_url: keepExisting || !generated ? prev.tracking_url : generated,
+                                };
+                              });
+                            }}
                             disabled={loading}
                             placeholder="Enter tracking number"
                             className="h-11"
