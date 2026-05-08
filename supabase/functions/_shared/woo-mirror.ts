@@ -51,6 +51,64 @@ export const WINDOW_START_ISO = "2026-04-30";
 const SYSTEM_USER_ID = "a8050cc3-7d17-44ac-a083-d8023d505331";
 const SYSTEM_USER_NAME = "Website (Auto)";
 
+// Send a Slack notification to the #all-xboom-2025 channel when a new
+// website order lands. Failures are swallowed — Slack must never block
+// order ingestion.
+async function notifySlackWebsiteOrder(orderRow: Record<string, unknown>, orderId: string) {
+  try {
+    const botToken = Deno.env.get("SLACK_BOT_TOKEN");
+    if (!botToken) {
+      console.warn("[woo-mirror] SLACK_BOT_TOKEN not set, skipping Slack notify");
+      return;
+    }
+    const channel = "all-xboom-2025";
+    const formatINR = (n: number) => `₹${(n || 0).toLocaleString("en-IN")}`;
+    const message = {
+      channel,
+      text: `🛒 New Website Order #${orderRow.order_number} from ${orderRow.customer_name}`,
+      blocks: [
+        {
+          type: "header",
+          text: { type: "plain_text", text: "🛒 New Website Order Received!", emoji: true },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `A new *Website Order* has been placed on the Xboom website.`,
+          },
+        },
+        {
+          type: "section",
+          fields: [
+            { type: "mrkdwn", text: `*📋 Order #:*\n\`${orderRow.order_number}\`` },
+            { type: "mrkdwn", text: `*👤 Customer:*\n${orderRow.customer_name}` },
+            { type: "mrkdwn", text: `*📦 Product:*\n${orderRow.product_name}` },
+            { type: "mrkdwn", text: `*🔢 Quantity:*\n${orderRow.quantity} units` },
+            { type: "mrkdwn", text: `*💰 Order Value:*\n${formatINR(orderRow.total_sales_amount as number)}` },
+            { type: "mrkdwn", text: `*🌐 Source:*\nXboom Website` },
+          ],
+        },
+        { type: "divider" },
+      ],
+    };
+    const resp = await fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${botToken}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify(message),
+    });
+    const result = await resp.json();
+    if (!result.ok) {
+      console.error(`[woo-mirror] Slack notify failed for order ${orderId}: ${result.error}`);
+    }
+  } catch (err) {
+    console.error(`[woo-mirror] Slack notify exception for order ${orderId}:`, err);
+  }
+}
+
 // deno-lint-ignore no-explicit-any
 export async function mirrorIntoInternalOrders(supabase: any, payload: any, orderId: string, eventType: string) {
   const wooStatus: string = (payload?.status || "").toLowerCase();
@@ -183,6 +241,8 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       return;
     }
     internalId = ins.id;
+    // New website order created — notify Slack channel #all-xboom-2025
+    await notifySlackWebsiteOrder(orderRow, orderId);
   }
 
   if (internalId) {
