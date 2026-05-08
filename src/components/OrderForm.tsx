@@ -19,6 +19,17 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
+import { CourierCombobox } from '@/components/CourierCombobox';
+
+const KNOWN_COURIER_HOSTS = COURIER_NAMES
+  .map((cn) => {
+    const u = buildTrackingUrl(cn, '1');
+    try { return u ? new URL(u).hostname : ''; } catch { return ''; }
+  })
+  .filter(Boolean);
+
+const isKnownCourierUrl = (url: string | null | undefined) =>
+  !!url && KNOWN_COURIER_HOSTS.some((h) => url.includes(h));
 
 interface FileWithPreview {
   file: File;
@@ -1023,10 +1034,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                               const tracking_number = e.target.value;
                               setFormData(prev => {
                                 const generated = buildTrackingUrl(prev.courier_name, tracking_number);
-                                let host = '';
-                                try { host = generated ? new URL(generated).hostname : ''; } catch {}
                                 const keepExisting =
-                                  prev.tracking_url && host && !prev.tracking_url.includes(host);
+                                  prev.tracking_url && !isKnownCourierUrl(prev.tracking_url);
                                 return {
                                   ...prev,
                                   tracking_number,
@@ -1052,16 +1061,13 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                         </div>
                         <div className="space-y-2">
                           <Label>Courier Name</Label>
-                          <Input
+                          <CourierCombobox
                             value={formData.courier_name || ''}
-                            onChange={e => {
-                              const courier_name = e.target.value;
+                            onChange={(courier_name) => {
                               setFormData(prev => {
                                 const generated = buildTrackingUrl(courier_name, prev.tracking_number);
-                                let host = '';
-                                try { host = generated ? new URL(generated).hostname : ''; } catch {}
                                 const keepExisting =
-                                  prev.tracking_url && host && !prev.tracking_url.includes(host);
+                                  prev.tracking_url && !isKnownCourierUrl(prev.tracking_url);
                                 return {
                                   ...prev,
                                   courier_name,
@@ -1070,15 +1076,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                               });
                             }}
                             disabled={loading}
-                            placeholder="e.g. DTDC, Delhivery"
                             className="h-11"
-                            list="courier-partners-list-form"
                           />
-                          <datalist id="courier-partners-list-form">
-                            {COURIER_NAMES.map((n) => (
-                              <option key={n} value={n} />
-                            ))}
-                          </datalist>
                         </div>
                         <div className="space-y-2">
                           <Label>Estimated Delivery</Label>
