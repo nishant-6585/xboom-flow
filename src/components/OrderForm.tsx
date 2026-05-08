@@ -1040,11 +1040,31 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                           <Label>Courier Name</Label>
                           <Input
                             value={formData.courier_name || ''}
-                            onChange={e => setFormData(prev => ({ ...prev, courier_name: e.target.value }))}
+                            onChange={e => {
+                              const courier_name = e.target.value;
+                              setFormData(prev => {
+                                const generated = buildTrackingUrl(courier_name, prev.tracking_number);
+                                let host = '';
+                                try { host = generated ? new URL(generated).hostname : ''; } catch {}
+                                const keepExisting =
+                                  prev.tracking_url && host && !prev.tracking_url.includes(host);
+                                return {
+                                  ...prev,
+                                  courier_name,
+                                  tracking_url: keepExisting || !generated ? prev.tracking_url : generated,
+                                };
+                              });
+                            }}
                             disabled={loading}
                             placeholder="e.g. DTDC, Delhivery"
                             className="h-11"
+                            list="courier-partners-list-form"
                           />
+                          <datalist id="courier-partners-list-form">
+                            {COURIER_NAMES.map((n) => (
+                              <option key={n} value={n} />
+                            ))}
+                          </datalist>
                         </div>
                         <div className="space-y-2">
                           <Label>Estimated Delivery</Label>
