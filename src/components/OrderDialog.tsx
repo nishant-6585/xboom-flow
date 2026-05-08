@@ -146,22 +146,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerGst, setCustomerGst] = useState('');
 
-  // Auto-generate tracking URL whenever courier name + tracking number change,
-  // unless the URL is a manual one that doesn't belong to any known courier.
+  // Auto-generate tracking URL whenever courier name + tracking number change.
+  // Overwrite previous URL if it was auto-generated for any known courier; keep
+  // only fully-custom URLs that don't belong to any known carrier domain.
   useEffect(() => {
     if (!courierName) return;
     const generated = buildTrackingUrl(courierName, trackingNumber);
     if (!generated) return;
     setTrackingUrl((prev) => {
       if (prev) {
-        // If the previous URL belongs to a known courier (any), it was auto-generated
-        // — overwrite with the new courier's URL. Only keep it if it's a fully custom URL.
-        const prevBelongsToKnownCourier = COURIER_NAMES.some((cn) => {
-          const u = buildTrackingUrl(cn, '');
-          if (!u) return false;
-          try { return prev.includes(new URL(u).hostname); } catch { return false; }
-        });
-        if (!prevBelongsToKnownCourier) return prev;
+        const knownHosts = COURIER_NAMES
+          .map((cn) => {
+            const u = buildTrackingUrl(cn, '1');
+            try { return u ? new URL(u).hostname : ''; } catch { return ''; }
+          })
+          .filter(Boolean);
+        const prevIsKnown = knownHosts.some((h) => prev.includes(h));
+        if (!prevIsKnown) return prev;
       }
       return generated;
     });
