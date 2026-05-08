@@ -6,105 +6,35 @@
 
 export interface CourierOption {
   name: string;
-  /** Builds a tracking URL for a given AWB / tracking number. */
-  build: (trackingNumber: string) => string;
-  /** Fallback site URL if tracking number not provided. */
-  homepage: string;
+  /**
+   * Public tracking landing page where the customer pastes their
+   * tracking number to view shipment status. We DO NOT append the
+   * tracking number to the URL — most courier sites don't accept it
+   * via querystring reliably, so we send the customer to the page
+   * where they manually enter the AWB/tracking number.
+   */
+  trackingPage: string;
 }
 
-const enc = (s: string) => encodeURIComponent(s.trim());
-
 export const COURIER_PARTNERS: CourierOption[] = [
-  {
-    name: 'Shree Tirupati Courier',
-    homepage: 'http://www.shreetirupaticourier.net/',
-    build: (n) => `http://www.shreetirupaticourier.net/?awb=${enc(n)}`,
-  },
-  {
-    name: 'DTDC',
-    homepage: 'https://www.dtdc.com/track-your-shipment/',
-    build: (n) => `https://www.dtdc.in/tracking/tracking_results.asp?strCnno=${enc(n)}&TrkType=cnno`,
-  },
-  {
-    name: 'Bluedart',
-    homepage: 'https://www.bluedart.com/',
-    build: (n) => `https://www.bluedart.com/web/guest/trackdartresult?trackFor=0&trackNo=${enc(n)}`,
-  },
-  {
-    name: 'Shadowfax',
-    homepage: 'https://shadowfax.in/',
-    build: (n) => `https://tracker.shadowfax.in/#/awb/${enc(n)}`,
-  },
-  {
-    name: 'Delhivery',
-    homepage: 'https://www.delhivery.com/',
-    build: (n) => `https://www.delhivery.com/tracking?awb=${enc(n)}`,
-  },
-  {
-    name: 'Trackon',
-    homepage: 'https://www.trackon.in/',
-    build: (n) => `https://trackon.in/Tracking/MultiAWBTracking?awb=${enc(n)}`,
-  },
-  {
-    name: 'The Professional Couriers',
-    homepage: 'https://www.tpcindia.com/',
-    build: (n) => `https://www.tpcindia.com/Tracking2.aspx?id=${enc(n)}`,
-  },
-  {
-    name: 'Xpressbees',
-    homepage: 'https://www.xpressbees.com/',
-    build: (n) => `https://www.xpressbees.com/shipment/tracking?awbNo=${enc(n)}`,
-  },
-  {
-    name: 'FedEx India',
-    homepage: 'https://www.fedex.com/en-in/home.html',
-    build: (n) => `https://www.fedex.com/fedextrack/?trknbr=${enc(n)}`,
-  },
-  {
-    name: 'Gati',
-    homepage: 'https://www.gati.com/',
-    build: (n) => `https://www.gati.com/tracking/?awbNo=${enc(n)}`,
-  },
-  {
-    name: 'Ecom Express',
-    homepage: 'https://ecomexpress.in/',
-    build: (n) => `https://ecomexpress.in/tracking/?awb=${enc(n)}`,
-  },
-  {
-    name: 'DHL Express India',
-    homepage: 'https://www.dhl.co.in/',
-    build: (n) => `https://www.dhl.com/in-en/home/tracking/tracking-express.html?submit=1&tracking-id=${enc(n)}`,
-  },
-  {
-    name: 'Aramex India',
-    homepage: 'https://www.aramex.com/',
-    build: (n) => `https://www.aramex.com/in/en/track/results?ShipmentNumber=${enc(n)}`,
-  },
-  {
-    name: 'India Post (Speed Post)',
-    homepage: 'https://www.indiapost.gov.in/',
-    build: (n) => `https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx?id=${enc(n)}`,
-  },
-  {
-    name: 'ST Courier',
-    homepage: 'https://stcourier.com/',
-    build: (n) => `https://stcourier.com/track/shipment?id=${enc(n)}`,
-  },
-  {
-    name: 'Porter',
-    homepage: 'https://porter.in/',
-    build: (n) => `https://porter.in/track?id=${enc(n)}`,
-  },
-  {
-    name: 'Office Delivery',
-    homepage: '',
-    build: () => '',
-  },
-  {
-    name: 'Bus',
-    homepage: '',
-    build: () => '',
-  },
+  { name: 'Shree Tirupati Courier', trackingPage: 'http://www.shreetirupaticourier.net/' },
+  { name: 'DTDC', trackingPage: 'https://www.dtdc.com/track-your-shipment/' },
+  { name: 'Bluedart', trackingPage: 'https://www.bluedart.com/tracking' },
+  { name: 'Shadowfax', trackingPage: 'https://tracker.shadowfax.in/' },
+  { name: 'Delhivery', trackingPage: 'https://www.delhivery.com/tracking' },
+  { name: 'Trackon', trackingPage: 'https://trackon.in/Tracking/MultiAWBTracking' },
+  { name: 'The Professional Couriers', trackingPage: 'https://www.tpcindia.com/Tracking2.aspx' },
+  { name: 'Xpressbees', trackingPage: 'https://www.xpressbees.com/shipment/tracking' },
+  { name: 'FedEx India', trackingPage: 'https://www.fedex.com/fedextrack/' },
+  { name: 'Gati', trackingPage: 'https://www.gati.com/tracking/' },
+  { name: 'Ecom Express', trackingPage: 'https://ecomexpress.in/tracking/' },
+  { name: 'DHL Express India', trackingPage: 'https://www.dhl.com/in-en/home/tracking.html' },
+  { name: 'Aramex India', trackingPage: 'https://www.aramex.com/in/en/track/track-by-tracking-number' },
+  { name: 'India Post (Speed Post)', trackingPage: 'https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx' },
+  { name: 'ST Courier', trackingPage: 'https://stcourier.com/track/shipment' },
+  { name: 'Porter', trackingPage: 'https://porter.in/track' },
+  { name: 'Office Delivery', trackingPage: '' },
+  { name: 'Bus', trackingPage: '' },
 ];
 
 const norm = (s: string) =>
@@ -128,13 +58,11 @@ export function findCourier(name: string | null | undefined): CourierOption | nu
  */
 export function buildTrackingUrl(
   courierName: string | null | undefined,
-  trackingNumber: string | null | undefined,
+  _trackingNumber?: string | null | undefined,
 ): string {
   const courier = findCourier(courierName);
-  const num = (trackingNumber ?? '').trim();
   if (!courier) return '';
-  if (!num) return courier.homepage;
-  return courier.build(num);
+  return courier.trackingPage;
 }
 
 export const COURIER_NAMES = COURIER_PARTNERS.map((c) => c.name);

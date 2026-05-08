@@ -101,7 +101,8 @@ function buildEmail(b: Body): { subject: string; html: string } {
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;margin:16px 0">
             <table style="width:100%;border-collapse:collapse">${detailRows}</table>
           </div>
-          ${trackUrl ? `<p style="text-align:center;margin:20px 0"><a href="${trackUrl}" style="background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600">Track your package</a></p>` : ""}
+          ${trackUrl ? `<p style="text-align:center;margin:20px 0"><a href="${trackUrl}" style="background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600">Open ${courier || "courier"} tracking page</a></p>
+          <p style="font-size:13px;color:#475569;margin:0 0 8px;text-align:center">On the page that opens, please enter your tracking number <b>${trackNum}</b> to view the latest status.</p>` : ""}
           <p style="font-size:13px;color:#64748b;margin-top:20px">Tracking information may take a few hours to reflect on the courier's website after dispatch.</p>
         ${sig}`,
       };
