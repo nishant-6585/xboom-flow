@@ -145,6 +145,21 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerGst, setCustomerGst] = useState('');
 
+  // Auto-generate tracking URL whenever courier name + tracking number change,
+  // unless the URL was already set to something that doesn't match the courier
+  // (i.e. user manually customized it).
+  useEffect(() => {
+    if (!courierName) return;
+    const generated = buildTrackingUrl(courierName, trackingNumber);
+    if (!generated) return;
+    setTrackingUrl((prev) => {
+      // If user typed a custom URL that isn't from this courier's domain, keep it.
+      if (prev && !prev.includes(new URL(generated).hostname)) return prev;
+      return generated;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courierName, trackingNumber]);
+
   useEffect(() => {
     if (order) {
       setStatus(order.status);
