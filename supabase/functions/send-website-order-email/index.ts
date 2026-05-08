@@ -87,7 +87,7 @@ function buildEmail(b: Body): { subject: string; html: string } {
           <p>You'll receive another email as soon as it ships.</p>
         ${sig}`,
       };
-    case "tracking_update":
+    case "tracking_update": {
       const detailRows = [
         courier   ? `<tr><td style="padding:6px 0;color:#64748b;font-size:13px;width:130px">Courier</td><td style="padding:6px 0;color:#0f172a;font-size:14px;font-weight:600">${courier}</td></tr>` : "",
         trackNum  ? `<tr><td style="padding:6px 0;color:#64748b;font-size:13px">Tracking number</td><td style="padding:6px 0;color:#0f172a;font-size:14px;font-weight:600">${trackNum}</td></tr>` : "",
@@ -105,6 +105,7 @@ function buildEmail(b: Body): { subject: string; html: string } {
           <p style="font-size:13px;color:#64748b;margin-top:20px">Tracking information may take a few hours to reflect on the courier's website after dispatch.</p>
         ${sig}`,
       };
+    }
     case "delivered":
       return {
         subject: `Order #${orderNo} delivered — Xboom`,
