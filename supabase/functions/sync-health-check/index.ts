@@ -17,6 +17,8 @@ interface SourceCheck {
   table: string;
   dateColumn: string;
   staleHours: number;
+  filterColumn?: string;
+  filterValue?: string;
 }
 
 const SOURCES: SourceCheck[] = [
@@ -25,6 +27,7 @@ const SOURCES: SourceCheck[] = [
   { key: "woocommerce", label: "WooCommerce (Xboom Website)", table: "woocommerce_orders", dateColumn: "woo_created_at", staleHours: 12 },
   { key: "shopify", label: "Shopify", table: "shopify_orders", dateColumn: "shopify_created_at", staleHours: 24 },
   { key: "email_leads", label: "Email Leads (Gmail)", table: "email_leads", dateColumn: "ingested_at", staleHours: 24 },
+  { key: "elevenlabs", label: "ElevenLabs (Voice AI)", table: "call_logs", dateColumn: "created_at", staleHours: 48, filterColumn: "lead_source", filterValue: "ElevenLabs" },
 ];
 
 interface HealthRow {
@@ -41,16 +44,20 @@ async function fetchHealth(supabase: any): Promise<HealthRow[]> {
   const out: HealthRow[] = [];
   for (const s of SOURCES) {
     try {
-      const { data: latest } = await supabase
+      let latestQ = supabase
         .from(s.table)
         .select(`${s.dateColumn}`)
-        .not(s.dateColumn, "is", null)
+        .not(s.dateColumn, "is", null);
+      if (s.filterColumn && s.filterValue) latestQ = latestQ.eq(s.filterColumn, s.filterValue);
+      const { data: latest } = await latestQ
         .order(s.dateColumn, { ascending: false })
         .limit(1)
         .maybeSingle();
-      const { count } = await supabase
+      let countQ = supabase
         .from(s.table)
         .select("*", { count: "exact", head: true });
+      if (s.filterColumn && s.filterValue) countQ = countQ.eq(s.filterColumn, s.filterValue);
+      const { count } = await countQ;
       const lastAt = latest?.[s.dateColumn] || null;
       const hoursSince = lastAt
         ? (Date.now() - new Date(lastAt).getTime()) / (1000 * 60 * 60)
