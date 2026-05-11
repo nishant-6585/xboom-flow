@@ -24,7 +24,7 @@ import { useNotificationOrderSets } from '@/hooks/useNotificationOrderSets';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
-import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
+import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, CUSTOMER_TYPES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
 import { isWooOrderStatus } from '@/lib/wooOrderStatuses';
@@ -140,6 +140,8 @@ export default function Orders() {
   const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -182,7 +184,7 @@ export default function Orders() {
   useEffect(() => { setShopifyPage(1); }, [shopifySearchQuery, shopifyStatusFilter, shopifyPaymentStatusFilter, shopifyStartDate, shopifyEndDate]);
 
   // Reset manual page when filters/search change
-  useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, startDate, endDate]);
+  useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, customerTypeFilter, categoryFilter, startDate, endDate]);
 
   // Reset woo page when filters change
   useEffect(() => { setWooPage(1); }, [wooSearchQuery, wooStatusFilter, wooPaymentStatusFilter, wooNotifFilter]);
@@ -198,6 +200,7 @@ export default function Orders() {
   // Get unique filter options from orders (manual orders only)
   const paymentTermsOptions = [...new Set(orders.map(o => o.payment_terms).filter(Boolean))] as string[];
   const salesPersonOptions = [...new Set(orders.map(o => o.sales_person_name).filter(Boolean))] as string[];
+  const categoryOptions = [...new Set(orders.map(o => o.product_category).filter(Boolean))] as string[];
 
   const canCreateOrder = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
@@ -230,6 +233,8 @@ export default function Orders() {
     const matchesOrderType = orderTypeFilter === 'all' || o.order_type === orderTypeFilter;
     const matchesOutcome = outcomeFilter === 'all' || o.order_outcome === outcomeFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || o.sales_person_name === salesPersonFilter;
+    const matchesCustomerType = customerTypeFilter === 'all' || o.customer_type === customerTypeFilter;
+    const matchesCategory = categoryFilter === 'all' || o.product_category === categoryFilter;
     
     const orderDate = new Date(o.order_date || o.created_at);
     let matchesDate = true;
@@ -241,7 +246,7 @@ export default function Orders() {
       matchesDate = orderDate <= endOfDay(endDate);
     }
     
-    return matchesSearch && matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesDate;
+    return matchesSearch && matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesCustomerType && matchesCategory && matchesDate;
   });
 
   const filteredShopifyOrders = shopifyOrders.filter(o => {
@@ -278,6 +283,8 @@ export default function Orders() {
     setOutcomeFilter('all');
     setSalesPersonFilter('all');
     setStatusFilter('all');
+    setCustomerTypeFilter('all');
+    setCategoryFilter('all');
     setSearchQuery('');
     // Clear URL params
     setSearchParams({});
@@ -362,6 +369,8 @@ export default function Orders() {
     setOutcomeFilter('all');
     setSalesPersonFilter('all');
     setStatusFilter('all');
+    setCustomerTypeFilter('all');
+    setCategoryFilter('all');
 
     // For model filter, set search query to model name
     if (filter.type === 'model') {
@@ -394,6 +403,7 @@ export default function Orders() {
   const hasActiveFilters = statusFilter !== 'all' || paymentStatusFilter !== 'all' || 
     orderTypeFilter !== 'all' || outcomeFilter !== 'all' || 
     paymentTermsFilter !== 'all' || salesPersonFilter !== 'all' ||
+    customerTypeFilter !== 'all' || categoryFilter !== 'all' ||
     !!startDate || !!endDate || !!searchQuery;
 
   const hasActiveShopifyFilters = shopifyStatusFilter !== 'all' || shopifyPaymentStatusFilter !== 'all' ||
@@ -695,7 +705,7 @@ export default function Orders() {
                   {/* Collapsible Filters */}
                   <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                     <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 pt-5 border-t border-border/50">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 pt-5 border-t border-border/50">
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
                           <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Status" />
@@ -768,10 +778,29 @@ export default function Orders() {
                           </SelectContent>
                         </Select>
 
+                        <Select value={customerTypeFilter} onValueChange={setCustomerTypeFilter}>
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
+                            <SelectValue placeholder="B2B / B2C" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="all">All Customers (B2B + B2C)</SelectItem>
+                            {CUSTOMER_TYPES.map(c => (
+                              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-
-
-
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
+                            <SelectValue placeholder="Product Category" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="all">All Categories</SelectItem>
+                            {categoryOptions.map(cat => (
+                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       
                       <div className="mt-5 pt-5 border-t border-border/50">

@@ -1,4 +1,4 @@
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, startOfDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, subDays, startOfDay, endOfDay } from 'date-fns';
 import { CalendarIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,12 @@ interface DateRangeFilterProps {
 }
 
 const PRESETS = [
-  { label: 'Today', getRange: () => { const t = startOfDay(new Date()); return { start: t, end: t }; } },
+  { label: 'Today', getRange: () => { const t = startOfDay(new Date()); return { start: t, end: endOfDay(new Date()) }; } },
+  { label: 'Yesterday', getRange: () => { const y = subDays(new Date(), 1); return { start: startOfDay(y), end: endOfDay(y) }; } },
   { label: 'This Week', getRange: () => ({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: new Date() }) },
   { label: 'Last Week', getRange: () => { const s = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }); return { start: s, end: endOfWeek(s, { weekStartsOn: 1 }) }; } },
   { label: 'This Month', getRange: () => ({ start: startOfMonth(new Date()), end: new Date() }) },
+  { label: 'Last Month', getRange: () => { const lm = subMonths(new Date(), 1); return { start: startOfMonth(lm), end: endOfMonth(lm) }; } },
 ];
 
 export function DateRangeFilter({
