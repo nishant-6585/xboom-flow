@@ -53,6 +53,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface Employee {
   id: string;
   name: string;
+  is_active?: boolean;
 }
 
 export function AssetManagementPanel() {
@@ -81,10 +82,18 @@ export function AssetManagementPanel() {
     const fetchEmployees = async () => {
       const { data } = await supabase
         .from("employees")
-        .select("id, name")
-        .eq("is_active", true)
+        .select("id, name, is_active")
         .order("name");
-      if (data) setEmployees(data);
+      if (data) {
+        // Sort active employees first, then inactive (offboarded) — both remain selectable
+        const sorted = [...data].sort((a, b) => {
+          if ((b.is_active ? 1 : 0) - (a.is_active ? 1 : 0) !== 0) {
+            return (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0);
+          }
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        setEmployees(sorted);
+      }
     };
     fetchEmployees();
   }, []);
@@ -313,7 +322,7 @@ export function AssetManagementPanel() {
             <SelectItem value="all">All Employees</SelectItem>
             {employees.map((emp) => (
               <SelectItem key={emp.id} value={emp.id}>
-                {emp.name}
+                {emp.name}{emp.is_active === false ? " (Offboarded)" : ""}
               </SelectItem>
             ))}
           </SelectContent>
