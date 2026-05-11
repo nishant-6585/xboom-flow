@@ -705,7 +705,7 @@ export default function Orders() {
                   {/* Collapsible Filters */}
                   <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                     <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 pt-5 border-t border-border/50">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 pt-5 border-t border-border/50">
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
                           <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Status" />
@@ -778,10 +778,29 @@ export default function Orders() {
                           </SelectContent>
                         </Select>
 
+                        <Select value={customerTypeFilter} onValueChange={setCustomerTypeFilter}>
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
+                            <SelectValue placeholder="B2B / B2C" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="all">All Customers (B2B + B2C)</SelectItem>
+                            {CUSTOMER_TYPES.map(c => (
+                              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-
-
-
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
+                            <SelectValue placeholder="Product Category" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="all">All Categories</SelectItem>
+                            {categoryOptions.map(cat => (
+                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       
                       <div className="mt-5 pt-5 border-t border-border/50">
