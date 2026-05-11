@@ -28,6 +28,7 @@ import {
 interface Employee {
   id: string;
   name: string;
+  is_active?: boolean;
 }
 
 interface AssetFormDialogProps {
@@ -121,7 +122,7 @@ export function AssetFormDialog({
                 <SelectContent>
                   {employees.map((emp) => (
                     <SelectItem key={emp.id} value={emp.id}>
-                      {emp.name}
+                      {emp.name}{emp.is_active === false ? " (Offboarded)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
