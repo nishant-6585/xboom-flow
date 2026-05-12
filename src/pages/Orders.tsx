@@ -24,6 +24,7 @@ import { useNotificationOrderSets } from '@/hooks/useNotificationOrderSets';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
+import { DeletedOrdersTab } from '@/components/orders/DeletedOrdersTab';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, CUSTOMER_TYPES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
@@ -32,7 +33,7 @@ import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidge
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Phone } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Phone, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
@@ -609,6 +610,10 @@ export default function Orders() {
                     <span className="hidden sm:inline font-medium">Analytics</span>
                   </TabsTrigger>
                 )}
+                <TabsTrigger value="deleted" className="gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">Deleted</span>
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -1764,6 +1769,10 @@ export default function Orders() {
               <CallLogsPanel defaultDepartment="support" onLogsLoaded={setSupportCallLogs} />
             </TabsContent>
           )}
+
+          <TabsContent value="deleted" className="mt-0">
+            <DeletedOrdersTab />
+          </TabsContent>
         </Tabs>
 
         <OrderDialog

@@ -96,6 +96,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [editedOrderItems, setEditedOrderItems] = useState<Record<string, any>>({});
   const [productNameReasonOpen, setProductNameReasonOpen] = useState(false);
   const [productNameReason, setProductNameReason] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
 
   const [status, setStatus] = useState<OrderStatus>('po_received');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -523,10 +524,24 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
   const handleDelete = async () => {
     setLoading(true);
+    if (!deleteReason.trim()) {
+      setLoading(false);
+      toast.error('Please provide a reason for deleting this order');
+      return;
+    }
+    // Persist delete reason then call onDelete (which performs soft-delete)
+    await supabase.from('orders').update({ delete_reason: deleteReason.trim() } as any).eq('id', order.id);
+    if (user && profile) {
+      await recordChanges('orders', order.id, {
+        deleted: { old: null, new: 'soft-deleted' },
+        delete_reason: { old: null, new: deleteReason.trim() },
+      }, profile.name || 'Unknown');
+    }
     const success = await onDelete(order.id);
     setLoading(false);
     if (success) {
       setDeleteDialogOpen(false);
+      setDeleteReason('');
       onOpenChange(false);
     }
   };
@@ -2368,12 +2383,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Order</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this order? This action cannot be undone.
+              The order will be moved to the <strong>Deleted Orders</strong> tab. You can restore it later from there.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="delete-reason">Reason for deletion <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="delete-reason"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. Duplicate order, customer cancelled, test entry, etc."
+              rows={3}
+              disabled={loading}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={loading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel disabled={loading} onClick={() => setDeleteReason('')}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={loading || !deleteReason.trim()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {loading ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>

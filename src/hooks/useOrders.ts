@@ -385,6 +385,7 @@ export function useOrders() {
   const WEBSITE_ORDER_CUTOFF = new Date('2026-04-30T00:00:00Z').getTime();
   const rawOrders = ordersQuery.data ?? [];
   const orders = rawOrders.filter((o: any) => {
+    if (o?.deleted_at) return false;
     if ((o?.source || 'manual') !== 'website') return true;
     const refDate = o.order_date || o.created_at;
     if (!refDate) return false;
@@ -673,18 +674,62 @@ export function useOrders() {
 
   const deleteOrder = async (orderId: string): Promise<boolean> => {
     try {
+      // Soft delete - move to "Deleted Orders" tab
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', user?.id || '')
+        .maybeSingle();
+
       const { error } = await supabase
         .from('orders')
-        .delete()
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id || null,
+          deleted_by_name: profileData?.name || null,
+        } as any)
         .eq('id', orderId);
 
       if (error) throw error;
 
-      toast.success('Order deleted successfully');
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast.success('Order moved to Deleted Orders');
       return true;
     } catch (error: any) {
       console.error('Error deleting order:', error);
       toast.error(error.message || 'Failed to delete order');
+      return false;
+    }
+  };
+
+  const restoreOrder = async (orderId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ deleted_at: null, deleted_by: null, deleted_by_name: null, delete_reason: null } as any)
+        .eq('id', orderId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['deleted-orders'] });
+      toast.success('Order restored');
+      return true;
+    } catch (error: any) {
+      console.error('Error restoring order:', error);
+      toast.error(error.message || 'Failed to restore order');
+      return false;
+    }
+  };
+
+  const purgeOrder = async (orderId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', orderId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ['deleted-orders'] });
+      toast.success('Order permanently deleted');
+      return true;
+    } catch (error: any) {
+      console.error('Error purging order:', error);
+      toast.error(error.message || 'Failed to permanently delete order');
       return false;
     }
   };
@@ -748,7 +793,45 @@ export function useOrders() {
     createOrder,
     updateOrder,
     deleteOrder,
+    restoreOrder,
+    purgeOrder,
     escalateOrder,
     refetch,
+  };
+}
+
+export function useDeletedOrders() {
+  const { user, role } = useAuth();
+
+  const query = useQuery({
+    queryKey: ['deleted-orders', user?.id, role],
+    enabled: !!user && (role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'sales'),
+    queryFn: async (): Promise<Order[]> => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+        .limit(2000);
+      if (error) {
+        console.error('Error fetching deleted orders:', error);
+        return [];
+      }
+      return (data || []).map((order: any) => ({
+        ...order,
+        status: order.status as OrderStatus,
+        order_type: (order.order_type || 'prepaid') as OrderType,
+        customer_type: (order.customer_type || 'b2b') as CustomerType,
+        payment_status: (order.payment_status || 'pending') as PaymentStatus,
+        order_outcome: (order.order_outcome || 'pending') as OrderOutcome,
+      })) as Order[];
+    },
+    staleTime: 60_000,
+  });
+
+  return {
+    deletedOrders: query.data ?? [],
+    loading: query.isLoading,
+    refetch: query.refetch,
   };
 }
