@@ -934,12 +934,37 @@ export function TallyDashboard() {
                         </button>
                       </TableCell>
                       <TableCell className="text-right text-sm">
+                        {r.estimatedCostKnown ? (
+                          <button
+                            onClick={() => openProcDialog(r.orderId)}
+                            className={`cursor-pointer hover:underline ${r.procurementCostKnown ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400 font-medium'}`}
+                            title={r.procurementCostKnown ? 'Actual cost is set; estimate mirrors actual' : 'Supply chain estimated cost'}
+                          >
+                            {fmt(r.estimatedProcurementValue)}
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground italic" title="No estimate set">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
                         {r.procurementCostKnown ? (
                           <span className={r.profit >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
                             {fmt(r.profit)}
                           </span>
                         ) : (
                           <span className="text-muted-foreground" title="Awaiting procurement cost">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {r.estimatedCostKnown ? (
+                          <span
+                            className={r.estimatedProfit >= 0 ? "text-amber-700 dark:text-amber-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}
+                            title={r.procurementCostKnown ? 'Mirrors actual profit' : 'Estimated profit using supply chain estimate'}
+                          >
+                            {fmt(r.estimatedProfit)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right text-sm">
