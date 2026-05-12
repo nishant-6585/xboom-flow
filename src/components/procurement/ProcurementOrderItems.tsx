@@ -633,6 +633,19 @@ export function ProcurementOrderItems({
                     className="h-8 text-sm"
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-amber-700 dark:text-amber-400">Est. Rate/Unit</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={editedItems[item.id]?.estimated_procurement_rate || ''}
+                    onChange={(e) => handleFieldChange(item.id, 'estimated_procurement_rate', e.target.value)}
+                    placeholder="Estimate"
+                    className="h-8 text-sm border-amber-300/60 dark:border-amber-700/60 focus-visible:ring-amber-500"
+                    title="Supply chain estimated cost per unit. Used for daily estimated profit in Tally before actual rate is finalized."
+                  />
+                </div>
                 <div className="flex items-center space-x-2 pt-5">
                   <Checkbox
                     id={`price_includes_gst_${item.id}`}
