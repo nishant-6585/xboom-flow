@@ -294,6 +294,7 @@ export function ProcurementOrders() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order No</TableHead>
+                  <TableHead>Order Date</TableHead>
                   <TableHead>Proc No</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Product</TableHead>
@@ -309,7 +310,7 @@ export function ProcurementOrders() {
               <TableBody>
                 {filteredOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                       No orders found
                     </TableCell>
                   </TableRow>
@@ -318,6 +319,11 @@ export function ProcurementOrders() {
                     <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrderClick(order)}>
                       <TableCell>
                         <OrderNumberBadge orderNumber={order.order_number} />
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {(order as any).order_date || order.created_at
+                          ? format(new Date((order as any).order_date || order.created_at), 'dd MMM yyyy')
+                          : '—'}
                       </TableCell>
                       <TableCell>
                         {(() => {
