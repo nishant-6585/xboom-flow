@@ -869,7 +869,7 @@ export function TallyDashboard() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={18} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={20} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
