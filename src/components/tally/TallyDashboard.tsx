@@ -138,7 +138,7 @@ interface TallyRow {
   inventoryCost: number;
 }
 
-type SortField = "orderNumber" | "salesValue" | "pendingPayment" | "procurementValue" | "profit" | "profitMargin";
+type SortField = "orderNumber" | "orderDate" | "salesValue" | "pendingPayment" | "procurementValue" | "profit" | "profitMargin";
 type SortDir = "asc" | "desc";
 type TimePeriod = "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "prev_month" | "last_3_months" | "this_quarter" | "last_quarter" | "ytd" | "all" | "custom";
 
