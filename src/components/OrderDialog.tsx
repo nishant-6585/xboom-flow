@@ -523,10 +523,24 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
   const handleDelete = async () => {
     setLoading(true);
+    if (!deleteReason.trim()) {
+      setLoading(false);
+      toast.error('Please provide a reason for deleting this order');
+      return;
+    }
+    // Persist delete reason then call onDelete (which performs soft-delete)
+    await supabase.from('orders').update({ delete_reason: deleteReason.trim() } as any).eq('id', order.id);
+    if (user && profile) {
+      await recordChanges('orders', order.id, {
+        deleted: { old: null, new: 'soft-deleted' },
+        delete_reason: { old: null, new: deleteReason.trim() },
+      }, profile.name || 'Unknown');
+    }
     const success = await onDelete(order.id);
     setLoading(false);
     if (success) {
       setDeleteDialogOpen(false);
+      setDeleteReason('');
       onOpenChange(false);
     }
   };
