@@ -897,7 +897,7 @@ export function TallyDashboard() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={20} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={21} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
@@ -908,6 +908,9 @@ export function TallyDashboard() {
                         <button onClick={() => openOrderDialog(r.orderId)} className="font-mono text-xs font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1" title="View Order">
                           {r.orderNumber} <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
                         </button>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {r.orderDate ? format(new Date(r.orderDate), "dd MMM yyyy") : "—"}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.invoiceNumber}</TableCell>
                       <TableCell>
