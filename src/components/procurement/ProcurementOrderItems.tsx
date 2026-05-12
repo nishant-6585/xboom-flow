@@ -38,6 +38,7 @@ interface ProcurementOrderItemsProps {
 
 interface EditedItem {
   procurement_rate: string;
+  estimated_procurement_rate: string;
   procurement_date: string;
   status: string;
   supplier_id: string;
@@ -132,6 +133,7 @@ export function ProcurementOrderItems({
           const edited: Record<string, EditedItem> = {};
           edited[newItem.id] = {
             procurement_rate: '',
+            estimated_procurement_rate: '',
             procurement_date: '',
             status: 'pending',
             supplier_id: '',
@@ -154,6 +156,7 @@ export function ProcurementOrderItems({
       (data || []).forEach(item => {
         edited[item.id] = {
           procurement_rate: item.procurement_rate?.toString() || '',
+          estimated_procurement_rate: (item as any).estimated_procurement_rate?.toString() || '',
           procurement_date: item.procurement_date || '',
           status: item.status || 'pending',
           supplier_id: (item as any).supplier_id || '',
@@ -206,6 +209,7 @@ export function ProcurementOrderItems({
         const edited = editedItems[item.id];
         const updateData: Record<string, any> = {
           procurement_rate: edited.procurement_rate ? parseFloat(edited.procurement_rate) : null,
+          estimated_procurement_rate: edited.estimated_procurement_rate ? parseFloat(edited.estimated_procurement_rate) : null,
           procurement_date: edited.procurement_date || null,
           status: edited.status,
           supplier_id: edited.supplier_id || null,
@@ -282,6 +286,7 @@ export function ProcurementOrderItems({
   const hasChanges = items.some(item => {
     const original = {
       procurement_rate: item.procurement_rate?.toString() || '',
+      estimated_procurement_rate: (item as any).estimated_procurement_rate?.toString() || '',
       procurement_date: item.procurement_date || '',
       status: item.status || 'pending',
       supplier_id: (item as any).supplier_id || '',
@@ -294,6 +299,7 @@ export function ProcurementOrderItems({
     const edited = editedItems[item.id];
     return edited && (
       original.procurement_rate !== edited.procurement_rate ||
+      original.estimated_procurement_rate !== edited.estimated_procurement_rate ||
       original.procurement_date !== edited.procurement_date ||
       original.status !== edited.status ||
       original.supplier_id !== edited.supplier_id ||
@@ -625,6 +631,19 @@ export function ProcurementOrderItems({
                     onChange={(e) => handleFieldChange(item.id, 'procurement_rate', e.target.value)}
                     placeholder="0.00"
                     className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-amber-700 dark:text-amber-400">Est. Rate/Unit</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={editedItems[item.id]?.estimated_procurement_rate || ''}
+                    onChange={(e) => handleFieldChange(item.id, 'estimated_procurement_rate', e.target.value)}
+                    placeholder="Estimate"
+                    className="h-8 text-sm border-amber-300/60 dark:border-amber-700/60 focus-visible:ring-amber-500"
+                    title="Supply chain estimated cost per unit. Used for daily estimated profit in Tally before actual rate is finalized."
                   />
                 </div>
                 <div className="flex items-center space-x-2 pt-5">

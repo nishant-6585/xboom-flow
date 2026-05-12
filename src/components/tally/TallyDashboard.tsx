@@ -44,6 +44,7 @@ interface TallyOrder {
   order_date: string | null;
   selling_price: number | null;
   procurement_rate: number | null;
+  estimated_procurement_rate: number | null;
   sales_person_name: string;
   sales_person_id: string;
 }
@@ -67,6 +68,7 @@ interface TallyOrderItem {
   product_name: string;
   quantity: number;
   procurement_rate: number | null;
+  estimated_procurement_rate: number | null;
   quantity_procured: number | null;
   procurement_gst_amount: number | null;
   supplier_id: string | null;
@@ -112,6 +114,10 @@ interface TallyRow {
   pendingPayment: number;
   procurementValue: number;
   procurementCostKnown: boolean;
+  estimatedProcurementValue: number;
+  estimatedCostKnown: boolean;
+  estimatedProfit: number;
+  estimatedProfitMargin: number;
   profit: number;
   profitMargin: number;
   orderStatus: string;
@@ -256,7 +262,7 @@ export function TallyDashboard() {
       const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes, linksRes] = await Promise.all([
           supabase
             .from("orders")
-            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, customer_gst, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id")
+            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, customer_gst, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, estimated_procurement_rate, sales_person_name, sales_person_id")
             .not("status", "eq", "cancelled")
             .order("created_at", { ascending: false }),
           supabase
@@ -265,7 +271,7 @@ export function TallyDashboard() {
             .not("order_id", "is", null),
           supabase
             .from("order_items")
-            .select("id, order_id, product_name, quantity, procurement_rate, quantity_procured, procurement_gst_amount, supplier_id"),
+            .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, supplier_id"),
           supabase
             .from("invoices")
             .select("id, invoice_number, order_id, customer_gst")
@@ -432,6 +438,34 @@ export function TallyDashboard() {
       const profit = procurementCostKnown ? salesValue - procurementValue : 0;
       const profitMargin = procurementCostKnown && salesValue > 0 ? (profit / salesValue) * 100 : 0;
 
+      // Estimated procurement cost (supply chain estimate, used when actual rate not yet set)
+      const itemsHaveEstimate = items.some(i => (i.estimated_procurement_rate ?? 0) > 0);
+      const itemsEstCost = items.reduce((sum, item) => {
+        const rate = item.estimated_procurement_rate || 0;
+        const qty = item.quantity_procured && item.quantity_procured > 0
+          ? item.quantity_procured
+          : (item.quantity || 0);
+        return sum + (rate * qty);
+      }, 0);
+      const orderHasEstimate = (o.estimated_procurement_rate ?? 0) > 0;
+      const orderLevelEstCost = (o.estimated_procurement_rate || 0) * (o.quantity || 0);
+
+      // Prefer actual cost if known; otherwise use estimate.
+      let estimatedProcurementValue = 0;
+      let estimatedCostKnown = false;
+      if (procurementCostKnown) {
+        estimatedProcurementValue = procurementValue;
+        estimatedCostKnown = true;
+      } else if (itemsHaveEstimate) {
+        estimatedProcurementValue = itemsEstCost;
+        estimatedCostKnown = true;
+      } else if (orderHasEstimate) {
+        estimatedProcurementValue = orderLevelEstCost;
+        estimatedCostKnown = true;
+      }
+      const estimatedProfit = estimatedCostKnown ? salesValue - estimatedProcurementValue : 0;
+      const estimatedProfitMargin = estimatedCostKnown && salesValue > 0 ? (estimatedProfit / salesValue) * 100 : 0;
+
       const procPayStatuses = procs.map((p) => p.payment_status);
       const procPaymentStatus = procPayStatuses.length === 0
         ? "no_proc"
@@ -478,6 +512,10 @@ export function TallyDashboard() {
         pendingPayment,
         procurementValue,
         procurementCostKnown,
+        estimatedProcurementValue,
+        estimatedCostKnown,
+        estimatedProfit,
+        estimatedProfitMargin,
         profit,
         profitMargin,
         orderStatus: o.status,
@@ -526,13 +564,19 @@ export function TallyDashboard() {
     const totalPending = rows.reduce((s, r) => s + r.pendingPayment, 0);
     const totalProcurement = rows.reduce((s, r) => s + r.procurementValue, 0);
     const totalProfit = rows.reduce((s, r) => s + r.profit, 0);
+    const totalEstProcurement = rows.reduce((s, r) => s + r.estimatedProcurementValue, 0);
+    const totalEstProfit = rows.reduce((s, r) => s + r.estimatedProfit, 0);
+    const estKnownRows = rows.filter(r => r.estimatedCostKnown);
+    const estKnownSales = estKnownRows.reduce((s, r) => s + r.salesValue, 0);
+    const estKnownProfit = estKnownRows.reduce((s, r) => s + r.estimatedProfit, 0);
+    const avgEstMargin = estKnownSales > 0 ? (estKnownProfit / estKnownSales) * 100 : 0;
     // Margin only over rows where procurement cost is known, so pending-cost
     // orders don't artificially inflate margin.
     const knownRows = rows.filter(r => r.procurementCostKnown);
     const knownSales = knownRows.reduce((s, r) => s + r.salesValue, 0);
     const knownProfit = knownRows.reduce((s, r) => s + r.profit, 0);
     const avgMargin = knownSales > 0 ? (knownProfit / knownSales) * 100 : 0;
-    return { totalSales, totalReceived, totalPending, totalProcurement, totalProfit, avgMargin };
+    return { totalSales, totalReceived, totalPending, totalProcurement, totalProfit, avgMargin, totalEstProcurement, totalEstProfit, avgEstMargin };
   }, [rows]);
 
   // Comparison chart: Current month till date vs Previous month same dates
@@ -628,7 +672,9 @@ export function TallyDashboard() {
     { label: "Amount Received", value: fmt(totals.totalReceived), icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10" },
     { label: "Pending Payment", value: fmt(totals.totalPending), icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10" },
     { label: "Procurement Cost", value: fmt(totals.totalProcurement), icon: TrendingDown, color: "text-rose-500", bg: "bg-rose-500/10" },
+    { label: "Est. Proc. Cost", value: fmt(totals.totalEstProcurement), icon: TrendingDown, color: "text-amber-600", bg: "bg-amber-500/10" },
     { label: "Total Profit", value: fmt(totals.totalProfit), icon: TrendingUp, color: totals.totalProfit >= 0 ? "text-emerald-500" : "text-rose-500", bg: totals.totalProfit >= 0 ? "bg-emerald-500/10" : "bg-rose-500/10" },
+    { label: "Est. Profit", value: fmt(totals.totalEstProfit), icon: TrendingUp, color: totals.totalEstProfit >= 0 ? "text-amber-600" : "text-rose-500", bg: "bg-amber-500/10" },
     { label: "Avg Margin", value: `${totals.avgMargin.toFixed(1)}%`, icon: TrendingUp, color: totals.avgMargin >= 0 ? "text-primary" : "text-rose-500", bg: totals.avgMargin >= 0 ? "bg-primary/10" : "bg-rose-500/10" },
   ];
 
@@ -810,7 +856,9 @@ export function TallyDashboard() {
                   <TableHead className="text-right">Received</TableHead>
                   <TableHead className="text-right"><SortBtn field="pendingPayment" label="Pending" /></TableHead>
                   <TableHead className="text-right"><SortBtn field="procurementValue" label="Proc. Cost" /></TableHead>
+                  <TableHead className="text-right text-amber-700 dark:text-amber-400">Est. Cost</TableHead>
                   <TableHead className="text-right"><SortBtn field="profit" label="Profit" /></TableHead>
+                  <TableHead className="text-right text-amber-700 dark:text-amber-400">Est. Profit</TableHead>
                   <TableHead className="text-right"><SortBtn field="profitMargin" label="Margin" /></TableHead>
                   <TableHead>Pay Status</TableHead>
                   <TableHead>Proc Pay</TableHead>
@@ -821,7 +869,7 @@ export function TallyDashboard() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={18} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={20} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
@@ -886,12 +934,37 @@ export function TallyDashboard() {
                         </button>
                       </TableCell>
                       <TableCell className="text-right text-sm">
+                        {r.estimatedCostKnown ? (
+                          <button
+                            onClick={() => openProcDialog(r.orderId)}
+                            className={`cursor-pointer hover:underline ${r.procurementCostKnown ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400 font-medium'}`}
+                            title={r.procurementCostKnown ? 'Actual cost is set; estimate mirrors actual' : 'Supply chain estimated cost'}
+                          >
+                            {fmt(r.estimatedProcurementValue)}
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground italic" title="No estimate set">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
                         {r.procurementCostKnown ? (
                           <span className={r.profit >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
                             {fmt(r.profit)}
                           </span>
                         ) : (
                           <span className="text-muted-foreground" title="Awaiting procurement cost">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {r.estimatedCostKnown ? (
+                          <span
+                            className={r.estimatedProfit >= 0 ? "text-amber-700 dark:text-amber-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}
+                            title={r.procurementCostKnown ? 'Mirrors actual profit' : 'Estimated profit using supply chain estimate'}
+                          >
+                            {fmt(r.estimatedProfit)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right text-sm">
