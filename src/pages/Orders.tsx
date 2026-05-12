@@ -707,6 +707,18 @@ export default function Orders() {
                     </div>
                   </div>
 
+                  {/* Always-visible Date Range Filter */}
+                  <div className="flex items-center gap-2 flex-wrap pt-1">
+                    <span className="text-xs font-medium text-muted-foreground mr-1">Date:</span>
+                    <DateRangeFilter
+                      startDate={startDate}
+                      endDate={endDate}
+                      onStartDateChange={setStartDate}
+                      onEndDateChange={setEndDate}
+                      onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
+                    />
+                  </div>
+
                   {/* Collapsible Filters */}
                   <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                     <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
