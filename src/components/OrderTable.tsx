@@ -84,6 +84,7 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="font-semibold">Order No</TableHead>
+              <TableHead className="font-semibold">Order Date</TableHead>
               <TableHead className="font-semibold">Product</TableHead>
               <TableHead className="font-semibold">Customer</TableHead>
               <TableHead className="font-semibold text-center">Qty</TableHead>
@@ -101,7 +102,7 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canSeeProcurement ? 13 : 9} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={canSeeProcurement ? 14 : 10} className="text-center py-12 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 rounded-full bg-muted">
                       <Eye className="h-6 w-6 text-muted-foreground" />
@@ -140,6 +141,11 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
                           </Badge>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm whitespace-nowrap">
+                        {format(new Date((order as any).order_date || order.created_at), 'dd MMM yyyy')}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <div className="max-w-[200px]">
