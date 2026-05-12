@@ -872,6 +872,7 @@ export function TallyDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead><SortBtn field="orderNumber" label="Order #" /></TableHead>
+                  <TableHead><SortBtn field="orderDate" label="Order Date" /></TableHead>
                   <TableHead>Invoice #</TableHead>
                   <TableHead>PO #</TableHead>
                   <TableHead>Customer</TableHead>
