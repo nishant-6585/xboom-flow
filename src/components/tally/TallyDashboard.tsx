@@ -71,6 +71,10 @@ interface TallyOrderItem {
   estimated_procurement_rate: number | null;
   quantity_procured: number | null;
   procurement_gst_amount: number | null;
+  procurement_price_includes_gst: boolean | null;
+  unit_price: number | null;
+  sales_gst_amount: number | null;
+  sales_price_includes_gst: boolean | null;
   supplier_id: string | null;
 }
 
@@ -271,7 +275,7 @@ export function TallyDashboard() {
             .not("order_id", "is", null),
           supabase
             .from("order_items")
-            .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, supplier_id"),
+            .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, procurement_price_includes_gst, unit_price, sales_gst_amount, sales_price_includes_gst, supplier_id"),
           supabase
             .from("invoices")
             .select("id, invoice_number, order_id, customer_gst")
