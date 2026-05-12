@@ -198,6 +198,7 @@ export function ProcurementOrderDialog({
         supplier_name: supplier?.name || null,
         supplier_contact: supplier?.phone || null,
         procurement_rate: procurementRate ? parseFloat(procurementRate) : null,
+        estimated_procurement_rate: procurementRate ? parseFloat(procurementRate) : (order as any).estimated_procurement_rate ?? null,
         procurement_currency: procurementCurrency,
         procurement_date: procurementDate ? format(procurementDate, 'yyyy-MM-dd') : null,
         internal_notes: internalNotes || null,
