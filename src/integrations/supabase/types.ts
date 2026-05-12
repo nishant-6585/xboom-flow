@@ -7828,6 +7828,10 @@ export type Database = {
           customer_name: string
           customer_notes: string | null
           customer_type: string | null
+          delete_reason: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_by_name: string | null
           delivery_charges: number | null
           discount_amount: number | null
           enquiry_id: string | null
@@ -7909,6 +7913,10 @@ export type Database = {
           customer_name: string
           customer_notes?: string | null
           customer_type?: string | null
+          delete_reason?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_by_name?: string | null
           delivery_charges?: number | null
           discount_amount?: number | null
           enquiry_id?: string | null
@@ -7990,6 +7998,10 @@ export type Database = {
           customer_name?: string
           customer_notes?: string | null
           customer_type?: string | null
+          delete_reason?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_by_name?: string | null
           delivery_charges?: number | null
           discount_amount?: number | null
           enquiry_id?: string | null
