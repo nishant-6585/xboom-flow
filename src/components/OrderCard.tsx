@@ -64,7 +64,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
                   </Badge>
                 )}
                 {order.order_outcome && order.order_outcome !== 'pending' && (() => {
-                  const config = outcomeConfig[order.order_outcome];
+                  const config = outcomeConfig[order.order_outcome] ?? outcomeConfig.pending;
                   const IconComponent = config.icon;
                   return (
                     <Badge className={`${config.className} text-xs font-medium shadow-sm`}>
