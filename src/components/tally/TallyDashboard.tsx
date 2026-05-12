@@ -44,6 +44,7 @@ interface TallyOrder {
   order_date: string | null;
   selling_price: number | null;
   procurement_rate: number | null;
+  estimated_procurement_rate: number | null;
   sales_person_name: string;
   sales_person_id: string;
 }
@@ -67,6 +68,7 @@ interface TallyOrderItem {
   product_name: string;
   quantity: number;
   procurement_rate: number | null;
+  estimated_procurement_rate: number | null;
   quantity_procured: number | null;
   procurement_gst_amount: number | null;
   supplier_id: string | null;
@@ -112,6 +114,10 @@ interface TallyRow {
   pendingPayment: number;
   procurementValue: number;
   procurementCostKnown: boolean;
+  estimatedProcurementValue: number;
+  estimatedCostKnown: boolean;
+  estimatedProfit: number;
+  estimatedProfitMargin: number;
   profit: number;
   profitMargin: number;
   orderStatus: string;
@@ -256,7 +262,7 @@ export function TallyDashboard() {
       const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes, linksRes] = await Promise.all([
           supabase
             .from("orders")
-            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, customer_gst, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id")
+            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, customer_gst, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, estimated_procurement_rate, sales_person_name, sales_person_id")
             .not("status", "eq", "cancelled")
             .order("created_at", { ascending: false }),
           supabase
@@ -265,7 +271,7 @@ export function TallyDashboard() {
             .not("order_id", "is", null),
           supabase
             .from("order_items")
-            .select("id, order_id, product_name, quantity, procurement_rate, quantity_procured, procurement_gst_amount, supplier_id"),
+            .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, supplier_id"),
           supabase
             .from("invoices")
             .select("id, invoice_number, order_id, customer_gst")
