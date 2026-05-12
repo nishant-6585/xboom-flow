@@ -438,6 +438,34 @@ export function TallyDashboard() {
       const profit = procurementCostKnown ? salesValue - procurementValue : 0;
       const profitMargin = procurementCostKnown && salesValue > 0 ? (profit / salesValue) * 100 : 0;
 
+      // Estimated procurement cost (supply chain estimate, used when actual rate not yet set)
+      const itemsHaveEstimate = items.some(i => (i.estimated_procurement_rate ?? 0) > 0);
+      const itemsEstCost = items.reduce((sum, item) => {
+        const rate = item.estimated_procurement_rate || 0;
+        const qty = item.quantity_procured && item.quantity_procured > 0
+          ? item.quantity_procured
+          : (item.quantity || 0);
+        return sum + (rate * qty);
+      }, 0);
+      const orderHasEstimate = (o.estimated_procurement_rate ?? 0) > 0;
+      const orderLevelEstCost = (o.estimated_procurement_rate || 0) * (o.quantity || 0);
+
+      // Prefer actual cost if known; otherwise use estimate.
+      let estimatedProcurementValue = 0;
+      let estimatedCostKnown = false;
+      if (procurementCostKnown) {
+        estimatedProcurementValue = procurementValue;
+        estimatedCostKnown = true;
+      } else if (itemsHaveEstimate) {
+        estimatedProcurementValue = itemsEstCost;
+        estimatedCostKnown = true;
+      } else if (orderHasEstimate) {
+        estimatedProcurementValue = orderLevelEstCost;
+        estimatedCostKnown = true;
+      }
+      const estimatedProfit = estimatedCostKnown ? salesValue - estimatedProcurementValue : 0;
+      const estimatedProfitMargin = estimatedCostKnown && salesValue > 0 ? (estimatedProfit / salesValue) * 100 : 0;
+
       const procPayStatuses = procs.map((p) => p.payment_status);
       const procPaymentStatus = procPayStatuses.length === 0
         ? "no_proc"
@@ -484,6 +512,10 @@ export function TallyDashboard() {
         pendingPayment,
         procurementValue,
         procurementCostKnown,
+        estimatedProcurementValue,
+        estimatedCostKnown,
+        estimatedProfit,
+        estimatedProfitMargin,
         profit,
         profitMargin,
         orderStatus: o.status,
