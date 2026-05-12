@@ -799,3 +799,39 @@ export function useOrders() {
     refetch,
   };
 }
+
+export function useDeletedOrders() {
+  const { user, role } = useAuth();
+
+  const query = useQuery({
+    queryKey: ['deleted-orders', user?.id, role],
+    enabled: !!user && (role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'sales'),
+    queryFn: async (): Promise<Order[]> => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+        .limit(2000);
+      if (error) {
+        console.error('Error fetching deleted orders:', error);
+        return [];
+      }
+      return (data || []).map((order: any) => ({
+        ...order,
+        status: order.status as OrderStatus,
+        order_type: (order.order_type || 'prepaid') as OrderType,
+        customer_type: (order.customer_type || 'b2b') as CustomerType,
+        payment_status: (order.payment_status || 'pending') as PaymentStatus,
+        order_outcome: (order.order_outcome || 'pending') as OrderOutcome,
+      })) as Order[];
+    },
+    staleTime: 60_000,
+  });
+
+  return {
+    deletedOrders: query.data ?? [],
+    loading: query.isLoading,
+    refetch: query.refetch,
+  };
+}
