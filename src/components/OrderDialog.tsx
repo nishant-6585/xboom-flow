@@ -94,6 +94,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [editingTracking, setEditingTracking] = useState(false);
   const [editingOrderItems, setEditingOrderItems] = useState(false);
   const [editedOrderItems, setEditedOrderItems] = useState<Record<string, any>>({});
+  const [productNameReasonOpen, setProductNameReasonOpen] = useState(false);
+  const [productNameReason, setProductNameReason] = useState('');
 
   const [status, setStatus] = useState<OrderStatus>('po_received');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -526,6 +528,113 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     if (success) {
       setDeleteDialogOpen(false);
       onOpenChange(false);
+    }
+  };
+
+  const commitOrderItemEdits = async (productNameChangeReason: string | null) => {
+    setLoading(true);
+    try {
+      let nameChangedToHeader: string | null = null;
+      for (const [itemId, edits] of Object.entries(editedOrderItems)) {
+        const originalItem = orderItems.find(i => i.id === itemId);
+        if (originalItem) {
+          const updates: any = {};
+          if (edits.product_name !== originalItem.product_name) updates.product_name = edits.product_name;
+          if (edits.quantity !== originalItem.quantity) {
+            const nextQty = Number.parseInt(String(edits.quantity), 10);
+            updates.quantity = Number.isFinite(nextQty) && nextQty > 0 ? nextQty : 1;
+          }
+          if (edits.unit_price !== (originalItem.unit_price || '')) {
+            const raw = String(edits.unit_price ?? '').trim();
+            if (raw === '') {
+              updates.unit_price = null;
+            } else {
+              const next = Number(raw);
+              updates.unit_price = Number.isFinite(next) ? next : null;
+            }
+          }
+          if (edits.status !== originalItem.status) updates.status = edits.status;
+          if (edits.notes !== (originalItem.notes || '')) updates.notes = edits.notes || null;
+          if (canSeeProcurement && edits.procurement_rate !== (originalItem.procurement_rate || '')) {
+            const raw = String(edits.procurement_rate ?? '').trim();
+            if (raw === '') {
+              updates.procurement_rate = null;
+            } else {
+              const next = Number(raw);
+              updates.procurement_rate = Number.isFinite(next) ? next : null;
+            }
+          }
+          if (edits.supplier_id !== (originalItem.supplier_id || '')) {
+            updates.supplier_id = edits.supplier_id || null;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            const { data, error } = await supabase
+              .from('order_items')
+              .update(updates)
+              .eq('id', itemId)
+              .select('id')
+              .maybeSingle();
+
+            if (error) throw error;
+            if (!data) {
+              throw new Error('No rows updated (insufficient permission or item not found)');
+            }
+
+            // Track if first item's product name changed - mirror to order header
+            if (updates.product_name && order && originalItem.product_name === order.product_name) {
+              nameChangedToHeader = updates.product_name;
+            }
+
+            // Record changes to edit history under the ORDER id for unified view
+            if (user && profile && order) {
+              const changesRecord: Record<string, { old: any; new: any }> = {};
+              Object.entries(updates).forEach(([field, newValue]) => {
+                const label = `order_item.${field}`;
+                changesRecord[label] = {
+                  old: originalItem[field],
+                  new: newValue,
+                };
+              });
+              if (updates.product_name && productNameChangeReason) {
+                changesRecord['order_item.product_name_change_reason'] = {
+                  old: null,
+                  new: productNameChangeReason,
+                };
+              }
+              if (Object.keys(changesRecord).length > 0) {
+                await recordChanges('orders', order.id, changesRecord, profile.name || 'Unknown');
+              }
+            }
+          }
+        }
+      }
+
+      // Mirror product_name change to the order header so it shows everywhere
+      if (nameChangedToHeader && order) {
+        await supabase.from('orders').update({ product_name: nameChangedToHeader }).eq('id', order.id);
+        await onUpdate(order.id, { product_name: nameChangedToHeader } as Partial<Order>);
+      }
+
+      toast.success('Order items updated');
+      if (order) {
+        const refreshedItems = await fetchOrderItems(order.id);
+        setOrderItems(refreshedItems);
+      }
+    } catch (error: any) {
+      console.error('Error updating order items:', error);
+      const msg = String(error?.message || 'Failed to update order items');
+      if (msg.toLowerCase().includes('row level security') || msg.toLowerCase().includes('insufficient permission')) {
+        toast.error("You don't have permission to update order items for this order");
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setLoading(false);
+      setEditingOrderItems(false);
+      setEditedOrderItems({});
+      setProductNameReasonOpen(false);
+      setProductNameReason('');
     }
   };
 
@@ -966,91 +1075,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={async () => {
-                          // Save all edited order items
-                          setLoading(true);
-                          try {
-                            for (const [itemId, edits] of Object.entries(editedOrderItems)) {
-                              const originalItem = orderItems.find(i => i.id === itemId);
-                              if (originalItem) {
-                                const updates: any = {};
-                                if (edits.product_name !== originalItem.product_name) updates.product_name = edits.product_name;
-                                if (edits.quantity !== originalItem.quantity) {
-                                  const nextQty = Number.parseInt(String(edits.quantity), 10);
-                                  updates.quantity = Number.isFinite(nextQty) && nextQty > 0 ? nextQty : 1;
-                                }
-                                if (edits.unit_price !== (originalItem.unit_price || '')) {
-                                  const raw = String(edits.unit_price ?? '').trim();
-                                  if (raw === '') {
-                                    updates.unit_price = null;
-                                  } else {
-                                    const next = Number(raw);
-                                    updates.unit_price = Number.isFinite(next) ? next : null;
-                                  }
-                                }
-                                if (edits.status !== originalItem.status) updates.status = edits.status;
-                                if (edits.notes !== (originalItem.notes || '')) updates.notes = edits.notes || null;
-                                if (canSeeProcurement && edits.procurement_rate !== (originalItem.procurement_rate || '')) {
-                                  const raw = String(edits.procurement_rate ?? '').trim();
-                                  if (raw === '') {
-                                    updates.procurement_rate = null;
-                                  } else {
-                                    const next = Number(raw);
-                                    updates.procurement_rate = Number.isFinite(next) ? next : null;
-                                  }
-                                }
-                                if (edits.supplier_id !== (originalItem.supplier_id || '')) {
-                                  updates.supplier_id = edits.supplier_id || null;
-                                }
-                                
-                                if (Object.keys(updates).length > 0) {
-                                  const { data, error } = await supabase
-                                    .from('order_items')
-                                    .update(updates)
-                                    .eq('id', itemId)
-                                    .select('id')
-                                    .maybeSingle();
-                                  
-                                  if (error) throw error;
-                                  if (!data) {
-                                    throw new Error('No rows updated (insufficient permission or item not found)');
-                                  }
-                                  
-                                   // Record changes to edit history under the ORDER id for unified view
-                                   if (user && profile && order) {
-                                     const changesRecord: Record<string, { old: any; new: any }> = {};
-                                     Object.entries(updates).forEach(([field, newValue]) => {
-                                       const label = `order_item.${field}`;
-                                       changesRecord[label] = {
-                                         old: originalItem[field],
-                                         new: newValue
-                                       };
-                                     });
-                                     if (Object.keys(changesRecord).length > 0) {
-                                       await recordChanges('orders', order.id, changesRecord, profile.name || 'Unknown');
-                                     }
-                                   }
-                                }
-                              }
-                            }
-                            toast.success('Order items updated');
-                            // Refresh order items
-                            if (order) {
-                              const refreshedItems = await fetchOrderItems(order.id);
-                              setOrderItems(refreshedItems);
-                            }
-                          } catch (error: any) {
-                            console.error('Error updating order items:', error);
-                            const msg = String(error?.message || 'Failed to update order items');
-                            if (msg.toLowerCase().includes('row level security') || msg.toLowerCase().includes('insufficient permission')) {
-                              toast.error("You don't have permission to update order items for this order");
-                            } else {
-                              toast.error(msg);
-                            }
-                          } finally {
-                            setLoading(false);
-                            setEditingOrderItems(false);
-                            setEditedOrderItems({});
+                        onClick={() => {
+                          // If any product_name changed, require a reason first
+                          const hasNameChange = Object.entries(editedOrderItems).some(([itemId, edits]) => {
+                            const orig = orderItems.find(i => i.id === itemId);
+                            return orig && edits.product_name !== orig.product_name;
+                          });
+                          if (hasNameChange) {
+                            setProductNameReason('');
+                            setProductNameReasonOpen(true);
+                          } else {
+                            void commitOrderItemEdits(null);
                           }
                         }}
                         className="h-8 gap-1 text-green-600 hover:text-green-700"
@@ -2350,6 +2385,46 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         open={paymentUploadOpen}
         onOpenChange={setPaymentUploadOpen}
       />
+
+      <Dialog open={productNameReasonOpen} onOpenChange={(o) => { if (!loading) setProductNameReasonOpen(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reason for Product Name Change</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for changing the product name. This will be logged in the order's edit history.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="product-name-reason">Reason</Label>
+            <Textarea
+              id="product-name-reason"
+              value={productNameReason}
+              onChange={(e) => setProductNameReason(e.target.value)}
+              placeholder="e.g. Customer requested variant change, wrong SKU captured from website, etc."
+              rows={3}
+              disabled={loading}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setProductNameReasonOpen(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!productNameReason.trim()) {
+                  toast.error('Please enter a reason');
+                  return;
+                }
+                void commitOrderItemEdits(productNameReason.trim());
+              }}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <DocumentViewer
         open={invoiceViewer.open}
