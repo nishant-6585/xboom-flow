@@ -61,7 +61,7 @@ export function WooSyncHealthCard({ onSyncTriggered }: Props = {}) {
     }
   };
 
-  const meta = HEALTH_META[health];
+  const meta = HEALTH_META[health] ?? HEALTH_META.unknown;
   const HealthIcon = meta.icon;
   const lastRun = recentRuns[0];
   const lastFailedRun = recentRuns.find(r => r.status === 'failed');
