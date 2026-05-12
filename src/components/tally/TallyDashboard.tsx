@@ -71,6 +71,10 @@ interface TallyOrderItem {
   estimated_procurement_rate: number | null;
   quantity_procured: number | null;
   procurement_gst_amount: number | null;
+  procurement_price_includes_gst: boolean | null;
+  unit_price: number | null;
+  sales_gst_amount: number | null;
+  sales_price_includes_gst: boolean | null;
   supplier_id: string | null;
 }
 
@@ -271,7 +275,7 @@ export function TallyDashboard() {
             .not("order_id", "is", null),
           supabase
             .from("order_items")
-            .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, supplier_id"),
+            .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, procurement_price_includes_gst, unit_price, sales_gst_amount, sales_price_includes_gst, supplier_id"),
           supabase
             .from("invoices")
             .select("id, invoice_number, order_id, customer_gst")
@@ -394,32 +398,54 @@ export function TallyDashboard() {
       const invs = invoicesByOrder.get(o.id) || [];
       const orderInvLinks = invLinksByOrder.get(o.id) || [];
 
-      const salesValue = o.total_sales_amount || 0;
+      // Gross sales (incl GST if applicable) — used for received/pending payment columns.
+      const grossSalesValue = o.total_sales_amount || 0;
       const amountReceived = o.amount_paid || 0;
-      const pendingPayment = salesValue - amountReceived;
+      const pendingPayment = grossSalesValue - amountReceived;
+
+      // Net sales value (EXCL GST) for profit calculations.
+      // Derive from order_items when available, falling back to gross when items
+      // have no pricing info.
+      const itemsHaveSalesPricing = items.some(i => (i.unit_price ?? 0) > 0);
+      const itemsNetSales = items.reduce((sum, item) => {
+        const price = item.unit_price || 0;
+        const gst = item.sales_gst_amount || 0;
+        const includesGst = !!item.sales_price_includes_gst;
+        const basePrice = includesGst ? Math.max(price - gst, 0) : price;
+        const qty = item.quantity || 0;
+        return sum + (basePrice * qty);
+      }, 0);
+      const salesValue = itemsHaveSalesPricing ? itemsNetSales : grossSalesValue;
 
       // Calculate procurement cost with robust fallbacks across procurement sources
       // Calculate procurement cost. Track whether ANY source had real pricing,
       // so rows with procurements awaiting supplier pricing don't display ₹0
       // and inflate the profit / margin columns.
+      // Procurement cost EXCL GST. If the entered rate already includes GST,
+      // strip the GST component out so profit math is GST-neutral.
       const itemsHavePricing = items.some(i => (i.procurement_rate ?? 0) > 0);
       const itemsProcCost = items.reduce((sum, item) => {
         const rate = item.procurement_rate || 0;
+        const gst = item.procurement_gst_amount || 0;
+        const includesGst = !!item.procurement_price_includes_gst;
+        const baseRate = includesGst ? Math.max(rate - gst, 0) : rate;
         const qty = item.quantity_procured && item.quantity_procured > 0
           ? item.quantity_procured
           : (item.quantity || 0);
-        const gst = item.procurement_gst_amount || 0;
-        return sum + ((rate + gst) * qty);
+        return sum + (baseRate * qty);
       }, 0);
 
       const orderHasPricing = (o.procurement_rate ?? 0) > 0;
       const orderLevelProcCost = (o.procurement_rate || 0) * (o.quantity || 0);
 
-      const procsHavePricing = procs.some(p => (p.total_amount ?? 0) > 0 || (p.unit_price ?? 0) > 0);
+      // Inventory procurements: use unit_price * qty (excl GST) — total_amount may
+      // include GST, so prefer per-unit math when rate is available.
+      const procsHavePricing = procs.some(p => (p.unit_price ?? 0) > 0 || (p.total_amount ?? 0) > 0);
       const procTableCost = procs.reduce((sum, p) => {
-        const total = p.total_amount || 0;
-        if (total > 0) return sum + total;
-        return sum + ((p.unit_price || 0) * (p.quantity || 0));
+        if ((p.unit_price ?? 0) > 0) {
+          return sum + ((p.unit_price || 0) * (p.quantity || 0));
+        }
+        return sum + (p.total_amount || 0);
       }, 0);
 
       let procurementValue = 0;
