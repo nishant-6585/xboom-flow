@@ -856,7 +856,9 @@ export function TallyDashboard() {
                   <TableHead className="text-right">Received</TableHead>
                   <TableHead className="text-right"><SortBtn field="pendingPayment" label="Pending" /></TableHead>
                   <TableHead className="text-right"><SortBtn field="procurementValue" label="Proc. Cost" /></TableHead>
+                  <TableHead className="text-right text-amber-700 dark:text-amber-400">Est. Cost</TableHead>
                   <TableHead className="text-right"><SortBtn field="profit" label="Profit" /></TableHead>
+                  <TableHead className="text-right text-amber-700 dark:text-amber-400">Est. Profit</TableHead>
                   <TableHead className="text-right"><SortBtn field="profitMargin" label="Margin" /></TableHead>
                   <TableHead>Pay Status</TableHead>
                   <TableHead>Proc Pay</TableHead>
