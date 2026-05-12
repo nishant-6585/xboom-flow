@@ -129,6 +129,7 @@ interface TallyRow {
   procurementPaymentStatus: string;
   salesPersonName: string;
   createdAt: string;
+  orderDate: string | null;
   invoiceNumber: string;
   poNumber: string;
   supplierName: string;
@@ -138,7 +139,7 @@ interface TallyRow {
   inventoryCost: number;
 }
 
-type SortField = "orderNumber" | "salesValue" | "pendingPayment" | "procurementValue" | "profit" | "profitMargin";
+type SortField = "orderNumber" | "orderDate" | "salesValue" | "pendingPayment" | "procurementValue" | "profit" | "profitMargin";
 type SortDir = "asc" | "desc";
 type TimePeriod = "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "prev_month" | "last_3_months" | "this_quarter" | "last_quarter" | "ytd" | "all" | "custom";
 
@@ -549,6 +550,7 @@ export function TallyDashboard() {
         procurementPaymentStatus: procPaymentStatus,
         salesPersonName: o.sales_person_name,
         createdAt: o.created_at,
+        orderDate: o.order_date || o.created_at,
         invoiceNumber,
         poNumber,
         supplierName,
@@ -871,6 +873,7 @@ export function TallyDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead><SortBtn field="orderNumber" label="Order #" /></TableHead>
+                  <TableHead><SortBtn field="orderDate" label="Order Date" /></TableHead>
                   <TableHead>Invoice #</TableHead>
                   <TableHead>PO #</TableHead>
                   <TableHead>Customer</TableHead>
@@ -895,7 +898,7 @@ export function TallyDashboard() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={20} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={21} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
@@ -906,6 +909,9 @@ export function TallyDashboard() {
                         <button onClick={() => openOrderDialog(r.orderId)} className="font-mono text-xs font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1" title="View Order">
                           {r.orderNumber} <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
                         </button>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {r.orderDate ? format(new Date(r.orderDate), "dd MMM yyyy") : "—"}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.invoiceNumber}</TableCell>
                       <TableCell>
