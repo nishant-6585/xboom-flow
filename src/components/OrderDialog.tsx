@@ -2383,12 +2383,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Order</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this order? This action cannot be undone.
+              The order will be moved to the <strong>Deleted Orders</strong> tab. You can restore it later from there.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="delete-reason">Reason for deletion <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="delete-reason"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. Duplicate order, customer cancelled, test entry, etc."
+              rows={3}
+              disabled={loading}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={loading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel disabled={loading} onClick={() => setDeleteReason('')}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={loading || !deleteReason.trim()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {loading ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
