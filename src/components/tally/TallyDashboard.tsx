@@ -672,7 +672,9 @@ export function TallyDashboard() {
     { label: "Amount Received", value: fmt(totals.totalReceived), icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10" },
     { label: "Pending Payment", value: fmt(totals.totalPending), icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10" },
     { label: "Procurement Cost", value: fmt(totals.totalProcurement), icon: TrendingDown, color: "text-rose-500", bg: "bg-rose-500/10" },
+    { label: "Est. Proc. Cost", value: fmt(totals.totalEstProcurement), icon: TrendingDown, color: "text-amber-600", bg: "bg-amber-500/10" },
     { label: "Total Profit", value: fmt(totals.totalProfit), icon: TrendingUp, color: totals.totalProfit >= 0 ? "text-emerald-500" : "text-rose-500", bg: totals.totalProfit >= 0 ? "bg-emerald-500/10" : "bg-rose-500/10" },
+    { label: "Est. Profit", value: fmt(totals.totalEstProfit), icon: TrendingUp, color: totals.totalEstProfit >= 0 ? "text-amber-600" : "text-rose-500", bg: "bg-amber-500/10" },
     { label: "Avg Margin", value: `${totals.avgMargin.toFixed(1)}%`, icon: TrendingUp, color: totals.avgMargin >= 0 ? "text-primary" : "text-rose-500", bg: totals.avgMargin >= 0 ? "bg-primary/10" : "bg-rose-500/10" },
   ];
 
