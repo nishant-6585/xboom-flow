@@ -385,6 +385,7 @@ export function useOrders() {
   const WEBSITE_ORDER_CUTOFF = new Date('2026-04-30T00:00:00Z').getTime();
   const rawOrders = ordersQuery.data ?? [];
   const orders = rawOrders.filter((o: any) => {
+    if (o?.deleted_at) return false;
     if ((o?.source || 'manual') !== 'website') return true;
     const refDate = o.order_date || o.created_at;
     if (!refDate) return false;
