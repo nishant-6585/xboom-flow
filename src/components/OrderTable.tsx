@@ -115,8 +115,8 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
                 const profit = order.selling_price && order.procurement_rate 
                   ? (order.selling_price - order.procurement_rate) * order.quantity
                   : null;
-                const paymentConfig = paymentStatusConfig[order.payment_status];
-                const outcome = outcomeConfig[order.order_outcome || 'pending'];
+                const paymentConfig = paymentStatusConfig[order.payment_status] ?? paymentStatusConfig.pending;
+                const outcome = outcomeConfig[order.order_outcome || 'pending'] ?? outcomeConfig.pending;
                 const OutcomeIcon = outcome.icon;
 
                 return (
