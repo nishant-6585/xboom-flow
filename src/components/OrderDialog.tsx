@@ -94,6 +94,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [editingTracking, setEditingTracking] = useState(false);
   const [editingOrderItems, setEditingOrderItems] = useState(false);
   const [editedOrderItems, setEditedOrderItems] = useState<Record<string, any>>({});
+  const [productNameReasonOpen, setProductNameReasonOpen] = useState(false);
+  const [productNameReason, setProductNameReason] = useState('');
 
   const [status, setStatus] = useState<OrderStatus>('po_received');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
