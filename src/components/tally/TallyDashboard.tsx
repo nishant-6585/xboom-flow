@@ -549,6 +549,7 @@ export function TallyDashboard() {
         procurementPaymentStatus: procPaymentStatus,
         salesPersonName: o.sales_person_name,
         createdAt: o.created_at,
+        orderDate: o.order_date || o.created_at,
         invoiceNumber,
         poNumber,
         supplierName,
