@@ -130,6 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const requestIdRef = useRef(0);
   // Deduplicate fetchUserData — prevent parallel calls
   const isFetchingRef = useRef(false);
+  const fetchPromiseRef = useRef<Promise<void> | null>(null);
 
   // Keep mfaStatusRef in sync
   useEffect(() => {
@@ -137,69 +138,82 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [authState.mfaStatus]);
 
   const fetchUserData = async (userId: string, skipMfaCheck = false) => {
-    // Deduplicate: prevent parallel fetches
-    if (isFetchingRef.current) {
-      console.log("[Auth] fetchUserData already in progress, skipping duplicate call");
-      return;
+    // Deduplicate: share the in-flight request instead of returning early.
+    // Returning early can briefly expose profile=null and send approved users to Pending Approval.
+    if (isFetchingRef.current && fetchPromiseRef.current) {
+      console.log("[Auth] fetchUserData already in progress, awaiting existing call");
+      return fetchPromiseRef.current;
     }
     isFetchingRef.current = true;
 
     // Phase 4: race condition guard
     const requestId = ++requestIdRef.current;
 
-    try {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+    const fetchPromise = (async () => {
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle();
 
-      // Stale request — bail out
-      if (requestId !== requestIdRef.current) return;
+        if (profileError) throw profileError;
 
-      if (profileData) {
-        const p = profileData as Profile;
-        setProfile(p);
-        profileRef.current = p;
-      } else {
-        setProfile(null);
-        profileRef.current = null;
-      }
+        // Stale request — bail out
+        if (requestId !== requestIdRef.current) return;
 
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-
-      // Stale request — bail out
-      if (requestId !== requestIdRef.current) return;
-
-      if (rolesData && rolesData.length > 0) {
-        const userRoles = rolesData.map((r) => r.role as AppRole);
-        setRoles(userRoles);
-        const primaryRole = ROLE_PRIORITY.find((r) => userRoles.includes(r)) || userRoles[0];
-        setRole(primaryRole);
-
-        if (!skipMfaCheck) {
-          await checkMfaStatus(userId);
+        if (profileData) {
+          const p = profileData as Profile;
+          setProfile(p);
+          profileRef.current = p;
+        } else {
+          setProfile(null);
+          profileRef.current = null;
         }
-      } else {
-        setRoles([]);
-        setRole(null);
-        if (!skipMfaCheck) {
-          setAuthState({ mfaStatus: "not_required", deviceTrust: null, stepUpRequired: false });
+
+        const { data: rolesData, error: rolesError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId);
+
+        if (rolesError) throw rolesError;
+
+        // Stale request — bail out
+        if (requestId !== requestIdRef.current) return;
+
+        if (rolesData && rolesData.length > 0) {
+          const userRoles = rolesData.map((r) => r.role as AppRole);
+          setRoles(userRoles);
+          const primaryRole = ROLE_PRIORITY.find((r) => userRoles.includes(r)) || userRoles[0];
+          setRole(primaryRole);
+
+          if (!skipMfaCheck) {
+            await checkMfaStatus(userId);
+          }
+        } else {
+          setRoles([]);
+          setRole(null);
+          if (!skipMfaCheck) {
+            setAuthState({ mfaStatus: "not_required", deviceTrust: null, stepUpRequired: false });
+          }
+        }
+
+        lastHydratedUserIdRef.current = userId;
+      } catch (error) {
+        // Only apply state if still the latest request
+        if (requestId === requestIdRef.current) {
+          console.error("[Auth] Error fetching user data:", error);
+        }
+      } finally {
+        if (fetchPromiseRef.current === fetchPromise) {
+          fetchPromiseRef.current = null;
+          isFetchingRef.current = false;
         }
       }
+    })();
 
-      lastHydratedUserIdRef.current = userId;
-    } catch (error) {
-      // Only apply state if still the latest request
-      if (requestId === requestIdRef.current) {
-        console.error("[Auth] Error fetching user data:", error);
-      }
-    } finally {
-      isFetchingRef.current = false;
-    }
+    fetchPromiseRef.current = fetchPromise;
+    return fetchPromise;
   };
 
   // Phase 1, 6, 10: Hardened MFA check — server-only trust, AAL-based validation
