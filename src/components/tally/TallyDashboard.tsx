@@ -129,6 +129,7 @@ interface TallyRow {
   procurementPaymentStatus: string;
   salesPersonName: string;
   createdAt: string;
+  orderDate: string | null;
   invoiceNumber: string;
   poNumber: string;
   supplierName: string;
