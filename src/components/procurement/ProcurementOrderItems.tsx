@@ -189,6 +189,12 @@ export function ProcurementOrderItems({
         }
       }
 
+      // Mirror actual Rate/Unit into Est. Rate/Unit so estimated cost stays in sync
+      // once the real rate is known. (Users can still override the estimate after.)
+      if (field === 'procurement_rate') {
+        newItem.estimated_procurement_rate = (value as string) || '';
+      }
+
       // Notify parent when supplier changes
       if (field === 'supplier_id' && value && value !== 'none' && onSupplierChange) {
         onSupplierChange(value as string);
