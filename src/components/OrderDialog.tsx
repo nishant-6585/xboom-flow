@@ -2386,6 +2386,46 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         onOpenChange={setPaymentUploadOpen}
       />
 
+      <Dialog open={productNameReasonOpen} onOpenChange={(o) => { if (!loading) setProductNameReasonOpen(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reason for Product Name Change</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for changing the product name. This will be logged in the order's edit history.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="product-name-reason">Reason</Label>
+            <Textarea
+              id="product-name-reason"
+              value={productNameReason}
+              onChange={(e) => setProductNameReason(e.target.value)}
+              placeholder="e.g. Customer requested variant change, wrong SKU captured from website, etc."
+              rows={3}
+              disabled={loading}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setProductNameReasonOpen(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!productNameReason.trim()) {
+                  toast.error('Please enter a reason');
+                  return;
+                }
+                void commitOrderItemEdits(productNameReason.trim());
+              }}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <DocumentViewer
         open={invoiceViewer.open}
         onOpenChange={(o) => {
