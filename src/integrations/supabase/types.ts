@@ -7495,6 +7495,7 @@ export type Database = {
       order_items: {
         Row: {
           created_at: string
+          estimated_procurement_rate: number | null
           fulfilled_from_stock: boolean | null
           id: string
           notes: string | null
@@ -7518,6 +7519,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          estimated_procurement_rate?: number | null
           fulfilled_from_stock?: boolean | null
           id?: string
           notes?: string | null
@@ -7541,6 +7543,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          estimated_procurement_rate?: number | null
           fulfilled_from_stock?: boolean | null
           id?: string
           notes?: string | null
@@ -7832,6 +7835,7 @@ export type Database = {
           escalated_by: string | null
           escalation_reason: string | null
           estimated_delivery: string | null
+          estimated_procurement_rate: number | null
           external_id: string | null
           id: string
           internal_notes: string | null
@@ -7912,6 +7916,7 @@ export type Database = {
           escalated_by?: string | null
           escalation_reason?: string | null
           estimated_delivery?: string | null
+          estimated_procurement_rate?: number | null
           external_id?: string | null
           id?: string
           internal_notes?: string | null
@@ -7992,6 +7997,7 @@ export type Database = {
           escalated_by?: string | null
           escalation_reason?: string | null
           estimated_delivery?: string | null
+          estimated_procurement_rate?: number | null
           external_id?: string | null
           id?: string
           internal_notes?: string | null
