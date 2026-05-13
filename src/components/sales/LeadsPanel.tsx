@@ -36,7 +36,6 @@ import { AttentionButton } from './AttentionButton';
 import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
-import { FormsLeadsPanel } from './FormsLeadsPanel';
 import { Mail, FileText, Megaphone } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
@@ -375,10 +374,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="emails" className="gap-1.5">
           <Mail className="h-3.5 w-3.5" />
           Emails
-        </TabsTrigger>
-        <TabsTrigger value="form-leads" className="gap-1.5">
-          <FileText className="h-3.5 w-3.5" />
-          Forms
         </TabsTrigger>
         <TabsTrigger value="google-ads" className="gap-1.5">
           <Megaphone className="h-3.5 w-3.5" />
@@ -1134,13 +1129,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <div className="space-y-6">
         <TouchedDashboard source="emails" />
         <EmailLeadsPanel />
-        </div>
-      </TabsContent>
-
-      <TabsContent value="form-leads">
-        <div className="space-y-6">
-        <TouchedDashboard source="form-leads" />
-        <FormsLeadsPanel />
         </div>
       </TabsContent>
 

@@ -334,7 +334,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     { name: 'Interakt', value: filtered.interakt.length, icon: MessageCircle, color: 'hsl(var(--chart-2))' },
     { name: 'MyOperator', value: filtered.calls.length, icon: Phone, color: 'hsl(var(--chart-3))' },
     { name: 'Emails', value: filtered.email.length, icon: Mail, color: 'hsl(var(--chart-4))' },
-    { name: 'Forms', value: filtered.forms.length, icon: FileText, color: 'hsl(var(--chart-5))' },
+    { name: 'QForms', value: filtered.forms.length, icon: FileText, color: 'hsl(var(--chart-5))' },
   ];
 
   // ============ Category Breakdown (list style) ============
@@ -825,7 +825,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
         customer_company: e.customer_company || '', product_name: e.product_name || '',
         value: 0, date: e.created_at, status: e.status || 'new', tab: 'leads',
       }));
-    } else if (sourceName === 'Forms') {
+    } else if (sourceName === 'QForms' || sourceName === 'Forms') {
       items = filtered.forms.slice(0, 50).map((f: any) => ({
         id: f.id, type: 'lead' as const, customer_name: f.customer_name || f.name || 'Unknown',
         customer_company: f.company || '', product_name: f.product_name || '',
