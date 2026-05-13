@@ -264,6 +264,30 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     },
   });
 
+  const { data: googleAdsLeads = [] } = useQuery({
+    queryKey: ['command-center-google-ads-leads'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('google_ads_leads' as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      return (data as any[]) || [];
+    },
+  });
+
+  const { data: wooLeads = [] } = useQuery({
+    queryKey: ['command-center-woo-leads'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('woocommerce_orders' as any)
+        .select('id, status, customer_name, customer_email, created_at, total_amount, sales_person_id')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      return (data as any[]) || [];
+    },
+  });
+
   const { data: salesTeam = [] } = useQuery({
     queryKey: ['sales-team-list'],
     queryFn: async () => {
@@ -297,8 +321,13 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     const fEnquiries = bySp(byDate(enquiries), 'sales_person_id');
     const fInterakt = bySp(byDate((interaktLeads as any[]).filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
     const fEmail = bySp(byDate((emailLeads as any[]).filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
-    const fCalls = bySp(byDate((callLogs as any[]).filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
+    const elevenLabsLogs = (callLogs as any[]).filter((l: any) => l.lead_source === 'ElevenLabs');
+    const myOpLogs = (callLogs as any[]).filter((l: any) => l.lead_source !== 'ElevenLabs');
+    const fCalls = bySp(byDate(myOpLogs.filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
+    const fElevenLabs = bySp(byDate(elevenLabsLogs.filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
     const fForms = bySp(byDate((formLeads as any[]).filter((l: any) => !l.is_enquiry_converted)), 'assigned_to');
+    const fGoogleAds = bySp(byDate(googleAdsLeads as any[]), 'sales_person_id');
+    const fWoo = bySp(byDate((wooLeads as any[]).filter((l: any) => isWooLeadStatus(l.status))), 'sales_person_id');
     const fPipeline = bySp(byDate(pipelineOrders), 'sales_person_id');
     const fOrders = bySp(byDate(orders), 'sales_person_id');
     const fProspects = (() => {
@@ -311,11 +340,11 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
       return result;
     })();
 
-    return { enquiries: fEnquiries, interakt: fInterakt, email: fEmail, calls: fCalls, forms: fForms, pipeline: fPipeline, orders: fOrders, prospects: fProspects };
-  }, [enquiries, interaktLeads, emailLeads, callLogs, formLeads, pipelineOrders, orders, prospects, dateRange, timeFilter, salesPersonFilter, isManager, user]);
+    return { enquiries: fEnquiries, interakt: fInterakt, email: fEmail, calls: fCalls, elevenLabs: fElevenLabs, forms: fForms, googleAds: fGoogleAds, woo: fWoo, pipeline: fPipeline, orders: fOrders, prospects: fProspects };
+  }, [enquiries, interaktLeads, emailLeads, callLogs, formLeads, googleAdsLeads, wooLeads, pipelineOrders, orders, prospects, dateRange, timeFilter, salesPersonFilter, isManager, user]);
 
   // ============ KPIs ============
-  const totalLeadsAll = filtered.enquiries.length + filtered.interakt.length + filtered.email.length + filtered.calls.length + filtered.forms.length;
+  const totalLeadsAll = filtered.enquiries.length + filtered.interakt.length + filtered.email.length + filtered.calls.length + filtered.elevenLabs.length + filtered.forms.length + filtered.googleAds.length + filtered.woo.length;
   const totalProspects = filtered.prospects.length;
   const aCategory = filtered.prospects.filter((p: any) => p.is_a_category).length;
   const activePipeline = filtered.pipeline.filter(p => p.status !== 'won' && p.status !== 'lost');
@@ -339,6 +368,9 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     { name: 'MyOperator', value: filtered.calls.length, icon: Phone, color: 'hsl(var(--chart-3))' },
     { name: 'Emails', value: filtered.email.length, icon: Mail, color: 'hsl(var(--chart-4))' },
     { name: 'QForms', value: filtered.forms.length, icon: FileText, color: 'hsl(var(--chart-5))' },
+    { name: 'ElevenLabs', value: filtered.elevenLabs.length, icon: Bot, color: '#8b5cf6' },
+    { name: 'Google Ads', value: filtered.googleAds.length, icon: Megaphone, color: '#f59e0b' },
+    { name: 'Xboom Website', value: filtered.woo.length, icon: Globe, color: '#10b981' },
   ];
 
   // ============ Category Breakdown (list style) ============
