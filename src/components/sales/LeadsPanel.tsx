@@ -36,7 +36,6 @@ import { AttentionButton } from './AttentionButton';
 import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
-import { FormsLeadsPanel } from './FormsLeadsPanel';
 import { Mail, FileText, Megaphone } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
