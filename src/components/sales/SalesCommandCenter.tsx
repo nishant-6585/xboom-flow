@@ -253,10 +253,14 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
   });
 
   const { data: formLeads = [] } = useQuery({
-    queryKey: ['command-center-form-leads'],
+    queryKey: ['command-center-qforms-leads'],
     queryFn: async () => {
-      const { data } = await supabase.from('form_leads').select('*').order('created_at', { ascending: false }).limit(1000);
-      return data || [];
+      const { data } = await supabase
+        .from('leads' as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      return (data as any[]) || [];
     },
   });
 
@@ -294,7 +298,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     const fInterakt = bySp(byDate((interaktLeads as any[]).filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
     const fEmail = bySp(byDate((emailLeads as any[]).filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
     const fCalls = bySp(byDate((callLogs as any[]).filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
-    const fForms = bySp(byDate((formLeads as any[]).filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
+    const fForms = bySp(byDate((formLeads as any[]).filter((l: any) => !l.is_enquiry_converted)), 'assigned_to');
     const fPipeline = bySp(byDate(pipelineOrders), 'sales_person_id');
     const fOrders = bySp(byDate(orders), 'sales_person_id');
     const fProspects = (() => {
@@ -827,9 +831,9 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
       }));
     } else if (sourceName === 'QForms' || sourceName === 'Forms') {
       items = filtered.forms.slice(0, 50).map((f: any) => ({
-        id: f.id, type: 'lead' as const, customer_name: f.customer_name || f.name || 'Unknown',
-        customer_company: f.company || '', product_name: f.product_name || '',
-        value: 0, date: f.created_at, status: f.status || 'new', tab: 'leads',
+        id: f.id, type: 'lead' as const, customer_name: f.name || f.customer_name || 'Unknown',
+        customer_company: f.company || '', product_name: f.subject || f.form_type || f.product_name || '',
+        value: 0, date: f.created_at, status: f.status || 'new', tab: 'qforms',
       }));
     }
     openDrillDown(`${sourceName} (${items.length})`, items);

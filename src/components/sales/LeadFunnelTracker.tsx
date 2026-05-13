@@ -67,10 +67,14 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
   });
 
   const { data: formLeads = [] } = useQuery({
-    queryKey: ['funnel-form-leads'],
+    queryKey: ['funnel-qforms-leads'],
     queryFn: async () => {
-      const { data } = await supabase.from('form_leads').select('id,created_at').order('created_at', { ascending: false }).limit(1000);
-      return data || [];
+      const { data } = await supabase
+        .from('leads' as any)
+        .select('id,created_at,is_enquiry_converted')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      return (data as any[]) || [];
     },
   });
 
