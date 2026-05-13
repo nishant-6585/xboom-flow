@@ -38,6 +38,8 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: 'sick', label: 'Sick Leave' },
   { value: 'half_day_EL', label: 'Half Day Earned Leave' },
   { value: 'half_day_sick', label: 'Half Day Sick Leave' },
+  { value: 'unpaid', label: 'Unpaid Leave' },
+  { value: 'half_day_unpaid', label: 'Half Day Unpaid Leave' },
 ];
 
 export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps>(({ open, onOpenChange, onSubmit }, ref) => {
@@ -61,8 +63,9 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
         .eq('user_id', user.id)
         .maybeSingle();
       if (!emp) { setLeaveBalance(null); return; }
-      // Map half_day types to their base type for balance lookup
+      // Unpaid leave has no balance requirement
       const baseType = leaveType.replace('half_day_', '');
+      if (baseType === 'unpaid') { setLeaveBalance(null); return; }
       const year = new Date().getFullYear();
       const { data } = await supabase
         .from('leave_balances')
