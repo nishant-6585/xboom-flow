@@ -160,10 +160,15 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
         </div>
 
         {/* Tracking Info */}
-        {order.tracking_number && (
+        {(order.tracking_number || (order as any).courier_name || order.tracking_url) && (
           <div className="flex items-center gap-2.5 text-sm p-3 rounded-xl bg-gradient-to-r from-blue-50 to-blue-50/50 dark:from-blue-950/30 dark:to-blue-950/10 border border-blue-200/50 dark:border-blue-900/30 shadow-sm">
             <Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <span className="text-muted-foreground">Tracking:</span>
+            {(order as any).courier_name && (
+              <span className="font-semibold">{(order as any).courier_name}</span>
+            )}
+            {order.tracking_number && (
+              <span className="text-muted-foreground">·</span>
+            )}
             {order.tracking_url ? (
               <Button
                 variant="link"
@@ -174,12 +179,12 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
                   window.open(order.tracking_url!, '_blank');
                 }}
               >
-                {order.tracking_number}
+                {order.tracking_number || 'Track shipment'}
                 <ExternalLink className="h-3 w-3 ml-1" />
               </Button>
-            ) : (
+            ) : order.tracking_number ? (
               <span className="font-semibold">{order.tracking_number}</span>
-            )}
+            ) : null}
           </div>
         )}
 

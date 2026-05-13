@@ -250,6 +250,7 @@ export function useOrders() {
             status,
             tracking_number,
             tracking_url,
+            courier_name,
             committed_timeline,
             estimated_delivery,
             actual_delivery,

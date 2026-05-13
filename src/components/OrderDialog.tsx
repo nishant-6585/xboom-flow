@@ -1630,6 +1630,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </div>
               ) : (
                 <div className="space-y-2">
+                  {(courierName || (order as any).courier_name) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Courier:</span>
+                      <span className="font-medium">{courierName || (order as any).courier_name}</span>
+                    </div>
+                  )}
                   {(trackingNumber || order.tracking_number) && (
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-muted-foreground">Tracking Number:</span>
@@ -1662,7 +1668,21 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <span>{format(new Date(actualDelivery || order.actual_delivery!), 'dd MMM yyyy')}</span>
                     </div>
                   )}
-                  {!trackingNumber && !order.tracking_number && !estimatedDelivery && !order.estimated_delivery && (
+                  {(trackingUrl || order.tracking_url) && !(trackingNumber || order.tracking_number) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Tracking Link:</span>
+                      <a
+                        href={trackingUrl || order.tracking_url || ''}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-1"
+                      >
+                        Track shipment
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
+                  {!trackingNumber && !order.tracking_number && !courierName && !(order as any).courier_name && !(trackingUrl || order.tracking_url) && !estimatedDelivery && !order.estimated_delivery && (
                     <p className="text-sm text-muted-foreground">No tracking information yet</p>
                   )}
                 </div>
