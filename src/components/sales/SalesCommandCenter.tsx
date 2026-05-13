@@ -19,6 +19,7 @@ import {
   Eye, Zap, Clock, CalendarIcon, ArrowRight,
   Percent, Activity, Layers, BarChart3, Award, MapPin, Flame,
   Building2, ExternalLink, Lightbulb, Sparkles, AlertTriangle, ThumbsUp, ArrowUpRight,
+  Bot, Megaphone, Globe,
 } from 'lucide-react';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useUntouchedLeads, useUntouchedStats } from '@/hooks/useUntouchedLeads';
@@ -41,6 +42,7 @@ import { useCallbacks } from '@/hooks/useCallbacks';
 import { LeadTemperatureBadge } from '@/components/LeadTemperatureBadge';
 import { SalesPersonDeepDive } from '@/components/sales/SalesPersonDeepDive';
 import { LeadFunnelTracker } from '@/components/sales/LeadFunnelTracker';
+import { isWooLeadStatus } from '@/lib/wooOrderStatuses';
 import type { DateRange } from 'react-day-picker';
 
 const formatCurrency = (value: number) => {
