@@ -283,7 +283,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     queryFn: async () => {
       const { data } = await supabase
         .from('woocommerce_orders' as any)
-        .select('id, status, customer_name, customer_email, created_at, total_amount, sales_person_id')
+        .select('id, order_status, customer_name, customer_email, created_at, total_sales_amount, assigned_to')
         .order('created_at', { ascending: false })
         .limit(1000);
       return (data as any[]) || [];
@@ -329,7 +329,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     const fElevenLabs = bySp(byDate(elevenLabsLogs.filter((l: any) => !l.is_enquiry_converted)), 'sales_person_id');
     const fForms = bySp(byDate((formLeads as any[]).filter((l: any) => !l.is_enquiry_converted)), 'assigned_to');
     const fGoogleAds = bySp(byDate(googleAdsLeads as any[]), 'sales_person_id');
-    const fWoo = bySp(byDate((wooLeads as any[]).filter((l: any) => isWooLeadStatus(l.status))), 'sales_person_id');
+    const fWoo = bySp(byDate((wooLeads as any[]).filter((l: any) => isWooLeadStatus(l.order_status))), 'assigned_to');
     const fPipeline = bySp(byDate(pipelineOrders), 'sales_person_id');
     const fOrders = bySp(byDate(orders), 'sales_person_id');
     const fProspects = (() => {
@@ -885,7 +885,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
       items = filtered.woo.slice(0, 50).map((w: any) => ({
         id: w.id, type: 'lead' as const, customer_name: w.customer_name || 'Unknown',
         customer_company: '', product_name: '',
-        value: w.total_amount || 0, date: w.created_at, status: w.status || 'new', tab: 'xboom-website',
+        value: w.total_sales_amount || 0, date: w.created_at, status: w.order_status || 'new', tab: 'xboom-website',
       }));
     }
     openDrillDown(`${sourceName} (${items.length})`, items);

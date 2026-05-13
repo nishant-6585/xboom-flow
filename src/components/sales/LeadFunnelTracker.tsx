@@ -92,7 +92,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('woocommerce_orders' as any)
-        .select('id,created_at,status')
+        .select('id,created_at,order_status')
         .order('created_at', { ascending: false })
         .limit(1000);
       return (data as any[]) || [];
@@ -109,7 +109,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
     const emailCount = (emailLeads as any[]).filter(l => !l.is_enquiry_converted && inRange(l.created_at, range)).length;
     const formCount = formLeads.filter(l => !(l as any).is_enquiry_converted && inRange(l.created_at, range)).length;
     const googleAdsCount = googleAdsLeads.filter(l => inRange(l.created_at, range)).length;
-    const wooCount = (wooLeads as any[]).filter((l: any) => isWooLeadStatus(l.status) && inRange(l.created_at, range)).length;
+    const wooCount = (wooLeads as any[]).filter((l: any) => isWooLeadStatus(l.order_status) && inRange(l.created_at, range)).length;
     const enquiryCount = enquiries.filter(e => inRange(e.created_at, range)).length;
 
     const totalLeads = interaktCount + myOpCount + elevenCount + emailCount + formCount + googleAdsCount + wooCount + enquiryCount;
