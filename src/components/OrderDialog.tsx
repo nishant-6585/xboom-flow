@@ -503,6 +503,31 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     if (success && Object.keys(changes).length > 0) {
       await recordChanges('orders', order.id, changes, profile?.name || 'Unknown');
     }
+
+    // Mirror tracking changes to the linked WooCommerce order so the
+    // website-order tracking card stays in sync.
+    if (
+      success &&
+      (order as any).source === 'website' &&
+      order.order_number &&
+      (changes['tracking_number'] || changes['tracking_url'] || changes['courier_name'] || changes['status'])
+    ) {
+      const wooUpdate: Record<string, any> = {};
+      if (changes['tracking_number']) wooUpdate.tracking_number = trackingNumber || null;
+      if (changes['courier_name']) wooUpdate.courier = courierName || null;
+      if (changes['status']) {
+        if (finalStatus === 'in_transit') wooUpdate.tracking_status = 'in_transit';
+        else if (finalStatus === 'delivery_done') wooUpdate.tracking_status = 'delivered';
+      } else if (changes['tracking_number'] && trackingNumber) {
+        wooUpdate.tracking_status = 'in_transit';
+      }
+      if (Object.keys(wooUpdate).length > 0) {
+        await supabase
+          .from('woocommerce_orders')
+          .update(wooUpdate)
+          .eq('order_number', order.order_number);
+      }
+    }
     
     setLoading(false);
     if (success) {
