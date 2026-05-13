@@ -12,8 +12,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import {
   Users, Target, TrendingUp, ArrowRight, CalendarDays,
-  MessageCircle, Phone, Mail, FileText, Globe, Package,
+  MessageCircle, Phone, Mail, FileText, Globe, Package, Bot,
 } from 'lucide-react';
+import { isWooLeadStatus } from '@/lib/wooOrderStatuses';
 import {
   startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   parseISO, isWithinInterval,
@@ -61,7 +62,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
   const { data: callLogs = [] } = useQuery({
     queryKey: ['funnel-call-logs'],
     queryFn: async () => {
-      const { data } = await supabase.from('call_logs').select('id,created_at').order('created_at', { ascending: false }).limit(1000);
+      const { data } = await supabase.from('call_logs').select('id,created_at,lead_source,is_enquiry_converted').order('created_at', { ascending: false }).limit(1000);
       return data || [];
     },
   });
@@ -86,18 +87,32 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
     },
   });
 
+  const { data: wooLeads = [] } = useQuery({
+    queryKey: ['funnel-woo-leads'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('woocommerce_orders' as any)
+        .select('id,created_at,status')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      return (data as any[]) || [];
+    },
+  });
+
   const stats = useMemo(() => {
     const range = getRange(period);
 
     // Count leads by source in period
     const interaktCount = (interaktLeads as any[]).filter(l => !l.is_enquiry_converted && inRange(l.created_at, range)).length;
-    const myOpCount = callLogs.filter(l => !(l as any).is_enquiry_converted && inRange(l.created_at, range)).length;
+    const myOpCount = callLogs.filter((l: any) => l.lead_source !== 'ElevenLabs' && !l.is_enquiry_converted && inRange(l.created_at, range)).length;
+    const elevenCount = callLogs.filter((l: any) => l.lead_source === 'ElevenLabs' && !l.is_enquiry_converted && inRange(l.created_at, range)).length;
     const emailCount = (emailLeads as any[]).filter(l => !l.is_enquiry_converted && inRange(l.created_at, range)).length;
     const formCount = formLeads.filter(l => !(l as any).is_enquiry_converted && inRange(l.created_at, range)).length;
     const googleAdsCount = googleAdsLeads.filter(l => inRange(l.created_at, range)).length;
+    const wooCount = (wooLeads as any[]).filter((l: any) => isWooLeadStatus(l.status) && inRange(l.created_at, range)).length;
     const enquiryCount = enquiries.filter(e => inRange(e.created_at, range)).length;
 
-    const totalLeads = interaktCount + myOpCount + emailCount + formCount + googleAdsCount + enquiryCount;
+    const totalLeads = interaktCount + myOpCount + elevenCount + emailCount + formCount + googleAdsCount + wooCount + enquiryCount;
 
     // Prospects created in period
     const prospectsCount = (prospects as any[]).filter(p => inRange(p.created_at, range)).length;
@@ -123,9 +138,11 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
         { name: 'Enquiries', count: enquiryCount, icon: Package, color: 'text-blue-600' },
         { name: 'Interakt', count: interaktCount, icon: MessageCircle, color: 'text-green-600' },
         { name: 'MyOperator', count: myOpCount, icon: Phone, color: 'text-purple-600' },
+        { name: 'ElevenLabs', count: elevenCount, icon: Bot, color: 'text-violet-600' },
         { name: 'Emails', count: emailCount, icon: Mail, color: 'text-red-600' },
         { name: 'QForms', count: formCount, icon: FileText, color: 'text-orange-600' },
         { name: 'Google Ads', count: googleAdsCount, icon: Globe, color: 'text-cyan-600' },
+        { name: 'Xboom Website', count: wooCount, icon: Globe, color: 'text-emerald-600' },
       ],
       totalLeads,
       prospectsCount,
@@ -137,7 +154,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
       prospectToPipelineRate,
       pipelineToWonRate,
     };
-  }, [period, enquiries, interaktLeads, emailLeads, callLogs, formLeads, googleAdsLeads, prospects, pipelineOrders]);
+  }, [period, enquiries, interaktLeads, emailLeads, callLogs, formLeads, googleAdsLeads, wooLeads, prospects, pipelineOrders]);
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
