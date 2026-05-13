@@ -62,6 +62,8 @@ export function HRLeaveApplyDialog({
   useEffect(() => {
     if (!employeeId || !open) { setLeaveBalance(null); return; }
     const baseType = leaveType.replace('half_day_', '');
+    // Unpaid leave has no balance requirement
+    if (baseType === 'unpaid') { setLeaveBalance(null); return; }
     const year = new Date().getFullYear();
     supabase
       .from('leave_balances')
