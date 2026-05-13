@@ -831,9 +831,9 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
       }));
     } else if (sourceName === 'QForms' || sourceName === 'Forms') {
       items = filtered.forms.slice(0, 50).map((f: any) => ({
-        id: f.id, type: 'lead' as const, customer_name: f.customer_name || f.name || 'Unknown',
-        customer_company: f.company || '', product_name: f.product_name || '',
-        value: 0, date: f.created_at, status: f.status || 'new', tab: 'leads',
+        id: f.id, type: 'lead' as const, customer_name: f.name || f.customer_name || 'Unknown',
+        customer_company: f.company || '', product_name: f.subject || f.form_type || f.product_name || '',
+        value: 0, date: f.created_at, status: f.status || 'new', tab: 'qforms',
       }));
     }
     openDrillDown(`${sourceName} (${items.length})`, items);
