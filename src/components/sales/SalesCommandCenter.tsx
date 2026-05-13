@@ -869,6 +869,24 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
         customer_company: f.company || '', product_name: f.subject || f.form_type || f.product_name || '',
         value: 0, date: f.created_at, status: f.status || 'new', tab: 'qforms',
       }));
+    } else if (sourceName === 'ElevenLabs') {
+      items = filtered.elevenLabs.slice(0, 50).map((c: any) => ({
+        id: c.id, type: 'lead' as const, customer_name: c.caller_name || c.customer_name || c.caller_number || 'Unknown',
+        customer_company: c.company || '', product_name: c.requirement || c.product_name || '',
+        value: 0, date: c.created_at, status: c.call_status || 'new', tab: 'elevenlabs',
+      }));
+    } else if (sourceName === 'Google Ads') {
+      items = filtered.googleAds.slice(0, 50).map((g: any) => ({
+        id: g.id, type: 'lead' as const, customer_name: g.customer_name || g.name || 'Unknown',
+        customer_company: g.company || '', product_name: g.product_name || g.campaign_name || '',
+        value: 0, date: g.created_at, status: g.status || 'new', tab: 'google-ads',
+      }));
+    } else if (sourceName === 'Xboom Website') {
+      items = filtered.woo.slice(0, 50).map((w: any) => ({
+        id: w.id, type: 'lead' as const, customer_name: w.customer_name || 'Unknown',
+        customer_company: '', product_name: '',
+        value: w.total_amount || 0, date: w.created_at, status: w.status || 'new', tab: 'xboom-website',
+      }));
     }
     openDrillDown(`${sourceName} (${items.length})`, items);
   }, [filtered, openDrillDown]);
