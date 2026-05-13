@@ -120,7 +120,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
         { name: 'Interakt', count: interaktCount, icon: MessageCircle, color: 'text-green-600' },
         { name: 'MyOperator', count: myOpCount, icon: Phone, color: 'text-purple-600' },
         { name: 'Emails', count: emailCount, icon: Mail, color: 'text-red-600' },
-        { name: 'Forms', count: formCount, icon: FileText, color: 'text-orange-600' },
+        { name: 'QForms', count: formCount, icon: FileText, color: 'text-orange-600' },
         { name: 'Google Ads', count: googleAdsCount, icon: Globe, color: 'text-cyan-600' },
       ],
       totalLeads,
