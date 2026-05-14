@@ -1,0 +1,12 @@
+# Xboom OS
+
+> Internal business operations system (ERP/CRM) for Xboom — streamlining sales, supply chain, finance, and HR workflows. The application is authentication-gated; only the public drone repair enquiry form is open to the web.
+
+## Pages
+
+- [Drone Repair Enquiry](/public/drone-repair-enquiry): Public form for customers to submit drone repair requests (model, issue, contact details).
+- [Sign in](/auth): Sign-in page for Xboom team members.
+
+## Optional
+
+- [Home](/): Authenticated dashboard (requires sign-in).
