@@ -280,3 +280,46 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+function renderInviteEmail(opts: { fullName: string; actionLink: string; isExistingUser: boolean }) {
+  const { fullName, actionLink, isExistingUser } = opts;
+  const heading = isExistingUser
+    ? "You've been added to the XBOOM B2B Portal"
+    : "Welcome to the XBOOM B2B Portal";
+  const intro = isExistingUser
+    ? "Your existing account has been linked to a B2B customer portal. Use the button below to set or reset your password and sign in."
+    : "An admin has invited you to access the XBOOM B2B Portal. Click below to set your password and sign in.";
+  return `<!doctype html>
+<html><body style="margin:0;padding:0;background:#f5f6f8;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.08);">
+        <tr><td style="background:#0c1e3e;padding:24px 28px;">
+          <div style="font-size:22px;font-weight:700;letter-spacing:.3px;color:#ffffff;">
+            x<span style="color:#d4af37;">boom</span>
+            <span style="font-size:11px;letter-spacing:1.5px;color:rgba(255,255,255,.7);margin-left:10px;text-transform:uppercase;">Customer Portal</span>
+          </div>
+        </td></tr>
+        <tr><td style="padding:32px 28px 8px 28px;">
+          <h1 style="margin:0 0 12px 0;font-size:22px;line-height:1.3;color:#0f172a;">${heading}</h1>
+          <p style="margin:0 0 8px 0;font-size:15px;color:#334155;">Hi ${escapeHtml(fullName)},</p>
+          <p style="margin:0 0 24px 0;font-size:15px;line-height:1.55;color:#334155;">${intro}</p>
+          <p style="margin:0 0 32px 0;">
+            <a href="${actionLink}" style="display:inline-block;background:#0c1e3e;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;font-size:15px;">Set up my account</a>
+          </p>
+          <p style="margin:0 0 8px 0;font-size:13px;color:#64748b;">If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="margin:0 0 24px 0;font-size:12px;color:#475569;word-break:break-all;"><a href="${actionLink}" style="color:#0c1e3e;">${actionLink}</a></p>
+          <p style="margin:0;font-size:12px;color:#94a3b8;">This link will expire in 24 hours. If you weren't expecting this invitation, you can ignore this email.</p>
+        </td></tr>
+        <tr><td style="padding:24px 28px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;">
+          XBOOM Flow · Customer Portal
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
