@@ -65,6 +65,38 @@
     --shadow-card-hover: 0 4px 12px -2px hsl(20 14% 10% / 0.08), 0 2px 6px -2px hsl(20 14% 10% / 0.04);
   }
 
+  /* ===== B2B Customer Portal scope ===== */
+  /* These tokens override the staff ERP theme only inside .portal-scope */
+  .portal-scope {
+    --background: 220 33% 98%;
+    --foreground: 217 38% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 217 38% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 38% 15%;
+    --primary: 213 73% 15%;          /* navy #0A2540 */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 213 50% 25%;
+    --secondary: 39 49% 91%;         /* gold-soft */
+    --secondary-foreground: 213 73% 15%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 41 53% 54%;            /* gold #C9A24B */
+    --accent-foreground: 213 73% 15%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 69% 38%;
+    --warning: 38 92% 50%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 41 53% 54%;
+    --radius: 0.625rem;
+    --portal-navy: 213 73% 15%;
+    --portal-navy-soft: 213 53% 23%;
+    --portal-gold: 41 53% 54%;
+    --portal-cream: 39 49% 92%;
+  }
+
   .dark {
     --background: 20 14% 4%;
     --foreground: 30 15% 95%;
