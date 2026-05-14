@@ -61,6 +61,13 @@ import DroneOperations from "./pages/DroneOperations";
 import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
 import CompanyCleanup from "./pages/CompanyCleanup";
+import PortalCustomers from "./pages/PortalCustomers";
+
+import { PortalAuthProvider } from "@/portal/hooks/usePortalAuth";
+import { PortalProtectedRoute } from "@/portal/components/PortalProtectedRoute";
+import PortalLogin from "@/portal/pages/PortalLogin";
+import PortalSetPassword from "@/portal/pages/PortalSetPassword";
+import PortalDashboard from "@/portal/pages/PortalDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,11 +124,35 @@ function AppInner() {
         <Route path="/daily-flow" element={<ProtectedRoute><DailyFlow /></ProtectedRoute>} />
         <Route path="/admin/ai-automation" element={<ProtectedRoute><AIAutomation /></ProtectedRoute>} />
         <Route path="/admin/company-cleanup" element={<ProtectedRoute><CompanyCleanup /></ProtectedRoute>} />
+        <Route path="/admin/portal-customers" element={<ProtectedRoute><PortalCustomers /></ProtectedRoute>} />
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
         <Route path="/drone-operations" element={<ProtectedRoute><DroneOperations /></ProtectedRoute>} />
         <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
+
+        {/* ===== B2B Customer Portal ===== */}
+        <Route
+          path="/portal/*"
+          element={
+            <PortalAuthProvider>
+              <Routes>
+                <Route path="login" element={<PortalLogin />} />
+                <Route path="set-password" element={<PortalSetPassword />} />
+                <Route
+                  path="dashboard"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalDashboard />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<Navigate to="/portal/dashboard" replace />} />
+              </Routes>
+            </PortalAuthProvider>
+          }
+        />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthGuardedWidgets isMobile={isMobile} />
@@ -135,8 +166,10 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
   const location = useLocation();
   // Hide widgets on public/auth pages
   const publicPaths = ['/auth', '/mfa-verify', '/form-embed', '/public'];
+  const portalPaths = ['/portal'];
   const isPublicPage = publicPaths.some(p => location.pathname.startsWith(p));
-  if (isPublicPage) return null;
+  const isPortalPage = portalPaths.some(p => location.pathname.startsWith(p));
+  if (isPublicPage || isPortalPage) return null;
   // Do not render any protected UI until authentication and MFA state are fully resolved
   if (loading) return null;
   if (!user) return null;
