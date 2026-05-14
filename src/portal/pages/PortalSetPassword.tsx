@@ -19,9 +19,25 @@ export default function PortalSetPassword() {
   const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    (async () => {
+      // If the email link sent us here with a token_hash, exchange it for a session first.
+      const url = new URL(window.location.href);
+      const tokenHash = url.searchParams.get("token_hash");
+      const type = url.searchParams.get("type");
+      if (tokenHash && type) {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: type as "recovery" | "invite" | "magiclink" | "email",
+        });
+        if (error) {
+          setErr(error.message);
+        }
+        // Clean the URL so a refresh doesn't try to re-verify a now-used token.
+        window.history.replaceState({}, "", "/portal/set-password");
+      }
+      const { data: { session } } = await supabase.auth.getSession();
       setHasSession(!!session);
-    });
+    })();
   }, []);
 
   const submit = async (e: FormEvent) => {
