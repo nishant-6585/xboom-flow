@@ -115,8 +115,9 @@ Deno.serve(async (req) => {
     }
 
     // 5. Create or look up the auth user (email_confirm: true so they can set a password right away)
-    const origin = req.headers.get("origin") ?? "https://xboomflow.com";
-    const redirectTo = `${origin}/portal/set-password`;
+    // Always use the production portal URL so the invite link works regardless of where the admin invited from.
+    const PORTAL_BASE = "https://xboomflow.com";
+    const redirectTo = `${PORTAL_BASE}/portal/set-password`;
 
     let authUserId: string | null = null;
     let isExistingUser = false;
@@ -163,8 +164,14 @@ Deno.serve(async (req) => {
     if (linkErr) {
       return json({ error: `Link generation failed: ${linkErr.message}` }, 500);
     }
-    const actionLink = linkData?.properties?.action_link;
-    if (!actionLink) return json({ error: "No action link returned" }, 500);
+    // Build a direct link to our portal page using the hashed token so the
+    // recipient never has to hit the raw Supabase verify endpoint (which
+    // some networks fail to resolve and looks unbranded).
+    const hashedToken = linkData?.properties?.hashed_token;
+    if (!hashedToken) return json({ error: "No token returned" }, 500);
+    const actionLink = `${PORTAL_BASE}/portal/set-password?token_hash=${encodeURIComponent(
+      hashedToken,
+    )}&type=recovery`;
 
     // 6. Upsert portal_contact
     let contactId: string;
