@@ -8942,6 +8942,690 @@ export type Database = {
           },
         ]
       }
+      portal_accounts: {
+        Row: {
+          assigned_rep_id: string | null
+          billing_address: string | null
+          company_name: string
+          created_at: string
+          gstin: string | null
+          id: string
+          industry: string | null
+          primary_contact_name: string | null
+          shipping_address: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_rep_id?: string | null
+          billing_address?: string | null
+          company_name: string
+          created_at?: string
+          gstin?: string | null
+          id?: string
+          industry?: string | null
+          primary_contact_name?: string | null
+          shipping_address?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_rep_id?: string | null
+          billing_address?: string | null
+          company_name?: string
+          created_at?: string
+          gstin?: string | null
+          id?: string
+          industry?: string | null
+          primary_contact_name?: string | null
+          shipping_address?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      portal_contacts: {
+        Row: {
+          account_id: string
+          auth_user_id: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          invited_at: string | null
+          is_active: boolean
+          last_login_at: string | null
+          phone: string | null
+          role: string
+          whatsapp_number: string | null
+        }
+        Insert: {
+          account_id: string
+          auth_user_id?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          invited_at?: string | null
+          is_active?: boolean
+          last_login_at?: string | null
+          phone?: string | null
+          role: string
+          whatsapp_number?: string | null
+        }
+        Update: {
+          account_id?: string
+          auth_user_id?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          invited_at?: string | null
+          is_active?: boolean
+          last_login_at?: string | null
+          phone?: string | null
+          role?: string
+          whatsapp_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_contacts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_documents: {
+        Row: {
+          doc_type: string
+          external_url: string | null
+          file_size_bytes: number | null
+          file_url: string | null
+          id: string
+          is_master: boolean
+          order_id: string | null
+          product_id: string | null
+          title: string
+          uploaded_at: string
+          uploaded_by: string | null
+          version: number
+        }
+        Insert: {
+          doc_type: string
+          external_url?: string | null
+          file_size_bytes?: number | null
+          file_url?: string | null
+          id?: string
+          is_master?: boolean
+          order_id?: string | null
+          product_id?: string | null
+          title: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Update: {
+          doc_type?: string
+          external_url?: string | null
+          file_size_bytes?: number | null
+          file_url?: string | null
+          id?: string
+          is_master?: boolean
+          order_id?: string | null
+          product_id?: string | null
+          title?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_documents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "portal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_documents_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "portal_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_notification_preferences: {
+        Row: {
+          contact_id: string
+          email_new_docs: boolean
+          email_order_status: boolean
+          email_renewals: boolean
+          email_supply_chain_notes: boolean
+          email_ticket_replies: boolean
+          whatsapp_new_docs: boolean
+          whatsapp_order_status: boolean
+          whatsapp_renewals: boolean
+          whatsapp_supply_chain_notes: boolean
+          whatsapp_ticket_replies: boolean
+        }
+        Insert: {
+          contact_id: string
+          email_new_docs?: boolean
+          email_order_status?: boolean
+          email_renewals?: boolean
+          email_supply_chain_notes?: boolean
+          email_ticket_replies?: boolean
+          whatsapp_new_docs?: boolean
+          whatsapp_order_status?: boolean
+          whatsapp_renewals?: boolean
+          whatsapp_supply_chain_notes?: boolean
+          whatsapp_ticket_replies?: boolean
+        }
+        Update: {
+          contact_id?: string
+          email_new_docs?: boolean
+          email_order_status?: boolean
+          email_renewals?: boolean
+          email_supply_chain_notes?: boolean
+          email_ticket_replies?: boolean
+          whatsapp_new_docs?: boolean
+          whatsapp_order_status?: boolean
+          whatsapp_renewals?: boolean
+          whatsapp_supply_chain_notes?: boolean
+          whatsapp_ticket_replies?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_notification_preferences_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_notifications_log: {
+        Row: {
+          channel: string
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          payload: Json | null
+          recipient_contact_id: string | null
+          recipient_user_id: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          sent_at: string | null
+          status: string
+          template_id: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          recipient_contact_id?: string | null
+          recipient_user_id?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          sent_at?: string | null
+          status?: string
+          template_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          recipient_contact_id?: string | null
+          recipient_user_id?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          sent_at?: string | null
+          status?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_notifications_log_recipient_contact_id_fkey"
+            columns: ["recipient_contact_id"]
+            isOneToOne: false
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_order_line_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          line_state: string
+          order_id: string
+          product_id: string | null
+          product_name_snapshot: string
+          quantity: number
+          serial_numbers: Json
+          total: number | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          line_state?: string
+          order_id: string
+          product_id?: string | null
+          product_name_snapshot: string
+          quantity?: number
+          serial_numbers?: Json
+          total?: number | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          line_state?: string
+          order_id?: string
+          product_id?: string | null
+          product_name_snapshot?: string
+          quantity?: number
+          serial_numbers?: Json
+          total?: number | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_order_line_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "portal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_order_line_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "portal_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_orders: {
+        Row: {
+          account_id: string
+          assigned_rep_id: string | null
+          awb_number: string | null
+          courier_name: string | null
+          created_at: string
+          current_state: string
+          customer_facing_eta: string | null
+          customer_po_number: string | null
+          daas_tier: string | null
+          delivery_commitment: string | null
+          discount_amount: number | null
+          discount_reason: string | null
+          gst_amount: number | null
+          id: string
+          order_number: string
+          payment_terms: string | null
+          portal_visible: boolean
+          subtotal: number | null
+          total: number | null
+          tracking_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          assigned_rep_id?: string | null
+          awb_number?: string | null
+          courier_name?: string | null
+          created_at?: string
+          current_state?: string
+          customer_facing_eta?: string | null
+          customer_po_number?: string | null
+          daas_tier?: string | null
+          delivery_commitment?: string | null
+          discount_amount?: number | null
+          discount_reason?: string | null
+          gst_amount?: number | null
+          id?: string
+          order_number: string
+          payment_terms?: string | null
+          portal_visible?: boolean
+          subtotal?: number | null
+          total?: number | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          assigned_rep_id?: string | null
+          awb_number?: string | null
+          courier_name?: string | null
+          created_at?: string
+          current_state?: string
+          customer_facing_eta?: string | null
+          customer_po_number?: string | null
+          daas_tier?: string | null
+          delivery_commitment?: string | null
+          discount_amount?: number | null
+          discount_reason?: string | null
+          gst_amount?: number | null
+          id?: string
+          order_number?: string
+          payment_terms?: string | null
+          portal_visible?: boolean
+          subtotal?: number | null
+          total?: number | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_orders_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_products: {
+        Row: {
+          active: boolean
+          catalog_price: number | null
+          created_at: string
+          description: string | null
+          domain: string | null
+          id: string
+          name: string
+          sku: string
+          unit: string | null
+        }
+        Insert: {
+          active?: boolean
+          catalog_price?: number | null
+          created_at?: string
+          description?: string | null
+          domain?: string | null
+          id?: string
+          name: string
+          sku: string
+          unit?: string | null
+        }
+        Update: {
+          active?: boolean
+          catalog_price?: number | null
+          created_at?: string
+          description?: string | null
+          domain?: string | null
+          id?: string
+          name?: string
+          sku?: string
+          unit?: string | null
+        }
+        Relationships: []
+      }
+      portal_rfqs: {
+        Row: {
+          account_id: string
+          assigned_rep_id: string | null
+          attachments: Json
+          budget_range: string | null
+          converted_to_order_id: string | null
+          created_at: string
+          daas_interest: string | null
+          desired_date: string | null
+          domains: string[]
+          id: string
+          rfq_number: string
+          status: string
+          submitted_by_contact_id: string | null
+          use_case: string
+        }
+        Insert: {
+          account_id: string
+          assigned_rep_id?: string | null
+          attachments?: Json
+          budget_range?: string | null
+          converted_to_order_id?: string | null
+          created_at?: string
+          daas_interest?: string | null
+          desired_date?: string | null
+          domains?: string[]
+          id?: string
+          rfq_number: string
+          status?: string
+          submitted_by_contact_id?: string | null
+          use_case: string
+        }
+        Update: {
+          account_id?: string
+          assigned_rep_id?: string | null
+          attachments?: Json
+          budget_range?: string | null
+          converted_to_order_id?: string | null
+          created_at?: string
+          daas_interest?: string | null
+          desired_date?: string | null
+          domains?: string[]
+          id?: string
+          rfq_number?: string
+          status?: string
+          submitted_by_contact_id?: string | null
+          use_case?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_rfqs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_rfqs_converted_to_order_id_fkey"
+            columns: ["converted_to_order_id"]
+            isOneToOne: false
+            referencedRelation: "portal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_rfqs_submitted_by_contact_id_fkey"
+            columns: ["submitted_by_contact_id"]
+            isOneToOne: false
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_state_transitions: {
+        Row: {
+          actor_id: string | null
+          actor_name_snapshot: string | null
+          customer_facing_note: string | null
+          from_state: string | null
+          id: string
+          internal_note: string | null
+          order_id: string
+          to_state: string
+          transitioned_at: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name_snapshot?: string | null
+          customer_facing_note?: string | null
+          from_state?: string | null
+          id?: string
+          internal_note?: string | null
+          order_id: string
+          to_state: string
+          transitioned_at?: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name_snapshot?: string | null
+          customer_facing_note?: string | null
+          from_state?: string | null
+          id?: string
+          internal_note?: string | null
+          order_id?: string
+          to_state?: string
+          transitioned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_state_transitions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "portal_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_ticket_messages: {
+        Row: {
+          attachments: Json
+          body: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          sender_id: string | null
+          sender_name_snapshot: string | null
+          ticket_id: string
+        }
+        Insert: {
+          attachments?: Json
+          body: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          sender_id?: string | null
+          sender_name_snapshot?: string | null
+          ticket_id: string
+        }
+        Update: {
+          attachments?: Json
+          body?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          sender_id?: string | null
+          sender_name_snapshot?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "portal_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_tickets: {
+        Row: {
+          account_id: string
+          assigned_to: string | null
+          category: string
+          created_at: string
+          description: string
+          first_response_at: string | null
+          id: string
+          order_id: string | null
+          priority: string
+          product_id: string | null
+          raised_by_contact_id: string | null
+          resolved_at: string | null
+          sla_first_response_due_at: string | null
+          sla_resolution_due_at: string | null
+          status: string
+          subject: string
+          ticket_number: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          assigned_to?: string | null
+          category: string
+          created_at?: string
+          description: string
+          first_response_at?: string | null
+          id?: string
+          order_id?: string | null
+          priority?: string
+          product_id?: string | null
+          raised_by_contact_id?: string | null
+          resolved_at?: string | null
+          sla_first_response_due_at?: string | null
+          sla_resolution_due_at?: string | null
+          status?: string
+          subject: string
+          ticket_number: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          description?: string
+          first_response_at?: string | null
+          id?: string
+          order_id?: string | null
+          priority?: string
+          product_id?: string | null
+          raised_by_contact_id?: string | null
+          resolved_at?: string | null
+          sla_first_response_due_at?: string | null
+          sla_resolution_due_at?: string | null
+          status?: string
+          subject?: string
+          ticket_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_tickets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_tickets_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "portal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_tickets_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "portal_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_tickets_raised_by_contact_id_fkey"
+            columns: ["raised_by_contact_id"]
+            isOneToOne: false
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricelist: {
         Row: {
           availability: string | null
@@ -13201,6 +13885,7 @@ export type Database = {
           safety_stock: number
         }[]
       }
+      get_my_portal_account_id: { Args: never; Returns: string }
       get_order_profits:
         | {
             Args: { p_order_ids: string[] }
@@ -13588,6 +14273,8 @@ export type Database = {
         | "marketing"
         | "hr"
         | "sales_manager"
+        | "b2b_customer"
+        | "support"
       application_source:
         | "Referral"
         | "Naukri"
@@ -13897,6 +14584,8 @@ export const Constants = {
         "marketing",
         "hr",
         "sales_manager",
+        "b2b_customer",
+        "support",
       ],
       application_source: [
         "Referral",
