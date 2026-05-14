@@ -19,7 +19,7 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History, Briefcase } from "lucide-react";
 import { UserApprovalHistoryDialog } from "@/components/admin/UserApprovalHistoryDialog";
 import { ActionWithCommentDialog } from "@/components/admin/ActionWithCommentDialog";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
@@ -712,6 +712,10 @@ const Admin = () => {
                 <TabsTrigger value="company-cleanup" className="flex items-center gap-2" onClick={() => navigate("/admin/company-cleanup")}>
                   <Building2 className="w-4 h-4" />
                   Company Cleanup
+                </TabsTrigger>
+                <TabsTrigger value="portal-customers" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-customers")}>
+                  <Briefcase className="w-4 h-4" />
+                  Portal Customers
                 </TabsTrigger>
               </>
             )}
