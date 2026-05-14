@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,7 +135,13 @@ export default function PublicDroneRepairEnquiry() {
   // Thank you screen
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+        <Helmet>
+          <title>Enquiry Submitted | Xboom Drone Repair</title>
+          <meta name="description" content="Thank you — your drone repair enquiry has been received. Our team will respond within 24 hours." />
+          <link rel="canonical" href="https://xboomflow.com/public/drone-repair-enquiry" />
+          <meta name="robots" content="noindex" />
+        </Helmet>
         <div className="max-w-md w-full animate-fade-in">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-lg p-8 text-center space-y-5">
             <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
@@ -173,14 +180,22 @@ export default function PublicDroneRepairEnquiry() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   const inputClass = "h-11 bg-white border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6">
+      <Helmet>
+        <title>Drone Repair Enquiry | Xboom — Submit a Repair Request</title>
+        <meta name="description" content="Submit a drone repair enquiry to Xboom. Share your drone model, issue type and contact details — our expert team responds within 24 hours." />
+        <link rel="canonical" href="https://xboomflow.com/public/drone-repair-enquiry" />
+        <meta property="og:title" content="Drone Repair Enquiry | Xboom" />
+        <meta property="og:description" content="Submit a drone repair enquiry to Xboom — our expert team responds within 24 hours." />
+        <meta property="og:url" content="https://xboomflow.com/public/drone-repair-enquiry" />
+      </Helmet>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
@@ -385,6 +400,6 @@ export default function PublicDroneRepairEnquiry() {
           </p>
         </form>
       </div>
-    </div>
+    </main>
   );
 }
