@@ -1,7 +1,11 @@
 // Portal: invite a B2B customer (admin-only).
-// Creates portal_account (if needed) + portal_contact + auth user via invite email,
-// and assigns the b2b_customer role.
+// Creates portal_account (if needed) + portal_contact + auth user, generates a
+// recovery link, and emails it via Resend from notifications@xboom.in (same
+// sender used for ticket/order notifications).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -110,27 +114,57 @@ Deno.serve(async (req) => {
       return json({ error: "This email is already invited for this account" }, 409);
     }
 
-    // 5. Invite the user via Supabase admin (sends email with magic link)
-    const redirectTo =
-      (req.headers.get("origin") ?? "") + "/portal/set-password";
-    const { data: inviteData, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
-      data: { full_name: body.full_name, portal: true },
+    // 5. Create or look up the auth user (email_confirm: true so they can set a password right away)
+    const origin = req.headers.get("origin") ?? "https://xboomflow.com";
+    const redirectTo = `${origin}/portal/set-password`;
+
+    let authUserId: string | null = null;
+    let isExistingUser = false;
+    const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
+
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: body.full_name, portal: true },
     });
 
-    let authUserId = inviteData?.user?.id ?? null;
-
-    // If user already exists in auth.users, look them up
-    if (inviteErr && /already.*registered|already exists/i.test(inviteErr.message)) {
-      const { data: list } = await admin.auth.admin.listUsers();
-      const found = list?.users?.find((u) => u.email?.toLowerCase() === email);
-      if (!found) return json({ error: "User exists but could not be located" }, 500);
-      authUserId = found.id;
-    } else if (inviteErr) {
-      return json({ error: `Invite failed: ${inviteErr.message}` }, 500);
+    if (createErr) {
+      if (/already.*registered|already exists/i.test(createErr.message)) {
+        // Page through existing users to find by email
+        let page = 1;
+        const perPage = 100;
+        while (!authUserId) {
+          const { data: list, error: listErr } = await admin.auth.admin.listUsers({ page, perPage });
+          if (listErr) return json({ error: `Lookup failed: ${listErr.message}` }, 500);
+          const found = list?.users?.find((u) => u.email?.toLowerCase() === email);
+          if (found) {
+            authUserId = found.id;
+            isExistingUser = true;
+            break;
+          }
+          if (!list?.users || list.users.length < perPage) break;
+          page++;
+        }
+        if (!authUserId) return json({ error: "User exists but could not be located" }, 500);
+      } else {
+        return json({ error: `User create failed: ${createErr.message}` }, 500);
+      }
+    } else {
+      authUserId = created.user.id;
     }
 
-    if (!authUserId) return json({ error: "No auth user id returned" }, 500);
+    // 5b. Generate a recovery link (works for both new + existing users)
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo },
+    });
+    if (linkErr) {
+      return json({ error: `Link generation failed: ${linkErr.message}` }, 500);
+    }
+    const actionLink = linkData?.properties?.action_link;
+    if (!actionLink) return json({ error: "No action link returned" }, 500);
 
     // 6. Upsert portal_contact
     let contactId: string;
@@ -182,7 +216,58 @@ Deno.serve(async (req) => {
       .from("portal_notification_preferences")
       .upsert({ contact_id: contactId }, { onConflict: "contact_id", ignoreDuplicates: true });
 
-    return json({ ok: true, account_id: accountId, contact_id: contactId, auth_user_id: authUserId }, 200);
+    // 9. Send the branded invite email via Resend (notifications@xboom.in)
+    let emailSent = false;
+    let emailError: string | null = null;
+    if (!RESEND_API_KEY) {
+      emailError = "RESEND_API_KEY not configured";
+    } else {
+      const html = renderInviteEmail({
+        fullName: body.full_name,
+        actionLink,
+        isExistingUser,
+      });
+      const subject = isExistingUser
+        ? "You've been added to the XBOOM B2B Portal"
+        : "You're invited to the XBOOM B2B Portal";
+      try {
+        const r = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: FROM_ADDRESS,
+            to: [email],
+            subject,
+            html,
+          }),
+        });
+        if (!r.ok) {
+          const txt = await r.text();
+          emailError = `Resend ${r.status}: ${txt.slice(0, 300)}`;
+          console.error("Resend send failed:", emailError);
+        } else {
+          emailSent = true;
+        }
+      } catch (e) {
+        emailError = (e as Error).message;
+        console.error("Resend send threw:", emailError);
+      }
+    }
+
+    return json(
+      {
+        ok: true,
+        account_id: accountId,
+        contact_id: contactId,
+        auth_user_id: authUserId,
+        email_sent: emailSent,
+        email_error: emailError,
+      },
+      200,
+    );
   } catch (e) {
     console.error("portal-invite-customer error:", e);
     return json({ error: (e as Error).message ?? "Unknown error" }, 500);
@@ -195,3 +280,46 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+function renderInviteEmail(opts: { fullName: string; actionLink: string; isExistingUser: boolean }) {
+  const { fullName, actionLink, isExistingUser } = opts;
+  const heading = isExistingUser
+    ? "You've been added to the XBOOM B2B Portal"
+    : "Welcome to the XBOOM B2B Portal";
+  const intro = isExistingUser
+    ? "Your existing account has been linked to a B2B customer portal. Use the button below to set or reset your password and sign in."
+    : "An admin has invited you to access the XBOOM B2B Portal. Click below to set your password and sign in.";
+  return `<!doctype html>
+<html><body style="margin:0;padding:0;background:#f5f6f8;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.08);">
+        <tr><td style="background:#0c1e3e;padding:24px 28px;">
+          <div style="font-size:22px;font-weight:700;letter-spacing:.3px;color:#ffffff;">
+            x<span style="color:#d4af37;">boom</span>
+            <span style="font-size:11px;letter-spacing:1.5px;color:rgba(255,255,255,.7);margin-left:10px;text-transform:uppercase;">Customer Portal</span>
+          </div>
+        </td></tr>
+        <tr><td style="padding:32px 28px 8px 28px;">
+          <h1 style="margin:0 0 12px 0;font-size:22px;line-height:1.3;color:#0f172a;">${heading}</h1>
+          <p style="margin:0 0 8px 0;font-size:15px;color:#334155;">Hi ${escapeHtml(fullName)},</p>
+          <p style="margin:0 0 24px 0;font-size:15px;line-height:1.55;color:#334155;">${intro}</p>
+          <p style="margin:0 0 32px 0;">
+            <a href="${actionLink}" style="display:inline-block;background:#0c1e3e;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;font-size:15px;">Set up my account</a>
+          </p>
+          <p style="margin:0 0 8px 0;font-size:13px;color:#64748b;">If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="margin:0 0 24px 0;font-size:12px;color:#475569;word-break:break-all;"><a href="${actionLink}" style="color:#0c1e3e;">${actionLink}</a></p>
+          <p style="margin:0;font-size:12px;color:#94a3b8;">This link will expire in 24 hours. If you weren't expecting this invitation, you can ignore this email.</p>
+        </td></tr>
+        <tr><td style="padding:24px 28px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;">
+          XBOOM Flow · Customer Portal
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
