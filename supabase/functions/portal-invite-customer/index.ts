@@ -1,7 +1,11 @@
 // Portal: invite a B2B customer (admin-only).
-// Creates portal_account (if needed) + portal_contact + auth user via invite email,
-// and assigns the b2b_customer role.
+// Creates portal_account (if needed) + portal_contact + auth user, generates a
+// recovery link, and emails it via Resend from notifications@xboom.in (same
+// sender used for ticket/order notifications).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -110,27 +114,57 @@ Deno.serve(async (req) => {
       return json({ error: "This email is already invited for this account" }, 409);
     }
 
-    // 5. Invite the user via Supabase admin (sends email with magic link)
-    const redirectTo =
-      (req.headers.get("origin") ?? "") + "/portal/set-password";
-    const { data: inviteData, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
-      data: { full_name: body.full_name, portal: true },
+    // 5. Create or look up the auth user (email_confirm: true so they can set a password right away)
+    const origin = req.headers.get("origin") ?? "https://xboomflow.com";
+    const redirectTo = `${origin}/portal/set-password`;
+
+    let authUserId: string | null = null;
+    let isExistingUser = false;
+    const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
+
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: body.full_name, portal: true },
     });
 
-    let authUserId = inviteData?.user?.id ?? null;
-
-    // If user already exists in auth.users, look them up
-    if (inviteErr && /already.*registered|already exists/i.test(inviteErr.message)) {
-      const { data: list } = await admin.auth.admin.listUsers();
-      const found = list?.users?.find((u) => u.email?.toLowerCase() === email);
-      if (!found) return json({ error: "User exists but could not be located" }, 500);
-      authUserId = found.id;
-    } else if (inviteErr) {
-      return json({ error: `Invite failed: ${inviteErr.message}` }, 500);
+    if (createErr) {
+      if (/already.*registered|already exists/i.test(createErr.message)) {
+        // Page through existing users to find by email
+        let page = 1;
+        const perPage = 100;
+        while (!authUserId) {
+          const { data: list, error: listErr } = await admin.auth.admin.listUsers({ page, perPage });
+          if (listErr) return json({ error: `Lookup failed: ${listErr.message}` }, 500);
+          const found = list?.users?.find((u) => u.email?.toLowerCase() === email);
+          if (found) {
+            authUserId = found.id;
+            isExistingUser = true;
+            break;
+          }
+          if (!list?.users || list.users.length < perPage) break;
+          page++;
+        }
+        if (!authUserId) return json({ error: "User exists but could not be located" }, 500);
+      } else {
+        return json({ error: `User create failed: ${createErr.message}` }, 500);
+      }
+    } else {
+      authUserId = created.user.id;
     }
 
-    if (!authUserId) return json({ error: "No auth user id returned" }, 500);
+    // 5b. Generate a recovery link (works for both new + existing users)
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo },
+    });
+    if (linkErr) {
+      return json({ error: `Link generation failed: ${linkErr.message}` }, 500);
+    }
+    const actionLink = linkData?.properties?.action_link;
+    if (!actionLink) return json({ error: "No action link returned" }, 500);
 
     // 6. Upsert portal_contact
     let contactId: string;
@@ -182,7 +216,58 @@ Deno.serve(async (req) => {
       .from("portal_notification_preferences")
       .upsert({ contact_id: contactId }, { onConflict: "contact_id", ignoreDuplicates: true });
 
-    return json({ ok: true, account_id: accountId, contact_id: contactId, auth_user_id: authUserId }, 200);
+    // 9. Send the branded invite email via Resend (notifications@xboom.in)
+    let emailSent = false;
+    let emailError: string | null = null;
+    if (!RESEND_API_KEY) {
+      emailError = "RESEND_API_KEY not configured";
+    } else {
+      const html = renderInviteEmail({
+        fullName: body.full_name,
+        actionLink,
+        isExistingUser,
+      });
+      const subject = isExistingUser
+        ? "You've been added to the XBOOM B2B Portal"
+        : "You're invited to the XBOOM B2B Portal";
+      try {
+        const r = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: FROM_ADDRESS,
+            to: [email],
+            subject,
+            html,
+          }),
+        });
+        if (!r.ok) {
+          const txt = await r.text();
+          emailError = `Resend ${r.status}: ${txt.slice(0, 300)}`;
+          console.error("Resend send failed:", emailError);
+        } else {
+          emailSent = true;
+        }
+      } catch (e) {
+        emailError = (e as Error).message;
+        console.error("Resend send threw:", emailError);
+      }
+    }
+
+    return json(
+      {
+        ok: true,
+        account_id: accountId,
+        contact_id: contactId,
+        auth_user_id: authUserId,
+        email_sent: emailSent,
+        email_error: emailError,
+      },
+      200,
+    );
   } catch (e) {
     console.error("portal-invite-customer error:", e);
     return json({ error: (e as Error).message ?? "Unknown error" }, 500);
