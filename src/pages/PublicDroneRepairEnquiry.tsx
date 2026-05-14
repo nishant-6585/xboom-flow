@@ -400,6 +400,6 @@ export default function PublicDroneRepairEnquiry() {
           </p>
         </form>
       </div>
-    </div>
+    </main>
   );
 }
