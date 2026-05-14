@@ -27,6 +27,8 @@ const baseOrder: any = {
   payment_status: 'pending',
   outcome: 'pending',
   status: 'in_transit',
+  customer_type: 'b2c',
+  source: 'manual',
   order_date: '2025-01-01',
   created_at: '2025-01-01',
   tracking_number: null,
