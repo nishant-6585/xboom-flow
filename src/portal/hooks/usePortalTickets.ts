@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
+import { notifyPortal } from "@/portal/lib/portalNotify";
 
 export type TicketStatus = "open" | "in_progress" | "awaiting_customer" | "resolved" | "closed";
 export type TicketPriority = "low" | "medium" | "high" | "critical";
@@ -129,6 +130,8 @@ export function useCreateTicket() {
         is_internal: false,
       } as never);
 
+      notifyPortal("ticket_created", { ticket_id: ticket.id });
+
       return ticket;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["portal", "tickets"] }),
@@ -141,14 +144,22 @@ export function useReplyTicket(ticketId: string | undefined) {
     mutationFn: async (input: { body: string; attachments: { name: string; path: string; size?: number }[] }) => {
       if (!ticketId) throw new Error("missing id");
       const { data: u } = await supabase.auth.getUser();
-      const { error } = await supabase.from("portal_ticket_messages").insert({
-        ticket_id: ticketId,
-        sender_id: u?.user?.id ?? null,
-        body: input.body,
-        attachments: input.attachments,
-        is_internal: false,
-      } as never);
+      const { data: msg, error } = await supabase
+        .from("portal_ticket_messages")
+        .insert({
+          ticket_id: ticketId,
+          sender_id: u?.user?.id ?? null,
+          body: input.body,
+          attachments: input.attachments,
+          is_internal: false,
+        } as never)
+        .select("id")
+        .single();
       if (error) throw error;
+      notifyPortal("ticket_message_added", {
+        ticket_id: ticketId,
+        message_id: (msg as { id: string }).id,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portal", "ticket", ticketId] });
