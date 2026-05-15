@@ -48,6 +48,15 @@ verify_jwt = false
 [functions.approve-invitation]
 verify_jwt = false
 
+[functions.interakt-portal-webhook]
+verify_jwt = false
+
+[functions.portal-renewal-monitor]
+verify_jwt = false
+
+[functions.portal-docs-digest]
+verify_jwt = false
+
 [functions.send-order-notification]
 verify_jwt = false
 
