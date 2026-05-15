@@ -62,6 +62,8 @@ import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
 import CompanyCleanup from "./pages/CompanyCleanup";
 import PortalCustomers from "./pages/PortalCustomers";
+import PortalRfqQueue from "./pages/admin/PortalRfqQueue";
+import PortalOrdersAdmin from "./pages/admin/PortalOrdersAdmin";
 
 import { PortalAuthProvider } from "@/portal/hooks/usePortalAuth";
 import { PortalProtectedRoute } from "@/portal/components/PortalProtectedRoute";
@@ -131,6 +133,8 @@ function AppInner() {
         <Route path="/admin/ai-automation" element={<ProtectedRoute><AIAutomation /></ProtectedRoute>} />
         <Route path="/admin/company-cleanup" element={<ProtectedRoute><CompanyCleanup /></ProtectedRoute>} />
         <Route path="/admin/portal-customers" element={<ProtectedRoute><PortalCustomers /></ProtectedRoute>} />
+        <Route path="/admin/portal-rfqs" element={<ProtectedRoute><PortalRfqQueue /></ProtectedRoute>} />
+        <Route path="/admin/portal-orders" element={<ProtectedRoute><PortalOrdersAdmin /></ProtectedRoute>} />
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
