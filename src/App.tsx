@@ -70,6 +70,10 @@ import PortalSetPassword from "@/portal/pages/PortalSetPassword";
 import PortalDashboard from "@/portal/pages/PortalDashboard";
 import PortalOrders from "@/portal/pages/PortalOrders";
 import PortalOrderDetail from "@/portal/pages/PortalOrderDetail";
+import PortalDocuments from "@/portal/pages/PortalDocuments";
+import PortalRfqs from "@/portal/pages/PortalRfqs";
+import PortalTickets from "@/portal/pages/PortalTickets";
+import PortalTicketDetail from "@/portal/pages/PortalTicketDetail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -162,6 +166,38 @@ function AppInner() {
                   element={
                     <PortalProtectedRoute>
                       <PortalOrderDetail />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="documents"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalDocuments />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="rfqs"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalRfqs />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="tickets"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalTickets />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="tickets/:ticketId"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalTicketDetail />
                     </PortalProtectedRoute>
                   }
                 />
