@@ -270,10 +270,15 @@ Deno.serve(async (req) => {
             results.push({ channel: "email", to: c.email, ok: r.ok, error: r.error });
           }
           if (c.whatsapp_number && p.whatsapp) {
-            const r = await sendWhatsApp(c.whatsapp_number, "portal_order_update", [
+            const templateName = templateForState(o.current_state);
+            const thirdValue =
+              o.current_state === "dispatched" || o.current_state === "in_production" || o.current_state === "confirmed"
+                ? (o.customer_facing_eta ?? o.current_state.replace(/_/g, " "))
+                : o.current_state.replace(/_/g, " ");
+            const r = await sendWhatsApp(c.whatsapp_number, templateName, [
               c.full_name ?? "Customer",
               o.order_number,
-              o.current_state.replace(/_/g, " "),
+              thirdValue,
             ]);
             results.push({ channel: "whatsapp", to: c.whatsapp_number, ok: r.ok, error: r.error });
           }
