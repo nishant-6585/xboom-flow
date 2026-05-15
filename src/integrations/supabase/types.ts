@@ -13755,6 +13755,10 @@ export type Database = {
         Args: { p_credit_amount?: number; p_month: number; p_year: number }
         Returns: Json
       }
+      current_portal_contact_can_manage: {
+        Args: { _account_id: string }
+        Returns: boolean
+      }
       enqueue_order_notification: {
         Args: {
           _channel?: string

@@ -43,27 +43,35 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
 
-  const hydrate = useCallback(async (uid: string | null) => {
+  const hydrate = useCallback(async (uid: string | null): Promise<{ contact: PortalContact | null; error: Error | null }> => {
     if (!uid) {
       setContact(null);
       setAccount(null);
       setHydratedUserId(null);
-      return;
+      return { contact: null, error: null };
     }
     setHydratedUserId(null);
-    const { data: c } = await supabase
+    const { data: c, error: contactError } = await supabase
       .from("portal_contacts")
       .select("id, account_id, full_name, email, phone, whatsapp_number, role, is_active")
       .eq("auth_user_id", uid)
       .eq("is_active", true)
       .maybeSingle();
+    if (contactError) {
+      console.error("[PortalAuth] Failed to verify portal contact:", contactError);
+      setContact(null);
+      setAccount(null);
+      setHydratedUserId(uid);
+      return { contact: null, error: new Error("Unable to verify portal access. Please try again.") };
+    }
     if (!c) {
       setContact(null);
       setAccount(null);
       setHydratedUserId(uid);
-      return;
+      return { contact: null, error: null };
     }
-    setContact(c as PortalContact);
+    const portalContact = c as PortalContact;
+    setContact(portalContact);
     const { data: a } = await supabase
       .from("portal_accounts")
       .select("id, company_name, status, primary_contact_name")
@@ -77,6 +85,8 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
       .from("portal_contacts")
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", c.id);
+
+    return { contact: portalContact, error: null };
   }, []);
 
   useEffect(() => {
@@ -100,12 +110,25 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   }, [hydrate]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
-    return { error: error ? new Error(error.message) : null };
-  }, []);
+    if (error) return { error: new Error(error.message) };
+
+    const { contact: portalContact, error: portalError } = await hydrate(data.user?.id ?? null);
+    if (portalError) return { error: portalError };
+    if (!portalContact) {
+      await supabase.auth.signOut();
+      return {
+        error: new Error(
+          "This account isn't set up for the customer portal. Ask your account manager to send you an invite.",
+        ),
+      };
+    }
+
+    return { error: null };
+  }, [hydrate]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
