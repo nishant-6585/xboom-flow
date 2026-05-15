@@ -68,6 +68,8 @@ import { PortalProtectedRoute } from "@/portal/components/PortalProtectedRoute";
 import PortalLogin from "@/portal/pages/PortalLogin";
 import PortalSetPassword from "@/portal/pages/PortalSetPassword";
 import PortalDashboard from "@/portal/pages/PortalDashboard";
+import PortalOrders from "@/portal/pages/PortalOrders";
+import PortalOrderDetail from "@/portal/pages/PortalOrderDetail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -144,6 +146,22 @@ function AppInner() {
                   element={
                     <PortalProtectedRoute>
                       <PortalDashboard />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="orders"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalOrders />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="orders/:orderId"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalOrderDetail />
                     </PortalProtectedRoute>
                   }
                 />
