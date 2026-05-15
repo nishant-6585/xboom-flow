@@ -44,7 +44,17 @@ export default function PortalSetPassword() {
       body: { token_hash: tokenHash, type: tokenType, new_password: pw },
     });
     setSubmitting(false);
-    const apiErr = (data as { error?: string } | null)?.error;
+    let apiErr = (data as { error?: string } | null)?.error;
+    if (!apiErr && error) {
+      // Try to read the JSON body from a non-2xx response (FunctionsHttpError).
+      try {
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          const body = await ctx.json();
+          apiErr = body?.error;
+        }
+      } catch { /* ignore */ }
+    }
     if (error || apiErr) return setErr(apiErr || error?.message || "Failed to set password.");
     const session = (data as { session?: { access_token: string; refresh_token: string } | null })?.session;
     if (session) {
