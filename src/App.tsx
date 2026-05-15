@@ -64,6 +64,7 @@ import CompanyCleanup from "./pages/CompanyCleanup";
 import PortalCustomers from "./pages/PortalCustomers";
 import PortalRfqQueue from "./pages/admin/PortalRfqQueue";
 import PortalOrdersAdmin from "./pages/admin/PortalOrdersAdmin";
+import PortalDispatchQueue from "./pages/admin/PortalDispatchQueue";
 
 import { PortalAuthProvider } from "@/portal/hooks/usePortalAuth";
 import { PortalProtectedRoute } from "@/portal/components/PortalProtectedRoute";
@@ -135,6 +136,7 @@ function AppInner() {
         <Route path="/admin/portal-customers" element={<ProtectedRoute><PortalCustomers /></ProtectedRoute>} />
         <Route path="/admin/portal-rfqs" element={<ProtectedRoute><PortalRfqQueue /></ProtectedRoute>} />
         <Route path="/admin/portal-orders" element={<ProtectedRoute><PortalOrdersAdmin /></ProtectedRoute>} />
+        <Route path="/admin/portal-dispatch" element={<ProtectedRoute><PortalDispatchQueue /></ProtectedRoute>} />
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
