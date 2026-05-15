@@ -78,6 +78,7 @@ import PortalDocuments from "@/portal/pages/PortalDocuments";
 import PortalRfqs from "@/portal/pages/PortalRfqs";
 import PortalTickets from "@/portal/pages/PortalTickets";
 import PortalTicketDetail from "@/portal/pages/PortalTicketDetail";
+import PortalSettings from "@/portal/pages/PortalSettings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -206,6 +207,14 @@ function AppInner() {
                   element={
                     <PortalProtectedRoute>
                       <PortalTicketDetail />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="settings"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalSettings />
                     </PortalProtectedRoute>
                   }
                 />
