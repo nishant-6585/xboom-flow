@@ -1,5 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -146,7 +147,7 @@ export function EmailLeadDetailDrawer({
               {bodyHtml ? (
                 <div
                   className="text-sm bg-muted/30 rounded-lg p-4 border max-h-[300px] overflow-y-auto prose prose-sm dark:prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(bodyHtml) }}
                 />
               ) : bodyText ? (
                 <div className="text-sm bg-muted/30 rounded-lg p-4 border max-h-[300px] overflow-y-auto whitespace-pre-wrap break-words">

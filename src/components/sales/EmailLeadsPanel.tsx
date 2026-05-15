@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import DOMPurify from 'dompurify';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -822,7 +823,7 @@ export function EmailLeadsPanel() {
             {(detailLead as any).body_html ? (
               <div>
                 <h4 className="text-sm font-semibold mb-1">Email Body</h4>
-                <div className="text-sm border rounded p-3 max-h-[200px] overflow-auto bg-muted/30" dangerouslySetInnerHTML={{ __html: (detailLead as any).body_html }} />
+              <div className="text-sm border rounded p-3 max-h-[200px] overflow-auto bg-muted/30" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((detailLead as any).body_html) }} />
               </div>
             ) : (detailLead as any).body_text ? (
               <div>
