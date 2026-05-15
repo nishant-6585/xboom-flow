@@ -41,13 +41,16 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   const [contact, setContact] = useState<PortalContact | null>(null);
   const [account, setAccount] = useState<PortalAccount | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
 
   const hydrate = useCallback(async (uid: string | null) => {
     if (!uid) {
       setContact(null);
       setAccount(null);
+      setHydratedUserId(null);
       return;
     }
+    setHydratedUserId(null);
     const { data: c } = await supabase
       .from("portal_contacts")
       .select("id, account_id, full_name, email, phone, whatsapp_number, role, is_active")
@@ -57,6 +60,7 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     if (!c) {
       setContact(null);
       setAccount(null);
+      setHydratedUserId(uid);
       return;
     }
     setContact(c as PortalContact);
@@ -66,6 +70,7 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
       .eq("id", c.account_id)
       .maybeSingle();
     setAccount((a as PortalAccount) ?? null);
+    setHydratedUserId(uid);
 
     // Touch last_login_at (best-effort)
     void supabase
@@ -76,6 +81,7 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      setLoading(true);
       setSession(sess);
       setUser(sess?.user ?? null);
       // Defer hydrate so we don't deadlock the auth callback
@@ -118,7 +124,7 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
         session,
         contact,
         account,
-        loading,
+        loading: loading || (!!user && hydratedUserId !== user.id),
         isPortalCustomer: !!user && !!contact && contact.is_active,
         signIn,
         signOut,
