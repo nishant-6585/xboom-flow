@@ -35,11 +35,12 @@ interface Transition {
 interface NotifLog {
   id: string;
   channel: string;
-  recipient: string;
-  template_key: string | null;
-  event_type: string | null;
+  recipient_contact_id: string | null;
+  recipient_user_id: string | null;
+  template_id: string;
+  related_entity_type: string | null;
   status: string;
-  error: string | null;
+  error_message: string | null;
   created_at: string;
 }
 
@@ -60,7 +61,7 @@ export default function PortalDashboard() {
         accountsRes,
         contactsRes,
         ordersOpenRes,
-        ordersOverdueRes,
+        ordersDispatchedRes,
         rfqsNewRes,
         rfqsQuoteRes,
         ticketsOpenRes,
@@ -70,12 +71,8 @@ export default function PortalDashboard() {
       ] = await Promise.all([
         supabase.from("portal_accounts").select("id", { count: "exact", head: true }),
         supabase.from("portal_contacts").select("id", { count: "exact", head: true }).eq("is_active", true),
-        supabase.from("portal_orders").select("id", { count: "exact", head: true }).not("state", "in", "(delivered,cancelled,closed)"),
-        supabase
-          .from("portal_orders")
-          .select("id", { count: "exact", head: true })
-          .lt("expected_delivery_date", new Date().toISOString())
-          .not("state", "in", "(delivered,cancelled,closed)"),
+        supabase.from("portal_orders").select("id", { count: "exact", head: true }).not("current_state", "in", "(delivered,cancelled,closed)"),
+        supabase.from("portal_orders").select("id", { count: "exact", head: true }).eq("current_state", "dispatched"),
         supabase.from("portal_rfqs").select("id", { count: "exact", head: true }).eq("status", "new"),
         supabase.from("portal_rfqs").select("id", { count: "exact", head: true }).eq("status", "in_quote"),
         supabase.from("portal_tickets").select("id", { count: "exact", head: true }).in("status", ["open", "in_progress", "awaiting_customer"]),
@@ -87,7 +84,7 @@ export default function PortalDashboard() {
           .limit(50),
         supabase
           .from("portal_notifications_log")
-          .select("id, channel, recipient, template_key, event_type, status, error, created_at")
+          .select("id, channel, recipient_contact_id, recipient_user_id, template_id, related_entity_type, status, error_message, created_at")
           .order("created_at", { ascending: false })
           .limit(50),
       ]);
@@ -96,7 +93,7 @@ export default function PortalDashboard() {
         accounts: accountsRes.count ?? 0,
         contacts: contactsRes.count ?? 0,
         ordersOpen: ordersOpenRes.count ?? 0,
-        ordersOverdue: ordersOverdueRes.count ?? 0,
+        ordersOverdue: ordersDispatchedRes.count ?? 0,
         rfqsNew: rfqsNewRes.count ?? 0,
         rfqsInQuote: rfqsQuoteRes.count ?? 0,
         ticketsOpen: ticketsOpenRes.count ?? 0,
@@ -134,7 +131,7 @@ export default function PortalDashboard() {
               <KpiCard label="Accounts" value={kpi.accounts} icon={<Briefcase className="w-4 h-4" />} />
               <KpiCard label="Active Contacts" value={kpi.contacts} icon={<Briefcase className="w-4 h-4" />} />
               <KpiCard label="Open Orders" value={kpi.ordersOpen} icon={<Package className="w-4 h-4" />} />
-              <KpiCard label="Overdue Orders" value={kpi.ordersOverdue} icon={<Truck className="w-4 h-4" />} accent={kpi.ordersOverdue > 0 ? "destructive" : undefined} />
+              <KpiCard label="In Transit" value={kpi.ordersOverdue} icon={<Truck className="w-4 h-4" />} />
               <KpiCard label="New RFQs" value={kpi.rfqsNew} icon={<FileQuestion className="w-4 h-4" />} accent={kpi.rfqsNew > 0 ? "warning" : undefined} />
               <KpiCard label="RFQs In Quote" value={kpi.rfqsInQuote} icon={<FileQuestion className="w-4 h-4" />} />
               <KpiCard label="Open Tickets" value={kpi.ticketsOpen} icon={<MessageSquare className="w-4 h-4" />} />
@@ -193,8 +190,12 @@ export default function PortalDashboard() {
                                 {n.event_type && <span className="text-xs text-muted-foreground">{n.event_type}</span>}
                                 <Badge variant={n.status === "sent" ? "default" : n.status === "failed" ? "destructive" : "secondary"}>{n.status}</Badge>
                               </div>
-                              <p className="text-sm mt-1 truncate">{n.recipient} {n.template_key ? `· ${n.template_key}` : ""}</p>
-                              {n.error && <p className="text-xs text-destructive mt-1">{n.error}</p>}
+                              <p className="text-sm mt-1 truncate">
+                                {n.recipient_contact_id ? `contact:${n.recipient_contact_id.slice(0,8)}` : n.recipient_user_id ? `user:${n.recipient_user_id.slice(0,8)}` : "—"}
+                                {` · ${n.template_id}`}
+                                {n.related_entity_type ? ` · ${n.related_entity_type}` : ""}
+                              </p>
+                              {n.error_message && <p className="text-xs text-destructive mt-1">{n.error_message}</p>}
                             </div>
                             <span className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(n.created_at), "dd MMM HH:mm")}</span>
                           </div>
