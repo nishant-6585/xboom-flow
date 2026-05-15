@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -589,14 +589,17 @@ function UpdateStateDialog({
   const [submitting, setSubmitting] = useState(false);
 
   // Reset on order change
-  if (order && newState === "") {
+  useEffect(() => {
+    if (!order) return;
     setNewState(order.current_state);
+    setCustomerNote("");
+    setInternalNote("");
     setEta(order.customer_facing_eta ?? "");
     setCourier(order.courier_name ?? "");
     setAwb(order.awb_number ?? "");
     setTrackingUrl(order.tracking_url ?? "");
     setPortalVisible(order.portal_visible);
-  }
+  }, [order?.id]);
 
   function close() {
     onClose();
