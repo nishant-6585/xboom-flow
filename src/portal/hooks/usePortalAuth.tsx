@@ -90,20 +90,44 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let currentHydratedId: string | null = null;
+
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setLoading(true);
+      const nextUserId = sess?.user?.id ?? null;
       setSession(sess);
       setUser(sess?.user ?? null);
+
+      // Skip re-hydration on token refresh / tab focus when the user hasn't changed.
+      // This prevents the dashboard from flashing a loading spinner every time the
+      // browser tab regains focus and Supabase fires TOKEN_REFRESHED.
+      if (nextUserId && nextUserId === currentHydratedId) return;
+
+      if (!nextUserId) {
+        currentHydratedId = null;
+        setContact(null);
+        setAccount(null);
+        setHydratedUserId(null);
+        return;
+      }
+
+      setLoading(true);
       // Defer hydrate so we don't deadlock the auth callback
       setTimeout(() => {
-        hydrate(sess?.user?.id ?? null).finally(() => setLoading(false));
+        hydrate(nextUserId).finally(() => {
+          currentHydratedId = nextUserId;
+          setLoading(false);
+        });
       }, 0);
     });
 
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
-      hydrate(s?.user?.id ?? null).finally(() => setLoading(false));
+      const uid = s?.user?.id ?? null;
+      hydrate(uid).finally(() => {
+        currentHydratedId = uid;
+        setLoading(false);
+      });
     });
 
     return () => sub.subscription.unsubscribe();
