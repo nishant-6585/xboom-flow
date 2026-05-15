@@ -40,6 +40,7 @@ interface Body {
 }
 
 interface Recipient {
+  id?: string;
   full_name: string | null;
   email: string | null;
   whatsapp_number: string | null;
@@ -126,10 +127,45 @@ async function getAccountContacts(
 ): Promise<Recipient[]> {
   const { data } = await admin
     .from("portal_contacts")
-    .select("full_name, email, whatsapp_number, phone")
+    .select("id, full_name, email, whatsapp_number, phone")
     .eq("account_id", account_id)
     .eq("is_active", true);
   return ((data ?? []) as unknown) as Recipient[];
+}
+
+type PrefKey =
+  | "order_status"
+  | "supply_chain_notes"
+  | "new_docs"
+  | "ticket_replies"
+  | "renewals";
+
+/**
+ * Returns a map { contact_id -> { email: bool, whatsapp: bool } } for the given pref category.
+ * If a contact has no row, defaults to true/true (sensible defaults match the table defaults).
+ */
+async function getPrefMap(
+  admin: ReturnType<typeof createClient>,
+  contactIds: string[],
+  category: PrefKey,
+): Promise<Record<string, { email: boolean; whatsapp: boolean }>> {
+  const out: Record<string, { email: boolean; whatsapp: boolean }> = {};
+  for (const id of contactIds) out[id] = { email: true, whatsapp: category !== "new_docs" };
+  if (contactIds.length === 0) return out;
+  const emailCol = `email_${category}`;
+  const waCol = `whatsapp_${category}`;
+  const { data } = await admin
+    .from("portal_notification_preferences")
+    .select(`contact_id, ${emailCol}, ${waCol}`)
+    .in("contact_id", contactIds);
+  for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+    const cid = row.contact_id as string;
+    out[cid] = {
+      email: row[emailCol] !== false,
+      whatsapp: row[waCol] !== false,
+    };
+  }
+  return out;
 }
 
 async function getStaffEmails(
@@ -198,17 +234,19 @@ Deno.serve(async (req) => {
         const note = String(body.payload.customer_facing_note ?? "");
         const url = `${PORTAL_BASE_URL}/orders/${orderId}`;
         const contacts = await getAccountContacts(admin, o.account_id);
+        const prefs = await getPrefMap(admin, contacts.map((c) => c.id!).filter(Boolean), "order_status");
         const subject = `Order ${o.order_number} update: ${o.current_state.replace(/_/g, " ")}`;
         const html = htmlWrap(
           subject,
           `<p>Hi,</p><p>Your order <strong>${o.order_number}</strong> is now <strong>${o.current_state.replace(/_/g, " ")}</strong>.</p>${note ? `<p style="background:#f3f4f6;padding:12px;border-radius:8px">${note}</p>` : ""}${o.customer_facing_eta ? `<p>Expected by <strong>${o.customer_facing_eta}</strong>.</p>` : ""}<p><a href="${url}" style="background:#0c2340;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">View order</a></p>`,
         );
         for (const c of contacts) {
-          if (c.email) {
+          const p = c.id ? prefs[c.id] : { email: true, whatsapp: true };
+          if (c.email && p.email) {
             const r = await sendEmail(c.email, subject, html);
             results.push({ channel: "email", to: c.email, ok: r.ok, error: r.error });
           }
-          if (c.whatsapp_number) {
+          if (c.whatsapp_number && p.whatsapp) {
             const r = await sendWhatsApp(c.whatsapp_number, "portal_order_update", [
               c.full_name ?? "Customer",
               o.order_number,
@@ -253,6 +291,7 @@ Deno.serve(async (req) => {
         if (!rfq) return json({ error: "RFQ not found" }, 404);
         const r = rfq as { rfq_number: string; account_id: string };
         const contacts = await getAccountContacts(admin, r.account_id);
+        const prefs = await getPrefMap(admin, contacts.map((c) => c.id!).filter(Boolean), "order_status");
         const subject = `Your RFQ ${r.rfq_number} is being worked on`;
         const html = htmlWrap(
           subject,
@@ -260,6 +299,7 @@ Deno.serve(async (req) => {
         );
         for (const c of contacts) {
           if (!c.email) continue;
+          if (c.id && !prefs[c.id]?.email) continue;
           const res = await sendEmail(c.email, subject, html);
           results.push({ channel: "email", to: c.email, ok: res.ok, error: res.error });
         }
@@ -335,6 +375,7 @@ Deno.serve(async (req) => {
         } else {
           // notify customer contacts
           const contacts = await getAccountContacts(admin, tk.account_id);
+          const prefs = await getPrefMap(admin, contacts.map((c) => c.id!).filter(Boolean), "ticket_replies");
           const subject = `Reply on ticket ${tk.ticket_number}`;
           const html = htmlWrap(
             subject,
@@ -342,6 +383,7 @@ Deno.serve(async (req) => {
           );
           for (const c of contacts) {
             if (!c.email) continue;
+            if (c.id && !prefs[c.id]?.email) continue;
             const res = await sendEmail(c.email, subject, html);
             results.push({ channel: "email", to: c.email, ok: res.ok, error: res.error });
           }
