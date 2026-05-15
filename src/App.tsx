@@ -64,6 +64,7 @@ import CompanyCleanup from "./pages/CompanyCleanup";
 import PortalCustomers from "./pages/PortalCustomers";
 import PortalRfqQueue from "./pages/admin/PortalRfqQueue";
 import PortalOrdersAdmin from "./pages/admin/PortalOrdersAdmin";
+import PortalOrderCreate from "./pages/admin/PortalOrderCreate";
 import PortalDispatchQueue from "./pages/admin/PortalDispatchQueue";
 import AdminPortalDashboard from "./pages/admin/PortalDashboard";
 
@@ -138,6 +139,7 @@ function AppInner() {
         <Route path="/admin/portal-customers" element={<ProtectedRoute><PortalCustomers /></ProtectedRoute>} />
         <Route path="/admin/portal-rfqs" element={<ProtectedRoute><PortalRfqQueue /></ProtectedRoute>} />
         <Route path="/admin/portal-orders" element={<ProtectedRoute><PortalOrdersAdmin /></ProtectedRoute>} />
+        <Route path="/admin/portal-orders/new" element={<ProtectedRoute><PortalOrderCreate /></ProtectedRoute>} />
         <Route path="/admin/portal-dispatch" element={<ProtectedRoute><PortalDispatchQueue /></ProtectedRoute>} />
         <Route path="/admin/portal-dashboard" element={<ProtectedRoute><AdminPortalDashboard /></ProtectedRoute>} />
         
