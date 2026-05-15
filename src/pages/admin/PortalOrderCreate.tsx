@@ -82,9 +82,14 @@ export default function PortalOrderCreate() {
     setSubmitting(true);
     try {
       const { data: u } = await supabase.auth.getUser();
+      const today = new Date();
+      const datePart = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+      const rand = Math.floor(1000 + Math.random() * 9000);
+      const orderNumberCandidate = `POR-${datePart}-${rand}`;
       const { data: order, error } = await supabase
         .from("portal_orders")
         .insert([{
+          order_number: orderNumberCandidate,
           account_id: accountId,
           assigned_rep_id: u?.user?.id ?? null,
           current_state: "draft",
