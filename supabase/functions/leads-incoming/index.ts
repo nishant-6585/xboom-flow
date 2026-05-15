@@ -68,13 +68,18 @@ Deno.serve(async (req) => {
 
   const rawBody = await req.text();
 
-  // Optional HMAC verification
+  // Mandatory HMAC verification — reject if secret is unset or signature missing/invalid
   const sigHeader = req.headers.get("x-xbm-signature");
   const secret = Deno.env.get("XBM_WEBHOOK_SECRET");
-  if (sigHeader && secret) {
-    const ok = await verifyHmac(rawBody, sigHeader, secret);
-    if (!ok) return json({ ok: false, error: "invalid signature" }, 401);
+  if (!secret) {
+    console.error("[leads-incoming] XBM_WEBHOOK_SECRET not configured");
+    return json({ ok: false, error: "server misconfigured" }, 500);
   }
+  if (!sigHeader) {
+    return json({ ok: false, error: "missing signature" }, 401);
+  }
+  const sigOk = await verifyHmac(rawBody, sigHeader, secret);
+  if (!sigOk) return json({ ok: false, error: "invalid signature" }, 401);
 
   // Parse JSON
   let body: any;

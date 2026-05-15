@@ -13,13 +13,37 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
-    // Accept either service role or authenticated user
+    // Accept either the service-role key (internal callers like exotel-webhook)
+    // or a valid user JWT belonging to admin/sales/sales_manager.
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (token !== SUPABASE_SERVICE_ROLE_KEY) {
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.user.id);
+      const allowed = new Set(["admin", "sales", "sales_manager"]);
+      const ok = (roles ?? []).some((r: { role: string }) => allowed.has(r.role));
+      if (!ok) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const body = await req.json();
