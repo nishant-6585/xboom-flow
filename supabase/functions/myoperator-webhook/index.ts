@@ -23,6 +23,31 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Shared-secret auth: require x-myoperator-secret header to match
+  // MYOPERATOR_WEBHOOK_SECRET env var. Configure the same value in
+  // MyOperator's webhook headers / query setup.
+  if (req.method === 'POST') {
+    const expected = Deno.env.get('MYOPERATOR_WEBHOOK_SECRET');
+    if (!expected) {
+      console.error('MYOPERATOR_WEBHOOK_SECRET not configured — rejecting request');
+      return new Response(JSON.stringify({ error: 'server misconfigured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const provided =
+      req.headers.get('x-myoperator-secret') ||
+      new URL(req.url).searchParams.get('secret') ||
+      '';
+    if (provided !== expected) {
+      console.warn('MyOperator webhook auth failed');
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

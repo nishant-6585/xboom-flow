@@ -13,6 +13,31 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Shared-secret auth: require x-exotel-secret header (or ?secret= query
+  // param) to match EXOTEL_WEBHOOK_SECRET env var. Configure the same value
+  // in the Exotel webhook URL.
+  if (req.method === "POST") {
+    const expected = Deno.env.get("EXOTEL_WEBHOOK_SECRET");
+    if (!expected) {
+      console.error("EXOTEL_WEBHOOK_SECRET not configured — rejecting request");
+      return new Response(JSON.stringify({ error: "server misconfigured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const provided =
+      req.headers.get("x-exotel-secret") ||
+      new URL(req.url).searchParams.get("secret") ||
+      "";
+    if (provided !== expected) {
+      console.warn("Exotel webhook auth failed");
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
