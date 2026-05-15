@@ -187,7 +187,7 @@ export default function PortalDashboard() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge variant="outline">{n.channel}</Badge>
-                                {n.event_type && <span className="text-xs text-muted-foreground">{n.event_type}</span>}
+                                {n.related_entity_type && <span className="text-xs text-muted-foreground">{n.related_entity_type}</span>}
                                 <Badge variant={n.status === "sent" ? "default" : n.status === "failed" ? "destructive" : "secondary"}>{n.status}</Badge>
                               </div>
                               <p className="text-sm mt-1 truncate">
