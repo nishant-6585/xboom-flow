@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
+import { notifyPortal } from "@/portal/lib/portalNotify";
 import {
   CUSTOMER_TIMELINE,
   STATE_LABELS,
@@ -638,6 +639,12 @@ function UpdateStateDialog({
             internal_note: internalNote || null,
           } as never);
         if (e2) throw e2;
+        if (order.portal_visible) {
+          notifyPortal("order_state_changed", {
+            order_id: order.id,
+            customer_facing_note: customerNote || undefined,
+          });
+        }
       }
 
       toast.success("Order updated");
