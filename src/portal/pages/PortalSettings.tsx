@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, UserCircle2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface Prefs {
   email_order_status: boolean;
@@ -54,6 +57,76 @@ export default function PortalSettings() {
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
+
+  // Team
+  const isCustomerAdmin = contact?.role === "admin";
+  type Teammate = { id: string; full_name: string; email: string; role: string; is_active: boolean; last_login_at: string | null; invited_at: string | null };
+  const [team, setTeam] = useState<Teammate[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [iName, setIName] = useState("");
+  const [iEmail, setIEmail] = useState("");
+  const [iPhone, setIPhone] = useState("");
+  const [iRole, setIRole] = useState<"buyer" | "admin" | "technician" | "finance">("buyer");
+  const [inviting, setInviting] = useState(false);
+
+  const loadTeam = async () => {
+    if (!contact) return;
+    setTeamLoading(true);
+    const { data, error } = await supabase
+      .from("portal_contacts")
+      .select("id, full_name, email, role, is_active, last_login_at, invited_at")
+      .eq("account_id", contact.account_id)
+      .order("created_at", { ascending: true });
+    if (!error) setTeam((data ?? []) as Teammate[]);
+    setTeamLoading(false);
+  };
+
+  useEffect(() => {
+    if (isCustomerAdmin) void loadTeam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contact?.id, isCustomerAdmin]);
+
+  const sendInvite = async () => {
+    if (!iName || !iEmail) {
+      toast({ title: "Name and email required", variant: "destructive" });
+      return;
+    }
+    setInviting(true);
+    const { data, error } = await supabase.functions.invoke("portal-invite-teammate", {
+      body: { full_name: iName, email: iEmail, phone: iPhone || undefined, contact_role: iRole },
+    });
+    setInviting(false);
+    if (error || (data as { error?: string })?.error) {
+      toast({
+        title: "Invite failed",
+        description: (data as { error?: string })?.error || error?.message || "Try again",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Invite sent", description: `${iEmail} will receive a setup link.` });
+    setInviteOpen(false);
+    setIName(""); setIEmail(""); setIPhone(""); setIRole("buyer");
+    void loadTeam();
+  };
+
+  const toggleActive = async (t: Teammate) => {
+    if (t.id === contact?.id) {
+      toast({ title: "You can't deactivate yourself", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase
+      .from("portal_contacts")
+      .update({ is_active: !t.is_active })
+      .eq("id", t.id);
+    if (error) {
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: t.is_active ? "Teammate deactivated" : "Teammate reactivated" });
+    void loadTeam();
+  };
 
   useEffect(() => {
     if (!contact) return;
@@ -185,6 +258,84 @@ export default function PortalSettings() {
               </div>
             </CardContent>
           </Card>
+
+          {isCustomerAdmin && (
+            <Card>
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Team</CardTitle>
+                  <CardDescription>Invite teammates to access this portal account.</CardDescription>
+                </div>
+                <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm"><Plus className="h-4 w-4 mr-2" />Invite teammate</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Invite a teammate</DialogTitle>
+                      <DialogDescription>They'll get an email with a link to set their password.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div><Label>Full name *</Label><Input value={iName} onChange={(e) => setIName(e.target.value)} /></div>
+                      <div><Label>Email *</Label><Input type="email" value={iEmail} onChange={(e) => setIEmail(e.target.value)} /></div>
+                      <div><Label>Phone</Label><Input value={iPhone} onChange={(e) => setIPhone(e.target.value)} placeholder="+91…" /></div>
+                      <div>
+                        <Label>Role</Label>
+                        <Select value={iRole} onValueChange={(v) => setIRole(v as typeof iRole)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="buyer">Buyer</SelectItem>
+                            <SelectItem value="technician">Technician</SelectItem>
+                            <SelectItem value="finance">Finance</SelectItem>
+                            <SelectItem value="admin">Customer Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={inviting}>Cancel</Button>
+                      <Button onClick={sendInvite} disabled={inviting}>
+                        {inviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Send invite
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                {teamLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="h-4 w-4 animate-spin" />Loading…</div>
+                ) : team.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No teammates yet.</p>
+                ) : (
+                  <div className="divide-y">
+                    {team.map((t) => (
+                      <div key={t.id} className="flex items-center justify-between py-3 gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <UserCircle2 className="h-8 w-8 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {t.full_name} {t.id === contact?.id && <span className="text-xs text-muted-foreground">(you)</span>}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">{t.email}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <Badge variant="secondary" className="capitalize">{t.role}</Badge>
+                          {!t.is_active && <Badge variant="outline">Inactive</Badge>}
+                          {!t.last_login_at && t.is_active && <Badge variant="outline">Pending</Badge>}
+                          {t.id !== contact?.id && (
+                            <Button size="sm" variant="ghost" onClick={() => toggleActive(t)}>
+                              {t.is_active ? "Deactivate" : "Reactivate"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </PortalLayout>
