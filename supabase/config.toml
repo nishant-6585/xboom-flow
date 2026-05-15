@@ -1,5 +1,8 @@
 project_id = "mxsotxddcvmeluqonuuj"
 
+[functions.portal-resend-invite-test]
+verify_jwt = false
+
 [functions.google-ads-sync]
 verify_jwt = false
 
