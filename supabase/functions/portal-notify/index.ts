@@ -415,6 +415,17 @@ Deno.serve(async (req) => {
             const res = await sendEmail(c.email, subject, html);
             results.push({ channel: "email", to: c.email, ok: res.ok, error: res.error });
           }
+          // WhatsApp ticket-reply notification
+          for (const c of contacts) {
+            if (!c.whatsapp_number) continue;
+            if (c.id && !prefs[c.id]?.whatsapp) continue;
+            const res = await sendWhatsApp(c.whatsapp_number, "portal_ticket_response", [
+              c.full_name ?? "Customer",
+              tk.ticket_number,
+              (msg.body ?? "").slice(0, 120),
+            ]);
+            results.push({ channel: "whatsapp", to: c.whatsapp_number, ok: res.ok, error: res.error });
+          }
         }
         break;
       }
