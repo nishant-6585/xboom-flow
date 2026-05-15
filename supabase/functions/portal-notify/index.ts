@@ -27,6 +27,29 @@ const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE_URL =
   Deno.env.get("PORTAL_BASE_URL") ?? "https://xboomflow.com/portal";
 
+/**
+ * Per-state WhatsApp template mapping.
+ * Each template receives 3 body values: [contact_name, order_number, human_state_or_extra].
+ * Falls back to the generic `portal_order_update` template when a state is
+ * not explicitly mapped (covers internal/no-op states like draft/closed).
+ */
+const ORDER_STATE_TEMPLATES: Record<string, string> = {
+  quote_sent: "portal_quote_sent",
+  quote_revised: "portal_quote_revised",
+  approved: "portal_order_update",
+  po_received: "portal_order_update",
+  confirmed: "portal_order_confirmed",
+  in_production: "portal_order_in_production",
+  qc_ready: "portal_order_update",
+  dispatched: "portal_order_dispatched",
+  delivered: "portal_order_delivered",
+  cancelled: "portal_order_update",
+};
+
+function templateForState(state: string): string {
+  return ORDER_STATE_TEMPLATES[state] ?? "portal_order_update";
+}
+
 type EventType =
   | "order_state_changed"
   | "rfq_submitted"
@@ -247,10 +270,15 @@ Deno.serve(async (req) => {
             results.push({ channel: "email", to: c.email, ok: r.ok, error: r.error });
           }
           if (c.whatsapp_number && p.whatsapp) {
-            const r = await sendWhatsApp(c.whatsapp_number, "portal_order_update", [
+            const templateName = templateForState(o.current_state);
+            const thirdValue =
+              o.current_state === "dispatched" || o.current_state === "in_production" || o.current_state === "confirmed"
+                ? (o.customer_facing_eta ?? o.current_state.replace(/_/g, " "))
+                : o.current_state.replace(/_/g, " ");
+            const r = await sendWhatsApp(c.whatsapp_number, templateName, [
               c.full_name ?? "Customer",
               o.order_number,
-              o.current_state.replace(/_/g, " "),
+              thirdValue,
             ]);
             results.push({ channel: "whatsapp", to: c.whatsapp_number, ok: r.ok, error: r.error });
           }
@@ -386,6 +414,17 @@ Deno.serve(async (req) => {
             if (c.id && !prefs[c.id]?.email) continue;
             const res = await sendEmail(c.email, subject, html);
             results.push({ channel: "email", to: c.email, ok: res.ok, error: res.error });
+          }
+          // WhatsApp ticket-reply notification
+          for (const c of contacts) {
+            if (!c.whatsapp_number) continue;
+            if (c.id && !prefs[c.id]?.whatsapp) continue;
+            const res = await sendWhatsApp(c.whatsapp_number, "portal_ticket_response", [
+              c.full_name ?? "Customer",
+              tk.ticket_number,
+              (msg.body ?? "").slice(0, 120),
+            ]);
+            results.push({ channel: "whatsapp", to: c.whatsapp_number, ok: res.ok, error: res.error });
           }
         }
         break;
