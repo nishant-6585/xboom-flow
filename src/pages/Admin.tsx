@@ -713,6 +713,10 @@ const Admin = () => {
                   <Building2 className="w-4 h-4" />
                   Company Cleanup
                 </TabsTrigger>
+                <TabsTrigger value="portal-dashboard" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-dashboard")}>
+                  <Activity className="w-4 h-4" />
+                  Portal Dashboard
+                </TabsTrigger>
                 <TabsTrigger value="portal-customers" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-customers")}>
                   <Briefcase className="w-4 h-4" />
                   Portal Customers
@@ -724,6 +728,10 @@ const Admin = () => {
                 <TabsTrigger value="portal-orders" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-orders")}>
                   <Package className="w-4 h-4" />
                   Portal Orders
+                </TabsTrigger>
+                <TabsTrigger value="portal-dispatch" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-dispatch")}>
+                  <Briefcase className="w-4 h-4" />
+                  Dispatch Queue
                 </TabsTrigger>
               </>
             )}
