@@ -27,6 +27,29 @@ const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE_URL =
   Deno.env.get("PORTAL_BASE_URL") ?? "https://xboomflow.com/portal";
 
+/**
+ * Per-state WhatsApp template mapping.
+ * Each template receives 3 body values: [contact_name, order_number, human_state_or_extra].
+ * Falls back to the generic `portal_order_update` template when a state is
+ * not explicitly mapped (covers internal/no-op states like draft/closed).
+ */
+const ORDER_STATE_TEMPLATES: Record<string, string> = {
+  quote_sent: "portal_quote_sent",
+  quote_revised: "portal_quote_revised",
+  approved: "portal_order_update",
+  po_received: "portal_order_update",
+  confirmed: "portal_order_confirmed",
+  in_production: "portal_order_in_production",
+  qc_ready: "portal_order_update",
+  dispatched: "portal_order_dispatched",
+  delivered: "portal_order_delivered",
+  cancelled: "portal_order_update",
+};
+
+function templateForState(state: string): string {
+  return ORDER_STATE_TEMPLATES[state] ?? "portal_order_update";
+}
+
 type EventType =
   | "order_state_changed"
   | "rfq_submitted"
