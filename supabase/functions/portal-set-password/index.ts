@@ -12,8 +12,8 @@ Deno.serve(async (req) => {
   try {
     const { token_hash, type, new_password } = await req.json();
     if (!token_hash || !type || !new_password || typeof new_password !== "string" || new_password.length < 8) {
-      return new Response(JSON.stringify({ error: "Invalid input" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ error: "Password must be at least 8 characters." }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -27,8 +27,11 @@ Deno.serve(async (req) => {
       token_hash, type,
     });
     if (verifyErr || !verifyData?.user) {
-      return new Response(JSON.stringify({ error: verifyErr?.message || "Invalid or expired link" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({
+        error: "This invite link has expired or was already used. Please ask your account manager to resend the invite.",
+        detail: verifyErr?.message,
+      }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -38,8 +41,18 @@ Deno.serve(async (req) => {
       password: new_password,
     });
     if (updErr) {
-      return new Response(JSON.stringify({ error: updErr.message }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // Common cases: same_password, weak_password, leaked password (HIBP).
+      const raw = updErr.message || "";
+      let friendly = raw;
+      if (/same.*password|should be different/i.test(raw)) {
+        friendly = "Your new password must be different from your current password.";
+      } else if (/weak|pwned|leaked|compromised/i.test(raw)) {
+        friendly = "This password is too weak or has appeared in known data breaches. Please choose a stronger one.";
+      } else if (/at least|minimum|length/i.test(raw)) {
+        friendly = "Password does not meet the minimum strength requirements.";
+      }
+      return new Response(JSON.stringify({ error: friendly, detail: raw }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
