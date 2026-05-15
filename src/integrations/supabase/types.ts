@@ -9097,6 +9097,54 @@ export type Database = {
           },
         ]
       }
+      portal_inbound_messages: {
+        Row: {
+          body: string | null
+          created_ticket_id: string | null
+          from_phone: string
+          id: string
+          matched_contact_id: string | null
+          raw_payload: Json | null
+          received_at: string
+          source: string
+        }
+        Insert: {
+          body?: string | null
+          created_ticket_id?: string | null
+          from_phone: string
+          id?: string
+          matched_contact_id?: string | null
+          raw_payload?: Json | null
+          received_at?: string
+          source?: string
+        }
+        Update: {
+          body?: string | null
+          created_ticket_id?: string | null
+          from_phone?: string
+          id?: string
+          matched_contact_id?: string | null
+          raw_payload?: Json | null
+          received_at?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_inbound_messages_created_ticket_id_fkey"
+            columns: ["created_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "portal_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_inbound_messages_matched_contact_id_fkey"
+            columns: ["matched_contact_id"]
+            isOneToOne: false
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_notification_preferences: {
         Row: {
           contact_id: string
@@ -9263,6 +9311,7 @@ export type Database = {
       portal_orders: {
         Row: {
           account_id: string
+          amc_expires_at: string | null
           assigned_rep_id: string | null
           awb_number: string | null
           courier_name: string | null
@@ -9270,6 +9319,7 @@ export type Database = {
           current_state: string
           customer_facing_eta: string | null
           customer_po_number: string | null
+          daas_expires_at: string | null
           daas_tier: string | null
           delivery_commitment: string | null
           discount_amount: number | null
@@ -9286,6 +9336,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          amc_expires_at?: string | null
           assigned_rep_id?: string | null
           awb_number?: string | null
           courier_name?: string | null
@@ -9293,6 +9344,7 @@ export type Database = {
           current_state?: string
           customer_facing_eta?: string | null
           customer_po_number?: string | null
+          daas_expires_at?: string | null
           daas_tier?: string | null
           delivery_commitment?: string | null
           discount_amount?: number | null
@@ -9309,6 +9361,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          amc_expires_at?: string | null
           assigned_rep_id?: string | null
           awb_number?: string | null
           courier_name?: string | null
@@ -9316,6 +9369,7 @@ export type Database = {
           current_state?: string
           customer_facing_eta?: string | null
           customer_po_number?: string | null
+          daas_expires_at?: string | null
           daas_tier?: string | null
           delivery_commitment?: string | null
           discount_amount?: number | null
@@ -9375,6 +9429,38 @@ export type Database = {
           unit?: string | null
         }
         Relationships: []
+      }
+      portal_renewal_alerts: {
+        Row: {
+          alert_type: string
+          alerted_at: string
+          expires_on: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          alert_type: string
+          alerted_at?: string
+          expires_on: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          alert_type?: string
+          alerted_at?: string
+          expires_on?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_renewal_alerts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "portal_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       portal_rfqs: {
         Row: {
