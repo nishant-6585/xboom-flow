@@ -16,28 +16,21 @@ export default function PortalSetPassword() {
   const [pw2, setPw2] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const [tokenHash, setTokenHash] = useState<string | null>(null);
+  const [tokenType, setTokenType] = useState<string | null>(null);
+  const [linkValid, setLinkValid] = useState<boolean | null>(null);
 
   useEffect(() => {
-    (async () => {
-      // If the email link sent us here with a token_hash, exchange it for a session first.
-      const url = new URL(window.location.href);
-      const tokenHash = url.searchParams.get("token_hash");
-      const type = url.searchParams.get("type");
-      if (tokenHash && type) {
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: type as "recovery" | "invite" | "magiclink" | "email",
-        });
-        if (error) {
-          setErr(error.message);
-        }
-        // Clean the URL so a refresh doesn't try to re-verify a now-used token.
-        window.history.replaceState({}, "", "/portal/set-password");
-      }
-      const { data: { session } } = await supabase.auth.getSession();
-      setHasSession(!!session);
-    })();
+    const url = new URL(window.location.href);
+    const t = url.searchParams.get("token_hash");
+    const ty = url.searchParams.get("type");
+    if (t && ty) {
+      setTokenHash(t);
+      setTokenType(ty);
+      setLinkValid(true);
+    } else {
+      setLinkValid(false);
+    }
   }, []);
 
   const submit = async (e: FormEvent) => {
@@ -45,10 +38,22 @@ export default function PortalSetPassword() {
     setErr(null);
     if (pw.length < 8) return setErr("Password must be at least 8 characters.");
     if (pw !== pw2) return setErr("Passwords don't match.");
+    if (!tokenHash || !tokenType) return setErr("Invalid invite link.");
     setSubmitting(true);
-    const { error } = await supabase.auth.updateUser({ password: pw });
+    const { data, error } = await supabase.functions.invoke("portal-set-password", {
+      body: { token_hash: tokenHash, type: tokenType, new_password: pw },
+    });
     setSubmitting(false);
-    if (error) return setErr(error.message);
+    const apiErr = (data as { error?: string } | null)?.error;
+    if (error || apiErr) return setErr(apiErr || error?.message || "Failed to set password.");
+    const session = (data as { session?: { access_token: string; refresh_token: string } | null })?.session;
+    if (session) {
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+    }
+    window.history.replaceState({}, "", "/portal/set-password");
     navigate("/portal/dashboard", { replace: true });
   };
 
@@ -66,7 +71,7 @@ export default function PortalSetPassword() {
           <CardDescription>Welcome to the xboom portal. Choose a password to finish setup.</CardDescription>
         </CardHeader>
         <CardContent>
-          {hasSession === false && (
+          {linkValid === false && (
             <Alert className="mb-4" variant="destructive">
               <AlertDescription>
                 Your invite link has expired. Ask your account manager to resend the invite.
@@ -87,7 +92,7 @@ export default function PortalSetPassword() {
               <Label htmlFor="pw2">Confirm password</Label>
               <Input id="pw2" type="password" required value={pw2} onChange={(e) => setPw2(e.target.value)} />
             </div>
-            <Button type="submit" className="w-full" disabled={submitting || hasSession === false}>
+            <Button type="submit" className="w-full" disabled={submitting || linkValid === false}>
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save & continue
             </Button>
