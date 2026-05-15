@@ -150,6 +150,9 @@ export default function PortalOrdersAdmin() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button onClick={() => navigate("/admin/portal-orders/new")} size="sm">
+              + Create order
+            </Button>
             <Select value={scope} onValueChange={(v) => setScope(v as typeof scope)}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue />
