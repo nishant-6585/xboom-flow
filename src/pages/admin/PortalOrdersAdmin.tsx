@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -97,6 +98,7 @@ function fmtDate(iso: string | null) {
 }
 
 export default function PortalOrdersAdmin() {
+  const navigate = useNavigate();
   const { user, role } = useAuth();
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
