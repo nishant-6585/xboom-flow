@@ -84,7 +84,7 @@ export default function PortalOrderCreate() {
       const { data: u } = await supabase.auth.getUser();
       const { data: order, error } = await supabase
         .from("portal_orders")
-        .insert({
+        .insert([{
           account_id: accountId,
           assigned_rep_id: u?.user?.id ?? null,
           current_state: "draft",
@@ -101,7 +101,7 @@ export default function PortalOrderCreate() {
           gst_amount: gst,
           total,
           portal_visible: false,
-        })
+        }])
         .select("id, order_number")
         .single();
       if (error) throw error;
