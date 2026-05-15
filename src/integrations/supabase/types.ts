@@ -9449,6 +9449,35 @@ export type Database = {
           },
         ]
       }
+      portal_sla_alerts: {
+        Row: {
+          alerted_at: string
+          breach_type: string
+          id: string
+          ticket_id: string
+        }
+        Insert: {
+          alerted_at?: string
+          breach_type: string
+          id?: string
+          ticket_id: string
+        }
+        Update: {
+          alerted_at?: string
+          breach_type?: string
+          id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_sla_alerts_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "portal_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_state_transitions: {
         Row: {
           actor_id: string | null
