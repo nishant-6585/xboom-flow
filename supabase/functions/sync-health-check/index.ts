@@ -28,6 +28,8 @@ const SOURCES: SourceCheck[] = [
   { key: "shopify", label: "Shopify", table: "shopify_orders", dateColumn: "shopify_created_at", staleHours: 24 },
   { key: "email_leads", label: "Email Leads (Gmail)", table: "email_leads", dateColumn: "ingested_at", staleHours: 24 },
   { key: "elevenlabs", label: "ElevenLabs (Voice AI)", table: "call_logs", dateColumn: "created_at", staleHours: 48, filterColumn: "lead_source", filterValue: "ElevenLabs" },
+  { key: "myoperator", label: "MyOperator (Call Logs)", table: "call_logs", dateColumn: "created_at", staleHours: 6, filterColumn: "raw_payload", filterValue: "__not_null__" },
+  { key: "qforms", label: "QForms (Website Forms)", table: "leads", dateColumn: "created_at", staleHours: 24, filterColumn: "form_type", filterValue: "__not_null__" },
 ];
 
 interface HealthRow {
@@ -48,7 +50,10 @@ async function fetchHealth(supabase: any): Promise<HealthRow[]> {
         .from(s.table)
         .select(`${s.dateColumn}`)
         .not(s.dateColumn, "is", null);
-      if (s.filterColumn && s.filterValue) latestQ = latestQ.eq(s.filterColumn, s.filterValue);
+      if (s.filterColumn && s.filterValue) {
+        if (s.filterValue === "__not_null__") latestQ = latestQ.not(s.filterColumn, "is", null);
+        else latestQ = latestQ.eq(s.filterColumn, s.filterValue);
+      }
       const { data: latest } = await latestQ
         .order(s.dateColumn, { ascending: false })
         .limit(1)
@@ -56,7 +61,10 @@ async function fetchHealth(supabase: any): Promise<HealthRow[]> {
       let countQ = supabase
         .from(s.table)
         .select("*", { count: "exact", head: true });
-      if (s.filterColumn && s.filterValue) countQ = countQ.eq(s.filterColumn, s.filterValue);
+      if (s.filterColumn && s.filterValue) {
+        if (s.filterValue === "__not_null__") countQ = countQ.not(s.filterColumn, "is", null);
+        else countQ = countQ.eq(s.filterColumn, s.filterValue);
+      }
       const { count } = await countQ;
       const lastAt = latest?.[s.dateColumn] || null;
       const hoursSince = lastAt
