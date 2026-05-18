@@ -449,37 +449,6 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     }
   };
 
-  const backfillRange = async () => {
-    setSyncing(true);
-    let totalInserted = 0;
-    let totalUpdated = 0;
-    try {
-      // Backfill last 4 days in 24h chunks (MyOperator API caps ~24h per call)
-      const now = new Date();
-      const chunks: Array<{ from: string; to: string }> = [];
-      for (let i = 4; i >= 1; i--) {
-        const to = new Date(now.getTime() - (i - 1) * 24 * 60 * 60 * 1000);
-        const from = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        chunks.push({ from: from.toISOString(), to: to.toISOString() });
-      }
-      for (const chunk of chunks) {
-        const { data, error } = await supabase.functions.invoke('sync-myoperator-logs', {
-          method: 'POST',
-          body: chunk,
-        });
-        if (error) throw error;
-        totalInserted += data?.inserted || 0;
-        totalUpdated += data?.updated || 0;
-      }
-      toast.success(`Backfill complete: ${totalInserted} new, ${totalUpdated} updated`);
-      fetchLogs();
-    } catch (err: any) {
-      toast.error(err.message || 'Backfill failed');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const openWhatsApp = (phone: string) => {
     const num = (phone || '').replace(/\D/g, '');
     if (!num) return;
