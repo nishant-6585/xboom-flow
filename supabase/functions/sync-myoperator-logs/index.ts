@@ -68,16 +68,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Calculate time range: last 15 minutes
+    // Calculate time range: default last 15 minutes, but accept optional
+    // { from, to } ISO strings in request body for backfills.
+    let fromIso: string | null = null;
+    let toIso: string | null = null;
+    try {
+      const body = await req.clone().json();
+      if (body && typeof body === 'object') {
+        if (typeof body.from === 'string') fromIso = body.from;
+        if (typeof body.to === 'string') toIso = body.to;
+      }
+    } catch (_) { /* no body */ }
+
     const now = new Date();
-    const from = new Date(now.getTime() - 15 * 60 * 1000);
+    const from = fromIso ? new Date(fromIso) : new Date(now.getTime() - 15 * 60 * 1000);
+    const to = toIso ? new Date(toIso) : now;
     const fromEpoch = Math.floor(from.getTime() / 1000);
-    const toEpoch = Math.floor(now.getTime() / 1000);
+    const toEpoch = Math.floor(to.getTime() / 1000);
 
     // Fetch call logs from MyOperator API
     const apiUrl = `https://developers.myoperator.co/search/logs?token=${encodeURIComponent(config.api_token)}&from=${fromEpoch}&to=${toEpoch}`;
 
-    console.log(`Fetching MyOperator logs from ${from.toISOString()} to ${now.toISOString()}`);
+    console.log(`Fetching MyOperator logs from ${from.toISOString()} to ${to.toISOString()}`);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
