@@ -284,6 +284,7 @@ export function useOrders() {
           lead_source: null,
           customer_email: order.customer_email || null,
           customer_gst: (order as any).customer_gst || null,
+          customer_phone: null,
           supplier_id: null,
           supplier_name: null,
           supplier_contact: null,
