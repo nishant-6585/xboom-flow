@@ -151,6 +151,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     customer_name: initialData?.customer_name || '',
     customer_company: initialData?.customer_company || '',
     customer_email: initialData?.customer_email || '',
+    customer_phone: initialData?.customer_phone || '',
     customer_gst: '',
     sales_person_id: initialData?.sales_person_id || '',
     sales_person_name: initialData?.sales_person_name || '',
@@ -378,6 +379,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         customer_name: '',
         customer_company: '',
         customer_email: '',
+        customer_phone: '',
         sales_person_id: '',
         sales_person_name: '',
         shipping_address: '',
@@ -648,6 +650,22 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                         onChange={e => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
                         disabled={loading}
                         placeholder="customer@example.com"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_phone">
+                        Mobile <span className="text-muted-foreground text-xs">(for SMS updates, +91 format preferred)</span>
+                      </Label>
+                      <Input
+                        id="customer_phone"
+                        type="tel"
+                        inputMode="tel"
+                        pattern="^\+?[0-9 \-]{7,20}$"
+                        value={formData.customer_phone || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, customer_phone: e.target.value }))}
+                        disabled={loading}
+                        placeholder="+91 98765 43210"
                         className="h-11"
                       />
                     </div>

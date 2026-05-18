@@ -426,6 +426,7 @@ Deno.serve(async (req) => {
     const { data, error } = await admin.rpc("claim_pending_notifications", {
       _worker_id: WORKER_ID,
       _limit: ids.length,
+      _channel: "whatsapp",
     });
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
@@ -444,6 +445,7 @@ Deno.serve(async (req) => {
     const { data, error } = await admin.rpc("claim_pending_notifications", {
       _worker_id: WORKER_ID,
       _limit: BATCH_SIZE,
+      _channel: "whatsapp",
     });
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
