@@ -27,6 +27,7 @@ export interface Order {
   customer_company: string;
   customer_email: string | null;
   customer_gst: string | null;
+  customer_phone: string | null;
   sales_person_id: string;
   sales_person_name: string;
   shipping_address: string | null;
@@ -104,6 +105,7 @@ export interface OrderFormData {
   customer_company: string;
   customer_email?: string;
   customer_gst?: string;
+  customer_phone?: string;
   sales_person_id?: string;
   sales_person_name?: string;
   is_website_order?: boolean;
