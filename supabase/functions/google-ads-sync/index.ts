@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const BUFFER_WINDOW_MINUTES = 10; // #1: Buffer window to avoid missed leads
+const MIN_LOOKBACK_DAYS = 7;      // Always look back at least 7 days to catch late-arriving leads
 const MAX_RETRIES = 3;            // #3: Retry attempts
 const LOCK_DURATION_MINUTES = 4;  // #7: Cron lock duration
 
@@ -143,10 +144,14 @@ async function fetchGoogleAdsLeads(
   customerId: string,
   lastSyncedAt: string | null
 ): Promise<GoogleAdsLead[]> {
-  // #1: Buffer window — go back 10 minutes from last sync to catch delayed data
-  const baselineTime = lastSyncedAt
+  // #1: Buffer window — go back from last sync to catch delayed data.
+  // Google Ads can deliver lead-form submissions with multi-day latency, so we always
+  // look back at least MIN_LOOKBACK_DAYS regardless of last_synced_at.
+  const minLookback = new Date(Date.now() - MIN_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  const fromLastSync = lastSyncedAt
     ? new Date(new Date(lastSyncedAt).getTime() - BUFFER_WINDOW_MINUTES * 60 * 1000)
     : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const baselineTime = fromLastSync < minLookback ? fromLastSync : minLookback;
 
   // GAQL expects DATE literal in filters for this field (YYYY-MM-DD)
   const startDateFormatted = baselineTime.toISOString().slice(0, 10);
