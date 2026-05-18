@@ -86,46 +86,63 @@ Deno.serve(async (req) => {
     const fromEpoch = Math.floor(from.getTime() / 1000);
     const toEpoch = Math.floor(to.getTime() / 1000);
 
-    // Fetch call logs from MyOperator API
-    const apiUrl = `https://developers.myoperator.co/search/logs?token=${encodeURIComponent(config.api_token)}&from=${fromEpoch}&to=${toEpoch}`;
-
     console.log(`Fetching MyOperator logs from ${from.toISOString()} to ${to.toISOString()}`);
 
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'x-api-key': config.x_api_key,
-        'Content-Type': 'application/json',
-      },
-    });
+    // MyOperator API: POST https://developers.myoperator.co/search
+    // Paginate via log_from until we drain all hits in the range (max page_size=100).
+    const PAGE_SIZE = 100;
+    const MAX_PAGES = 100; // hard safety cap (=10k records / call)
+    const logs: Array<Record<string, unknown>> = [];
+    let totalAvailable = 0;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`MyOperator API error [${response.status}]:`, errorText);
-      return new Response(JSON.stringify({ 
-        error: 'MyOperator API call failed', 
-        status: response.status 
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const params = new URLSearchParams({
+        token: config.api_token,
+        from: String(fromEpoch),
+        to: String(toEpoch),
+        page_size: String(PAGE_SIZE),
+        log_from: String(page * PAGE_SIZE),
       });
+
+      const response = await fetch('https://developers.myoperator.co/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`MyOperator API error [${response.status}]:`, errorText.substring(0, 300));
+        return new Response(JSON.stringify({
+          error: 'MyOperator API call failed',
+          status: response.status,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const data = await response.json();
+      if (data?.status !== 'success') {
+        console.error('MyOperator API non-success:', JSON.stringify(data).substring(0, 300));
+        return new Response(JSON.stringify({ error: 'MyOperator API returned error', detail: data }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const hits = data?.data?.hits;
+      totalAvailable = Number(data?.data?.total ?? 0);
+      if (!Array.isArray(hits) || hits.length === 0) break;
+
+      for (const h of hits) {
+        const src = (h && typeof h === 'object' && h._source && typeof h._source === 'object')
+          ? h._source as Record<string, unknown>
+          : (h as Record<string, unknown>);
+        logs.push(src);
+      }
+
+      if (logs.length >= totalAvailable) break;
+      if (hits.length < PAGE_SIZE) break;
     }
 
-    const data = await response.json();
-    const logs = Array.isArray(data) ? data : (data?.data || data?.logs || data?.results || []);
-
-    if (!Array.isArray(logs)) {
-      console.log('Unexpected API response format:', JSON.stringify(data).substring(0, 500));
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'No parseable logs in response',
-        inserted: 0, 
-        skipped: 0 
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    console.log(`MyOperator returned ${logs.length} logs (total available in range: ${totalAvailable})`);
 
     // Missed call round-robin recipients (Narsimha & Mushtaq)
     const missedCallAssignees = [
@@ -160,7 +177,7 @@ Deno.serve(async (req) => {
     // Collect all caller numbers from this batch first
     const batchCallerNumbers: string[] = [];
     for (const entry of logs) {
-      const cn = getString(entry, '_cr') || getString(entry, '_cl') || null;
+      const cn = extractCallerNumber(entry);
       if (cn) {
         const norm = normalizePhone(cn);
         if (norm) batchCallerNumbers.push(norm);
@@ -194,9 +211,11 @@ Deno.serve(async (req) => {
 
     for (const entry of logs) {
       try {
-        const callId = getString(entry, '_ai') || getString(entry, '_id') || null;
-        const callerNumber = getString(entry, '_cr') || getString(entry, '_cl') || null;
-        const startTime = getString(entry, '_st') || null;
+        const callId = extractCallId(entry);
+        const callerNumber = extractCallerNumber(entry);
+        const startTime = extractIsoFromEpoch(entry.start_time) ||
+          extractIsoFromEpoch((entry as Record<string, unknown>)._ms) ||
+          null;
 
         if (!callId && (!callerNumber || !startTime)) {
           skipped++;
@@ -226,49 +245,59 @@ Deno.serve(async (req) => {
           if (existing) existingId = existing.id;
         }
 
-        // Parse fields
-        const fullNumber = getString(entry, '_cl') || null;
-        const durationStr = getString(entry, '_dr') || null;
+        // Parse fields from MyOperator /search response (_source)
+        const fullNumber = getString(entry, 'caller_number') || getString(entry, '_cl') || null;
+        const durationStr = getString(entry, 'duration') || getString(entry, '_dr') || null;
         const duration = parseDuration(durationStr);
-        const recordingUrl = getString(entry, '_fu') || null;
-        const callTypeRaw = entry._ty;
+        const recordingUrl = getString(entry, 'fileurl') || getString(entry, '_fu') || null;
+        const callTypeRaw = (entry as Record<string, unknown>).type ?? (entry as Record<string, unknown>)._ty;
         const callType = mapCallType(callTypeRaw);
-        const department = getString(entry, '_dn') || null;
-        const endTime = getString(entry, '_et') || null;
+        const department = getString(entry, 'department_name') || getString(entry, '_dn') || null;
+        const endTime = extractIsoFromEpoch((entry as Record<string, unknown>).end_time) ||
+          getString(entry, '_et') || null;
 
-        // Extract agents from _ld
+        // Extract agents from log_details (new format) or _ld (legacy)
+        const legs = (Array.isArray((entry as Record<string, unknown>).log_details)
+          ? (entry as Record<string, unknown>).log_details
+          : (Array.isArray((entry as Record<string, unknown>)._ld)
+            ? (entry as Record<string, unknown>)._ld
+            : null)) as Array<Record<string, unknown>> | null;
+
         let assignedAgentName: string | null = null;
         let assignedAgentPhone: string | null = null;
         const allAgents: string[] = [];
 
-        if (entry._ld && Array.isArray(entry._ld)) {
-          for (const leg of entry._ld) {
-            const receivers = leg._rr;
-            if (Array.isArray(receivers)) {
-              for (const r of receivers) {
-                const name = getString(r, '_na');
-                if (name) allAgents.push(name);
-              }
+        if (legs && legs.length) {
+          for (const leg of legs) {
+            const receivers = (Array.isArray(leg.received_by) ? leg.received_by
+              : Array.isArray((leg as Record<string, unknown>)._rr) ? (leg as Record<string, unknown>)._rr
+              : []) as Array<Record<string, unknown>>;
+            for (const r of receivers) {
+              const name = getString(r, 'name') || getString(r, '_na');
+              if (name) allAgents.push(name);
             }
           }
-          const answeredCall = entry._ld.find((item: Record<string, unknown>) => item._ac === 'received') || entry._ld[0];
-          if (answeredCall) {
-            const receivers = answeredCall._rr;
-            if (Array.isArray(receivers) && receivers.length > 0) {
-              assignedAgentName = getString(receivers[0], '_na') || null;
-              assignedAgentPhone = getString(receivers[0], '_ct') || null;
+          const answeredLeg = legs.find((l) => (l.action === 'received' || (l as Record<string, unknown>)._ac === 'received')) || legs[0];
+          if (answeredLeg) {
+            const receivers = (Array.isArray((answeredLeg as Record<string, unknown>).received_by)
+              ? (answeredLeg as Record<string, unknown>).received_by
+              : Array.isArray((answeredLeg as Record<string, unknown>)._rr)
+              ? (answeredLeg as Record<string, unknown>)._rr
+              : []) as Array<Record<string, unknown>>;
+            if (receivers.length > 0) {
+              assignedAgentName = getString(receivers[0], 'name') || getString(receivers[0], '_na') || null;
+              assignedAgentPhone = getString(receivers[0], 'contact_number') || getString(receivers[0], '_ct') || null;
             }
           }
         }
 
         // Determine call status
         let callStatus = 'unknown';
-        if (entry._ld && Array.isArray(entry._ld)) {
-          const hasReceived = entry._ld.some((l: Record<string, unknown>) => l._ac === 'received');
-          if (hasReceived) callStatus = 'answered';
-          else callStatus = 'missed';
+        if (legs && legs.length) {
+          const hasReceived = legs.some((l) => (l.action === 'received' || (l as Record<string, unknown>)._ac === 'received'));
+          callStatus = hasReceived ? 'answered' : 'missed';
         } else {
-          callStatus = mapCallStatus(getString(entry, '_ac') || 'unknown');
+          callStatus = mapCallStatus(getString(entry, 'action') || getString(entry, '_ac') || 'unknown');
         }
 
         const normalizedCaller = normalizePhone(callerNumber || '');
