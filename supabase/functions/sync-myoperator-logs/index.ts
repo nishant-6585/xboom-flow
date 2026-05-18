@@ -448,3 +448,54 @@ function mapCallType(raw: unknown): string {
   if (typeof raw === 'string' && raw.trim()) return raw.trim();
   return 'incoming';
 }
+
+function extractCallId(entry: Record<string, unknown>): string | null {
+  // Try modern fields first
+  const direct = getString(entry, 'allcaller_id')
+    || getString(entry, 'unique_id')
+    || getString(entry, '_ai')
+    || getString(entry, '_id');
+  if (direct) return direct;
+
+  // unique_id can live inside additional_parameters[{ky,vl}]
+  const ap = entry.additional_parameters;
+  if (Array.isArray(ap)) {
+    for (const item of ap) {
+      if (item && typeof item === 'object') {
+        const ky = (item as Record<string, unknown>).ky;
+        const vl = (item as Record<string, unknown>).vl;
+        if (ky === 'unique_id' && typeof vl === 'string' && vl.trim()) return vl.trim();
+      }
+    }
+  }
+  return null;
+}
+
+function extractCallerNumber(entry: Record<string, unknown>): string | null {
+  return getString(entry, 'caller_number')
+    || getString(entry, 'caller_number_raw')
+    || getString(entry, '_cr')
+    || getString(entry, '_cl')
+    || null;
+}
+
+function extractIsoFromEpoch(val: unknown): string | null {
+  if (val == null) return null;
+  if (typeof val === 'number' && Number.isFinite(val)) {
+    // MyOperator returns seconds; _ms returns milliseconds
+    const ms = val > 1e12 ? val : val * 1000;
+    return new Date(ms).toISOString();
+  }
+  if (typeof val === 'string' && val.trim()) {
+    // Could already be an ISO/datetime string
+    const n = Number(val);
+    if (Number.isFinite(n) && n > 0) {
+      const ms = n > 1e12 ? n : n * 1000;
+      return new Date(ms).toISOString();
+    }
+    const parsed = Date.parse(val);
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
+    return val;
+  }
+  return null;
+}
