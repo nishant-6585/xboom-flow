@@ -7595,6 +7595,8 @@ export type Database = {
           locked_by: string | null
           next_attempt_at: string
           order_number: string | null
+          order_ref: string
+          order_source: string
           payload: Json
           phone: string | null
           priority: number
@@ -7610,7 +7612,7 @@ export type Database = {
           template_id: string | null
           template_name: string
           updated_at: string
-          woo_order_id: string
+          woo_order_id: string | null
         }
         Insert: {
           channel?: string
@@ -7624,6 +7626,8 @@ export type Database = {
           locked_by?: string | null
           next_attempt_at?: string
           order_number?: string | null
+          order_ref: string
+          order_source: string
           payload?: Json
           phone?: string | null
           priority?: number
@@ -7639,7 +7643,7 @@ export type Database = {
           template_id?: string | null
           template_name: string
           updated_at?: string
-          woo_order_id: string
+          woo_order_id?: string | null
         }
         Update: {
           channel?: string
@@ -7653,6 +7657,8 @@ export type Database = {
           locked_by?: string | null
           next_attempt_at?: string
           order_number?: string | null
+          order_ref?: string
+          order_source?: string
           payload?: Json
           phone?: string | null
           priority?: number
@@ -7668,7 +7674,7 @@ export type Database = {
           template_id?: string | null
           template_name?: string
           updated_at?: string
-          woo_order_id?: string
+          woo_order_id?: string | null
         }
         Relationships: [
           {
@@ -7827,6 +7833,7 @@ export type Database = {
           customer_gst: string | null
           customer_name: string
           customer_notes: string | null
+          customer_phone: string | null
           customer_type: string | null
           delete_reason: string | null
           deleted_at: string | null
@@ -7912,6 +7919,7 @@ export type Database = {
           customer_gst?: string | null
           customer_name: string
           customer_notes?: string | null
+          customer_phone?: string | null
           customer_type?: string | null
           delete_reason?: string | null
           deleted_at?: string | null
@@ -7997,6 +8005,7 @@ export type Database = {
           customer_gst?: string | null
           customer_name?: string
           customer_notes?: string | null
+          customer_phone?: string | null
           customer_type?: string | null
           delete_reason?: string | null
           deleted_at?: string | null
@@ -13807,7 +13816,7 @@ export type Database = {
         }
       }
       claim_pending_notifications: {
-        Args: { _limit?: number; _worker_id: string }
+        Args: { _channel?: string; _limit?: number; _worker_id: string }
         Returns: {
           channel: string
           created_at: string
@@ -13820,6 +13829,8 @@ export type Database = {
           locked_by: string | null
           next_attempt_at: string
           order_number: string | null
+          order_ref: string
+          order_source: string
           payload: Json
           phone: string | null
           priority: number
@@ -13835,7 +13846,7 @@ export type Database = {
           template_id: string | null
           template_name: string
           updated_at: string
-          woo_order_id: string
+          woo_order_id: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -13882,6 +13893,18 @@ export type Database = {
           _payload: Json
           _phone: string
           _woo_order_id: string
+        }
+        Returns: string
+      }
+      enqueue_order_notification_v2: {
+        Args: {
+          _channel?: string
+          _event_type: string
+          _order_number: string
+          _order_ref: string
+          _order_source: string
+          _payload: Json
+          _phone: string
         }
         Returns: string
       }
