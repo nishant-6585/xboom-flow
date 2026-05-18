@@ -488,10 +488,6 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               <Download className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Syncing..." : "Backfill Now"}
             </Button>
-            <Button variant="outline" size="sm" onClick={backfillRange} disabled={syncing}>
-              <Download className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
-              Backfill 4 Days
-            </Button>
             <Button variant={autoRefresh ? "default" : "outline"} size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
               {autoRefresh ? "Auto-Refresh ON" : "Auto-Refresh OFF"}
             </Button>
