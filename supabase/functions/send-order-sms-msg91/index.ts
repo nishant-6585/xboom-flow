@@ -8,6 +8,31 @@
 //
 // Atomic claim via claim_pending_notifications(_worker_id, _limit, _channel)
 // guarantees no duplicate sends across workers.
+//
+// ============================================================================
+// MSG91 FLOW SETUP — VARIABLE NAME CONTRACT
+// ============================================================================
+// The worker forwards `payload` keys to MSG91 as recipient-level variables
+// verbatim (see buildMsg91Payload below). When ops creates a DLT-approved
+// MSG91 Flow and pastes its flow_id into `notification_templates.template_id`,
+// the Flow's variable names MUST match `notification_templates.variables`
+// (and the keys produced by the per-surface DB triggers) exactly.
+//
+// MSG91 Flow variable names must match these exactly. Mismatches produce
+// silently-empty substitutions in the delivered SMS — no error, no retry.
+//
+// Event types and the variables each Flow should declare:
+//
+//   created           : customer_name, order_number, amount
+//   payment_received  : customer_name, order_number, amount
+//   shipped           : customer_name, order_number, courier, tracking_number
+//   delivered         : customer_name, order_number
+//   cancelled         : customer_name, order_number
+//
+// Use these names — NOT VAR1 / VAR2 / ##name## — in the MSG91 Flow editor.
+// The authoritative source for each event is `notification_templates.variables`
+// for (event_type, provider='msg91').
+// ============================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isAuthorizedCron } from "../_shared/cron-auth.ts";
