@@ -654,6 +654,22 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="customer_phone">
+                        Mobile <span className="text-muted-foreground text-xs">(for SMS updates, +91 format preferred)</span>
+                      </Label>
+                      <Input
+                        id="customer_phone"
+                        type="tel"
+                        inputMode="tel"
+                        pattern="^\+?[0-9 \-]{7,20}$"
+                        value={formData.customer_phone || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, customer_phone: e.target.value }))}
+                        disabled={loading}
+                        placeholder="+91 98765 43210"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label>Customer Type</Label>
                       <Select 
                         value={formData.customer_type} 
