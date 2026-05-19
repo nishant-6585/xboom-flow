@@ -209,26 +209,22 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
         toast.info("No changes detected"); setSaving(false); return;
       }
 
-      const updatePayload: Record<string, string | null> = {
-        employee_number: form.employee_number || null,
-        phone: form.phone || null,
-        personal_email: form.personal_email || null,
-        xboom_email: form.xboom_email || null,
-        gender: form.gender || null,
-        date_of_birth: form.date_of_birth || null,
-        designation: form.designation || null,
-        department: form.department || "",
-        employee_type: form.employee_type || null,
-        work_location: form.work_location || null,
-        state: form.state || null,
-        city: form.city || null,
-        emergency_contact_name: form.emergency_contact_name || null,
-        emergency_contact_relation: form.emergency_contact_relation || null,
-        emergency_contact_phone: form.emergency_contact_phone || null,
-      };
-
-      if (canEditJoiningDate) {
-        updatePayload.joining_date = form.joining_date || null;
+      // Build a PATCH payload containing ONLY fields the user actually changed.
+      // This prevents accidentally wiping other columns (e.g. when HR only edits
+      // the Employee ID, we must not null out phone/email/etc.).
+      const labelToColumn: Record<string, string> = Object.fromEntries(
+        Object.entries(fieldMap).map(([col, label]) => [label, col])
+      );
+      const updatePayload: Record<string, string | null> = {};
+      for (const label of Object.keys(changes)) {
+        const col = labelToColumn[label];
+        if (!col) continue;
+        const newVal = (form as any)[col];
+        if (col === "department") {
+          updatePayload[col] = newVal || "";
+        } else {
+          updatePayload[col] = newVal ? newVal : null;
+        }
       }
 
       const { data: updatedRows, error } = await supabase
