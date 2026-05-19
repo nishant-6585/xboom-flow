@@ -80,7 +80,7 @@ export function HolidaysManager() {
     if (editing) {
       await updateHoliday.mutateAsync({ id: editing.id, ...vals, description: vals.description || null });
     } else {
-      await addHoliday.mutateAsync(vals);
+      await addHoliday.mutateAsync({ ...vals, name: vals.name, holiday_date: vals.holiday_date });
     }
     setDialogOpen(false);
   });
