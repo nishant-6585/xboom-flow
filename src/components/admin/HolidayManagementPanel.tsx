@@ -84,7 +84,7 @@ export function HolidayManagementPanel() {
               <TableBody>
                 {holidays.map(h => (
                   <TableRow key={h.id}>
-                    <TableCell className="text-xs font-medium">{format(parseISO(h.date), 'dd MMM, EEE')}</TableCell>
+                    <TableCell className="text-xs font-medium">{format(parseISO(h.holiday_date), 'dd MMM, EEE')}</TableCell>
                     <TableCell className="text-xs">{h.name}</TableCell>
                     <TableCell className="text-xs hidden sm:table-cell text-muted-foreground">{h.description || '—'}</TableCell>
                     <TableCell className="text-right">
@@ -97,7 +97,7 @@ export function HolidayManagementPanel() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Remove Holiday</AlertDialogTitle>
-                            <AlertDialogDescription>Remove "{h.name}" on {format(parseISO(h.date), 'dd MMM yyyy')}?</AlertDialogDescription>
+                            <AlertDialogDescription>Remove "{h.name}" on {format(parseISO(h.holiday_date), 'dd MMM yyyy')}?</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
