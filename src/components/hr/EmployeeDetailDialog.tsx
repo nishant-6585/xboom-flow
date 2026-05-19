@@ -334,7 +334,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           <div>
             <h4 className="text-sm font-semibold text-primary mb-3">Basic Information</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {editing && (!employee.employee_number || employee.employee_number.startsWith("EMP-"))
+              {editing && isHROrAdmin
                 ? renderEditableField({ label: "Employee ID", fieldKey: "employee_number", placeholder: "e.g. 1" })
                 : <ReadOnlyField label="Employee ID" value={employee.employee_number || "—"} />
               }
