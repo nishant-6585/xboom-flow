@@ -18,8 +18,8 @@ import { DashboardNoticesWidget } from "@/components/notices/DashboardNoticesWid
 import { NoticePopup } from "@/components/notices/NoticePopup";
 import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { MonthlyPulsePopup } from "@/components/dashboard/MonthlyPulsePopup";
-import { UpcomingHolidaysWidget } from "@/components/dashboard/UpcomingHolidaysWidget";
-import { UpcomingHolidayPopup } from "@/components/dashboard/UpcomingHolidayPopup";
+import { HolidayCalendarWidget } from "@/components/dashboard/HolidayCalendarWidget";
+import { HolidayPopup } from "@/components/dashboard/HolidayPopup";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
 import {
@@ -392,7 +392,7 @@ const Index = () => {
                       <MonthlyPulseWidget />
                     </div>
                     <div className="mt-4">
-                      <UpcomingHolidaysWidget />
+                      <HolidayCalendarWidget />
                     </div>
                   </div>
                 </div>
@@ -815,7 +815,7 @@ const Index = () => {
       {/* Notice popup on login */}
       <ErrorBoundary fallback={null}><NoticePopup /></ErrorBoundary>
       <ErrorBoundary fallback={null}><MonthlyPulsePopup /></ErrorBoundary>
-      <ErrorBoundary fallback={null}><UpcomingHolidayPopup /></ErrorBoundary>
+      <ErrorBoundary fallback={null}><HolidayPopup /></ErrorBoundary>
     </div>
   );
 };

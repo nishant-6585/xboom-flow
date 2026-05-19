@@ -5275,27 +5275,36 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
-          date: string
           description: string | null
+          holiday_date: string
+          holiday_type: Database["public"]["Enums"]["holiday_type"]
           id: string
+          is_active: boolean
+          is_restricted: boolean
           name: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
-          date: string
           description?: string | null
+          holiday_date: string
+          holiday_type?: Database["public"]["Enums"]["holiday_type"]
           id?: string
+          is_active?: boolean
+          is_restricted?: boolean
           name: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
-          date?: string
           description?: string | null
+          holiday_date?: string
+          holiday_type?: Database["public"]["Enums"]["holiday_type"]
           id?: string
+          is_active?: boolean
+          is_restricted?: boolean
           name?: string
           updated_at?: string
         }
@@ -14467,6 +14476,12 @@ export type Database = {
       employment_status: "active" | "probation" | "resigned" | "terminated"
       employment_type: "Full-time" | "Contract" | "Intern"
       final_status: "Selected" | "Rejected" | "Pending"
+      holiday_type:
+        | "national"
+        | "regional"
+        | "company"
+        | "religious"
+        | "restricted"
       interview_decision: "pass" | "reject" | "hold"
       interview_stage: "HR" | "Technical" | "Managerial" | "Final"
       invoice_status:
@@ -14778,6 +14793,13 @@ export const Constants = {
       employment_status: ["active", "probation", "resigned", "terminated"],
       employment_type: ["Full-time", "Contract", "Intern"],
       final_status: ["Selected", "Rejected", "Pending"],
+      holiday_type: [
+        "national",
+        "regional",
+        "company",
+        "religious",
+        "restricted",
+      ],
       interview_decision: ["pass", "reject", "hold"],
       interview_stage: ["HR", "Technical", "Managerial", "Final"],
       invoice_status: [

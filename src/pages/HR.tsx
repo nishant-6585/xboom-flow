@@ -17,7 +17,7 @@ import { HRLeaveApplyDialog } from "@/components/hr/HRLeaveApplyDialog";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
-import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX, UserPlus, BookOpen, Briefcase, Share2 } from "lucide-react";
+import { Plus, Calendar, CalendarDays, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX, UserPlus, BookOpen, Briefcase, Share2 } from "lucide-react";
 import { EmployeeTrainingPanel } from "@/components/trainings/EmployeeTrainingPanel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
@@ -36,6 +36,7 @@ import { LeaveHistoryPanel } from "@/components/hr/LeaveHistoryPanel";
 import { HiringPanel } from "@/components/hr/HiringPanel";
 import { ReferralsPanel } from "@/components/hr/ReferralsPanel";
 import { MonthlyPulsePanel } from "@/components/hr/MonthlyPulsePanel";
+import { HolidaysManager } from "@/components/hr/HolidaysManager";
 import { Newspaper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
@@ -166,6 +167,7 @@ export default function HR() {
               {isHROrAdmin && (
                 <TabsTrigger value="leave_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Leave History</span></TabsTrigger>
               )}
+              <TabsTrigger value="holidays" className="gap-1.5 whitespace-nowrap"><CalendarDays className="h-4 w-4 shrink-0" /><span>Holidays</span></TabsTrigger>
             </TabsList>
           </div>
 
@@ -256,6 +258,7 @@ export default function HR() {
           {isHROrAdmin && <TabsContent value="offboarding"><ChecklistPanel checklistType="offboarding" /></TabsContent>}
           {isHROrAdmin && <TabsContent value="leave_history"><LeaveHistoryPanel /></TabsContent>}
           {isHROrAdmin && <TabsContent value="training"><EmployeeTrainingPanel /></TabsContent>}
+          <TabsContent value="holidays"><HolidaysManager /></TabsContent>
         </Tabs>
       </main>
 
