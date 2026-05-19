@@ -167,6 +167,7 @@ export default function HR() {
               {isHROrAdmin && (
                 <TabsTrigger value="leave_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Leave History</span></TabsTrigger>
               )}
+              <TabsTrigger value="holidays" className="gap-1.5 whitespace-nowrap"><CalendarDays className="h-4 w-4 shrink-0" /><span>Holidays</span></TabsTrigger>
             </TabsList>
           </div>
 
