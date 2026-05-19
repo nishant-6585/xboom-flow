@@ -36,6 +36,7 @@ import { LeaveHistoryPanel } from "@/components/hr/LeaveHistoryPanel";
 import { HiringPanel } from "@/components/hr/HiringPanel";
 import { ReferralsPanel } from "@/components/hr/ReferralsPanel";
 import { MonthlyPulsePanel } from "@/components/hr/MonthlyPulsePanel";
+import { HolidaysManager } from "@/components/hr/HolidaysManager";
 import { Newspaper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
