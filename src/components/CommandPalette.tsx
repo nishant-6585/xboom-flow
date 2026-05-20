@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   { label: 'Orders', route: '/orders', icon: ShoppingCart },
   { label: 'Procurement', route: '/procurement', icon: Box },
   { label: 'Inventory', route: '/inventory', icon: Package },
+  { label: 'Spare Parts', route: '/spare-parts', icon: Package },
   { label: 'Pricelist', route: '/pricelist', icon: ClipboardList },
   { label: 'Finance', route: '/finance', icon: IndianRupee },
   { label: 'Billing', route: '/billing', icon: FileText },
