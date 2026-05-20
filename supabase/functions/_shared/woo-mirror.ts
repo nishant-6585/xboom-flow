@@ -153,6 +153,8 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 
   const customerName = `${billing.first_name || ""} ${billing.last_name || ""}`.trim() || "Website Customer";
   const customerEmail = billing.email || null;
+  const rawPhone = (billing.phone ?? shipping.phone ?? "").toString().trim();
+  const customerPhone: string | null = rawPhone.length > 0 ? rawPhone : null;
 
   const totalAmount = parseFloat(payload?.total || "0");
   const totalQty = lineItems.reduce(
@@ -174,6 +176,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     order_number: payload?.number ? String(payload.number) : `WOO-${orderId}`,
     customer_name: customerName,
     customer_email: customerEmail,
+    customer_phone: customerPhone,
     customer_company: billing.company || null,
     product_name: productName,
     product_code: productCode,
