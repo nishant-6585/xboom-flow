@@ -28,17 +28,25 @@ export function CCAvailableCredit({ cards, statements, payments }: Props) {
       const stmt = latestByCard.get(card.id);
       const creditLimit = stmt ? getStatementCreditLimit(stmt, card) : card.credit_limit || 0;
 
-      // Live outstanding = statement outstanding − payments recorded against that statement
-      // (the parsed `available_credit_limit` is a snapshot from PDF and doesn't reflect
-      // payments recorded afterwards in the app)
-      const stmtOutstanding = stmt?.outstanding_balance || 0;
+      // Prefer the bank-parsed "available credit" snapshot from the latest statement
+      // (most accurate across banks like IDFC / Standard Chartered where derived
+      // outstanding can be wrong). Then add back any payments recorded against that
+      // statement after it was issued, capped at the credit limit.
       const stmtPayments = stmt
         ? payments
             .filter((p) => p.statement_id === stmt.id)
             .reduce((sum, p) => sum + (p.amount || 0), 0)
         : 0;
-      const liveOutstanding = Math.max(0, stmtOutstanding - stmtPayments);
-      const available = Math.max(0, creditLimit - liveOutstanding);
+      const snapshotAvailable = stmt?.available_credit_limit ?? null;
+      let available: number;
+      if (snapshotAvailable !== null && snapshotAvailable !== undefined) {
+        available = Math.min(creditLimit || snapshotAvailable + stmtPayments, snapshotAvailable + stmtPayments);
+      } else {
+        const stmtOutstanding = stmt?.outstanding_balance || 0;
+        available = Math.max(0, creditLimit - Math.max(0, stmtOutstanding - stmtPayments));
+      }
+      available = Math.max(0, available);
+      const liveOutstanding = Math.max(0, creditLimit - available);
       const utilization = creditLimit > 0 ? Math.min(100, (liveOutstanding / creditLimit) * 100) : 0;
 
       return { card, creditLimit, liveOutstanding, available, utilization, stmtPayments };
