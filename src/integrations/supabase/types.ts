@@ -2501,6 +2501,13 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "customer_testimonials_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
         ]
       }
       daily_flow_entries: {
@@ -4370,6 +4377,13 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "expense_order_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
         ]
       }
       expense_procurement_links: {
@@ -6081,6 +6095,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inventory_procurements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "inventory_procurements_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
@@ -6176,6 +6197,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
           {
@@ -6539,6 +6567,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
           {
@@ -7076,6 +7111,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "meetings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "meetings_pipeline_id_fkey"
             columns: ["pipeline_id"]
             isOneToOne: false
@@ -7469,6 +7511,13 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
         ]
       }
       nudge_health_log: {
@@ -7580,6 +7629,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
           {
@@ -7812,6 +7868,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_procurement_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
           {
@@ -8517,6 +8580,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
         ]
@@ -9877,6 +9947,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_payment_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
         ]
@@ -11798,6 +11875,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "supplier_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "supplier_payments_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
@@ -11867,6 +11951,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_quotations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
           {
@@ -11947,6 +12038,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_ratings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
           {
@@ -12180,6 +12278,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
           {
@@ -12574,6 +12679,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
           },
         ]
@@ -13667,6 +13779,48 @@ export type Database = {
           messages_sent_today: number | null
           pending_backlog: number | null
           retry_rate_pct: number | null
+        }
+        Relationships: []
+      }
+      orders_missing_phone: {
+        Row: {
+          created_at: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_name: string | null
+          id: string | null
+          order_date: string | null
+          order_number: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          total_sales_amount: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          id?: string | null
+          order_date?: string | null
+          order_number?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          status?: Database["public"]["Enums"]["order_status"] | null
+          total_sales_amount?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          id?: string | null
+          order_date?: string | null
+          order_number?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          status?: Database["public"]["Enums"]["order_status"] | null
+          total_sales_amount?: number | null
         }
         Relationships: []
       }
