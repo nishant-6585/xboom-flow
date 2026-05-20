@@ -1,73 +1,66 @@
+## Spare Parts Inventory Module — Implementation Plan
 
+A new module under Supply Chain to track spare parts, stock levels, profit margins, vendors, and movement history with full RBAC, audit logging, and dashboard widgets.
 
-## Auto Calculate Leave & Deduction from Attendance
+### 1. Database (single migration)
 
-### Summary
-Enhance the Salary Sheet module to auto-populate WFH, Unpaid Leaves, EL, SL, and Deductions from existing `leave_requests` and `attendance_logs` tables when employees are added to a sheet, with manual override support and a refresh button.
+**Tables**
+- `spare_parts_inventory` — part_name, part_code (auto: SP-XXXXXX), category, quantity, minimum_stock_threshold, cost_price, selling_price, vendor_name, vendor_id (FK suppliers, nullable), stock_status (enum), last_purchase_date, remarks, created_by, timestamps
+  - Generated columns: `profit_per_unit`, `profit_margin_percent`
+  - Trigger: auto-compute `stock_status` on insert/update (SOLD_OUT / LOW_STOCK / IN_STOCK)
+  - Trigger: validation (quantity ≥ 0, selling ≥ cost, prices ≥ 0)
+  - Trigger: auto-generate `part_code` if null
+- `spare_parts_transactions` — part_id (FK), change_type (add/remove), quantity_change, reason (purchase/sale/damage/manual), created_by, created_at
+  - Trigger: applying a transaction updates `spare_parts_inventory.quantity`
+- ENUM types: `spare_part_stock_status`, `spare_part_change_type`, `spare_part_change_reason`
 
-### Data Mapping
+**RLS Policies** (using existing `has_role` / `app_role`)
+- Admin: full CRUD
+- Supply Chain: full CRUD
+- Finance: SELECT only
+- Sales: SELECT (stock + part info; pricing/profit hidden at app layer via column projection)
+- Employee: no access
 
-Based on existing schema:
-- **WFH**: Count from `leave_requests` where `leave_type = 'wfh'`, `status = 'approved'`, overlapping with sheet month
-- **Unpaid Leaves**: Count from `leave_requests` where `leave_type = 'unpaid'`, `status = 'approved'`
-- **EL (Earned Leave)**: Count from `leave_requests` where `leave_type = 'paid'`, `status = 'approved'` (the system uses `'paid'` not `'EL'`)
-- **SL (Sick Leave)**: Count from `leave_requests` where `leave_type = 'sick'`, `status = 'approved'`
-- **Deductions**: `(salary / 26) * unpaid_leaves`
+**Audit/Notifications**
+- Trigger writes to `security_audit_log` (or existing `audit_logs`) for CREATE/UPDATE/DELETE/STOCK_ADJUSTED
+- Trigger inserts `notifications` row for Admin + Supply Chain when stock crosses into LOW_STOCK / SOLD_OUT
 
-Note: The leave system uses types `casual`, `sick`, `paid`, `unpaid`, `half_day`, `half_day_casual`, `half_day_sick`, `half_day_paid`, `half_day_unpaid`, `wfh`. We'll map `paid` → EL, `sick` → SL, `unpaid` → Unpaid Leaves, `wfh` → WFH.
+### 2. Frontend
 
-### Database Changes
+**New files**
+- `src/hooks/useSpareParts.ts` — list/create/update/delete + filters + react-query
+- `src/hooks/useSparePartTransactions.ts` — list + adjust quantity
+- `src/pages/SpareParts.tsx` — page with table, filters, search, sort, export
+- `src/components/spare-parts/SparePartFormDialog.tsx` — Add/Edit with live profit preview
+- `src/components/spare-parts/AdjustQuantityDialog.tsx` — +/- with reason
+- `src/components/spare-parts/SparePartViewDialog.tsx` — read-only details + transaction history
+- `src/components/spare-parts/SparePartsFilters.tsx` — status pills, category, vendor, sort
+- `src/components/spare-parts/SparePartsKpiCards.tsx` — Total / Low Stock / Sold Out / Potential Profit
+- `src/components/spare-parts/LowStockAlertsWidget.tsx` — for dashboard
+- `src/lib/sparePartsExport.ts` — CSV + XLSX export
 
-**Add columns to `salary_sheet_entries`** to track manual overrides:
-```sql
-ALTER TABLE salary_sheet_entries 
-  ADD COLUMN wfh_days_override boolean DEFAULT false,
-  ADD COLUMN unpaid_leaves_override boolean DEFAULT false,
-  ADD COLUMN el_leaves_override boolean DEFAULT false,
-  ADD COLUMN sl_leaves_override boolean DEFAULT false,
-  ADD COLUMN deductions_override boolean DEFAULT false;
-```
+**Wiring**
+- Add route `/spare-parts` in `src/App.tsx` (guarded by RBAC: admin/supply_chain/finance/sales)
+- Add sidebar item under Supply Chain group in `AppSidebar`
+- Mount `SparePartsKpiCards` + `LowStockAlertsWidget` on the existing Supply Chain dashboard area (or Index for admin/supply_chain)
 
-### Code Changes
+### 3. UI behavior
 
-#### 1. `src/hooks/useSalarySheets.ts` — Add attendance calculation helper
+- Pricing/Profit columns hidden for Sales role (view-only stock)
+- Stock status badge: green IN_STOCK / amber LOW_STOCK / red SOLD_OUT (semantic tokens)
+- Live profit preview in form as user types
+- Vendor field: combobox of existing `suppliers` + free-text fallback
+- Mobile-responsive table (horizontal scroll + condensed columns < md)
 
-- New function `calculateAttendanceData(employeeId, month, year)` that queries `leave_requests` for the given month/year and returns `{ wfh_days, unpaid_leaves, el_leaves, sl_leaves }`.
-- New function `calculateDeduction(salary, unpaidLeaves)` → `(salary / 26) * unpaidLeaves`.
-- Update `addEmployeesToSheet` to call `calculateAttendanceData` for each employee and populate initial values + set override flags to `false`.
-- New function `refreshAttendanceData(sheetId)` that recalculates leave data for all entries where override flags are `false`, updates the rows, recalculates totals, and logs an audit entry.
+### 4. Out of scope
+- Editing the suppliers table
+- Per-vendor PO generation (existing procurement module handles that)
+- Modifying current inventory module
 
-#### 2. `src/components/salary/SalarySheetView.tsx` — Add Refresh button
+### Technical notes
+- Use semantic Tailwind tokens only (no raw colors)
+- Strict TS, react-query for data, existing toast + audit log patterns
+- Stock-status + audit + notification logic lives in DB triggers (thin-frontend rule)
+- Export uses existing xlsx-style util pattern if present, else lightweight CSV + SheetJS
 
-- Add a "Refresh Attendance Data" button (with `RefreshCw` icon) in the header next to "Add Employees" (only when sheet is not locked).
-- Wire it to the new `refreshAttendanceData` hook function.
-
-#### 3. `src/components/salary/SalaryEntryEditDialog.tsx` — Attendance Summary + Override labels
-
-- Fetch and display an **Attendance Summary** section showing Working Days, WFH, EL, SL, Unpaid Leaves for the employee/month.
-- For auto-calculated fields (WFH, Unpaid Leaves, EL, SL, Deductions), show a label: "Auto calculated from attendance" or "Manual override" based on the override flag.
-- When HR edits any of these fields to a value different from the auto-calculated value, set the corresponding override flag to `true` on save.
-
-#### 4. `src/hooks/useSalarySheets.ts` — Update `updateEntry` 
-
-- Accept override flags in updates and pass them through to the database.
-- Update `SalarySheetEntry` interface to include the 5 override boolean fields.
-
-#### 5. Audit Logging
-
-- When auto-calculation runs (on add or refresh), call `recordAuditLog` with action `SALARY_AUTO_CALCULATED` including employee_id, month, year, and calculated fields.
-
-### Edge Cases Handled
-- **Mid-month join/resign**: Leave requests already have date ranges; we count only days that fall within the sheet month.
-- **Missing attendance**: We only count approved leave requests, not infer from missing attendance logs.
-- **Half-day leaves**: `half_day_unpaid`, `half_day_sick`, `half_day_paid` counted as 0.5 days each.
-
-### Files to Create/Modify
-| File | Action |
-|------|--------|
-| `supabase/migrations/...` | Add 5 override columns to `salary_sheet_entries` |
-| `src/hooks/useSalarySheets.ts` | Add attendance calc, refresh, update override flags |
-| `src/components/salary/SalarySheetView.tsx` | Add Refresh button, pass month/year to edit dialog |
-| `src/components/salary/SalaryEntryEditDialog.tsx` | Add attendance summary, override labels |
-| `src/components/salary/SalaryAddEmployeesDialog.tsx` | Pass month/year for auto-calc on add |
-
+Ready to proceed on approval.
