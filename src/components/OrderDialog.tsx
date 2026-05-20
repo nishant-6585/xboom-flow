@@ -1048,6 +1048,29 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <span className="italic text-muted-foreground">Not provided — click edit to add</span>
                     )}
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Mobile:</span>
+                    {(customerPhone || (order as any).customer_phone) ? (
+                      <a
+                        href={`tel:${customerPhone || (order as any).customer_phone}`}
+                        className="font-medium font-mono text-primary hover:underline"
+                      >
+                        {customerPhone || (order as any).customer_phone}
+                      </a>
+                    ) : (
+                      <span className="italic text-destructive">Missing — required for SMS updates. Click edit to add.</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Email:</span>
+                    {(customerEmail || (order as any).customer_email) ? (
+                      <span className="font-medium truncate">{customerEmail || (order as any).customer_email}</span>
+                    ) : (
+                      <span className="italic text-muted-foreground">Not provided</span>
+                    )}
+                  </div>
                   {canSeeProcurement && (
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
