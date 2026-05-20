@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
@@ -148,6 +148,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerGst, setCustomerGst] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
 
   // Auto-generate tracking URL whenever courier name + tracking number change.
   // Overwrite previous URL if it was auto-generated for any known courier; keep
@@ -216,6 +218,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setCustomerName(order.customer_name || '');
       setCustomerCompany(order.customer_company || '');
       setCustomerGst((order as any).customer_gst || '');
+      setCustomerPhone((order as any).customer_phone || '');
+      setCustomerEmail((order as any).customer_email || '');
       setEscalationReason('');
       setShowEscalationForm(false);
 
@@ -408,6 +412,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_name: customerName || null,
       customer_company: customerCompany || null,
       customer_gst: customerGst || null,
+      customer_phone: customerPhone || null,
+      customer_email: customerEmail || null,
       shipping_address: shippingAddress || null,
       supplier_name: supplierName || null,
       supplier_contact: supplierContact || null,
@@ -465,6 +471,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('customer_name', order.customer_name, customerName || null);
     trackField('customer_company', order.customer_company, customerCompany || null);
     trackField('customer_gst', (order as any).customer_gst, customerGst || null);
+    trackField('customer_phone', (order as any).customer_phone, customerPhone || null);
+    trackField('customer_email', (order as any).customer_email, customerEmail || null);
     trackField('shipping_address', order.shipping_address, shippingAddress || null);
     trackField('supplier_name', order.supplier_name, supplierName || null);
     trackField('supplier_contact', order.supplier_contact, supplierContact || null);
