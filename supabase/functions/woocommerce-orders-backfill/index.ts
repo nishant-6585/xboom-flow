@@ -7,8 +7,8 @@ const corsHeaders = {
 };
 
 /**
- * Backfills WooCommerce 'processing' orders from the last N days (default 2)
- * into the internal `orders` table.
+ * Backfills WooCommerce 'pending' and 'processing' orders from the last N
+ * days (default 2) into the internal `orders` table.
  *
  * Auth: requires either a valid Supabase JWT (Admin/Finance enforced server-side)
  *       OR X-Cron-Secret header matching CRON_SECRET (used by pg_cron).
@@ -80,7 +80,8 @@ Deno.serve(async (req) => {
     let totalFailed = 0;
 
     while (page <= 20) {
-      const apiUrl = `${base}/wp-json/wc/v3/orders?status=processing&after=${encodeURIComponent(after)}&per_page=${perPage}&page=${page}&orderby=date&order=desc`;
+      // Woo accepts comma-separated statuses on the orders endpoint.
+      const apiUrl = `${base}/wp-json/wc/v3/orders?status=pending,processing&after=${encodeURIComponent(after)}&per_page=${perPage}&page=${page}&orderby=date&order=desc`;
       const resp = await fetch(apiUrl, { headers: { Authorization: `Basic ${auth}` } });
       if (!resp.ok) {
         const txt = await resp.text();

@@ -13,6 +13,7 @@ export function mapWooStatusToInternal(wooStatus: string): string {
     case "cancelled": return "cancelled";
     case "refunded": return "cancelled";
     case "on-hold": return "po_received";
+    case "pending": return "po_received";
     default: return "po_received";
   }
 }
@@ -132,13 +133,18 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     return;
   }
 
-  if (!existing && (wooStatus !== "processing" || !inWindow)) {
+  // Mirror website orders into the internal `orders` table for any status
+  // that the UI treats as an "order" (pending, processing, on-hold,
+  // completed, delivered). Other statuses (failed, cancelled, refunded, …)
+  // are still routed to Sales > Leads > Xboom Website only.
+  const MIRROR_STATUSES = new Set(["pending", "processing", "on-hold", "completed", "delivered"]);
+  if (!existing && (!MIRROR_STATUSES.has(wooStatus) || !inWindow)) {
     await supabase.from("woo_sync_logs").insert({
       woo_order_id: orderId, event_type: eventType, direction: "in",
       status: "skipped", woo_status: wooStatus,
       error_message: !inWindow
         ? `Order date ${orderDateRaw} before window ${WINDOW_START_ISO}`
-        : `Status '${wooStatus}' not 'processing' and no existing internal order`,
+        : `Status '${wooStatus}' not mirrorable and no existing internal order`,
     });
     return;
   }
