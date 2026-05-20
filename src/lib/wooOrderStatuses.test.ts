@@ -15,9 +15,8 @@ import {
  * so a row can never appear in both views or be silently dropped.
  */
 
-const ORDER_FIXTURES = ["processing", "on-hold", "completed", "delivered"];
+const ORDER_FIXTURES = ["pending", "processing", "on-hold", "completed", "delivered"];
 const LEAD_FIXTURES = [
-  "pending",
   "failed",
   "cancelled",
   "refunded",
@@ -28,9 +27,9 @@ const LEAD_FIXTURES = [
 ];
 
 describe("wooOrderStatuses routing", () => {
-  it("treats only processing/completed/delivered as orders", () => {
+  it("treats pending/processing/on-hold/completed/delivered as orders", () => {
     expect([...WOO_ORDER_STATUSES].sort()).toEqual(
-      ["completed", "delivered", "on-hold", "processing"],
+      ["completed", "delivered", "on-hold", "pending", "processing"],
     );
   });
 
@@ -47,7 +46,7 @@ describe("wooOrderStatuses routing", () => {
   it("is case-insensitive (Woo sometimes returns capitalised statuses)", () => {
     expect(isWooOrderStatus("PROCESSING")).toBe(true);
     expect(isWooOrderStatus("Completed")).toBe(true);
-    expect(isWooLeadStatus("PENDING")).toBe(true);
+    expect(isWooOrderStatus("PENDING")).toBe(true);
     expect(isWooOrderStatus("On-Hold")).toBe(true);
   });
 
@@ -80,8 +79,8 @@ describe("wooOrderStatuses routing", () => {
     const orders = rows.filter((r) => isWooOrderStatus(r.order_status));
     const leads = rows.filter((r) => isWooLeadStatus(r.order_status));
 
-    expect(orders.map((o) => o.id)).toEqual(["1", "2", "3", "5"]);
-    expect(leads.map((l) => l.id)).toEqual(["4", "6", "7", "8", "9"]);
+    expect(orders.map((o) => o.id)).toEqual(["1", "2", "3", "4", "5"]);
+    expect(leads.map((l) => l.id)).toEqual(["6", "7", "8", "9"]);
     expect(orders.length + leads.length).toBe(rows.length);
   });
 });
