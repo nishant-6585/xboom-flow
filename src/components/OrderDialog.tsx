@@ -985,6 +985,32 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       maxLength={15}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_customer_phone">
+                      Mobile <span className="text-destructive">*</span>{' '}
+                      <span className="text-muted-foreground text-xs">(for SMS updates)</span>
+                    </Label>
+                    <Input
+                      id="inline_customer_phone"
+                      type="tel"
+                      inputMode="tel"
+                      value={customerPhone}
+                      onChange={e => setCustomerPhone(e.target.value)}
+                      disabled={loading}
+                      placeholder="+91 98765 43210"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_customer_email">Email <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                    <Input
+                      id="inline_customer_email"
+                      type="email"
+                      value={customerEmail}
+                      onChange={e => setCustomerEmail(e.target.value)}
+                      disabled={loading}
+                      placeholder="customer@example.com"
+                    />
+                  </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="inline_committed_timeline">Committed Timeline</Label>
                     <Input
