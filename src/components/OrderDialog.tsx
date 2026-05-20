@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
@@ -148,6 +148,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerGst, setCustomerGst] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
 
   // Auto-generate tracking URL whenever courier name + tracking number change.
   // Overwrite previous URL if it was auto-generated for any known courier; keep
@@ -216,6 +218,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setCustomerName(order.customer_name || '');
       setCustomerCompany(order.customer_company || '');
       setCustomerGst((order as any).customer_gst || '');
+      setCustomerPhone((order as any).customer_phone || '');
+      setCustomerEmail((order as any).customer_email || '');
       setEscalationReason('');
       setShowEscalationForm(false);
 
@@ -408,6 +412,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_name: customerName || null,
       customer_company: customerCompany || null,
       customer_gst: customerGst || null,
+      customer_phone: customerPhone || null,
+      customer_email: customerEmail || null,
       shipping_address: shippingAddress || null,
       supplier_name: supplierName || null,
       supplier_contact: supplierContact || null,
@@ -465,6 +471,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('customer_name', order.customer_name, customerName || null);
     trackField('customer_company', order.customer_company, customerCompany || null);
     trackField('customer_gst', (order as any).customer_gst, customerGst || null);
+    trackField('customer_phone', (order as any).customer_phone, customerPhone || null);
+    trackField('customer_email', (order as any).customer_email, customerEmail || null);
     trackField('shipping_address', order.shipping_address, shippingAddress || null);
     trackField('supplier_name', order.supplier_name, supplierName || null);
     trackField('supplier_contact', order.supplier_contact, supplierContact || null);
@@ -977,6 +985,32 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       maxLength={15}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_customer_phone">
+                      Mobile <span className="text-destructive">*</span>{' '}
+                      <span className="text-muted-foreground text-xs">(for SMS updates)</span>
+                    </Label>
+                    <Input
+                      id="inline_customer_phone"
+                      type="tel"
+                      inputMode="tel"
+                      value={customerPhone}
+                      onChange={e => setCustomerPhone(e.target.value)}
+                      disabled={loading}
+                      placeholder="+91 98765 43210"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_customer_email">Email <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                    <Input
+                      id="inline_customer_email"
+                      type="email"
+                      value={customerEmail}
+                      onChange={e => setCustomerEmail(e.target.value)}
+                      disabled={loading}
+                      placeholder="customer@example.com"
+                    />
+                  </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="inline_committed_timeline">Committed Timeline</Label>
                     <Input
@@ -1012,6 +1046,29 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <span className="font-medium font-mono">{customerGst || (order as any).customer_gst}</span>
                     ) : (
                       <span className="italic text-muted-foreground">Not provided — click edit to add</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Mobile:</span>
+                    {(customerPhone || (order as any).customer_phone) ? (
+                      <a
+                        href={`tel:${customerPhone || (order as any).customer_phone}`}
+                        className="font-medium font-mono text-primary hover:underline"
+                      >
+                        {customerPhone || (order as any).customer_phone}
+                      </a>
+                    ) : (
+                      <span className="italic text-destructive">Missing — required for SMS updates. Click edit to add.</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Email:</span>
+                    {(customerEmail || (order as any).customer_email) ? (
+                      <span className="font-medium truncate">{customerEmail || (order as any).customer_email}</span>
+                    ) : (
+                      <span className="italic text-muted-foreground">Not provided</span>
                     )}
                   </div>
                   {canSeeProcurement && (
