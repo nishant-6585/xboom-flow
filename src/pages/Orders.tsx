@@ -528,6 +528,15 @@ export default function Orders() {
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
       <Header />
       <main className="container mx-auto py-4 sm:py-8 px-4 flex-1 overflow-x-hidden">
+        <MissingPhoneBanner
+          onOpenOrder={(orderId) => {
+            const order = orders.find((o) => o.id === orderId);
+            if (order) {
+              setSelectedOrder(order);
+              setDialogOpen(true);
+            }
+          }}
+        />
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Enhanced Header Section */}
           <div className="mb-8">
