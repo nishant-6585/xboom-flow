@@ -176,6 +176,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     order_number: payload?.number ? String(payload.number) : `WOO-${orderId}`,
     customer_name: customerName,
     customer_email: customerEmail,
+    customer_phone: customerPhone,
     customer_company: billing.company || null,
     product_name: productName,
     product_code: productCode,
