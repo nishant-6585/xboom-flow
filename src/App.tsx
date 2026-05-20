@@ -58,6 +58,7 @@ import AIAutomation from "./pages/AIAutomation";
 import CreditCards from "./pages/CreditCards";
 import BankReconciliation from "./pages/BankReconciliation";
 import DroneOperations from "./pages/DroneOperations";
+import SpareParts from "./pages/SpareParts";
 import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
 import CompanyCleanup from "./pages/CompanyCleanup";
@@ -148,6 +149,7 @@ function AppInner() {
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
         <Route path="/drone-operations" element={<ProtectedRoute><DroneOperations /></ProtectedRoute>} />
         <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
+        <Route path="/spare-parts" element={<ProtectedRoute><SpareParts /></ProtectedRoute>} />
 
         {/* ===== B2B Customer Portal ===== */}
         <Route

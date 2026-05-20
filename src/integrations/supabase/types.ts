@@ -11525,6 +11525,118 @@ export type Database = {
         }
         Relationships: []
       }
+      spare_parts_inventory: {
+        Row: {
+          category: string | null
+          cost_price: number
+          created_at: string
+          created_by: string | null
+          id: string
+          last_purchase_date: string | null
+          minimum_stock_threshold: number
+          part_code: string | null
+          part_name: string
+          profit_margin_percent: number | null
+          profit_per_unit: number | null
+          quantity: number
+          remarks: string | null
+          selling_price: number
+          stock_status: Database["public"]["Enums"]["spare_part_stock_status"]
+          updated_at: string
+          vendor_id: string | null
+          vendor_name: string | null
+        }
+        Insert: {
+          category?: string | null
+          cost_price?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_purchase_date?: string | null
+          minimum_stock_threshold?: number
+          part_code?: string | null
+          part_name: string
+          profit_margin_percent?: number | null
+          profit_per_unit?: number | null
+          quantity?: number
+          remarks?: string | null
+          selling_price?: number
+          stock_status?: Database["public"]["Enums"]["spare_part_stock_status"]
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name?: string | null
+        }
+        Update: {
+          category?: string | null
+          cost_price?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_purchase_date?: string | null
+          minimum_stock_threshold?: number
+          part_code?: string | null
+          part_name?: string
+          profit_margin_percent?: number | null
+          profit_per_unit?: number | null
+          quantity?: number
+          remarks?: string | null
+          selling_price?: number
+          stock_status?: Database["public"]["Enums"]["spare_part_stock_status"]
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spare_parts_inventory_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spare_parts_transactions: {
+        Row: {
+          change_type: Database["public"]["Enums"]["spare_part_change_type"]
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          part_id: string
+          quantity_change: number
+          reason: Database["public"]["Enums"]["spare_part_change_reason"]
+        }
+        Insert: {
+          change_type: Database["public"]["Enums"]["spare_part_change_type"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          part_id: string
+          quantity_change: number
+          reason: Database["public"]["Enums"]["spare_part_change_reason"]
+        }
+        Update: {
+          change_type?: Database["public"]["Enums"]["spare_part_change_type"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          part_id?: string
+          quantity_change?: number
+          reason?: Database["public"]["Enums"]["spare_part_change_reason"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spare_parts_transactions_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "spare_parts_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       statement_uploads: {
         Row: {
           card_id: string | null
@@ -14565,6 +14677,13 @@ export type Database = {
         | "processing"
         | "completed"
         | "failed"
+      spare_part_change_reason:
+        | "PURCHASE"
+        | "SALE"
+        | "DAMAGE"
+        | "MANUAL_ADJUSTMENT"
+      spare_part_change_type: "ADD" | "REMOVE"
+      spare_part_stock_status: "IN_STOCK" | "LOW_STOCK" | "SOLD_OUT"
       supplier_preference: "low" | "medium" | "high"
       task_status: "new" | "in_progress" | "awaiting_approval" | "completed"
       task_type:
@@ -14892,6 +15011,14 @@ export const Constants = {
         "completed",
         "failed",
       ],
+      spare_part_change_reason: [
+        "PURCHASE",
+        "SALE",
+        "DAMAGE",
+        "MANUAL_ADJUSTMENT",
+      ],
+      spare_part_change_type: ["ADD", "REMOVE"],
+      spare_part_stock_status: ["IN_STOCK", "LOW_STOCK", "SOLD_OUT"],
       supplier_preference: ["low", "medium", "high"],
       task_status: ["new", "in_progress", "awaiting_approval", "completed"],
       task_type: [
