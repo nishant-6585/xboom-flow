@@ -10,6 +10,7 @@ import { CCStatementTable } from '@/components/credit-cards/CCStatementTable';
 import { CCUploadHistory } from '@/components/credit-cards/CCUploadHistory';
 import { CCStatementDetail } from '@/components/credit-cards/CCStatementDetail';
 import { CCReports } from '@/components/credit-cards/CCReports';
+import { CCAvailableCredit } from '@/components/credit-cards/CCAvailableCredit';
 import { CreditCard, Lock, Loader2, Sparkles, ArrowUpRight, TrendingUp, Calendar, TrendingDown, IndianRupee } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -124,6 +125,7 @@ export default function CreditCards() {
         {hasData && (
           <>
             <CCSummaryCards {...summary} />
+            <CCAvailableCredit cards={cards} statements={statements} payments={payments} />
             <CCCharts cards={cards} statements={statements} />
             <CCStatementTable
               cards={cards}
