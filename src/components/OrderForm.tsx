@@ -352,6 +352,13 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return;
     }
 
+    // Mobile is mandatory — required for MSG91 SMS updates to customers
+    const phoneDigits = (formData.customer_phone || '').replace(/\D/g, '');
+    if (!formData.customer_phone || phoneDigits.length < 10 || phoneDigits.length > 15) {
+      toast.error('Customer mobile is required (10–15 digits). It is used to send SMS order updates.');
+      return;
+    }
+
     if (formData.tracking_url && !isValidHttpUrl(formData.tracking_url)) {
       toast.error('Tracking URL must be a valid link starting with http:// or https://');
       return;
@@ -428,8 +435,10 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return orderItems.some(item => item.product_name.trim());
     }
     if (currentStep === 2) {
-      return formData.customer_name && 
-             (formData.is_website_order || formData.sales_person_name);
+      const phoneDigits = (formData.customer_phone || '').replace(/\D/g, '');
+      return !!formData.customer_name &&
+             (formData.is_website_order || !!formData.sales_person_name) &&
+             phoneDigits.length >= 10 && phoneDigits.length <= 15;
     }
     return true;
   };
@@ -655,7 +664,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="customer_phone">
-                        Mobile <span className="text-muted-foreground text-xs">(for SMS updates, +91 format preferred)</span>
+                        Mobile <span className="text-destructive">*</span>{' '}
+                        <span className="text-muted-foreground text-xs">(required — used for MSG91 SMS order updates)</span>
                       </Label>
                       <Input
                         id="customer_phone"
@@ -666,6 +676,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                         onChange={e => setFormData(prev => ({ ...prev, customer_phone: e.target.value }))}
                         disabled={loading}
                         placeholder="+91 98765 43210"
+                        required
                         className="h-11"
                       />
                     </div>
