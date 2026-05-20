@@ -12,26 +12,34 @@
 // ============================================================================
 // MSG91 FLOW SETUP — VARIABLE NAME CONTRACT
 // ============================================================================
-// The worker forwards `payload` keys to MSG91 as recipient-level variables
-// verbatim (see buildMsg91Payload below). When ops creates a DLT-approved
-// MSG91 Flow and pastes its flow_id into `notification_templates.template_id`,
-// the Flow's variable names MUST match `notification_templates.variables`
-// (and the keys produced by the per-surface DB triggers) exactly.
+// The worker forwards `payload` keys to MSG91 as recipient-level variables.
+// MSG91 templates use positional placeholders (##var1##, ##var2##, ...).
+// The mapping from semantic payload fields to MSG91's positional vars is done
+// in buildVariables() based on the order of names in
+// notification_templates.variables for each event_type.
 //
-// MSG91 Flow variable names must match these exactly. Mismatches produce
-// silently-empty substitutions in the delivered SMS — no error, no retry.
+// For the MSG91 template content (entered in MSG91 panel when creating the
+// template wrapper around the DLT-approved content), use:
 //
-// Event types and the variables each Flow should declare:
+//   created           : "Hi ##var1##, your order ##var2## worth Rs.##var3##..."
+//                       where ##var1## = customer_name
+//                             ##var2## = order_number
+//                             ##var3## = amount
+//   payment_received  : ##var1## = customer_name
+//                       ##var2## = amount
+//                       ##var3## = order_number
+//   shipped           : ##var1## = customer_name
+//                       ##var2## = order_number
+//                       ##var3## = courier
+//                       ##var4## = tracking_number
+//   delivered         : ##var1## = customer_name
+//                       ##var2## = order_number
+//   cancelled         : ##var1## = customer_name
+//                       ##var2## = order_number
 //
-//   created           : customer_name, order_number, amount
-//   payment_received  : customer_name, order_number, amount
-//   shipped           : customer_name, order_number, courier, tracking_number
-//   delivered         : customer_name, order_number
-//   cancelled         : customer_name, order_number
-//
-// Use these names — NOT VAR1 / VAR2 / ##name## — in the MSG91 Flow editor.
-// The authoritative source for each event is `notification_templates.variables`
-// for (event_type, provider='msg91').
+// The order on each line above mirrors notification_templates.variables for
+// that event_type. Do NOT reorder without updating both the template content
+// on MSG91 and the variables array in notification_templates.
 // ============================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -183,10 +191,16 @@ function buildVariables(
   template: TemplateRow,
   payload: Record<string, unknown>,
 ): Record<string, unknown> {
+  // MSG91 templates use positional placeholders (##var1##, ##var2##, ...).
+  // The semantic names in `template.variables` (e.g., customer_name, order_number)
+  // are how our DB triggers shape the payload; we translate them to positional
+  // keys here at the API boundary. Order in template.variables determines the
+  // mapping: variables[0] -> var1, variables[1] -> var2, etc.
   const out: Record<string, unknown> = {};
-  for (const name of template.variables) {
-    out[name] = payload[name] ?? "";
-  }
+  template.variables.forEach((name, idx) => {
+    const value = payload[name];
+    out[`var${idx + 1}`] = value === null || value === undefined ? "" : value;
+  });
   return out;
 }
 
