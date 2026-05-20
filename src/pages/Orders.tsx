@@ -39,6 +39,7 @@ import { toast } from '@/hooks/use-toast';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
+import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
 
 export default function Orders() {
   const { role, user } = useAuth();
