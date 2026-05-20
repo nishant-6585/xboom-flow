@@ -65,6 +65,7 @@ export function Header() {
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
+    { path: "/spare-parts", label: "Spare Parts", icon: Puzzle, roles: ["admin", "supply_chain", "finance", "sales", "sales_manager"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
     { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin", "finance"] },
