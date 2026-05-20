@@ -6,6 +6,7 @@ import { ResaleFormDialog } from "@/components/buyback/ResaleFormDialog";
 import { BuybackDroneTable } from "@/components/buyback/BuybackDroneTable";
 import { useBuybackDrones } from "@/hooks/useBuybackDrones";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WebsiteEnquiriesTable } from "@/components/WebsiteEnquiriesTable";
 
 export default function Buyback() {
   const { dronesQuery } = useBuybackDrones();
@@ -40,6 +41,12 @@ export default function Buyback() {
             <BuybackDroneTable drones={drones} />
           </>
         )}
+
+        <WebsiteEnquiriesTable
+          urlPattern="sell-your-used-drones"
+          title="Sell-Your-Used-Drone Enquiries"
+          description="Customer buyback enquiries from /sell-your-used-drones/"
+        />
       </main>
       <MobileBottomNav />
     </div>
