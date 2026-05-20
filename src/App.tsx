@@ -39,6 +39,7 @@ import Billing from "./pages/Billing";
 import Tickets from "./pages/Tickets";
 import Tally from "./pages/Tally";
 import Buyback from "./pages/Buyback";
+import Rent from "./pages/Rent";
 import PublicDroneRepairEnquiry from "./pages/PublicDroneRepairEnquiry";
 import Candidates from "./pages/Candidates";
 
@@ -125,6 +126,7 @@ function AppInner() {
         <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
         <Route path="/tally" element={<ProtectedRoute><Tally /></ProtectedRoute>} />
         <Route path="/buyback" element={<ProtectedRoute><Buyback /></ProtectedRoute>} />
+        <Route path="/rent" element={<ProtectedRoute><Rent /></ProtectedRoute>} />
         <Route path="/candidates" element={<ProtectedRoute><Candidates /></ProtectedRoute>} />
         
         <Route path="/profile" element={<ProtectedRoute><MyProfile /></ProtectedRoute>} />
