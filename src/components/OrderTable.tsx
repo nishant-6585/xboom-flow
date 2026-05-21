@@ -466,6 +466,40 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Floating bulk-action toolbar */}
+      {selectedIds.size > 0 && (
+        <div
+          role="toolbar"
+          aria-label="Bulk order actions"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border bg-card/95 backdrop-blur px-4 py-2 shadow-lg"
+        >
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="h-5 w-px bg-border mx-1" />
+          {canBulkMarkPaid && (
+            <Button
+              size="sm"
+              variant="default"
+              onClick={handleBulkMarkPaid}
+              disabled={bulkBusy || markableOrders.length === 0}
+              className="gap-1.5"
+            >
+              {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Mark Paid ({markableOrders.length})
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={handleExportSelected} className="gap-1.5">
+            <Download className="h-4 w-4" />
+            Export selected
+          </Button>
+          <Button size="sm" variant="ghost" onClick={clearSelection} className="gap-1.5">
+            <X className="h-4 w-4" />
+            Clear
+          </Button>
+        </div>
+      )}
     </>
   );
 }
