@@ -49,6 +49,9 @@ import { XboomWebsiteLeadsPanel } from './XboomWebsiteLeadsPanel';
 import { Globe } from 'lucide-react';
 import { Bot } from 'lucide-react';
 import { TouchedDashboard } from './TouchedDashboard';
+import { UnifiedLeadInbox } from './UnifiedLeadInbox';
+import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
+import { Inbox } from 'lucide-react';
 
 /**
  * Source filter options for the All Leads tab.
@@ -341,8 +344,13 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const convertedLeads = leads.filter(l => l.status === 'order_won' || l.status === 'moved_to_pipeline').length;
 
   return (
-    <Tabs defaultValue="leads" className="space-y-6">
+    <Tabs defaultValue="all-inbox" className="space-y-6">
       <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start">
+        <TabsTrigger value="all-inbox" className="gap-1.5">
+          <Inbox className="h-3.5 w-3.5" />
+          All Inbox
+          <InboxNewBadge />
+        </TabsTrigger>
         <TabsTrigger value="leads">All Leads</TabsTrigger>
         <TabsTrigger value="qforms" className="gap-1.5">
           <FileText className="h-3.5 w-3.5" />
