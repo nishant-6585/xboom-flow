@@ -53,6 +53,14 @@ import { UnifiedLeadInbox } from './UnifiedLeadInbox';
 import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
 import { Inbox } from 'lucide-react';
 
+function InboxNewBadge() {
+  const { data } = useUnifiedLeadCounts();
+  if (!data || data.totalNew === 0) return null;
+  return (
+    <Badge variant="default" className="ml-1 text-xs px-1.5 py-0">{data.totalNew}</Badge>
+  );
+}
+
 /**
  * Source filter options for the All Leads tab.
  *
