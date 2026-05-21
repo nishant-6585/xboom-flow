@@ -45,7 +45,40 @@ Deno.serve(async (req) => {
 
     // Clean up the URL
     const cleanUrl = recordingUrl.replace(/\\\//g, '/').trim();
-    console.log('Fetching recording:', cleanUrl);
+
+    // SSRF guard: only allow https + known MyOperator hosts
+    const ALLOWED_HOSTS = new Set([
+      'recordings.myoperator.co',
+      'cdn.myoperator.co',
+      's3.amazonaws.com',
+      'myoperator.s3.amazonaws.com',
+    ]);
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(cleanUrl);
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid URL' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (parsedUrl.protocol !== 'https:') {
+      return new Response(JSON.stringify({ error: 'Only https URLs are allowed' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const hostAllowed =
+      ALLOWED_HOSTS.has(parsedUrl.hostname) ||
+      parsedUrl.hostname.endsWith('.myoperator.co') ||
+      parsedUrl.hostname.endsWith('.amazonaws.com');
+    if (!hostAllowed) {
+      return new Response(JSON.stringify({ error: 'URL host not allowed' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    console.log('Fetching recording host:', parsedUrl.hostname);
 
     // Fetch with browser-like headers and follow redirects
     const response = await fetch(cleanUrl, {
