@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,7 +13,10 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2, Undo2, IndianRupee, TrendingUp, TrendingDown, ShoppingBag } from 'lucide-react';
+import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2, Undo2, IndianRupee, TrendingUp, TrendingDown, ShoppingBag, CheckCircle2, Download, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useTableExport } from '@/hooks/useTableExport';
 
 interface OrderTableProps {
   orders: Order[];
@@ -36,12 +40,106 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
   const { role } = useAuth();
   const canSeeProcurement = role === 'supply_chain' || role === 'admin' || role === 'finance';
   const canUpdateOutcome = role === 'sales' || role === 'admin';
+  const canBulkMarkPaid = role === 'admin' || role === 'finance';
+  const { exportToExcel } = useTableExport();
 
   const [lostDialogOpen, setLostDialogOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [lostReason, setLostReason] = useState<LostReason>('price');
   const [lostReasonNotes, setLostReasonNotes] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const visibleIds = useMemo(() => orders.map(o => o.id), [orders]);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some(id => selectedIds.has(id)) && !allVisibleSelected;
+
+  const toggleOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        visibleIds.forEach(id => next.delete(id));
+      } else {
+        visibleIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const selectedOrders = useMemo(
+    () => orders.filter(o => selectedIds.has(o.id)),
+    [orders, selectedIds],
+  );
+  const markableOrders = selectedOrders.filter(o => o.payment_status !== 'full');
+
+  const handleBulkMarkPaid = async () => {
+    if (markableOrders.length === 0) return;
+    setBulkBusy(true);
+    const ids = markableOrders.map(o => o.id);
+    const { error } = await supabase
+      .from('orders')
+      .update({ payment_status: 'full' })
+      .in('id', ids);
+    setBulkBusy(false);
+    if (error) {
+      toast.error('Failed to update payment status', { description: error.message });
+      return;
+    }
+    toast.success(`Marked ${ids.length} order${ids.length === 1 ? '' : 's'} as paid`);
+    clearSelection();
+  };
+
+  const handleExportSelected = () => {
+    if (selectedOrders.length === 0) return;
+    const rows = selectedOrders.map(o => ({
+      order_number: o.order_number,
+      order_date: (o as any).order_date || o.created_at,
+      customer_name: o.customer_name,
+      customer_company: o.customer_company,
+      product_name: o.product_name,
+      product_category: o.product_category,
+      quantity: o.quantity,
+      status: o.status,
+      payment_status: o.payment_status,
+      order_outcome: o.order_outcome,
+      supplier_name: o.supplier_name,
+      selling_price: o.selling_price,
+      procurement_rate: o.procurement_rate,
+      total: (o.selling_price ?? 0) * o.quantity,
+    }));
+    exportToExcel(rows, 'orders-selected', {
+      sheetName: 'Orders',
+      amountColumns: ['selling_price', 'procurement_rate', 'total'],
+      dateColumns: ['order_date'],
+      headers: {
+        order_number: 'Order #',
+        order_date: 'Order Date',
+        customer_name: 'Customer',
+        customer_company: 'Company',
+        product_name: 'Product',
+        product_category: 'Category',
+        quantity: 'Qty',
+        status: 'Status',
+        payment_status: 'Payment',
+        order_outcome: 'Outcome',
+        supplier_name: 'Supplier',
+        selling_price: 'Selling Price',
+        procurement_rate: 'Procurement Rate',
+        total: 'Total Value',
+      },
+    });
+  };
 
   const handleMarkWon = async (orderId: string) => {
     if (!onUpdateOutcome) return;
@@ -83,6 +181,13 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="w-8">
+                <Checkbox
+                  checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                  onCheckedChange={toggleAllVisible}
+                  aria-label="Select all orders on this page"
+                />
+              </TableHead>
               <TableHead className="font-semibold">Order No</TableHead>
               <TableHead className="font-semibold">Order Date</TableHead>
               <TableHead className="font-semibold">Product</TableHead>
@@ -102,7 +207,7 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canSeeProcurement ? 14 : 10} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={canSeeProcurement ? 15 : 11} className="text-center py-12 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 rounded-full bg-muted">
                       <Eye className="h-6 w-6 text-muted-foreground" />
@@ -119,13 +224,21 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
                 const paymentConfig = paymentStatusConfig[order.payment_status] ?? paymentStatusConfig.pending;
                 const outcome = outcomeConfig[order.order_outcome || 'pending'] ?? outcomeConfig.pending;
                 const OutcomeIcon = outcome.icon;
+                const isSelected = selectedIds.has(order.id);
 
                 return (
                   <TableRow 
                     key={order.id} 
-                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`} 
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
                     onClick={() => onOrderClick(order)}
                   >
+                    <TableCell className="w-8" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleOne(order.id)}
+                        aria-label={`Select order ${order.order_number}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <OrderNumberBadge orderNumber={order.order_number} />
