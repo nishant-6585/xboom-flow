@@ -71,6 +71,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [aCategoryFilter, setACategoryFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [salespersonFilter, setSalespersonFilter] = useState('all');
   const [dateStart, setDateStart] = useState<Date | undefined>();
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const [editingProspect, setEditingProspect] = useState<any>(null);
@@ -100,10 +101,18 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     const matchesA = aCategoryFilter === 'all' || (aCategoryFilter === 'yes' ? p.is_a_category : !p.is_a_category);
     const matchesType = typeFilter === 'all' || (p as any).prospect_type === typeFilter;
+    const matchesSalesperson = salespersonFilter === 'all' || (p.created_by_name || 'Unknown') === salespersonFilter;
     const d = new Date(p.created_at);
     const matchesDate = (!dateStart || d >= startOfDay(dateStart)) && (!dateEnd || d <= endOfDay(dateEnd));
-    return matchesSearch && matchesSource && matchesStatus && matchesA && matchesType && matchesDate;
+    return matchesSearch && matchesSource && matchesStatus && matchesA && matchesType && matchesSalesperson && matchesDate;
   });
+
+  // Unique salesperson list derived from prospects
+  const salespeopleOptions = useMemo(() => {
+    const names = new Set<string>();
+    prospects.forEach(p => { if (p.created_by_name) names.add(p.created_by_name); });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [prospects]);
 
   // Analytics
   const now = new Date();
@@ -415,6 +424,15 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                 <SelectItem value="B2B">B2B</SelectItem>
                 <SelectItem value="B2G">B2G</SelectItem>
                 <SelectItem value="Reseller">Reseller</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={salespersonFilter} onValueChange={setSalespersonFilter}>
+              <SelectTrigger className="w-[170px]"><UserCheck className="h-4 w-4 mr-1" /><SelectValue placeholder="Salesperson" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Salespeople</SelectItem>
+                {salespeopleOptions.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <DateRangeFilter
