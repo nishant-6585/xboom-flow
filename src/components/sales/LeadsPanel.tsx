@@ -389,6 +389,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         </TabsTrigger>
       </TabsList>
 
+      <TabsContent value="all-inbox" className="space-y-6">
+        <UnifiedLeadInbox />
+      </TabsContent>
+
       <TabsContent value="leads" className="space-y-6">
     <div className="space-y-6">
       {/* Prospect Analytics */}
