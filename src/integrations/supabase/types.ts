@@ -13986,6 +13986,10 @@ export type Database = {
         Args: { _delta?: number; _provider: string }
         Returns: undefined
       }
+      can_access_ticket_attachment: {
+        Args: { _name: string; _user_id: string }
+        Returns: boolean
+      }
       can_create_admin: { Args: never; Returns: boolean }
       can_register_as_admin: { Args: { p_email: string }; Returns: boolean }
       can_view_hr_document: {
