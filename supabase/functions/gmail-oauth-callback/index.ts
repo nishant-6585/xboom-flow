@@ -11,6 +11,61 @@ const GMAIL_CLIENT_SECRET = Deno.env.get("GMAIL_CLIENT_SECRET")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// HMAC helpers for signed OAuth state (prevents forging user_id linkage).
+function htmlEscape(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+  );
+}
+
+function b64urlEncode(bytes: Uint8Array): string {
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function hmacKey(): Promise<CryptoKey> {
+  // Use the service-role key as HMAC secret — it's stable, secret, and always available.
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(SUPABASE_SERVICE_ROLE_KEY),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+async function signState(payloadObj: Record<string, unknown>): Promise<string> {
+  const payload = JSON.stringify(payloadObj);
+  const key = await hmacKey();
+  const sig = new Uint8Array(
+    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)),
+  );
+  return `${b64urlEncode(new TextEncoder().encode(payload))}.${b64urlEncode(sig)}`;
+}
+
+async function verifyState(
+  stateParam: string,
+): Promise<{ user_id: string; redirect_uri: string; nonce: string } | null> {
+  const [payloadB64, sigB64] = stateParam.split(".");
+  if (!payloadB64 || !sigB64) return null;
+  try {
+    const pad = (s: string) => s + "=".repeat((4 - (s.length % 4)) % 4);
+    const fromB64Url = (s: string) =>
+      Uint8Array.from(atob(pad(s.replace(/-/g, "+").replace(/_/g, "/"))), (c) => c.charCodeAt(0));
+    const payloadBytes = fromB64Url(payloadB64);
+    const sigBytes = fromB64Url(sigB64);
+    const key = await hmacKey();
+    const ok = await crypto.subtle.verify("HMAC", key, sigBytes, payloadBytes);
+    if (!ok) return null;
+    const parsed = JSON.parse(new TextDecoder().decode(payloadBytes));
+    if (typeof parsed?.user_id !== "string") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -62,7 +117,11 @@ Deno.serve(async (req) => {
       }
 
       const callbackUrl = `${SUPABASE_URL}/functions/v1/gmail-oauth-callback`;
-      const state = btoa(JSON.stringify({ user_id: user.id, redirect_uri: redirectUri }));
+      const state = await signState({
+        user_id: user.id,
+        redirect_uri: redirectUri,
+        nonce: crypto.randomUUID(),
+      });
 
       const oauthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
       oauthUrl.searchParams.set("client_id", GMAIL_CLIENT_ID);
@@ -91,7 +150,7 @@ Deno.serve(async (req) => {
       const error = url.searchParams.get("error");
 
       if (error) {
-        return new Response(`<html><body><h2>Authorization failed: ${error}</h2><script>window.close();</script></body></html>`, {
+        return new Response(`<html><body><h2>Authorization failed: ${htmlEscape(error)}</h2><script>window.close();</script></body></html>`, {
           headers: { "Content-Type": "text/html" },
         });
       }
@@ -102,11 +161,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      let state: { user_id: string; redirect_uri: string };
-      try {
-        state = JSON.parse(atob(stateParam));
-      } catch {
+      const state = await verifyState(stateParam);
+      if (!state) {
         return new Response(`<html><body><h2>Invalid state parameter</h2></body></html>`, {
+          status: 400,
           headers: { "Content-Type": "text/html" },
         });
       }
