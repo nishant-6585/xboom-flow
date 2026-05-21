@@ -578,7 +578,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const { data: rateLimitData, error: rateLimitError } = await withTimeout(
-        supabase.rpc("check_login_rate_limit", { p_email: normalizedEmail }),
+        Promise.resolve(supabase.rpc("check_login_rate_limit", { p_email: normalizedEmail })),
         LOGIN_RATE_LIMIT_TIMEOUT_MS
       );
 
