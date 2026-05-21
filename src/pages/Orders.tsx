@@ -41,6 +41,7 @@ import { Link } from 'react-router-dom';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
 import { OrdersExportButton } from '@/components/orders/OrdersExportButton';
+import { OrderPipelineAnalytics } from '@/components/orders/OrderPipelineAnalytics';
 
 export default function Orders() {
   const { role, user } = useAuth();
@@ -209,6 +210,8 @@ export default function Orders() {
   const isAdmin = role === 'admin';
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
+  const canViewPipelineAnalytics =
+    role === 'admin' || role === 'finance' || role === 'supply_chain' || role === 'sales_manager';
 
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
@@ -598,6 +601,12 @@ export default function Orders() {
                   <Target className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Pipeline</span>
                 </TabsTrigger>
+                {canViewPipelineAnalytics && (
+                  <TabsTrigger value="pipeline_analytics" className="gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    <span className="hidden sm:inline font-medium">Pipeline Analytics</span>
+                  </TabsTrigger>
+                )}
                 {canCreateOrder && (
                   <TabsTrigger value="new" className="gap-2">
                     <Plus className="h-4 w-4" />
@@ -1789,6 +1798,12 @@ export default function Orders() {
           {isAdmin && (
             <TabsContent value="analytics">
               <OrderProfitAnalytics orders={manualOrders} onCardClick={handleAnalyticsCardClick} />
+            </TabsContent>
+          )}
+
+          {canViewPipelineAnalytics && (
+            <TabsContent value="pipeline_analytics" className="mt-0">
+              <OrderPipelineAnalytics />
             </TabsContent>
           )}
 
