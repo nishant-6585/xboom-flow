@@ -1,4 +1,5 @@
 // MSG91 SMS queue worker — mirrors send-order-status-whatsapp/index.ts.
+// Redeploy bump: refresh env vars (MSG91_SENDER_ID).
 // Drains pending `order_notifications` rows where channel='sms' and sends
 // via the MSG91 Flow API. Cron-invoked OR manually invoked with
 // { notification_id } for retry-from-UI (requires admin/supply_chain JWT).
