@@ -10,8 +10,8 @@ const corsHeaders = {
 async function verifySlackSignature(req: Request, body: string): Promise<boolean> {
   const signingSecret = Deno.env.get('SLACK_SIGNING_SECRET');
   if (!signingSecret) {
-    console.warn('SLACK_SIGNING_SECRET not configured — skipping verification');
-    return true; // Allow if not configured (will be secured by other means)
+    console.error('SLACK_SIGNING_SECRET not configured — rejecting request');
+    return false;
   }
 
   const timestamp = req.headers.get('x-slack-request-timestamp');

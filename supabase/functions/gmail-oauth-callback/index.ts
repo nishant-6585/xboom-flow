@@ -196,7 +196,27 @@ Deno.serve(async (req) => {
       }
 
       // Redirect back to the app
-      const redirectUrl = state.redirect_uri || "/sales/leads/emails";
+      const ALLOWED_ORIGINS = new Set([
+        "https://xboom-flow.lovable.app",
+        "https://xboomflow.com",
+        "https://id-preview--873edcab-6e1e-46b0-9171-0a25ebe4e73c.lovable.app",
+        "http://localhost:5173",
+      ]);
+      const DEFAULT_PATH = "/sales/leads/emails";
+      let redirectUrl = DEFAULT_PATH;
+      const candidate = typeof state.redirect_uri === "string" ? state.redirect_uri : "";
+      if (candidate.startsWith("/") && !candidate.startsWith("//")) {
+        redirectUrl = candidate;
+      } else if (candidate) {
+        try {
+          const parsed = new URL(candidate);
+          if (ALLOWED_ORIGINS.has(parsed.origin)) {
+            redirectUrl = parsed.toString();
+          }
+        } catch {
+          // fall through to default
+        }
+      }
       return new Response(null, {
         status: 302,
         headers: { Location: `${redirectUrl}?gmail_connected=true` },

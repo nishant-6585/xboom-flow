@@ -62,7 +62,14 @@ Deno.serve(async (req) => {
 
     // HMAC verify (skip only when secret not configured — keeps backward compat for setup)
     const hmacSecret = Deno.env.get("WOOCOMMERCE_WEBHOOK_SECRET");
-    if (hmacSecret) {
+    if (!hmacSecret) {
+      console.error("[woocommerce-webhook] WOOCOMMERCE_WEBHOOK_SECRET not configured — rejecting");
+      return new Response(JSON.stringify({ success: false, error: "server misconfigured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    {
       const ok = await verifyWooSignature(rawBody, signature, hmacSecret);
       if (!ok) {
         console.warn("[woocommerce-webhook] HMAC verification FAILED");
@@ -78,8 +85,6 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-    } else {
-      console.warn("[woocommerce-webhook] WOOCOMMERCE_WEBHOOK_SECRET not set — skipping HMAC (DEV ONLY)");
     }
 
     const payload = JSON.parse(rawBody);
