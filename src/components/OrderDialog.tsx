@@ -50,11 +50,21 @@ const paymentStatusConfig: Record<PaymentStatus, { label: string; className: str
   full: { label: 'Paid in Full', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
 };
 
-const outcomeConfig: Record<OrderOutcome, { label: string; className: string }> = {
+const outcomeConfig: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pending', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' },
   won: { label: 'Won', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
   lost: { label: 'Lost', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
+  // Legacy / DB short codes used on cancelled or completed orders
+  OW: { label: 'Won', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  OL: { label: 'Lost', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
 };
+
+const FALLBACK_OUTCOME_CONFIG = {
+  label: 'Unknown',
+  className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+};
+
+const isWonOutcome = (o: string | null | undefined) => o === 'won' || o === 'OW';
 
 export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
   const { role, user, profile } = useAuth();
@@ -724,12 +734,15 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       Escalated
                     </Badge>
                   )}
-                  {order.order_outcome && order.order_outcome !== 'pending' && (
-                    <Badge className={outcomeConfig[order.order_outcome].className}>
-                      {order.order_outcome === 'won' ? <Trophy className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                      {outcomeConfig[order.order_outcome].label}
-                    </Badge>
-                  )}
+                  {order.order_outcome && order.order_outcome !== 'pending' && (() => {
+                    const cfg = outcomeConfig[order.order_outcome] ?? FALLBACK_OUTCOME_CONFIG;
+                    return (
+                      <Badge className={cfg.className}>
+                        {isWonOutcome(order.order_outcome) ? <Trophy className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                        {cfg.label}
+                      </Badge>
+                    );
+                  })()}
                   {order.is_rto && (
                     <Badge variant="outline" className="text-xs border-orange-500 text-orange-600 dark:text-orange-400">
                       <Undo2 className="h-3 w-3 mr-1" />
