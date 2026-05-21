@@ -13,9 +13,10 @@ import { PaymentRiskWidget } from '@/components/finance/PaymentRiskWidget';
 import { RecurringExpensesPanel } from '@/components/finance/recurring/RecurringExpensesPanel';
 import { 
   IndianRupee, TrendingUp, TrendingDown, Calendar, Plus, 
-  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet, Repeat
+  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet, Repeat, Download
 } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { useTableExport } from '@/hooks/useTableExport';
 
 interface PaymentRecord {
   id: string;
@@ -68,6 +69,7 @@ export default function Finance() {
   const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { payments: expectedPayments, markAsReceived, deletePayment } = useExpectedPayments();
+  const { exportToExcel } = useTableExport();
   
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
   const [supplierPayments, setSupplierPayments] = useState<SupplierPayment[]>([]);
@@ -166,6 +168,30 @@ export default function Finance() {
     o.payment_status === 'pending' || o.payment_status === 'partial'
   );
 
+  const handleExportPayments = () => {
+    const rows = enrichedPaymentRecords.map(p => ({
+      submitted_at: p.submitted_at,
+      order_number: (p as any).order_number,
+      customer_name: (p as any).customer_name,
+      amount: p.amount,
+      status: p.status,
+      reviewed_at: p.reviewed_at,
+    }));
+    exportToExcel(rows, 'payment-records', {
+      sheetName: 'Payments',
+      amountColumns: ['amount'],
+      dateColumns: ['submitted_at', 'reviewed_at'],
+      headers: {
+        submitted_at: 'Submitted',
+        order_number: 'Order #',
+        customer_name: 'Customer',
+        amount: 'Amount',
+        status: 'Status',
+        reviewed_at: 'Reviewed',
+      },
+    });
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -209,6 +235,10 @@ export default function Finance() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleExportPayments} disabled={enrichedPaymentRecords.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
             <Button variant="outline" onClick={() => navigate('/bank-reconciliation')}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Bank Reconciliation
