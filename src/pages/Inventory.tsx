@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Package, Plus, Search, ArrowUpCircle, ArrowDownCircle, RotateCcw, Settings, Loader2, AlertTriangle, History } from 'lucide-react';
+import { Package, Plus, Search, ArrowUpCircle, ArrowDownCircle, RotateCcw, Settings, Loader2, AlertTriangle, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { ProductSelect } from '@/components/ProductSelect';
@@ -22,6 +22,8 @@ import { DemandForecastWidget } from '@/components/inventory/DemandForecastWidge
 
 function InventoryContent() {
   const { role } = useAuth();
+  const [txnPage, setTxnPage] = useState(1);
+  const TXN_PAGE_SIZE = 50;
   const {
     inventory,
     transactions,
