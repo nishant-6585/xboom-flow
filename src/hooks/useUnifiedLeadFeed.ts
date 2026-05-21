@@ -152,7 +152,7 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
         elevenlabs: 0,
         email: 0,
       };
-      for (const row of (data ?? []) as { source: LeadSource }[]) {
+      for (const row of ((data ?? []) as unknown as { source: LeadSource }[])) {
         if (row.source in bySource) bySource[row.source]++;
       }
       const totalNew = Object.values(bySource).reduce((a, b) => a + b, 0);
