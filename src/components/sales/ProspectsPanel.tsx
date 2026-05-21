@@ -426,6 +426,15 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                 <SelectItem value="Reseller">Reseller</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={salespersonFilter} onValueChange={setSalespersonFilter}>
+              <SelectTrigger className="w-[170px]"><UserCheck className="h-4 w-4 mr-1" /><SelectValue placeholder="Salesperson" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Salespeople</SelectItem>
+                {salespeopleOptions.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <DateRangeFilter
               startDate={dateStart} endDate={dateEnd}
               onStartDateChange={setDateStart} onEndDateChange={setDateEnd}
