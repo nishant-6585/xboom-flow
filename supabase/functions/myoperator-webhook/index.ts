@@ -7,10 +7,15 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   const timestamp = new Date().toISOString();
-  const headers = Object.fromEntries(req.headers.entries());
   const rawBody = req.method === 'POST' ? await req.text() : '';
 
-  console.log('Webhook hit:', { timestamp, method: req.method, headers, body: rawBody });
+  console.log('Webhook hit:', {
+    timestamp,
+    method: req.method,
+    has_secret: !!req.headers.get('x-myoperator-secret'),
+    content_type: req.headers.get('content-type'),
+    body_len: rawBody.length,
+  });
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -35,10 +40,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const provided =
-      req.headers.get('x-myoperator-secret') ||
-      new URL(req.url).searchParams.get('secret') ||
-      '';
+    const provided = req.headers.get('x-myoperator-secret') || '';
     if (provided !== expected) {
       console.warn('MyOperator webhook auth failed');
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
