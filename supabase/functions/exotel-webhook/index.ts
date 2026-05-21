@@ -25,10 +25,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const provided =
-      req.headers.get("x-exotel-secret") ||
-      new URL(req.url).searchParams.get("secret") ||
-      "";
+    const provided = req.headers.get("x-exotel-secret") || "";
     if (provided !== expected) {
       console.warn("Exotel webhook auth failed");
       return new Response(JSON.stringify({ error: "unauthorized" }), {
