@@ -17,9 +17,9 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function ok(body: unknown = { ok: true }) {
+function ok(body: unknown = { ok: true }, status = 200) {
   return new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { ...cors, "Content-Type": "application/json" },
   });
 }
