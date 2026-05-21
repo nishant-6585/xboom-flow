@@ -378,6 +378,17 @@ Deno.serve(async (req) => {
     );
   }
 
+  // NEW: validate sender format — DLT requires alphabetic sender IDs for transactional SMS
+  const SENDER_PATTERN = /^[A-Z]{6}$/;
+  if (!SENDER_PATTERN.test(senderId)) {
+    return new Response(
+      JSON.stringify({
+        error: `MSG91_SENDER_ID must be a 6-character uppercase alphabetic DLT header (got "${senderId}"). Numeric short codes are only valid for promotional SMS; transactional/Service-Implicit SMS requires an approved alphabetic header.`,
+      }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   let body: { notification_id?: string; notification_ids?: string[] } = {};
   try {
     body = await req.json();
