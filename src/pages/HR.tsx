@@ -12,6 +12,7 @@ import { TeamAttendancePanel } from "@/components/hr/TeamAttendancePanel";
 import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
+import { BulkLeaveApprovalSection } from "@/components/hr/BulkLeaveApprovalSection";
 import { HRLeaveApplyDialog } from "@/components/hr/HRLeaveApplyDialog";
 
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
