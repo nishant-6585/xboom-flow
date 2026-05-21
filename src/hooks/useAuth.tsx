@@ -15,6 +15,22 @@ const MFA_BYPASS_EMAILS = new Set<string>([
   "nishant.k@xboom.in",
 ]);
 
+const LOGIN_RATE_LIMIT_TIMEOUT_MS = 2500;
+
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("Login pre-check timed out")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 export const isMfaBypassed = (email?: string | null): boolean =>
   !!email && MFA_BYPASS_EMAILS.has(email.trim().toLowerCase());
 
@@ -561,8 +577,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     try {
-      const { data: rateLimitData, error: rateLimitError } = await supabase
-        .rpc("check_login_rate_limit", { p_email: normalizedEmail });
+      const { data: rateLimitData, error: rateLimitError } = await withTimeout(
+        supabase.rpc("check_login_rate_limit", { p_email: normalizedEmail }),
+        LOGIN_RATE_LIMIT_TIMEOUT_MS
+      );
 
       if (!rateLimitError && rateLimitData?.[0] && !rateLimitData[0].allowed) {
         const retryMinutes = Math.ceil((rateLimitData[0].retry_after_seconds || 60) / 60);
