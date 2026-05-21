@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -212,6 +213,38 @@ serve(async (req) => {
   // ── Monitoring endpoint ───────────────────────────────────────────────────
   const url = new URL(req.url);
   if (url.searchParams.get("action") === "status") {
+    // Require cron secret OR admin JWT — never expose internal stats publicly.
+    const cronOk = await isAuthorizedCron(req);
+    if (!cronOk) {
+      const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+      if (!authHeader?.toLowerCase().startsWith("bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const token = authHeader.slice(7).trim();
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const { data: userData, error: userErr } = await userClient.auth.getUser();
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: isAdmin } = await serviceClient.rpc("has_role", {
+        _user_id: userData.user.id,
+        _role: "admin",
+      });
+      if (isAdmin !== true) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
     const { data: stats } = await serviceClient.rpc("get_shopify_processing_stats");
     return new Response(JSON.stringify(stats || {}), {
       status: 200,
