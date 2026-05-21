@@ -62,6 +62,22 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
+  // Shared-secret authentication — only authorised callers (e.g. WhatsApp bot)
+  // can hit this endpoint. Prevents anonymous enumeration of customer orders.
+  const expectedSecret = Deno.env.get("ORDER_STATUS_API_SECRET");
+  if (expectedSecret) {
+    const provided =
+      req.headers.get("x-api-secret") ||
+      req.headers.get("x-shared-secret") ||
+      "";
+    if (provided !== expectedSecret) {
+      return json(401, { error: "Unauthorized", message: "Invalid or missing API secret." });
+    }
+  } else {
+    console.warn("[get-order-status] ORDER_STATUS_API_SECRET not configured — rejecting all requests");
+    return json(503, { error: "Not configured", message: "Service unavailable." });
+  }
+
   let body: { phone?: string; order_id?: string };
   try {
     body = await req.json();
@@ -87,7 +103,7 @@ Deno.serve(async (req) => {
   );
 
   const cols =
-    "woo_order_id, order_number, order_status, tracking_status, tracking_number, courier, expected_delivery, customer_name, customer_phone, woo_created_at";
+    "woo_order_id, order_number, order_status, tracking_status, tracking_number, courier, expected_delivery, woo_created_at";
 
   let order: Record<string, unknown> | null = null;
 
