@@ -43,11 +43,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Strict allowlist: only safe filename characters to prevent PostgREST filter injection
+    if (!/^[A-Za-z0-9._\-]+$/.test(file) || file.length > 256) {
+      return new Response(JSON.stringify({ error: 'Invalid file parameter' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Check cache first - look for a cached recording URL that's less than 20 hours old
     const { data: cachedLog } = await supabase
       .from('call_logs')
       .select('id, recording_stream_url, recording_fetched_at')
-      .or(`raw_payload->>_fn.eq.${file}`)
+      .filter('raw_payload->>_fn', 'eq', file)
       .not('recording_stream_url', 'is', null)
       .limit(1)
       .maybeSingle();
@@ -138,7 +146,7 @@ Deno.serve(async (req) => {
           recording_stream_url: recordingUrl,
           recording_fetched_at: new Date().toISOString(),
         })
-        .or(`raw_payload->>_fn.eq.${file}`)
+        .filter('raw_payload->>_fn', 'eq', file)
         .is('recording_stream_url', null);
 
       return new Response(JSON.stringify({ recording_url: recordingUrl }), {
