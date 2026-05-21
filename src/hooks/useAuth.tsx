@@ -17,6 +17,54 @@ const MFA_BYPASS_EMAILS = new Set<string>([
 
 const LOGIN_RATE_LIMIT_TIMEOUT_MS = 2500;
 
+// One-time cleanup: detect and purge corrupted/malformed Supabase auth tokens
+// from localStorage. A malformed refresh_token (e.g. non-JWT short string)
+// causes the SDK to enter an infinite failing refresh loop that blocks login.
+// Runs once per page load, BEFORE the SDK reads storage.
+(() => {
+  if (typeof window === "undefined") return;
+  try {
+    const FLAG = "sb-auth-cleanup-v1";
+    if (sessionStorage.getItem(FLAG)) return;
+    sessionStorage.setItem(FLAG, "1");
+
+    const isLikelyJwt = (s: unknown): boolean =>
+      typeof s === "string" && s.split(".").length === 3 && s.length > 40;
+
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      // Supabase v2 stores session under keys like "sb-<ref>-auth-token"
+      if (!/^sb-.*-auth-token$/.test(key)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        toRemove.push(key);
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        const access = parsed?.access_token ?? parsed?.currentSession?.access_token;
+        const refresh = parsed?.refresh_token ?? parsed?.currentSession?.refresh_token;
+        // A valid Supabase session must have a JWT access_token AND a refresh_token string.
+        // Refresh tokens are opaque, but legitimate ones are >20 chars; "fabpcaaupcg5"-style
+        // 12-char garbage is a clear corruption marker.
+        if (!isLikelyJwt(access) || typeof refresh !== "string" || refresh.length < 20) {
+          toRemove.push(key);
+        }
+      } catch {
+        toRemove.push(key);
+      }
+    }
+    if (toRemove.length) {
+      console.warn("[auth] Purging corrupted Supabase token(s) from localStorage:", toRemove);
+      toRemove.forEach((k) => localStorage.removeItem(k));
+    }
+  } catch (e) {
+    console.warn("[auth] Token cleanup skipped:", e);
+  }
+})();
+
 const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
