@@ -232,10 +232,10 @@ export default function HR() {
               )}
             </div>
             {isHROrAdmin && pendingLeaves.length > 0 && (
-              <div className="space-y-3 pt-4 border-t">
-                <h3 className="font-semibold">Team Leave Requests</h3>
-                {pendingLeaves.map((leave) => <LeaveApprovalCard key={leave.id} leave={leave} onApprove={approveLeave} />)}
-              </div>
+              <BulkLeaveApprovalSection
+                pendingLeaves={pendingLeaves}
+                onApprove={approveLeave}
+              />
             )}
           </TabsContent>
 
