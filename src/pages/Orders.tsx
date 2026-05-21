@@ -1801,6 +1801,12 @@ export default function Orders() {
             </TabsContent>
           )}
 
+          {canViewPipelineAnalytics && (
+            <TabsContent value="pipeline_analytics" className="mt-0">
+              <OrderPipelineAnalytics />
+            </TabsContent>
+          )}
+
           {(role === 'supply_chain' || role === 'admin') && (
             <TabsContent value="support_calls" className="space-y-6 mt-0">
               <SupportCallsDashboard logs={supportCallLogs} />
