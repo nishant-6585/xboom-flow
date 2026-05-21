@@ -18,6 +18,21 @@ type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketin
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
 const nameSchema = z.string().min(2, "Name must be at least 2 characters");
+const POST_LOGIN_MFA_CHECK_TIMEOUT_MS = 2500;
+
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("Post-login security check timed out")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -36,7 +51,7 @@ const Auth = () => {
   const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; confirmPassword?: string; mfa?: string }>({});
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, loading: authLoading, mfaStatus } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -70,6 +85,17 @@ const Auth = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (authLoading || !user || isResetPassword || isForgotPassword) return;
+
+    if (mfaStatus === "verification_required") {
+      navigate("/mfa-verify", { replace: true });
+      return;
+    }
+
+    navigate("/", { replace: true });
+  }, [authLoading, isForgotPassword, isResetPassword, mfaStatus, navigate, user]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; name?: string; confirmPassword?: string } = {};
@@ -259,7 +285,10 @@ const Auth = () => {
           });
         } else {
           // Check if MFA verification is pending before navigating
-          const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          const { data: aalData, error: aalError } = await withTimeout(
+            supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+            POST_LOGIN_MFA_CHECK_TIMEOUT_MS
+          );
           const hasMfaPending =
             !!aalError || (aalData?.currentLevel !== "aal2" && aalData?.nextLevel === "aal2");
           
