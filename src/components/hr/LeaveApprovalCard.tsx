@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar, Check, User, X } from "lucide-react";
 import { format } from "date-fns";
@@ -10,6 +11,10 @@ import { LeaveRequest, LeaveType } from "@/hooks/useHR";
 interface LeaveApprovalCardProps {
   leave: LeaveRequest;
   onApprove: (leaveId: string, approve: boolean, comments?: string) => Promise<boolean>;
+  /** Optional bulk-selection wiring (controlled from parent). */
+  selectable?: boolean;
+  selected?: boolean;
+  onSelectChange?: (id: string, selected: boolean) => void;
 }
 
 const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
@@ -27,7 +32,13 @@ const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   wfh: 'Work from Home',
 };
 
-export function LeaveApprovalCard({ leave, onApprove }: LeaveApprovalCardProps) {
+export function LeaveApprovalCard({
+  leave,
+  onApprove,
+  selectable = false,
+  selected = false,
+  onSelectChange,
+}: LeaveApprovalCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [comments, setComments] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -45,6 +56,13 @@ export function LeaveApprovalCard({ leave, onApprove }: LeaveApprovalCardProps) 
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
+            {selectable && (
+              <Checkbox
+                checked={selected}
+                onCheckedChange={(v) => onSelectChange?.(leave.id, v === true)}
+                aria-label={`Select leave request from ${leave.employee_name}`}
+              />
+            )}
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">{leave.employee_name}</span>
           </div>

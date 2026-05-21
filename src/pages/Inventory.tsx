@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Package, Plus, Search, ArrowUpCircle, ArrowDownCircle, RotateCcw, Settings, Loader2, AlertTriangle, History } from 'lucide-react';
+import { Package, Plus, Search, ArrowUpCircle, ArrowDownCircle, RotateCcw, Settings, Loader2, AlertTriangle, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { ProductSelect } from '@/components/ProductSelect';
@@ -22,6 +22,8 @@ import { DemandForecastWidget } from '@/components/inventory/DemandForecastWidge
 
 function InventoryContent() {
   const { role } = useAuth();
+  const [txnPage, setTxnPage] = useState(1);
+  const TXN_PAGE_SIZE = 50;
   const {
     inventory,
     transactions,
@@ -373,7 +375,9 @@ function InventoryContent() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    transactions.map((txn) => {
+                    transactions
+                      .slice((txnPage - 1) * TXN_PAGE_SIZE, txnPage * TXN_PAGE_SIZE)
+                      .map((txn) => {
                       const typeInfo = TRANSACTION_TYPES.find(t => t.value === txn.transaction_type);
                       return (
                         <TableRow key={txn.id}>
@@ -394,6 +398,24 @@ function InventoryContent() {
                 </TableBody>
               </Table>
             </CardContent>
+            {transactions.length > TXN_PAGE_SIZE && (
+              <div className="flex items-center justify-between px-4 py-3 border-t text-sm">
+                <span className="text-muted-foreground">
+                  Showing {(txnPage - 1) * TXN_PAGE_SIZE + 1}–{Math.min(txnPage * TXN_PAGE_SIZE, transactions.length)} of {transactions.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={txnPage === 1} onClick={() => setTxnPage(p => p - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span>Page {txnPage} of {Math.ceil(transactions.length / TXN_PAGE_SIZE)}</span>
+                  <Button variant="outline" size="sm" disabled={txnPage * TXN_PAGE_SIZE >= transactions.length} onClick={() => setTxnPage(p => p + 1)}>
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         </TabsContent>
 

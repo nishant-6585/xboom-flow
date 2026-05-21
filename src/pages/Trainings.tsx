@@ -1,9 +1,34 @@
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EmployeeTrainingPanel } from "@/components/trainings/EmployeeTrainingPanel";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useTrainings } from "@/hooks/useTrainings";
+import { useTableExport } from "@/hooks/useTableExport";
 
 export default function Trainings() {
+  const { trainings } = useTrainings();
+  const { exportToExcel } = useTableExport();
+
+  const handleExport = () => {
+    const rows = (trainings ?? []).map((t: any) => ({
+      type: t.type,
+      category: t.category,
+      status: t.status,
+      customer_name: t.customer_name,
+      customer_company: t.customer_company,
+      trainer_name: t.trainer_name,
+      training_date: t.training_date,
+      payment_status: t.payment_status,
+      total_amount: t.total_amount,
+    }));
+    exportToExcel(rows, "trainings", {
+      sheetName: "Trainings",
+      amountColumns: ["total_amount"],
+      dateColumns: ["training_date"],
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 sm:pb-0">
       <Header />
@@ -17,6 +42,10 @@ export default function Trainings() {
             </h1>
             <p className="text-muted-foreground">Manage employee learning and training resources</p>
           </div>
+          <Button variant="outline" onClick={handleExport} disabled={(trainings ?? []).length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
         </div>
 
         <EmployeeTrainingPanel />

@@ -20,11 +20,11 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   LayoutGrid,
   TableIcon,
   BarChart3,
 } from "lucide-react";
+import { TableSkeleton, EmptyState } from "@/components/data-states";
 
 type ViewMode = "cards" | "table";
 
@@ -112,10 +112,17 @@ export default function Tickets() {
   const renderTickets = (ticketList: Ticket[], emptyMessage: string) => {
     if (ticketList.length === 0) {
       return (
-        <div className="text-center py-12 text-muted-foreground">
-          <TicketIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>{emptyMessage}</p>
-        </div>
+        <EmptyState
+          icon={TicketIcon}
+          title={emptyMessage}
+          description="Raise a ticket to ask another team for help."
+          action={
+            <Button onClick={() => setShowCreateDialog(true)} size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              Create ticket
+            </Button>
+          }
+        />
       );
     }
 
@@ -309,8 +316,8 @@ export default function Tickets() {
           </TabsList>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <div className="rounded-lg border bg-card">
+              <TableSkeleton rows={6} columns={6} />
             </div>
           ) : (
             <>

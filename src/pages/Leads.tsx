@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Inbox, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +16,17 @@ import {
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { toast } from "@/hooks/use-toast";
+import { TableSkeleton, EmptyState, DataErrorState } from "@/components/data-states";
 
 const FORM_TYPES = [
   "contact", "quote", "demo", "dealer", "newsletter", "popup",
@@ -66,9 +76,10 @@ function truncate(s: string | null, n = 80) {
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
+const PAGE_SIZE_OPTIONS = [50, 100, 250] as const;
+
 export default function Leads() {
-  const [rows, setRows] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   // Filters
@@ -78,42 +89,64 @@ export default function Leads() {
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [search, setSearch] = useState("");
 
-  const load = async () => {
-    setLoading(true);
-    let q = supabase
-      .from("leads" as any)
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    if (formType !== "all") q = q.eq("form_type", formType);
-    if (status !== "all") q = q.eq("status", status);
-    if (startDate) q = q.gte("created_at", startDate.toISOString());
-    if (endDate) {
-      const e = new Date(endDate);
-      e.setHours(23, 59, 59, 999);
-      q = q.lte("created_at", e.toISOString());
-    }
-    const { data, error } = await q;
-    if (error) {
-      toast({ title: "Failed to load leads", description: error.message, variant: "destructive" });
-    } else {
-      setRows((data as any) ?? []);
-    }
-    setLoading(false);
-  };
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(50);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [formType, status, startDate, endDate]);
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setPage(1);
+  }, [formType, status, startDate, endDate, pageSize]);
 
-  // Realtime new leads
+  const queryKey = useMemo(
+    () => [
+      "leads",
+      { formType, status, startDate: startDate?.toISOString(), endDate: endDate?.toISOString(), page, pageSize },
+    ],
+    [formType, status, startDate, endDate, page, pageSize],
+  );
+
+  const leadsQuery = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      let q = supabase
+        .from("leads" as any)
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      if (formType !== "all") q = q.eq("form_type", formType);
+      if (status !== "all") q = q.eq("status", status);
+      if (startDate) q = q.gte("created_at", startDate.toISOString());
+      if (endDate) {
+        const e = new Date(endDate);
+        e.setHours(23, 59, 59, 999);
+        q = q.lte("created_at", e.toISOString());
+      }
+      const { data, error, count } = await q;
+      if (error) throw error;
+      return { rows: (data as unknown as Lead[]) ?? [], total: count ?? 0 };
+    },
+  });
+
+  const rows = leadsQuery.data?.rows ?? [];
+  const total = leadsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // Realtime: invalidate the query on new leads so the active page refetches.
   useEffect(() => {
     const ch = supabase
       .channel("leads-incoming")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, () => load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["leads"] });
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [queryClient]);
 
+  // Client-side search filter only applies to the current page (server-side
+  // search would require a different query shape).
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return rows;
@@ -133,18 +166,25 @@ export default function Leads() {
   };
 
   const updateStatus = async (id: number, value: Status) => {
-    const prev = rows;
-    setRows(rs => rs.map(r => r.id === id ? { ...r, status: value } : r));
+    // Optimistic cache update across whatever query key currently holds it
+    queryClient.setQueriesData<{ rows: Lead[]; total: number } | undefined>(
+      { queryKey: ["leads"] },
+      (cur) => cur ? { ...cur, rows: cur.rows.map(r => r.id === id ? { ...r, status: value } : r) } : cur,
+    );
     const { error } = await supabase.from("leads" as any).update({ status: value }).eq("id", id);
     if (error) {
-      setRows(prev);
       toast({ title: "Failed to update status", description: error.message, variant: "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
     }
   };
 
   const clearFilters = () => {
     setFormType("all"); setStatus("all"); setStartDate(undefined); setEndDate(undefined); setSearch("");
   };
+
+  const isLoading = leadsQuery.isLoading;
+  const isError = leadsQuery.isError;
+  const isEmpty = !isLoading && !isError && filtered.length === 0;
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-4">
@@ -155,7 +195,7 @@ export default function Leads() {
             Inbound submissions from xboom.in forms
           </p>
         </div>
-        <Badge variant="secondary">{filtered.length} leads</Badge>
+        <Badge variant="secondary">{total.toLocaleString("en-IN")} total · page {page} of {totalPages}</Badge>
       </div>
 
       <Card className="p-4 space-y-3">
@@ -218,13 +258,40 @@ export default function Leads() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={11} className="p-0">
+                  <TableSkeleton rows={Math.min(pageSize, 8)} columns={11} showHeader={false} />
+                </TableCell>
+              </TableRow>
             )}
-            {!loading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No leads match the current filters.</TableCell></TableRow>
+            {isError && (
+              <TableRow>
+                <TableCell colSpan={11}>
+                  <DataErrorState
+                    message={leadsQuery.error instanceof Error ? leadsQuery.error.message : undefined}
+                    onRetry={() => leadsQuery.refetch()}
+                  />
+                </TableCell>
+              </TableRow>
             )}
-            {!loading && filtered.map(r => {
+            {isEmpty && (
+              <TableRow>
+                <TableCell colSpan={11}>
+                  <EmptyState
+                    icon={Inbox}
+                    title="No leads match current filters"
+                    description="Try expanding the date range or removing filters."
+                    action={
+                      <Button variant="outline" size="sm" onClick={clearFilters}>
+                        Reset filters
+                      </Button>
+                    }
+                  />
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && !isError && filtered.map(r => {
               const isOpen = expanded.has(r.id);
               const submitted = r.submitted_at || r.created_at;
               const submittedFmt = submitted ? format(new Date(submitted), "dd MMM yyyy, HH:mm") : "—";
@@ -271,6 +338,45 @@ export default function Leads() {
           </TableBody>
         </Table>
       </Card>
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>Rows per page</span>
+          <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+            <SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map(n => (
+                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Pagination className="mx-0 w-auto">
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                onClick={(e) => { e.preventDefault(); if (page > 1) setPage(p => p - 1); }}
+                aria-disabled={page <= 1}
+                className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+              />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink href="#" isActive aria-label={`Page ${page} of ${totalPages}`}>
+                {page} / {totalPages}
+              </PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                onClick={(e) => { e.preventDefault(); if (page < totalPages) setPage(p => p + 1); }}
+                aria-disabled={page >= totalPages}
+                className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
     </div>
   );
 }

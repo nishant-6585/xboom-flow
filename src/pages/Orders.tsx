@@ -40,6 +40,7 @@ import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
+import { OrdersExportButton } from '@/components/orders/OrdersExportButton';
 
 export default function Orders() {
   const { role, user } = useAuth();
@@ -563,6 +564,12 @@ export default function Orders() {
                   </Link>
                 )}
               </div>
+              <OrdersExportButton
+                activeTab={activeTab}
+                manualOrders={filteredOrders}
+                shopifyOrders={filteredShopifyOrders}
+                wooOrders={filteredWooOrders}
+              />
               
               {/* Enhanced Tabs */}
               <TabsList className="bg-muted/60 backdrop-blur-sm p-1.5 h-auto flex-wrap rounded-xl border border-border/50 shadow-sm">
