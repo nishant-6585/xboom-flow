@@ -38,8 +38,7 @@ Deno.serve(async (req) => {
     console.error("[interakt-portal-webhook] INTERAKT_WEBHOOK_SECRET is not configured");
     return ok({ error: "server_misconfigured" }, 500);
   }
-  const url = new URL(req.url);
-  const provided = url.searchParams.get("token") ?? req.headers.get("x-webhook-token");
+  const provided = req.headers.get("x-webhook-token");
   if (provided !== expected) return ok({ error: "unauthorized" }, 401);
 
   let payload: Record<string, unknown> = {};
