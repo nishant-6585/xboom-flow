@@ -27,9 +27,9 @@ Deno.serve(async (req) => {
       token_hash, type,
     });
     if (verifyErr || !verifyData?.user) {
+      console.error("[portal-set-password] verify error:", verifyErr?.message);
       return new Response(JSON.stringify({
         error: "This invite link has expired or was already used. Please ask your account manager to resend the invite.",
-        detail: verifyErr?.message,
       }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -51,7 +51,8 @@ Deno.serve(async (req) => {
       } else if (/at least|minimum|length/i.test(raw)) {
         friendly = "Password does not meet the minimum strength requirements.";
       }
-      return new Response(JSON.stringify({ error: friendly, detail: raw }), {
+      console.error("[portal-set-password] update error:", raw);
+      return new Response(JSON.stringify({ error: friendly }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
