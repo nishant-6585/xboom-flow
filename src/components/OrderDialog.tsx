@@ -734,12 +734,15 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       Escalated
                     </Badge>
                   )}
-                  {order.order_outcome && order.order_outcome !== 'pending' && (
-                    <Badge className={outcomeConfig[order.order_outcome].className}>
-                      {order.order_outcome === 'won' ? <Trophy className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                      {outcomeConfig[order.order_outcome].label}
-                    </Badge>
-                  )}
+                  {order.order_outcome && order.order_outcome !== 'pending' && (() => {
+                    const cfg = outcomeConfig[order.order_outcome] ?? FALLBACK_OUTCOME_CONFIG;
+                    return (
+                      <Badge className={cfg.className}>
+                        {isWonOutcome(order.order_outcome) ? <Trophy className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                        {cfg.label}
+                      </Badge>
+                    );
+                  })()}
                   {order.is_rto && (
                     <Badge variant="outline" className="text-xs border-orange-500 text-orange-600 dark:text-orange-400">
                       <Undo2 className="h-3 w-3 mr-1" />
