@@ -9,10 +9,16 @@ type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketin
 const ROLE_PRIORITY: AppRole[] = ["admin", "hr", "finance", "supply_chain", "sales_manager", "it", "marketing", "sales"];
 
 // MFA bypass list — specific developer accounts exempt from MFA enforcement.
-// Note: this weakens security for the listed accounts; keep this list minimal.
-const MFA_BYPASS_EMAILS = new Set<string>([
-  "vishal.saurav@xboom.in",
-  "nishant.k@xboom.in",
+// Stored as opaque hashes (not plain emails) to avoid leaking staff addresses
+// in the public JS bundle. Keep this list minimal.
+const hashEmail = (s: string): string => {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = (((h << 5) + h) ^ s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+};
+const MFA_BYPASS_EMAIL_HASHES = new Set<string>([
+  "uyvny6",
+  "1y4rfqx",
 ]);
 
 const LOGIN_RATE_LIMIT_TIMEOUT_MS = 2500;
@@ -80,7 +86,7 @@ const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<
 };
 
 export const isMfaBypassed = (email?: string | null): boolean =>
-  !!email && MFA_BYPASS_EMAILS.has(email.trim().toLowerCase());
+  !!email && MFA_BYPASS_EMAIL_HASHES.has(hashEmail(email.trim().toLowerCase()));
 
 interface Profile {
   id: string;
