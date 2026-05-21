@@ -13950,6 +13950,23 @@ export type Database = {
         }
         Relationships: []
       }
+      unified_lead_feed: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          email: string | null
+          is_assigned: boolean | null
+          name: string | null
+          phone: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
+          source: string | null
+          source_row_id: string | null
+          status: string | null
+          subject_or_message: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       allowed_website_lead_assignees: {
