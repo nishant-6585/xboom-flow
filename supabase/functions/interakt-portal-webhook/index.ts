@@ -33,11 +33,14 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return ok({ error: "method_not_allowed" });
 
   const expected = Deno.env.get("INTERAKT_WEBHOOK_SECRET");
-  if (expected) {
-    const url = new URL(req.url);
-    const provided = url.searchParams.get("token") ?? req.headers.get("x-webhook-token");
-    if (provided !== expected) return ok({ error: "unauthorized" });
+  if (!expected) {
+    // Fail closed — never accept unauthenticated calls if the secret is misconfigured.
+    console.error("[interakt-portal-webhook] INTERAKT_WEBHOOK_SECRET is not configured");
+    return ok({ error: "server_misconfigured" }, 500);
   }
+  const url = new URL(req.url);
+  const provided = url.searchParams.get("token") ?? req.headers.get("x-webhook-token");
+  if (provided !== expected) return ok({ error: "unauthorized" }, 401);
 
   let payload: Record<string, unknown> = {};
   try {
