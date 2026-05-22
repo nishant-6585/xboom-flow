@@ -21,6 +21,69 @@ const ok = (body: Record<string, unknown> = { received: true }) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+/**
+ * Verify ElevenLabs HMAC signature.
+ * ElevenLabs sends headers in the form: `t=<timestamp>,v0=<hex_signature>`.
+ * The signed payload is `${timestamp}.${rawBody}` with HMAC-SHA256.
+ * Returns true when the signature matches the secret. When the secret is not
+ * configured, verification is skipped (the endpoint stays open) and a warning
+ * is logged — set ELEVENLABS_WEBHOOK_SECRET in project secrets to enforce.
+ */
+async function verifyElevenLabsSignature(req: Request, rawBody: string): Promise<boolean> {
+  const secret = Deno.env.get("ELEVENLABS_WEBHOOK_SECRET");
+  if (!secret) {
+    console.warn(
+      "[elevenlabs-call-summary] ELEVENLABS_WEBHOOK_SECRET not set — accepting unsigned webhook. Configure the secret to enforce signature verification.",
+    );
+    return true;
+  }
+
+  const header = req.headers.get("elevenlabs-signature") || req.headers.get("ElevenLabs-Signature");
+  if (!header) return false;
+
+  // Parse `t=...,v0=...` style header (also tolerate a bare hex signature).
+  let timestamp: string | null = null;
+  let provided: string | null = null;
+  for (const part of header.split(",")) {
+    const [k, v] = part.split("=");
+    if (!k || !v) continue;
+    if (k.trim() === "t") timestamp = v.trim();
+    else if (k.trim().startsWith("v")) provided = v.trim();
+  }
+  if (!provided) provided = header.trim();
+
+  // Reject obviously stale timestamps (>5 min) when present.
+  if (timestamp) {
+    const ts = Number(timestamp);
+    if (!Number.isFinite(ts)) return false;
+    const ageMs = Math.abs(Date.now() - (ts > 1e12 ? ts : ts * 1000));
+    if (ageMs > 5 * 60 * 1000) return false;
+  }
+
+  const signedPayload = timestamp ? `${timestamp}.${rawBody}` : rawBody;
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(signedPayload));
+  const computed = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  // Strip any v0= prefix from the provided signature for direct comparison.
+  const providedHex = provided.replace(/^v0=/, "");
+  if (computed.length !== providedHex.length) return false;
+  let result = 0;
+  for (let i = 0; i < computed.length; i++) {
+    result |= computed.charCodeAt(i) ^ providedHex.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 /** Recursively walk an object and return the first defined value at any of the given keys. */
 function pick(obj: unknown, keys: string[]): unknown {
   if (!obj || typeof obj !== "object") return undefined;
@@ -220,6 +283,16 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("[elevenlabs-call-summary] invalid JSON body:", e);
     raw = { _parse_error: String(e), _raw: rawText };
+  }
+
+  // Verify the webhook came from ElevenLabs before doing anything else.
+  const signatureValid = await verifyElevenLabsSignature(req, rawText);
+  if (!signatureValid) {
+    console.warn("[elevenlabs-call-summary] rejected unsigned/invalid webhook");
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   console.log(

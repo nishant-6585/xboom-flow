@@ -232,6 +232,15 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  // Role guard: only operational roles may trigger customer notifications.
+  const { data: roleRows } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userData.user.id);
+  const allowedRoles = new Set(["admin", "supply_chain", "sales", "sales_manager", "support"]);
+  const hasAllowedRole = (roleRows ?? []).some((r: { role: string }) => allowedRoles.has(r.role));
+  if (!hasAllowedRole) return json({ error: "Forbidden" }, 403);
+
   let body: Body;
   try {
     body = (await req.json()) as Body;
