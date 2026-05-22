@@ -391,6 +391,12 @@ export function useOrders() {
   const orders = rawOrders.filter((o: any) => {
     if (o?.deleted_at) return false;
     if ((o?.source || 'manual') !== 'website') return true;
+    // Website orders: hide pending-payment (po_received) and cancelled rows
+    // from the main Orders list. These live in dedicated tabs:
+    //   - po_received -> Orders > Website Pending Payment tab
+    //   - cancelled  -> Sales > Leads > Website abandoned carts
+    const status = (o?.status || '').toLowerCase();
+    if (status === 'po_received' || status === 'cancelled') return false;
     const refDate = o.order_date || o.created_at;
     if (!refDate) return false;
     return new Date(refDate).getTime() >= WEBSITE_ORDER_CUTOFF;
