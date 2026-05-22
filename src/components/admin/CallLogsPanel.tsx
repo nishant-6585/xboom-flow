@@ -17,6 +17,7 @@ import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
 import type { Prospect } from "@/hooks/useProspects";
+import { useSalesUsers } from "@/hooks/useSalesUsers";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
@@ -254,7 +255,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
 
-  const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
+  // Dynamic list — all users with sales / sales_manager / admin / supply_chain roles
+  const { salesUsers } = useSalesUsers();
+  const SALES_PERSONS_LIST = React.useMemo(
+    () => salesUsers.map(u => u.name.trim()).filter(Boolean),
+    [salesUsers]
+  );
 
   // Extract unique sales persons and agents from current logs for filter options
   const { salesPersons, agents } = React.useMemo(() => {
@@ -329,12 +335,20 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
     try {
+      const trimmed = newName.trim();
+      const matched = salesUsers.find(
+        u => u.name.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      const updatePayload: { sales_person_name: string | null; sales_person_id: string | null } = {
+        sales_person_name: trimmed || null,
+        sales_person_id: matched?.user_id ?? null,
+      };
       const { error } = await supabase
         .from('call_logs')
-        .update({ sales_person_name: newName })
+        .update(updatePayload)
         .eq('id', logId);
       if (error) throw error;
-      setLogs(prev => prev.map(l => l.id === logId ? { ...l, sales_person_name: newName } : l));
+      setLogs(prev => prev.map(l => l.id === logId ? { ...l, ...updatePayload } : l));
       toast.success('Assigned person updated');
     } catch (err: any) {
       toast.error(err.message || 'Failed to update');
@@ -691,7 +705,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         </TableCell>
                         <TableCell className="text-sm" onClick={(e) => e.stopPropagation()}>
                           <Select
-                            value={log.sales_person_name || 'unassigned'}
+                            value={(log.sales_person_name || '').trim() || 'unassigned'}
                             onValueChange={(v) => handleAssignChange(log.id, v === 'unassigned' ? '' : v)}
                             disabled={updatingAssign === log.id}
                           >
