@@ -42,6 +42,8 @@ import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
 import { OrdersExportButton } from '@/components/orders/OrdersExportButton';
 import { OrderPipelineAnalytics } from '@/components/orders/OrderPipelineAnalytics';
+import { WebsitePendingPaymentTable } from '@/components/orders/WebsitePendingPaymentTable';
+import { useWebsitePendingOrders } from '@/hooks/useWebsitePendingOrders';
 
 export default function Orders() {
   const { role, user } = useAuth();
@@ -212,6 +214,9 @@ export default function Orders() {
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
   const canViewPipelineAnalytics =
     role === 'admin' || role === 'finance' || role === 'supply_chain' || role === 'sales_manager';
+  const canViewWebsitePending =
+    role === 'admin' || role === 'finance' || role === 'supply_chain' || role === 'sales_manager';
+  const { count: websitePendingCount } = useWebsitePendingOrders();
 
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
@@ -590,6 +595,18 @@ export default function Orders() {
                     {shopifyTotalCount.toLocaleString()}
                   </Badge>
                 </TabsTrigger>
+                {canViewWebsitePending && (
+                  <TabsTrigger value="website_pending" className="gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline font-medium">Website Pending Payment</span>
+                    <Badge
+                      variant={websitePendingCount > 0 ? 'destructive' : 'secondary'}
+                      className="ml-1 h-5 px-2 text-xs font-semibold"
+                    >
+                      {websitePendingCount}
+                    </Badge>
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="website" className="gap-2">
                   <Globe className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">XBoom Website</span>
@@ -1771,6 +1788,12 @@ export default function Orders() {
               }}
             />
           </TabsContent>
+
+          {canViewWebsitePending && (
+            <TabsContent value="website_pending" className="space-y-6 mt-0">
+              <WebsitePendingPaymentTable />
+            </TabsContent>
+          )}
 
           <TabsContent value="pipeline">
             <PipelineOrders enquiryIdFilter={enquiryIdFromUrl} />
