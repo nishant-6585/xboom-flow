@@ -705,7 +705,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         </TableCell>
                         <TableCell className="text-sm" onClick={(e) => e.stopPropagation()}>
                           <Select
-                            value={log.sales_person_name || 'unassigned'}
+                            value={(log.sales_person_name || '').trim() || 'unassigned'}
                             onValueChange={(v) => handleAssignChange(log.id, v === 'unassigned' ? '' : v)}
                             disabled={updatingAssign === log.id}
                           >
