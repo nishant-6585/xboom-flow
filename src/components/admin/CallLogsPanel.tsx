@@ -335,12 +335,20 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
     try {
+      const trimmed = newName.trim();
+      const matched = salesUsers.find(
+        u => u.name.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      const updatePayload: { sales_person_name: string | null; sales_person_id: string | null } = {
+        sales_person_name: trimmed || null,
+        sales_person_id: matched?.user_id ?? null,
+      };
       const { error } = await supabase
         .from('call_logs')
-        .update({ sales_person_name: newName })
+        .update(updatePayload)
         .eq('id', logId);
       if (error) throw error;
-      setLogs(prev => prev.map(l => l.id === logId ? { ...l, sales_person_name: newName } : l));
+      setLogs(prev => prev.map(l => l.id === logId ? { ...l, ...updatePayload } : l));
       toast.success('Assigned person updated');
     } catch (err: any) {
       toast.error(err.message || 'Failed to update');
