@@ -107,12 +107,8 @@ export function FormsLeadsPanel() {
         .ilike("name", "Rohit")
         .eq("is_approved", true);
       
-      const all = [...(data || [])];
-      if (rohit) {
-        rohit.forEach(r => {
-          if (!all.find(u => u.user_id === r.user_id)) all.push(r);
-        });
-      }
+      const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
+      const all = filterAllowedAssignees([...(data || [])]);
       return all.sort((a, b) => a.name.localeCompare(b.name));
     },
   });

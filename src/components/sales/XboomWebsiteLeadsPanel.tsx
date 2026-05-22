@@ -127,8 +127,9 @@ export function XboomWebsiteLeadsPanel() {
         const name = r.profiles.name || r.profiles.email || "Salesperson";
         if (!map.has(r.user_id)) map.set(r.user_id, { user_id: r.user_id, name });
       }
+      const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
       setSalespeople(
-        Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name)),
+        filterAllowedAssignees(Array.from(map.values())).sort((a, b) => a.name.localeCompare(b.name)),
       );
     })();
     return () => {
