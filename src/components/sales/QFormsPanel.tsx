@@ -167,7 +167,9 @@ export default function QFormsPanel() {
         .select("user_id, name")
         .eq("is_approved", true)
         .in("user_id", ids);
-      setSalesPool(((profs ?? []) as any).sort((a: any, b: any) => a.name.localeCompare(b.name)));
+      const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
+      const filtered = filterAllowedAssignees((profs ?? []) as any[]);
+      setSalesPool(filtered.sort((a: any, b: any) => a.name.localeCompare(b.name)) as any);
     })();
   }, []);
 

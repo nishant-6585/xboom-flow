@@ -311,8 +311,9 @@ export function ElevenLabsLeadsPanel() {
       .select("user_id,name,is_approved")
       .in("user_id", userIds)
       .eq("is_approved", true);
+    const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
     const pool: SalesUser[] = (profs ?? []).map((p: any) => ({ user_id: p.user_id, name: p.name }));
-    setSalesPool(pool.sort((a, b) => a.name.localeCompare(b.name)));
+    setSalesPool(filterAllowedAssignees(pool).sort((a, b) => a.name.localeCompare(b.name)));
   };
 
   useEffect(() => { load(); }, [assigneeFilter, user?.id]);
