@@ -38,6 +38,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Role guard: only admin / hr may resolve AI tickets and trigger Claude calls.
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const allowed = new Set(["admin", "hr"]);
+    const isAuthorized = (roleRows ?? []).some((r: { role: string }) => allowed.has(r.role));
+    if (!isAuthorized) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { ticket_id } = await req.json();
     if (!ticket_id) {
       return new Response(JSON.stringify({ error: "ticket_id required" }), {

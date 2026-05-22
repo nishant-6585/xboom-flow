@@ -635,6 +635,22 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+    } else {
+      // Standard event types: only operational roles may post to Slack to
+      // prevent any authenticated employee from injecting arbitrary content
+      // into workspace channels.
+      const { data: userRoles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+      const allowedRoles = new Set(['admin', 'sales_manager', 'supply_chain', 'finance', 'it', 'sales', 'support', 'hr']);
+      const isAuthorized = userRoles?.some((r: { role: string }) => allowedRoles.has(r.role));
+      if (!isAuthorized) {
+        return new Response(JSON.stringify({ error: 'Forbidden: insufficient role' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Handle test_channel - use env secret for bot token
