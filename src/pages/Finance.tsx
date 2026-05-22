@@ -13,10 +13,15 @@ import { PaymentRiskWidget } from '@/components/finance/PaymentRiskWidget';
 import { RecurringExpensesPanel } from '@/components/finance/recurring/RecurringExpensesPanel';
 import { 
   IndianRupee, TrendingUp, TrendingDown, Calendar, Plus, 
-  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet, Repeat, Download
+  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet, Repeat, Download,
+  AlertTriangle, Clock
 } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useTableExport } from '@/hooks/useTableExport';
+import { AgingMatrix } from '@/components/finance/AgingMatrix';
+import { useARAging } from '@/hooks/useARAging';
+import { useAPAging } from '@/hooks/useAPAging';
+import { format as fmtDate } from 'date-fns';
 
 interface PaymentRecord {
   id: string;
@@ -81,8 +86,92 @@ export default function Finance() {
   const initialLoadDoneRef = useRef(false);
   const [formOpen, setFormOpen] = useState(false);
 
+  // AR/AP aging state
+  const [arAsOf, setArAsOf] = useState<Date>(new Date());
+  const [apAsOf, setApAsOf] = useState<Date>(new Date());
+  const [arSearchRaw, setArSearchRaw] = useState('');
+  const [apSearchRaw, setApSearchRaw] = useState('');
+  const [arSearch, setArSearch] = useState('');
+  const [apSearch, setApSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setArSearch(arSearchRaw), 300);
+    return () => clearTimeout(t);
+  }, [arSearchRaw]);
+  useEffect(() => {
+    const t = setTimeout(() => setApSearch(apSearchRaw), 300);
+    return () => clearTimeout(t);
+  }, [apSearchRaw]);
+
   // Check role access
   const canAccess = role === 'admin' || role === 'finance';
+  const canViewAging = canAccess;
+
+  const arQuery = useARAging({ asOfDate: arAsOf, customerSearch: arSearch });
+  const apQuery = useAPAging({ asOfDate: apAsOf, supplierSearch: apSearch });
+
+  const handleArExport = () => {
+    const rows = (arQuery.data?.matrix ?? []).flatMap((row) =>
+      row.items.map((it) => ({
+        customer: row.name,
+        invoice_number: it.number,
+        invoice_date: it.date,
+        due_date: it.due_date,
+        total: it.total,
+        outstanding: it.outstanding,
+        days_overdue: it.daysOverdue,
+        bucket: it.bucket,
+        status: it.status ?? '',
+      })),
+    );
+    exportToExcel(rows, `ar-aging-${fmtDate(arAsOf, 'yyyyMMdd')}`, {
+      sheetName: 'AR Aging',
+      amountColumns: ['total', 'outstanding'],
+      dateColumns: ['invoice_date', 'due_date'],
+      headers: {
+        customer: 'Customer',
+        invoice_number: 'Invoice #',
+        invoice_date: 'Invoice Date',
+        due_date: 'Due Date',
+        total: 'Total',
+        outstanding: 'Outstanding',
+        days_overdue: 'Days Overdue',
+        bucket: 'Bucket',
+        status: 'Status',
+      },
+    });
+  };
+
+  const handleApExport = () => {
+    const rows = (apQuery.data?.matrix ?? []).flatMap((row) =>
+      row.items.map((it) => ({
+        supplier: row.name,
+        procurement_number: it.number,
+        procurement_date: it.date,
+        due_date: it.due_date,
+        total: it.total,
+        outstanding: it.outstanding,
+        days_overdue: it.daysOverdue,
+        bucket: it.bucket,
+        payment_status: it.status ?? '',
+      })),
+    );
+    exportToExcel(rows, `ap-aging-${fmtDate(apAsOf, 'yyyyMMdd')}`, {
+      sheetName: 'AP Aging',
+      amountColumns: ['total', 'outstanding'],
+      dateColumns: ['procurement_date', 'due_date'],
+      headers: {
+        supplier: 'Supplier',
+        procurement_number: 'Procurement #',
+        procurement_date: 'Procurement Date',
+        due_date: 'Due Date',
+        total: 'Total',
+        outstanding: 'Outstanding',
+        days_overdue: 'Days Overdue',
+        bucket: 'Bucket',
+        payment_status: 'Payment Status',
+      },
+    });
+  };
 
   useEffect(() => {
     if (!user || !canAccess) return;
@@ -260,7 +349,7 @@ export default function Finance() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+          <TabsList className={`grid w-full ${canViewAging ? 'grid-cols-7 max-w-5xl' : 'grid-cols-5 max-w-3xl'}`}>
             <TabsTrigger value="overview" className="gap-2">
               <ArrowUpRight className="h-4 w-4" />
               Credit / Debit
@@ -281,6 +370,18 @@ export default function Finance() {
               <TrendingDown className="h-4 w-4" />
               Payment Risk
             </TabsTrigger>
+            {canViewAging && (
+              <>
+                <TabsTrigger value="ar-aging" className="gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  AR Aging
+                </TabsTrigger>
+                <TabsTrigger value="ap-aging" className="gap-2">
+                  <Clock className="h-4 w-4" />
+                  AP Aging
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="overview">
@@ -310,6 +411,43 @@ export default function Finance() {
           <TabsContent value="risk">
             <PaymentRiskWidget />
           </TabsContent>
+
+          {canViewAging && (
+            <>
+              <TabsContent value="ar-aging">
+                <AgingMatrix
+                  title="Accounts Receivable Aging"
+                  data={arQuery.data}
+                  isLoading={arQuery.isLoading}
+                  error={arQuery.error}
+                  rowLabel="Customer"
+                  searchPlaceholder="Search customers..."
+                  searchValue={arSearchRaw}
+                  onSearchChange={setArSearchRaw}
+                  asOfDate={arAsOf}
+                  onAsOfDateChange={setArAsOf}
+                  onExport={handleArExport}
+                  kind="ar"
+                />
+              </TabsContent>
+              <TabsContent value="ap-aging">
+                <AgingMatrix
+                  title="Accounts Payable Aging"
+                  data={apQuery.data}
+                  isLoading={apQuery.isLoading}
+                  error={apQuery.error}
+                  rowLabel="Supplier"
+                  searchPlaceholder="Search suppliers..."
+                  searchValue={apSearchRaw}
+                  onSearchChange={setApSearchRaw}
+                  asOfDate={apAsOf}
+                  onAsOfDateChange={setApAsOf}
+                  onExport={handleApExport}
+                  kind="ap"
+                />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </main>
 
