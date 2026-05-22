@@ -5,6 +5,7 @@ import { CalendarDays, Package, User, IndianRupee, Clock, Truck } from 'lucide-r
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
 import { WooWhatsappStatus } from './WooWhatsappStatus';
+import { MarkWebsitePaymentButton } from './MarkWebsitePaymentButton';
 
 // Cast to allow optional tracking fields that may not yet exist on the WooCommerceOrder type
 type OrderWithTracking = WooCommerceOrder & {
@@ -206,6 +207,13 @@ export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
           <div className="pt-2 border-t border-border/30">
             <div className="flex items-center justify-end mb-1.5">
               <WooWhatsappStatus wooOrderId={order.woo_order_id} />
+            </div>
+            <div className="mb-2">
+              <MarkWebsitePaymentButton
+                wooOrderId={order.woo_order_id}
+                currentStatus={order.order_status}
+                onSuccess={onUpdated}
+              />
             </div>
             <WooOrderStatusActions
               wooOrderId={order.woo_order_id}
