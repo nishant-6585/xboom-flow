@@ -42,8 +42,6 @@ import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
 import { OrdersExportButton } from '@/components/orders/OrdersExportButton';
 import { OrderPipelineAnalytics } from '@/components/orders/OrderPipelineAnalytics';
-import { WebsitePendingPaymentTable } from '@/components/orders/WebsitePendingPaymentTable';
-import { useWebsitePendingOrders } from '@/hooks/useWebsitePendingOrders';
 
 export default function Orders() {
   const { role, user } = useAuth();
