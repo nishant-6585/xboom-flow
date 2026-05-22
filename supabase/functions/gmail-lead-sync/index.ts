@@ -40,6 +40,8 @@ const POPUP_ROUND_ROBIN_POOL: Array<{ id: string; user_id: string; name: string 
   { id: "79d3bb1a-b683-4bf9-9b3d-fe469d177f93", user_id: "a790b58d-8e3d-4333-b6d6-08be631c865d", name: "Narasimha" },
   { id: "2c6d8abd-3455-4c3d-9990-b39f26325109", user_id: "457fc2d5-9fc5-439a-938e-5b998549b811", name: "mohammed musthak" },
   { id: "a91c7591-0610-4173-8fad-20f218d9acba", user_id: "456e91f8-34cc-4f92-a1c1-a092f2bbed39", name: "suman das" },
+  { id: "srishti-popup-rr", user_id: "74930912-193a-4081-a87f-46902ee96c4d", name: "Srishti Suman" },
+  { id: "manoj-popup-rr", user_id: "7bc60110-5d57-4ae1-bc9f-bf4dd3787a90", name: "Manoj Kumar" },
 ];
 const HUMANOID_OWNER = {
   id: "ec0e3f49-bd42-4541-8fb3-c2af228ac615",
