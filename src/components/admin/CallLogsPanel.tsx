@@ -255,7 +255,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
 
-  const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
+  // Dynamic list — all users with sales / sales_manager / admin / supply_chain roles
+  const { salesUsers } = useSalesUsers();
+  const SALES_PERSONS_LIST = React.useMemo(
+    () => salesUsers.map(u => u.name.trim()).filter(Boolean),
+    [salesUsers]
+  );
 
   // Extract unique sales persons and agents from current logs for filter options
   const { salesPersons, agents } = React.useMemo(() => {
