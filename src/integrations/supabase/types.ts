@@ -8531,27 +8531,6 @@ export type Database = {
         }
         Relationships: []
       }
-      payment_marker_grants: {
-        Row: {
-          granted_at: string
-          granted_by: string | null
-          note: string | null
-          user_id: string
-        }
-        Insert: {
-          granted_at?: string
-          granted_by?: string | null
-          note?: string | null
-          user_id: string
-        }
-        Update: {
-          granted_at?: string
-          granted_by?: string | null
-          note?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       payment_records: {
         Row: {
           amount: number
@@ -14033,7 +14012,6 @@ export type Database = {
         Returns: boolean
       }
       can_create_admin: { Args: never; Returns: boolean }
-      can_mark_website_payment: { Args: { _user_id: string }; Returns: boolean }
       can_register_as_admin: { Args: { p_email: string }; Returns: boolean }
       can_view_hr_document: {
         Args: { _document_id: string; _user_id: string }
@@ -14049,101 +14027,6 @@ export type Database = {
           _visibility: Database["public"]["Enums"]["notice_visibility"][]
         }
         Returns: boolean
-      }
-      cancel_website_order: {
-        Args: { _order_id: string; _reason?: string }
-        Returns: {
-          actual_delivery: string | null
-          additional_details: string | null
-          amount_paid: number | null
-          campaign_id: string | null
-          cancellation_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
-          committed_timeline: string | null
-          company_id: string | null
-          courier_name: string | null
-          created_at: string
-          created_by: string
-          customer_company: string | null
-          customer_email: string | null
-          customer_gst: string | null
-          customer_name: string
-          customer_notes: string | null
-          customer_phone: string | null
-          customer_type: string | null
-          delete_reason: string | null
-          deleted_at: string | null
-          deleted_by: string | null
-          deleted_by_name: string | null
-          delivery_charges: number | null
-          discount_amount: number | null
-          enquiry_id: string | null
-          escalated_at: string | null
-          escalated_by: string | null
-          escalation_reason: string | null
-          estimated_delivery: string | null
-          estimated_procurement_rate: number | null
-          external_id: string | null
-          id: string
-          internal_notes: string | null
-          invoice_number: string | null
-          invoice_url: string | null
-          is_escalated: boolean
-          is_refund_requested: boolean
-          is_rto: boolean
-          last_reminder_sent_at: string | null
-          lead_source: string | null
-          lost_reason: string | null
-          lost_reason_notes: string | null
-          order_date: string | null
-          order_number: string | null
-          order_outcome: string | null
-          order_type: string | null
-          outcome_updated_at: string | null
-          outcome_updated_by: string | null
-          payment_due_date: string | null
-          payment_status: string | null
-          payment_terms: string | null
-          po_number: string | null
-          po_url: string | null
-          priority: number | null
-          procurement_currency: string | null
-          procurement_date: string | null
-          procurement_rate: number | null
-          product_category: string | null
-          product_code: string
-          product_name: string
-          quantity: number
-          refund_reason: string | null
-          refund_requested_at: string | null
-          refund_requested_by: string | null
-          refund_status: string | null
-          rto_marked_at: string | null
-          rto_marked_by: string | null
-          sales_notes: string | null
-          sales_person_id: string
-          sales_person_name: string
-          selling_price: number | null
-          shipping_address: string | null
-          source: string
-          status: Database["public"]["Enums"]["order_status"]
-          supplier_contact: string | null
-          supplier_id: string | null
-          supplier_name: string | null
-          supplier_payment_due_date: string | null
-          supplier_payment_terms: string | null
-          total_sales_amount: number | null
-          tracking_number: string | null
-          tracking_url: string | null
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "orders"
-          isOneToOne: true
-          isSetofReturn: false
-        }
       }
       check_device_trust:
         | {
@@ -14663,101 +14546,6 @@ export type Database = {
         Returns: string
       }
       mark_old_woo_leads_as_lost: { Args: never; Returns: number }
-      mark_website_order_paid: {
-        Args: { _order_id: string }
-        Returns: {
-          actual_delivery: string | null
-          additional_details: string | null
-          amount_paid: number | null
-          campaign_id: string | null
-          cancellation_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
-          committed_timeline: string | null
-          company_id: string | null
-          courier_name: string | null
-          created_at: string
-          created_by: string
-          customer_company: string | null
-          customer_email: string | null
-          customer_gst: string | null
-          customer_name: string
-          customer_notes: string | null
-          customer_phone: string | null
-          customer_type: string | null
-          delete_reason: string | null
-          deleted_at: string | null
-          deleted_by: string | null
-          deleted_by_name: string | null
-          delivery_charges: number | null
-          discount_amount: number | null
-          enquiry_id: string | null
-          escalated_at: string | null
-          escalated_by: string | null
-          escalation_reason: string | null
-          estimated_delivery: string | null
-          estimated_procurement_rate: number | null
-          external_id: string | null
-          id: string
-          internal_notes: string | null
-          invoice_number: string | null
-          invoice_url: string | null
-          is_escalated: boolean
-          is_refund_requested: boolean
-          is_rto: boolean
-          last_reminder_sent_at: string | null
-          lead_source: string | null
-          lost_reason: string | null
-          lost_reason_notes: string | null
-          order_date: string | null
-          order_number: string | null
-          order_outcome: string | null
-          order_type: string | null
-          outcome_updated_at: string | null
-          outcome_updated_by: string | null
-          payment_due_date: string | null
-          payment_status: string | null
-          payment_terms: string | null
-          po_number: string | null
-          po_url: string | null
-          priority: number | null
-          procurement_currency: string | null
-          procurement_date: string | null
-          procurement_rate: number | null
-          product_category: string | null
-          product_code: string
-          product_name: string
-          quantity: number
-          refund_reason: string | null
-          refund_requested_at: string | null
-          refund_requested_by: string | null
-          refund_status: string | null
-          rto_marked_at: string | null
-          rto_marked_by: string | null
-          sales_notes: string | null
-          sales_person_id: string
-          sales_person_name: string
-          selling_price: number | null
-          shipping_address: string | null
-          source: string
-          status: Database["public"]["Enums"]["order_status"]
-          supplier_contact: string | null
-          supplier_id: string | null
-          supplier_name: string | null
-          supplier_payment_due_date: string | null
-          supplier_payment_terms: string | null
-          total_sales_amount: number | null
-          tracking_number: string | null
-          tracking_url: string | null
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "orders"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
       move_notification_to_dlq: {
         Args: { _notification_id: string }
         Returns: string
