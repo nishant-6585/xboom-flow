@@ -255,11 +255,29 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
 
-  // Dynamic list — all users with sales / sales_manager / admin / supply_chain roles
+  // Fixed assignment pool — only these 6 reps can be assigned to call logs.
+  // Match is case-insensitive and uses substring matching to handle minor
+  // name variations (e.g. "mohammed musthak" vs "Musthak").
+  const ASSIGNABLE_REP_KEYWORDS = [
+    "suman das",
+    "narasimha",
+    "musthak",
+    "arjav",
+    "srishti",
+    "manoj kumar",
+  ];
   const { salesUsers } = useSalesUsers();
-  const SALES_PERSONS_LIST = React.useMemo(
-    () => salesUsers.map(u => u.name.trim()).filter(Boolean),
+  const allowedSalesUsers = React.useMemo(
+    () =>
+      salesUsers.filter(u => {
+        const n = (u.name || "").trim().toLowerCase();
+        return ASSIGNABLE_REP_KEYWORDS.some(k => n.includes(k));
+      }),
     [salesUsers]
+  );
+  const SALES_PERSONS_LIST = React.useMemo(
+    () => allowedSalesUsers.map(u => u.name.trim()).filter(Boolean).sort(),
+    [allowedSalesUsers]
   );
 
   // Extract unique sales persons and agents from current logs for filter options
@@ -336,7 +354,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     setUpdatingAssign(logId);
     try {
       const trimmed = newName.trim();
-      const matched = salesUsers.find(
+      const matched = allowedSalesUsers.find(
         u => u.name.trim().toLowerCase() === trimmed.toLowerCase()
       );
       const updatePayload: { sales_person_name: string | null; sales_person_id: string | null } = {
