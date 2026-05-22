@@ -149,11 +149,7 @@ export function WebsitePendingPaymentTable() {
             <TableSkeleton rows={8} columns={8} />
           </div>
         ) : error ? (
-          <DataErrorState
-            title="Could not load pending payments"
-            description={error.message}
-            onRetry={() => refetch()}
-          />
+          <DataErrorState message={error.message} onRetry={() => refetch()} />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={Inbox}
