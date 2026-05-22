@@ -1789,6 +1789,12 @@ export default function Orders() {
             />
           </TabsContent>
 
+          {canViewWebsitePending && (
+            <TabsContent value="website_pending" className="space-y-6 mt-0">
+              <WebsitePendingPaymentTable />
+            </TabsContent>
+          )}
+
           <TabsContent value="pipeline">
             <PipelineOrders enquiryIdFilter={enquiryIdFromUrl} />
           </TabsContent>
