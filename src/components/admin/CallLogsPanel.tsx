@@ -17,6 +17,7 @@ import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
 import type { Prospect } from "@/hooks/useProspects";
+import { useSalesUsers } from "@/hooks/useSalesUsers";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
