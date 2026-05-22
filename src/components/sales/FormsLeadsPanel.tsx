@@ -99,14 +99,7 @@ export function FormsLeadsPanel() {
           .in("role", ["sales", "sales_manager"])
         ).data?.map(r => r.user_id) || []);
       if (error) throw error;
-      
-      // Also fetch Rohit (supply_chain) explicitly
-      const { data: rohit } = await supabase
-        .from("profiles")
-        .select("user_id, name")
-        .ilike("name", "Rohit")
-        .eq("is_approved", true);
-      
+
       const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
       const all = filterAllowedAssignees([...(data || [])]);
       return all.sort((a, b) => a.name.localeCompare(b.name));
