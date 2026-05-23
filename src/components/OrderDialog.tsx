@@ -244,7 +244,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setEditingOrderItems(false);
       setEditedOrderItems({});
       setEditingInvoiceNumber(false);
-      setEditingPoNumber(false);
 
       // Fetch order items
       fetchOrderItems(order.id).then(setOrderItems);
