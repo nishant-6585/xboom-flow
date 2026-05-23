@@ -1202,7 +1202,11 @@ export default function Orders() {
                       </thead>
                       <tbody>
                         {paginatedShopifyOrders.map((order) => (
-                          <tr key={order.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                          <tr
+                            key={order.id}
+                            onClick={() => { setSelectedShopifyOrder(order); setShopifyDetailOpen(true); }}
+                            className="border-b border-border/40 hover:bg-muted/30 transition-colors cursor-pointer"
+                          >
                             <td className="p-3 font-mono font-medium text-primary">#{order.order_number || order.shopify_order_id}</td>
                             <td className="p-3">
                               <div className="font-medium">{order.customer_name}</div>
