@@ -1894,16 +1894,30 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 <div className="space-y-2">
                   {poUrl.split(',').map((url, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 bg-background rounded-lg border">
-                      <a
-                        href={url.trim()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline flex items-center gap-2 text-sm truncate flex-1"
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const trimmed = url.trim();
+                          const m = trimmed.match(/purchase-orders\/(.+)$/);
+                          const path = m ? m[1] : null;
+                          if (!path) {
+                            toast.error('Invalid PO document URL');
+                            return;
+                          }
+                          const { data, error } = await supabase.storage
+                            .from('purchase-orders')
+                            .createSignedUrl(path, 300);
+                          if (error || !data?.signedUrl) {
+                            toast.error('Unable to open PO document');
+                            return;
+                          }
+                          window.location.href = data.signedUrl;
+                        }}
+                        className="text-primary hover:underline flex items-center gap-2 text-sm truncate flex-1 text-left"
                       >
                         <FileText className="h-4 w-4 shrink-0" />
                         <span className="truncate">PO Document {idx + 1}</span>
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                      </a>
+                      </button>
                       {canDeletePo && (
                         <Button
                           variant="ghost"
