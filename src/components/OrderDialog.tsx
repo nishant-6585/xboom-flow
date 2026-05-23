@@ -314,6 +314,21 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       if (success) {
         setPoUrl(newPoUrl);
         toast.success('PO uploaded successfully');
+
+        // Trigger AI extraction of PO number (best-effort, non-blocking)
+        supabase.functions
+          .invoke('extract-po-number', {
+            body: { order_id: order.id, storage_path: filePath },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.warn('PO number extraction failed:', error);
+              return;
+            }
+            if (data?.po_number) {
+              setPoNumber(data.po_number);
+            }
+          });
       }
     } catch (error: any) {
       console.error('Error uploading PO:', error);
