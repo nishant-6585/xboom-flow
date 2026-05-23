@@ -862,23 +862,47 @@ function InlineAudioPlayer({ recordingFile, directUrl, duration, autoPlay = fals
   const [audioDuration, setAudioDuration] = useState(duration || 0);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [streamUrl, setStreamUrl] = useState<string | null>(directUrl || null);
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const hasAutoStarted = useRef(false);
 
   // Fetch recording via MyOperator recordings/link API
   const fetchRecording = useCallback(async () => {
-    if (directUrl) {
-      setStreamUrl(directUrl);
-      return;
-    }
-    if (!recordingFile) {
-      setError(true);
-      return;
-    }
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      if (directUrl) {
+        const proxyEndpoint = `${supabaseUrl}/functions/v1/myoperator-audio-proxy?url=${encodeURIComponent(directUrl)}`;
+        const resp = await fetch(proxyEndpoint, {
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        });
+
+        if (!resp.ok) {
+          console.warn('Recording proxy unavailable:', resp.status);
+          setError(true);
+          return;
+        }
+
+        const audioBlob = await resp.blob();
+        if (!audioBlob.size) {
+          setError(true);
+          return;
+        }
+
+        const objectUrl = URL.createObjectURL(audioBlob);
+        setStreamUrl((previousUrl) => {
+          if (previousUrl?.startsWith('blob:')) URL.revokeObjectURL(previousUrl);
+          return objectUrl;
+        });
+        return;
+      }
+
+      if (!recordingFile) {
+        setError(true);
+        return;
+      }
+
       const endpoint = `${supabaseUrl}/functions/v1/get-myoperator-recording?file=${encodeURIComponent(recordingFile)}`;
 
       const resp = await fetch(endpoint, {
@@ -969,7 +993,7 @@ function InlineAudioPlayer({ recordingFile, directUrl, duration, autoPlay = fals
     return (
       <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
         <AlertTriangle className="w-4 h-4" />
-        <span>Recording not available — check MyOperator credentials in Admin settings</span>
+      <span>Recording not available — please try again or check MyOperator credentials in Admin settings</span>
       </div>
     );
   }
