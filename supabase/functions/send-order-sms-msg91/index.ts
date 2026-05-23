@@ -95,11 +95,18 @@ interface SendResult {
 
 function normalizePhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, "");
-  if (digits.length === 10) return `91${digits}`;
-  if (digits.length === 12) return digits;
-  if (digits.length === 11 && digits.startsWith("0")) return `91${digits.slice(1)}`;
-  if (digits.length === 13 && digits.startsWith("091")) return digits.slice(1);
-  return null;
+  // Indian mobile numbers must start with 6-9. Strip country code / leading 0,
+  // then validate the 10-digit national subscriber number.
+  let national: string | null = null;
+  if (digits.length === 10) national = digits;
+  else if (digits.length === 11 && digits.startsWith("0")) national = digits.slice(1);
+  else if (digits.length === 12 && digits.startsWith("91")) national = digits.slice(2);
+  else if (digits.length === 13 && digits.startsWith("091")) national = digits.slice(3);
+
+  if (!national || national.length !== 10) return null;
+  // Reject landlines / invalid prefixes — MSG91 returns 202 "Invalid mobile number".
+  if (!/^[6-9]/.test(national)) return null;
+  return `91${national}`;
 }
 
 async function sendMsg91(args: {
