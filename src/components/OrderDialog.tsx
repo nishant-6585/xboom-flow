@@ -145,7 +145,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [poNumber, setPoNumber] = useState<string>('');
   // Multi-invoice support
   const { invoices: orderInvoices, addInvoice, removeInvoice } = useOrderInvoices(order?.id ?? null);
-  const [editingPoNumber, setEditingPoNumber] = useState(false);
+  // (PO number is auto-extracted from the uploaded PO document; no manual editing)
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
   const [refundStatus, setRefundStatus] = useState<RefundStatus>('pending');
@@ -244,7 +244,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setEditingOrderItems(false);
       setEditedOrderItems({});
       setEditingInvoiceNumber(false);
-      setEditingPoNumber(false);
 
       // Fetch order items
       fetchOrderItems(order.id).then(setOrderItems);
@@ -314,6 +313,21 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       if (success) {
         setPoUrl(newPoUrl);
         toast.success('PO uploaded successfully');
+
+        // Trigger AI extraction of PO number (best-effort, non-blocking)
+        supabase.functions
+          .invoke('extract-po-number', {
+            body: { order_id: order.id, storage_path: filePath },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.warn('PO number extraction failed:', error);
+              return;
+            }
+            if (data?.po_number) {
+              setPoNumber(data.po_number);
+            }
+          });
       }
     } catch (error: any) {
       console.error('Error uploading PO:', error);
@@ -1850,44 +1864,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </h4>
               </div>
 
-              {/* PO Number - editable */}
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">PO No:</span>
-                {editingPoNumber ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <Input
-                      value={poNumber}
-                      onChange={(e) => setPoNumber(e.target.value)}
-                      placeholder="Enter PO number"
-                      className="h-7 text-sm flex-1"
-                    />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2"
-                      onClick={async () => {
-                        if (order) {
-                          await onUpdate(order.id, { po_number: poNumber || null });
-                        }
-                        setEditingPoNumber(false);
-                      }}
-                    >
-                      Save
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingPoNumber(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-medium">{poNumber || '—'}</span>
-                    {canEditOrder && (
-                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => setEditingPoNumber(true)}>
-                        Edit
-                      </Button>
-                    )}
-                  </div>
-                )}
+              {/* PO Number (auto-extracted from uploaded PO, read-only) */}
+              <div className="flex items-start gap-2 text-sm">
+                <span className="text-muted-foreground shrink-0">PO No:</span>
+                <span className="font-mono font-medium break-all">
+                  {poNumber || '—'}
+                </span>
               </div>
               
               {poUrl ? (
