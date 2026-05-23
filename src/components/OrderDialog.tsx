@@ -412,7 +412,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       internal_notes: internalNotes || null,
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
-      invoice_url: invoiceUrl,
+      // invoice_url intentionally omitted — invoices are persisted in the
+      // order_invoices table and must never be touched by the main order form save.
       is_refund_requested: isRefundRequested || finalStatus === 'cancelled',
       refund_reason: isRefundRequested ? (refundReason || null) : (finalStatus === 'cancelled' ? cancellationReason : null),
       refund_status: (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null,
