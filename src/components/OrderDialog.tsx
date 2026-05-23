@@ -1751,106 +1751,71 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </h4>
               </div>
 
-              {/* Invoice Number - editable */}
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Invoice No:</span>
-                {editingInvoiceNumber ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <Input
-                      value={invoiceNumber}
-                      onChange={(e) => setInvoiceNumber(e.target.value)}
-                      placeholder="Enter invoice number"
-                      className="h-7 text-sm"
-                    />
-                    <Button
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={async () => {
-                        if (order) {
-                          await onUpdate(order.id, { invoice_number: invoiceNumber || null } as any);
-                        }
-                        setEditingInvoiceNumber(false);
-                      }}
-                    >
-                      Save
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingInvoiceNumber(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="font-mono font-medium">{invoiceNumber || '—'}</span>
-                    {canEditOrder && (
-                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => setEditingInvoiceNumber(true)}>
-                        Edit
-                      </Button>
-                    )}
-                  </>
-                )}
+              {/* Invoice Numbers (auto-extracted, read-only) */}
+              <div className="flex items-start gap-2 text-sm">
+                <span className="text-muted-foreground shrink-0">Invoice No:</span>
+                <span className="font-mono font-medium break-all">
+                  {orderInvoices.filter(i => i.invoice_number).map(i => i.invoice_number).join(', ') || '—'}
+                </span>
               </div>
-              
-              {invoiceUrl ? (
-                <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
-                  <Button
-                    variant="link"
-                    className="text-primary hover:underline flex items-center gap-2 text-sm p-0 h-auto"
-                    onClick={async () => {
-                      // Extract storage path - handle both old full URLs and new path-only values
-                      let storagePath = invoiceUrl;
-                      if (invoiceUrl.startsWith('http')) {
-                        // Old-style full URL: extract path after /object/public/invoices/
-                        const match = invoiceUrl.match(/\/invoices\/(.+)$/);
-                        storagePath = match ? match[1] : invoiceUrl;
-                      }
-                       try {
-                         const { data, error } = await supabase.storage
-                           .from('invoices')
-                           .createSignedUrl(storagePath, 300);
-                         if (error || !data?.signedUrl) {
-                           toast.error('Failed to open invoice. Please disable ad blocker and try again.');
-                           return;
-                         }
-                        // Fetch as blob and render inside an in-app viewer dialog
-                        // (same pattern used for HR documents). Avoids new-tab/blob
-                        // navigation issues caused by ad blockers or Chrome.
-                        const fileName = storagePath.split('/').pop() || 'Invoice';
-                        const fileType = (fileName.split('.').pop() || '').toLowerCase();
-                        try {
-                          const res = await fetch(data.signedUrl);
-                          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                          const blob = await res.blob();
-                          const blobUrl = URL.createObjectURL(blob);
-                          // Revoke previous blob URL if any
-                          if (invoiceViewer.url) URL.revokeObjectURL(invoiceViewer.url);
-                          setInvoiceViewer({ open: true, url: blobUrl, name: fileName, fileType });
-                        } catch (fetchErr) {
-                          // Fallback: open viewer with the signed URL directly
-                          setInvoiceViewer({ open: true, url: data.signedUrl, name: fileName, fileType });
-                        }
-                       } catch (err: any) {
-                         console.error('Error opening invoice:', err);
-                         toast.error('Failed to open invoice. Please disable ad blocker and try again.');
-                       }
-                    }}
-                  >
-                    <FileText className="h-4 w-4" />
-                    View Invoice
-                    <ExternalLink className="h-3 w-3" />
-                  </Button>
-                  {canEdit && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={handleRemoveInvoice}
-                      disabled={invoiceUploading}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
+
+              {/* List of uploaded invoices */}
+              {orderInvoices.length > 0 && (
+                <div className="space-y-2">
+                  {orderInvoices.map((inv) => (
+                    <div key={inv.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                      <Button
+                        variant="link"
+                        className="text-primary hover:underline flex items-center gap-2 text-sm p-0 h-auto text-left"
+                        onClick={async () => {
+                          try {
+                            const { data, error } = await supabase.storage
+                              .from('invoices')
+                              .createSignedUrl(inv.storage_path, 300);
+                            if (error || !data?.signedUrl) {
+                              toast.error('Failed to open invoice.');
+                              return;
+                            }
+                            const fileName = inv.file_name || inv.storage_path.split('/').pop() || 'Invoice';
+                            const fileType = (fileName.split('.').pop() || '').toLowerCase();
+                            try {
+                              const res = await fetch(data.signedUrl);
+                              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                              const blob = await res.blob();
+                              const blobUrl = URL.createObjectURL(blob);
+                              if (invoiceViewer.url) URL.revokeObjectURL(invoiceViewer.url);
+                              setInvoiceViewer({ open: true, url: blobUrl, name: fileName, fileType });
+                            } catch {
+                              setInvoiceViewer({ open: true, url: data.signedUrl, name: fileName, fileType });
+                            }
+                          } catch (err: any) {
+                            console.error('Error opening invoice:', err);
+                            toast.error('Failed to open invoice.');
+                          }
+                        }}
+                      >
+                        <FileText className="h-4 w-4 shrink-0" />
+                        <span className="truncate">
+                          {inv.invoice_number ? `Invoice ${inv.invoice_number}` : (inv.file_name || 'Invoice')}
+                        </span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => removeInvoice(inv)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ) : canEdit ? (
+              )}
+
+              {canEdit ? (
                 <div>
                   <input
                     ref={invoiceInputRef}
@@ -1876,17 +1841,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     ) : (
                       <>
                         <Upload className="h-4 w-4 mr-2" />
-                        Upload Invoice
+                        {orderInvoices.length > 0 ? 'Upload Another Invoice' : 'Upload Invoice'}
                       </>
                     )}
                   </Button>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Supports PDF, PNG, JPG (max 10MB)
+                    Supports PDF, PNG, JPG (max 10MB). Invoice number is auto-extracted.
                   </p>
                 </div>
-              ) : (
+              ) : orderInvoices.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No invoice attached</p>
-              )}
+              ) : null}
             </div>
 
             {/* Purchase Order Section */}
