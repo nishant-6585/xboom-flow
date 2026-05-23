@@ -263,21 +263,30 @@ async function processOne(
   }
 
   // Dedupe: same order is sometimes enqueued under two order_sources
-  // (e.g. 'woocommerce' + 'internal' mirror). MSG91 rejects identical sends
-  // within 10s as error 311. If a sibling row was already sent for the same
-  // phone + status_trigger recently, mark this row as sent without re-firing.
+  // (e.g. 'woocommerce' + 'internal' mirror) — both rows share the same
+  // order_number but differ in order_source/order_ref. MSG91 rejects identical
+  // sends within 10s as error 311. Scope the dedup to the SAME ORDER + same
+  // status_trigger so unrelated status changes to the same phone are NOT
+  // suppressed. Keep a 30-minute safety window to also absorb manual retries.
   {
-    const sinceIso = new Date(now.getTime() - 10 * 60_000).toISOString();
-    const { data: sib } = await admin
+    const sinceIso = new Date(now.getTime() - 30 * 60_000).toISOString();
+    let q = admin
       .from("order_notifications")
-      .select("id, sent_at, provider_message_id")
+      .select("id, sent_at, provider_message_id, order_number, order_ref")
       .eq("channel", "sms")
       .eq("phone", n.phone)
       .eq("status_trigger", n.status_trigger)
       .eq("status", "sent")
       .gte("sent_at", sinceIso)
-      .neq("id", n.id)
-      .limit(1);
+      .neq("id", n.id);
+    // Match on order_number when available (covers Woo↔internal mirror since
+    // both rows carry the same human-facing number). Fall back to order_ref.
+    if (n.order_number) {
+      q = q.eq("order_number", n.order_number);
+    } else {
+      q = q.eq("order_ref", n.order_ref).eq("order_source", n.order_source);
+    }
+    const { data: sib } = await q.limit(1);
     const twin = (sib || [])[0] as { id: string; sent_at: string; provider_message_id: string | null } | undefined;
     if (twin) {
       await admin
