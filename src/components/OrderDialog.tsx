@@ -1886,22 +1886,29 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             toast.error('Invalid PO document URL');
                             return;
                           }
-                          // Open the tab synchronously (within user gesture) to avoid
-                          // popup blockers redirecting to the current tab.
-                          const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
-                          const { data, error } = await supabase.storage
-                            .from('purchase-orders')
-                            .createSignedUrl(path, 300);
-                          if (error || !data?.signedUrl) {
-                            if (newWindow) newWindow.close();
-                            toast.error('Unable to open PO document');
-                            return;
-                          }
-                          if (newWindow) {
-                            newWindow.location.href = data.signedUrl;
-                          } else {
-                            // Popup blocked — fall back to opening in a new tab directly
-                            window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+                          try {
+                            const { data, error } = await supabase.storage
+                              .from('purchase-orders')
+                              .createSignedUrl(path, 300);
+                            if (error || !data?.signedUrl) {
+                              toast.error('Unable to open PO document');
+                              return;
+                            }
+                            const fileName = path.split('/').pop() || `PO Document ${idx + 1}`;
+                            const fileType = (fileName.split('.').pop() || '').toLowerCase();
+                            try {
+                              const res = await fetch(data.signedUrl);
+                              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                              const blob = await res.blob();
+                              const blobUrl = URL.createObjectURL(blob);
+                              if (invoiceViewer.url) URL.revokeObjectURL(invoiceViewer.url);
+                              setInvoiceViewer({ open: true, url: blobUrl, name: fileName, fileType });
+                            } catch {
+                              setInvoiceViewer({ open: true, url: data.signedUrl, name: fileName, fileType });
+                            }
+                          } catch (err: any) {
+                            console.error('Error opening PO:', err);
+                            toast.error('Failed to open PO document');
                           }
                         }}
                         className="text-primary hover:underline flex items-center gap-2 text-sm truncate flex-1 text-left"
