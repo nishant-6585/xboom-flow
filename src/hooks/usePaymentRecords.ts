@@ -62,41 +62,47 @@ export function usePaymentRecords(orderId?: string) {
 
       if (error) throw error;
 
-      // Generate signed URLs for each screenshot (1 hour expiry)
-      // Handle multiple screenshots stored as comma-separated paths
-      const recordsWithSignedUrls = await Promise.all(
-        (data || []).map(async (record: any) => {
-          const screenshotPaths = record.screenshot_url.split(',').map((p: string) => p.trim());
-          const signedUrls: string[] = [];
-          
-          for (const path of screenshotPaths) {
-            const storagePath = extractStoragePath(path);
-            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-              .from('payment-screenshots')
-              .createSignedUrl(storagePath, 3600);
-            
-            if (!signedUrlError && signedUrlData?.signedUrl) {
-              signedUrls.push(signedUrlData.signedUrl);
-            }
-          }
+      const rawRecords = (data || []) as any[];
 
-          // Fetch reviewer name if reviewed_by exists
-          let reviewerName: string | null = null;
-          if (record.reviewed_by) {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('name')
-              .eq('user_id', record.reviewed_by)
-              .single();
-            
-            reviewerName = profileData?.name || null;
-          }
+      // Batch fetch reviewer names in a single query
+      const reviewerIds = Array.from(
+        new Set(rawRecords.map((r) => r.reviewed_by).filter(Boolean))
+      );
+      const reviewerNameMap = new Map<string, string>();
+      if (reviewerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, name')
+          .in('user_id', reviewerIds);
+        (profiles || []).forEach((p: any) => {
+          if (p.user_id && p.name) reviewerNameMap.set(p.user_id, p.name);
+        });
+      }
+
+      // Generate all signed URLs in parallel (1 hour expiry)
+      const recordsWithSignedUrls = await Promise.all(
+        rawRecords.map(async (record: any) => {
+          const screenshotPaths: string[] = (record.screenshot_url || '')
+            .split(',')
+            .map((p: string) => p.trim())
+            .filter(Boolean);
+
+          const signed = await Promise.all(
+            screenshotPaths.map(async (path) => {
+              const storagePath = extractStoragePath(path);
+              const { data: signedUrlData } = await supabase.storage
+                .from('payment-screenshots')
+                .createSignedUrl(storagePath, 3600);
+              return signedUrlData?.signedUrl || null;
+            })
+          );
+          const signedUrls = signed.filter((u): u is string => !!u);
 
           return {
             ...record,
-            screenshot_signed_url: signedUrls[0] || null, // Keep first for backward compatibility
+            screenshot_signed_url: signedUrls[0] || null,
             screenshot_signed_urls: signedUrls,
-            reviewed_by_name: reviewerName,
+            reviewed_by_name: record.reviewed_by ? reviewerNameMap.get(record.reviewed_by) || null : null,
           } as PaymentRecord;
         })
       );
