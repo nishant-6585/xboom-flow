@@ -264,34 +264,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
   const handleInvoiceUpload = async (file: File) => {
     if (!user || !order) return;
-    
     setInvoiceUploading(true);
     try {
-      const { validateFile } = await import('@/lib/fileValidation');
-      const validation = validateFile(file, 'invoices');
-      if (!validation.valid) { toast.error(validation.error); setInvoiceUploading(false); return; }
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${order.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('invoices')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // Store the storage path (not a public URL) so we can create signed URLs later
-      const storagePath = filePath;
-
-      // Update order with invoice URL
-      const success = await onUpdate(order.id, { invoice_url: storagePath });
-      if (success) {
-        setInvoiceUrl(storagePath);
-        toast.success('Invoice uploaded successfully');
+      const inserted = await addInvoice(file, user.id);
+      if (inserted) {
+        // Mirror latest path onto orders.invoice_url for backward compatibility
+        await onUpdate(order.id, { invoice_url: inserted.storage_path });
+        setInvoiceUrl(inserted.storage_path);
       }
-    } catch (error: any) {
-      console.error('Error uploading invoice:', error);
-      toast.error('Failed to upload invoice');
     } finally {
       setInvoiceUploading(false);
       if (invoiceInputRef.current) {
