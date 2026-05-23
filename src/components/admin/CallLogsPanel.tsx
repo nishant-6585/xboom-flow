@@ -855,18 +855,26 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
 }
 
 /* ─── Inline Audio Player ─── */
-function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { recordingFile: string; duration: number | null; autoPlay?: boolean }) {
+function InlineAudioPlayer({ recordingFile, directUrl, duration, autoPlay = false }: { recordingFile: string | null; directUrl?: string | null; duration: number | null; autoPlay?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(duration || 0);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [streamUrl, setStreamUrl] = useState<string | null>(directUrl || null);
   const hasAutoStarted = useRef(false);
 
   // Fetch recording via MyOperator recordings/link API
   const fetchRecording = useCallback(async () => {
+    if (directUrl) {
+      setStreamUrl(directUrl);
+      return;
+    }
+    if (!recordingFile) {
+      setError(true);
+      return;
+    }
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -892,7 +900,7 @@ function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { reco
     } finally {
       setLoading(false);
     }
-  }, [recordingFile]);
+  }, [recordingFile, directUrl]);
 
   // Auto-start loading on mount when autoPlay is true
   useEffect(() => {
