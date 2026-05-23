@@ -1865,44 +1865,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </h4>
               </div>
 
-              {/* PO Number - editable */}
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">PO No:</span>
-                {editingPoNumber ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <Input
-                      value={poNumber}
-                      onChange={(e) => setPoNumber(e.target.value)}
-                      placeholder="Enter PO number"
-                      className="h-7 text-sm flex-1"
-                    />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2"
-                      onClick={async () => {
-                        if (order) {
-                          await onUpdate(order.id, { po_number: poNumber || null });
-                        }
-                        setEditingPoNumber(false);
-                      }}
-                    >
-                      Save
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingPoNumber(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-medium">{poNumber || '—'}</span>
-                    {canEditOrder && (
-                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => setEditingPoNumber(true)}>
-                        Edit
-                      </Button>
-                    )}
-                  </div>
-                )}
+              {/* PO Number (auto-extracted from uploaded PO, read-only) */}
+              <div className="flex items-start gap-2 text-sm">
+                <span className="text-muted-foreground shrink-0">PO No:</span>
+                <span className="font-mono font-medium break-all">
+                  {poNumber || '—'}
+                </span>
               </div>
               
               {poUrl ? (
