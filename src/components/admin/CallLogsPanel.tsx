@@ -69,6 +69,13 @@ function extractRecordingFilename(payload: Record<string, unknown> | null): stri
   if (fn && typeof fn === 'string' && fn.trim().length > 0) return fn.trim();
   const filename = payload.filename;
   if (filename && typeof filename === 'string' && filename.trim().length > 0) return filename.trim();
+  const fileUrl = payload.fileurl || payload._fu;
+  if (fileUrl && typeof fileUrl === 'string' && fileUrl.trim().length > 0) {
+    const pathSegment = fileUrl.trim().split('?')[0].split('/').pop();
+    if (pathSegment && /^[A-Za-z0-9._-]+$/.test(pathSegment)) {
+      return pathSegment.includes('.') ? pathSegment : `${pathSegment}.mp3`;
+    }
+  }
   return null;
 }
 
