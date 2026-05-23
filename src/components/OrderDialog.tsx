@@ -2254,64 +2254,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 )}
 
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tracking_number">Tracking Number</Label>
-                    <Input
-                      id="tracking_number"
-                      value={trackingNumber}
-                      onChange={e => setTrackingNumber(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tracking_url">Tracking URL</Label>
-                    <Input
-                      id="tracking_url"
-                      type="url"
-                      value={trackingUrl}
-                      onChange={e => setTrackingUrl(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="courier_name">Courier Name</Label>
-                    <CourierCombobox
-                      id="courier_name"
-                      value={courierName}
-                      onChange={setCourierName}
-                      disabled={loading}
-                      placeholder="Select courier…"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="estimated_delivery">Estimated Delivery</Label>
-                    <Input
-                      id="estimated_delivery"
-                      type="date"
-                      value={estimatedDelivery}
-                      onChange={e => setEstimatedDelivery(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="actual_delivery">Actual Delivery</Label>
-                    <Input
-                      id="actual_delivery"
-                      type="date"
-                      value={actualDelivery}
-                      onChange={e => setActualDelivery(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="sales_notes">Sales Notes</Label>
                   <Textarea
