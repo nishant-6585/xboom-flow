@@ -37,13 +37,8 @@ Deno.serve(async (req) => {
     // Fallback: compare against vault.decrypted_secrets so we don't rely solely
     // on the edge env var staying in sync with vault (cron reads from vault).
     if (!isAuthorized && cronSecret) {
-      const { data: vaultSecret } = await supabase
-        .from('vault.decrypted_secrets' as any)
-        .select('decrypted_secret')
-        .eq('name', 'CRON_SECRET')
-        .maybeSingle();
-      const vs = (vaultSecret as any)?.decrypted_secret as string | undefined;
-      if (vs && vs === cronSecret) isAuthorized = true;
+      const { data: vs } = await supabase.rpc('get_cron_secret');
+      if (vs && typeof vs === 'string' && vs === cronSecret) isAuthorized = true;
     }
 
     if (!isAuthorized && authHeader?.startsWith('Bearer ')) {
