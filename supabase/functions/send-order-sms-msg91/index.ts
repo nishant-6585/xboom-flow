@@ -95,11 +95,18 @@ interface SendResult {
 
 function normalizePhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, "");
-  if (digits.length === 10) return `91${digits}`;
-  if (digits.length === 12) return digits;
-  if (digits.length === 11 && digits.startsWith("0")) return `91${digits.slice(1)}`;
-  if (digits.length === 13 && digits.startsWith("091")) return digits.slice(1);
-  return null;
+  // Indian mobile numbers must start with 6-9. Strip country code / leading 0,
+  // then validate the 10-digit national subscriber number.
+  let national: string | null = null;
+  if (digits.length === 10) national = digits;
+  else if (digits.length === 11 && digits.startsWith("0")) national = digits.slice(1);
+  else if (digits.length === 12 && digits.startsWith("91")) national = digits.slice(2);
+  else if (digits.length === 13 && digits.startsWith("091")) national = digits.slice(3);
+
+  if (!national || national.length !== 10) return null;
+  // Reject landlines / invalid prefixes — MSG91 returns 202 "Invalid mobile number".
+  if (!/^[6-9]/.test(national)) return null;
+  return `91${national}`;
 }
 
 async function sendMsg91(args: {
@@ -253,6 +260,62 @@ async function processOne(
       })
       .eq("id", n.id);
     return { id: n.id, outcome: "failed", error: "No phone" };
+  }
+
+  // Dedupe: same order is sometimes enqueued under two order_sources
+  // (e.g. 'woocommerce' + 'internal' mirror). MSG91 rejects identical sends
+  // within 10s as error 311. If a sibling row was already sent for the same
+  // phone + status_trigger recently, mark this row as sent without re-firing.
+  {
+    const sinceIso = new Date(now.getTime() - 10 * 60_000).toISOString();
+    const { data: sib } = await admin
+      .from("order_notifications")
+      .select("id, sent_at, provider_message_id")
+      .eq("channel", "sms")
+      .eq("phone", n.phone)
+      .eq("status_trigger", n.status_trigger)
+      .eq("status", "sent")
+      .gte("sent_at", sinceIso)
+      .neq("id", n.id)
+      .limit(1);
+    const twin = (sib || [])[0] as { id: string; sent_at: string; provider_message_id: string | null } | undefined;
+    if (twin) {
+      await admin
+        .from("order_notifications")
+        .update({
+          status: "sent",
+          sent_at: now.toISOString(),
+          last_attempt_at: now.toISOString(),
+          provider: "msg91",
+          template_id: template.id,
+          provider_message_id: twin.provider_message_id,
+          provider_response: { deduped_from: twin.id, reason: "sibling already sent within 10m" },
+          error_message: null,
+          locked_at: null,
+          locked_by: null,
+        })
+        .eq("id", n.id);
+      return { id: n.id, outcome: "skipped" };
+    }
+  }
+
+  // Validate phone *before* hitting MSG91 — invalid numbers should fail fast
+  // (no retries) instead of burning the 3-attempt budget on certain-failures.
+  if (!normalizePhone(n.phone)) {
+    await admin
+      .from("order_notifications")
+      .update({
+        status: "failed",
+        error_message: `Invalid mobile number: ${n.phone}`,
+        retry_count: MAX_RETRIES,
+        last_attempt_at: now.toISOString(),
+        provider: "msg91",
+        template_id: template.id,
+        locked_at: null,
+        locked_by: null,
+      })
+      .eq("id", n.id);
+    return { id: n.id, outcome: "failed", error: "Invalid phone" };
   }
 
   let result: SendResult;
