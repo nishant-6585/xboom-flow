@@ -52,13 +52,24 @@ Deno.serve(async (req) => {
     }
 
     // Check cache first - look for a cached recording URL that's less than 20 hours old
-    const { data: cachedLog } = await supabase
+    let { data: cachedLog } = await supabase
       .from('call_logs')
       .select('id, recording_stream_url, recording_fetched_at')
       .filter('raw_payload->>_fn', 'eq', file)
       .not('recording_stream_url', 'is', null)
       .limit(1)
       .maybeSingle();
+
+    if (!cachedLog) {
+      const { data } = await supabase
+        .from('call_logs')
+        .select('id, recording_stream_url, recording_fetched_at')
+        .filter('raw_payload->>filename', 'eq', file)
+        .not('recording_stream_url', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      cachedLog = data;
+    }
 
     if (cachedLog?.recording_stream_url && cachedLog?.recording_fetched_at) {
       const fetchedAt = new Date(cachedLog.recording_fetched_at).getTime();
@@ -147,6 +158,15 @@ Deno.serve(async (req) => {
           recording_fetched_at: new Date().toISOString(),
         })
         .filter('raw_payload->>_fn', 'eq', file)
+        .is('recording_stream_url', null);
+
+      await supabase
+        .from('call_logs')
+        .update({
+          recording_stream_url: recordingUrl,
+          recording_fetched_at: new Date().toISOString(),
+        })
+        .filter('raw_payload->>filename', 'eq', file)
         .is('recording_stream_url', null);
 
       return new Response(JSON.stringify({ recording_url: recordingUrl }), {
