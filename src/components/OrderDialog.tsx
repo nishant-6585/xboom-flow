@@ -34,6 +34,7 @@ import { ProductSelect } from '@/components/ProductSelect';
 import { PricelistItem } from '@/hooks/usePricelist';
 import { InventoryFulfillmentPanel } from '@/components/order/InventoryFulfillmentPanel';
 import { DocumentViewer } from '@/components/hr/DocumentViewer';
+import { useOrderInvoices } from '@/hooks/useOrderInvoices';
 
 interface OrderDialogProps {
   order: Order | null;
