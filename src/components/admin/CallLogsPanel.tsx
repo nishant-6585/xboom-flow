@@ -105,6 +105,10 @@ function deriveCallInfo(log: CallLog) {
 
   // Use _fn (filename) from payload for recording
   const recordingFile = extractRecordingFilename(payload);
+  // Fallback: older/newer webhooks may store the recording as a direct URL on the row
+  const recordingUrl = !recordingFile && log.recording_url && log.recording_url.trim().length > 0
+    ? log.recording_url.trim()
+    : null;
   const startTime = payload?._st != null ? String(payload._st) : log.start_time;
 
   let whatText = '';
@@ -125,7 +129,7 @@ function deriveCallInfo(log: CallLog) {
     }
   }
 
-  return { status, agentDisplay, finalAgent, department, duration, recordingFile, startTime, whatText, missedAttempts, legs };
+  return { status, agentDisplay, finalAgent, department, duration, recordingFile, recordingUrl, startTime, whatText, missedAttempts, legs };
 }
 
 function parseDurationFromPayload(dur: string): number {
@@ -746,7 +750,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                           {info.duration ? formatDuration(info.duration) : "—"}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          {info.recordingFile ? (
+                          {(info.recordingFile || info.recordingUrl) ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -795,10 +799,10 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                           </div>
                         </TableCell>
                       </TableRow>
-                      {expandedAudio === logKey && info.recordingFile && (
+                      {expandedAudio === logKey && (info.recordingFile || info.recordingUrl) && (
                         <TableRow key={`${log.id}-audio`}>
                           <TableCell colSpan={9} className="py-2 px-4">
-                            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} autoPlay />
+                            <InlineAudioPlayer recordingFile={info.recordingFile} directUrl={info.recordingUrl} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
                       )}
@@ -851,18 +855,26 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
 }
 
 /* ─── Inline Audio Player ─── */
-function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { recordingFile: string; duration: number | null; autoPlay?: boolean }) {
+function InlineAudioPlayer({ recordingFile, directUrl, duration, autoPlay = false }: { recordingFile: string | null; directUrl?: string | null; duration: number | null; autoPlay?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(duration || 0);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [streamUrl, setStreamUrl] = useState<string | null>(directUrl || null);
   const hasAutoStarted = useRef(false);
 
   // Fetch recording via MyOperator recordings/link API
   const fetchRecording = useCallback(async () => {
+    if (directUrl) {
+      setStreamUrl(directUrl);
+      return;
+    }
+    if (!recordingFile) {
+      setError(true);
+      return;
+    }
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -888,7 +900,7 @@ function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { reco
     } finally {
       setLoading(false);
     }
-  }, [recordingFile]);
+  }, [recordingFile, directUrl]);
 
   // Auto-start loading on mount when autoPlay is true
   useEffect(() => {
