@@ -165,6 +165,8 @@ export default function Orders() {
   const [shopifyPage, setShopifyPage] = useState(1);
   const SHOPIFY_PAGE_SIZE = 100;
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
+  const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<typeof shopifyOrders[number] | null>(null);
+  const [shopifyDetailOpen, setShopifyDetailOpen] = useState(false);
 
   // Website (WooCommerce) tab filters
   const [wooSearchQuery, setWooSearchQuery] = useState<string>('');
