@@ -1244,7 +1244,10 @@ export default function Orders() {
                     className="animate-in fade-in slide-in-from-bottom-2"
                     style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                   >
-                    <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer border-border/60 hover:-translate-y-0.5">
+                    <Card
+                      onClick={() => { setSelectedShopifyOrder(order); setShopifyDetailOpen(true); }}
+                      className="hover:shadow-lg transition-all duration-200 cursor-pointer border-border/60 hover:-translate-y-0.5"
+                    >
                       <CardContent className="p-4 space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="font-mono text-sm font-bold text-primary">#{order.order_number || order.shopify_order_id}</div>
