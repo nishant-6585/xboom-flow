@@ -55,6 +55,9 @@ interface CallLog {
 interface LegDetail {
   _ac?: string;
   _rr?: Array<{ _na?: string; _ct?: string }>;
+  // Newer MyOperator payload schema uses long field names
+  action?: string;
+  received_by?: Array<{ name?: string; contact_number?: string }>;
 }
 
 function parseRawPayload(raw: unknown): Record<string, unknown> | null {
@@ -81,7 +84,25 @@ function extractRecordingFilename(payload: Record<string, unknown> | null): stri
 
 function deriveCallInfo(log: CallLog) {
   const payload = parseRawPayload(log.raw_payload);
-  const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
+  const rawLegs = (payload?._ld && Array.isArray(payload._ld))
+    ? payload._ld
+    : (payload?.log_details && Array.isArray(payload.log_details) ? payload.log_details : []);
+  // Normalize new-schema legs into the legacy LegDetail shape so downstream logic keeps working
+  const legs: LegDetail[] = (rawLegs as any[]).map((l) => {
+    if (!l || typeof l !== 'object') return l as LegDetail;
+    const leg = l as Record<string, unknown>;
+    const normalized: LegDetail = { ...(leg as LegDetail) };
+    if (!normalized._ac && typeof leg.action === 'string') {
+      normalized._ac = leg.action as string;
+    }
+    if ((!normalized._rr || normalized._rr.length === 0) && Array.isArray(leg.received_by)) {
+      normalized._rr = (leg.received_by as Array<Record<string, unknown>>).map((r) => ({
+        _na: (r?.name as string) || undefined,
+        _ct: (r?.contact_number as string) || undefined,
+      }));
+    }
+    return normalized;
+  });
 
   let status = log.call_status;
   if (legs.length > 0) {
@@ -105,11 +126,13 @@ function deriveCallInfo(log: CallLog) {
   const uniqueAgents = [...new Set(agentNames)];
   const agentDisplay = uniqueAgents.length > 0 ? uniqueAgents.join(', ') : (log.assigned_agent_name || log.agent_name || 'Unknown');
 
-  const department = (payload?._dn as string) || log.department;
+  const department = (payload?._dn as string) || (payload?.department_name as string) || log.department;
 
   let duration = log.call_duration;
   if (payload?._dr) {
     duration = parseDurationFromPayload(String(payload._dr));
+  } else if (payload?.duration) {
+    duration = parseDurationFromPayload(String(payload.duration));
   }
 
   // Use _fn (filename) from payload for recording
@@ -118,7 +141,9 @@ function deriveCallInfo(log: CallLog) {
   const recordingUrl = !recordingFile && log.recording_url && log.recording_url.trim().length > 0
     ? log.recording_url.trim()
     : null;
-  const startTime = payload?._st != null ? String(payload._st) : log.start_time;
+  const startTime = payload?._st != null
+    ? String(payload._st)
+    : (payload?.start_time != null ? String(payload.start_time) : log.start_time);
 
   let whatText = '';
   if (status === 'answered') {
