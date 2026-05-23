@@ -19,6 +19,7 @@ import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooSyncHealthCard } from '@/components/orders/WooSyncHealthCard';
 import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
+import { ShopifyOrderDetailDialog } from '@/components/orders/ShopifyOrderDetailDialog';
 import { useWooSyncHealth } from '@/hooks/useWooSyncHealth';
 import { useNotificationOrderSets } from '@/hooks/useNotificationOrderSets';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
