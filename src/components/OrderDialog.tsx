@@ -1886,14 +1886,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             toast.error('Invalid PO document URL');
                             return;
                           }
+                          // Open the tab synchronously (within user gesture) to avoid
+                          // popup blockers redirecting to the current tab.
+                          const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
                           const { data, error } = await supabase.storage
                             .from('purchase-orders')
                             .createSignedUrl(path, 300);
                           if (error || !data?.signedUrl) {
+                            if (newWindow) newWindow.close();
                             toast.error('Unable to open PO document');
                             return;
                           }
-                          window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+                          if (newWindow) {
+                            newWindow.location.href = data.signedUrl;
+                          } else {
+                            // Popup blocked — fall back to opening in a new tab directly
+                            window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+                          }
                         }}
                         className="text-primary hover:underline flex items-center gap-2 text-sm truncate flex-1 text-left"
                       >
