@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
 
     // SSRF guard: only allow https + known MyOperator hosts
     const ALLOWED_HOSTS = new Set([
+      'app.myoperator.com',
       'recordings.myoperator.co',
       'cdn.myoperator.co',
       's3.amazonaws.com',
@@ -71,6 +72,7 @@ Deno.serve(async (req) => {
     const hostAllowed =
       ALLOWED_HOSTS.has(parsedUrl.hostname) ||
       parsedUrl.hostname.endsWith('.myoperator.co') ||
+      parsedUrl.hostname.endsWith('.myoperator.com') ||
       parsedUrl.hostname.endsWith('.amazonaws.com');
     if (!hostAllowed) {
       return new Response(JSON.stringify({ error: 'URL host not allowed' }), {
