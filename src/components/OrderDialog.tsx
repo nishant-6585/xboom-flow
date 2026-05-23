@@ -143,6 +143,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [invoiceNumber, setInvoiceNumber] = useState<string>('');
   const [editingInvoiceNumber, setEditingInvoiceNumber] = useState(false);
   const [poNumber, setPoNumber] = useState<string>('');
+  // Multi-invoice support
+  const { invoices: orderInvoices, addInvoice, removeInvoice } = useOrderInvoices(order?.id ?? null);
   const [editingPoNumber, setEditingPoNumber] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
