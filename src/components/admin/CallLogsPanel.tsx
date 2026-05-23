@@ -105,6 +105,10 @@ function deriveCallInfo(log: CallLog) {
 
   // Use _fn (filename) from payload for recording
   const recordingFile = extractRecordingFilename(payload);
+  // Fallback: older/newer webhooks may store the recording as a direct URL on the row
+  const recordingUrl = !recordingFile && log.recording_url && log.recording_url.trim().length > 0
+    ? log.recording_url.trim()
+    : null;
   const startTime = payload?._st != null ? String(payload._st) : log.start_time;
 
   let whatText = '';
@@ -125,7 +129,7 @@ function deriveCallInfo(log: CallLog) {
     }
   }
 
-  return { status, agentDisplay, finalAgent, department, duration, recordingFile, startTime, whatText, missedAttempts, legs };
+  return { status, agentDisplay, finalAgent, department, duration, recordingFile, recordingUrl, startTime, whatText, missedAttempts, legs };
 }
 
 function parseDurationFromPayload(dur: string): number {
