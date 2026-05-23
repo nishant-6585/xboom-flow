@@ -27,10 +27,15 @@ Deno.serve(async (req) => {
     const { data: u } = await supabase.auth.getUser(auth);
     if (!u?.user) return json({ error: "Unauthorized" }, 401);
 
+    const url = new URL(req.url);
+    const limit = parseInt(url.searchParams.get("limit") ?? "8", 10);
     const { data: orders, error } = await supabase
       .from("orders")
       .select("id, order_number, po_url, po_number")
-      .not("po_url", "is", null);
+      .not("po_url", "is", null)
+      .or("po_number.is.null,po_number.eq.")
+      .order("order_number")
+      .limit(limit);
     if (error) return json({ error: error.message }, 500);
 
     const results: any[] = [];
