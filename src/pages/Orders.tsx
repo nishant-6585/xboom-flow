@@ -48,7 +48,7 @@ export default function Orders() {
   const { role, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
-  const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
+  const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading, refetch: refetchShopifyOrders } = useShopifyOrders();
   const {
     wooOrders: wooOrdersAll,
     loading: wooLoading,
