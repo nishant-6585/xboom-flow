@@ -368,16 +368,30 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
                         className="p-4 rounded-lg border border-green-500/30 bg-green-900/10"
                       >
                         <div className="flex items-start gap-4">
-                          {/* Screenshot thumbnail */}
-                          <div
-                            className="w-20 h-20 rounded-lg border border-border overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => setPreviewImage(record.screenshot_signed_url || record.screenshot_url)}
-                          >
-                            <img
-                              src={record.screenshot_signed_url || record.screenshot_url}
-                              alt="Payment screenshot"
-                              className="w-full h-full object-cover"
-                            />
+                          {/* Screenshot thumbnails (all uploaded) */}
+                          <div className="flex flex-wrap gap-2 shrink-0 max-w-[320px]">
+                            {(record.screenshot_signed_urls && record.screenshot_signed_urls.length > 0
+                              ? record.screenshot_signed_urls
+                              : [record.screenshot_signed_url || record.screenshot_url]
+                            ).filter(Boolean).map((url, i) => (
+                              <div
+                                key={i}
+                                className="w-20 h-20 rounded-lg border border-border overflow-hidden cursor-pointer hover:opacity-80 transition-opacity relative"
+                                onClick={() => setPreviewImage(url as string)}
+                              >
+                                <img
+                                  src={url as string}
+                                  alt={`Payment screenshot ${i + 1}`}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                                {(record.screenshot_signed_urls?.length || 0) > 1 && (
+                                  <span className="absolute bottom-0.5 right-0.5 bg-black/70 text-white text-[10px] px-1 rounded">
+                                    {i + 1}/{record.screenshot_signed_urls!.length}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
                           </div>
 
                           {/* Details */}
