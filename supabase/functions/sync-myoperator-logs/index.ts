@@ -32,7 +32,16 @@ Deno.serve(async (req) => {
 
     if (cronSecret && expectedSecret && cronSecret === expectedSecret) {
       isAuthorized = true;
-    } else if (authHeader?.startsWith('Bearer ')) {
+    }
+
+    // Fallback: compare against vault.decrypted_secrets so we don't rely solely
+    // on the edge env var staying in sync with vault (cron reads from vault).
+    if (!isAuthorized && cronSecret) {
+      const { data: vs } = await supabase.rpc('get_cron_secret');
+      if (vs && typeof vs === 'string' && vs === cronSecret) isAuthorized = true;
+    }
+
+    if (!isAuthorized && authHeader?.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '');
       const { data: claims, error: claimsError } = await supabase.auth.getClaims(token);
       if (!claimsError && claims?.claims?.sub) {
