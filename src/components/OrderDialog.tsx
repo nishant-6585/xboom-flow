@@ -268,8 +268,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     try {
       const inserted = await addInvoice(file, user.id);
       if (inserted) {
-        // Mirror latest path onto orders.invoice_url for backward compatibility
-        await onUpdate(order.id, { invoice_url: inserted.storage_path });
+        // Note: do NOT mirror onto orders.invoice_url anymore — order_invoices is the
+        // source of truth. Mirroring caused older invoices to appear "lost" whenever
+        // invoice_url was overwritten or cleared elsewhere.
         setInvoiceUrl(inserted.storage_path);
       }
     } finally {
@@ -280,23 +281,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     }
   };
 
-  const handleRemoveInvoice = async () => {
-    if (!order) return;
-    
-    setInvoiceUploading(true);
-    try {
-      const success = await onUpdate(order.id, { invoice_url: null });
-      if (success) {
-        setInvoiceUrl(null);
-        toast.success('Invoice removed');
-      }
-    } catch (error: any) {
-      console.error('Error removing invoice:', error);
-      toast.error('Failed to remove invoice');
-    } finally {
-      setInvoiceUploading(false);
-    }
-  };
+  // Legacy single-invoice removal removed — invoices are now managed exclusively
+  // through the order_invoices table via removeInvoice() per file.
 
   const handlePoUpload = async (file: File) => {
     if (!user || !order) return;
