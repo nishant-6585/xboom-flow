@@ -1349,6 +1349,12 @@ export default function Orders() {
                 </div>
               </div>
             )}
+            <ShopifyOrderDetailDialog
+              order={selectedShopifyOrder}
+              open={shopifyDetailOpen}
+              onOpenChange={setShopifyDetailOpen}
+              onUpdated={() => refetchShopifyOrders()}
+            />
           </TabsContent>
 
            {/* XBoom Website Orders Tab */}
