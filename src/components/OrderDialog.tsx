@@ -268,8 +268,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     try {
       const inserted = await addInvoice(file, user.id);
       if (inserted) {
-        // Mirror latest path onto orders.invoice_url for backward compatibility
-        await onUpdate(order.id, { invoice_url: inserted.storage_path });
+        // Note: do NOT mirror onto orders.invoice_url anymore — order_invoices is the
+        // source of truth. Mirroring caused older invoices to appear "lost" whenever
+        // invoice_url was overwritten or cleared elsewhere.
         setInvoiceUrl(inserted.storage_path);
       }
     } finally {
@@ -280,23 +281,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     }
   };
 
-  const handleRemoveInvoice = async () => {
-    if (!order) return;
-    
-    setInvoiceUploading(true);
-    try {
-      const success = await onUpdate(order.id, { invoice_url: null });
-      if (success) {
-        setInvoiceUrl(null);
-        toast.success('Invoice removed');
-      }
-    } catch (error: any) {
-      console.error('Error removing invoice:', error);
-      toast.error('Failed to remove invoice');
-    } finally {
-      setInvoiceUploading(false);
-    }
-  };
+  // Legacy single-invoice removal removed — invoices are now managed exclusively
+  // through the order_invoices table via removeInvoice() per file.
 
   const handlePoUpload = async (file: File) => {
     if (!user || !order) return;
@@ -426,7 +412,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       internal_notes: internalNotes || null,
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
-      invoice_url: invoiceUrl,
+      // invoice_url intentionally omitted — invoices are persisted in the
+      // order_invoices table and must never be touched by the main order form save.
       is_refund_requested: isRefundRequested || finalStatus === 'cancelled',
       refund_reason: isRefundRequested ? (refundReason || null) : (finalStatus === 'cancelled' ? cancellationReason : null),
       refund_status: (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null,
