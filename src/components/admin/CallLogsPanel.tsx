@@ -750,7 +750,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                           {info.duration ? formatDuration(info.duration) : "—"}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          {info.recordingFile ? (
+                          {(info.recordingFile || info.recordingUrl) ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -799,10 +799,10 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                           </div>
                         </TableCell>
                       </TableRow>
-                      {expandedAudio === logKey && info.recordingFile && (
+                      {expandedAudio === logKey && (info.recordingFile || info.recordingUrl) && (
                         <TableRow key={`${log.id}-audio`}>
                           <TableCell colSpan={9} className="py-2 px-4">
-                            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} autoPlay />
+                            <InlineAudioPlayer recordingFile={info.recordingFile} directUrl={info.recordingUrl} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
                       )}
