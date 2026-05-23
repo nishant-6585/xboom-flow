@@ -1893,7 +1893,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             toast.error('Unable to open PO document');
                             return;
                           }
-                          window.location.href = data.signedUrl;
+                          window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
                         }}
                         className="text-primary hover:underline flex items-center gap-2 text-sm truncate flex-1 text-left"
                       >
