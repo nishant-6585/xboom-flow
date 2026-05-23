@@ -19,6 +19,7 @@ import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooSyncHealthCard } from '@/components/orders/WooSyncHealthCard';
 import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
+import { ShopifyOrderDetailDialog } from '@/components/orders/ShopifyOrderDetailDialog';
 import { useWooSyncHealth } from '@/hooks/useWooSyncHealth';
 import { useNotificationOrderSets } from '@/hooks/useNotificationOrderSets';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
@@ -47,7 +48,7 @@ export default function Orders() {
   const { role, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
-  const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
+  const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading, refetch: refetchShopifyOrders } = useShopifyOrders();
   const {
     wooOrders: wooOrdersAll,
     loading: wooLoading,
@@ -164,6 +165,8 @@ export default function Orders() {
   const [shopifyPage, setShopifyPage] = useState(1);
   const SHOPIFY_PAGE_SIZE = 100;
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
+  const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<typeof shopifyOrders[number] | null>(null);
+  const [shopifyDetailOpen, setShopifyDetailOpen] = useState(false);
 
   // Website (WooCommerce) tab filters
   const [wooSearchQuery, setWooSearchQuery] = useState<string>('');
@@ -1199,7 +1202,11 @@ export default function Orders() {
                       </thead>
                       <tbody>
                         {paginatedShopifyOrders.map((order) => (
-                          <tr key={order.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                          <tr
+                            key={order.id}
+                            onClick={() => { setSelectedShopifyOrder(order); setShopifyDetailOpen(true); }}
+                            className="border-b border-border/40 hover:bg-muted/30 transition-colors cursor-pointer"
+                          >
                             <td className="p-3 font-mono font-medium text-primary">#{order.order_number || order.shopify_order_id}</td>
                             <td className="p-3">
                               <div className="font-medium">{order.customer_name}</div>
@@ -1237,7 +1244,10 @@ export default function Orders() {
                     className="animate-in fade-in slide-in-from-bottom-2"
                     style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                   >
-                    <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer border-border/60 hover:-translate-y-0.5">
+                    <Card
+                      onClick={() => { setSelectedShopifyOrder(order); setShopifyDetailOpen(true); }}
+                      className="hover:shadow-lg transition-all duration-200 cursor-pointer border-border/60 hover:-translate-y-0.5"
+                    >
                       <CardContent className="p-4 space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="font-mono text-sm font-bold text-primary">#{order.order_number || order.shopify_order_id}</div>
@@ -1339,6 +1349,12 @@ export default function Orders() {
                 </div>
               </div>
             )}
+            <ShopifyOrderDetailDialog
+              order={selectedShopifyOrder}
+              open={shopifyDetailOpen}
+              onOpenChange={setShopifyDetailOpen}
+              onUpdated={() => refetchShopifyOrders()}
+            />
           </TabsContent>
 
            {/* XBoom Website Orders Tab */}
