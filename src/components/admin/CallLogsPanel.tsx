@@ -67,6 +67,8 @@ function extractRecordingFilename(payload: Record<string, unknown> | null): stri
   if (!payload) return null;
   const fn = payload._fn;
   if (fn && typeof fn === 'string' && fn.trim().length > 0) return fn.trim();
+  const filename = payload.filename;
+  if (filename && typeof filename === 'string' && filename.trim().length > 0) return filename.trim();
   return null;
 }
 
