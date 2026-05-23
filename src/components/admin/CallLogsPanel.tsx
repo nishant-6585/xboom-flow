@@ -947,8 +947,9 @@ function InlineAudioPlayer({ recordingFile, directUrl, duration, autoPlay = fals
     const onTimeUpdate = () => setCurrentTime(Math.floor(audio.currentTime));
     const onLoaded = () => { if (audio.duration && isFinite(audio.duration)) setAudioDuration(Math.floor(audio.duration)); };
     const onEnded = () => setIsPlaying(false);
-    const onError = () => { 
-      if (!streamUrl && !loading) { setError(true); }
+    const onError = () => {
+      if (!loading) setError(true);
+      setIsPlaying(false);
     };
     
     audio.addEventListener('timeupdate', onTimeUpdate);
