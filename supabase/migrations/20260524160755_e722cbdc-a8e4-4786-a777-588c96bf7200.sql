@@ -1,0 +1,1 @@
+ALTER TABLE public.payment_records ALTER COLUMN screenshot_url DROP NOT NULL;
