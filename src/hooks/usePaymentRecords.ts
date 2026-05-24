@@ -10,7 +10,7 @@ export interface PaymentRecord {
   id: string;
   order_id: string;
   amount: number;
-  screenshot_url: string;
+  screenshot_url: string | null;
   screenshot_signed_url?: string;
   screenshot_signed_urls?: string[]; // For multiple screenshots
   notes: string | null;
@@ -271,7 +271,10 @@ export function usePaymentRecords(orderId?: string) {
 
     try {
       // First delete screenshots from storage
-      const screenshotPaths = record.screenshot_url.split(',').map((p: string) => p.trim());
+      const screenshotPaths = (record.screenshot_url || '')
+        .split(',')
+        .map((p: string) => p.trim())
+        .filter(Boolean);
       
       for (const path of screenshotPaths) {
         const storagePath = extractStoragePath(path);
