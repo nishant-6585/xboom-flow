@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, CreditCard, Plus, Loader2, Trash2, X, Image } from 'lucide-react';
+import { PAYMENT_MODES } from '@/lib/paymentModes';
 
 interface OrderSupplierPaymentsProps {
   orderId: string;
@@ -169,10 +170,9 @@ export function OrderSupplierPayments({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="upi">UPI</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
+                    {PAYMENT_MODES.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

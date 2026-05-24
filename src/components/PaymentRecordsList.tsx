@@ -9,6 +9,9 @@ import { PaymentRecord, usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { Check, X, Clock, Image, Loader2, ExternalLink, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { PaymentModeBadge } from '@/components/PaymentModeBadge';
+import { PAYMENT_MODE_CATEGORIES, getPaymentModeCategory } from '@/lib/paymentModes';
+import { cn } from '@/lib/utils';
 
 interface PaymentRecordsListProps {
   orderId: string;
@@ -46,6 +49,22 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
+  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (cat: string) => {
+    setActiveCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  };
+
+  const filteredRecords = activeCategories.size === 0
+    ? records
+    : records.filter((r) => {
+        const cat = getPaymentModeCategory(r.payment_mode);
+        return cat ? activeCategories.has(cat) : false;
+      });
 
   const handleApprove = async (record: PaymentRecord) => {
     setActionLoading(record.id);
@@ -112,8 +131,46 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
 
   return (
     <>
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <button
+          type="button"
+          onClick={() => setActiveCategories(new Set())}
+          className={cn(
+            'text-[11px] px-2.5 py-1 rounded-full border transition',
+            activeCategories.size === 0
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-background text-muted-foreground border-border hover:bg-muted',
+          )}
+        >
+          All ({records.length})
+        </button>
+        {PAYMENT_MODE_CATEGORIES.map((cat) => {
+          const active = activeCategories.has(cat.value);
+          const count = records.filter((r) => getPaymentModeCategory(r.payment_mode) === cat.value).length;
+          return (
+            <button
+              key={cat.value}
+              type="button"
+              onClick={() => toggleCategory(cat.value)}
+              className={cn(
+                'text-[11px] px-2.5 py-1 rounded-full border transition',
+                active
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted',
+              )}
+            >
+              {cat.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       <div className="space-y-3">
-        {records.map((record) => {
+        {filteredRecords.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground text-sm">
+            No payments match the selected filters.
+          </div>
+        ) : filteredRecords.map((record) => {
           const config = statusConfig[record.status];
           return (
             <Card key={record.id} className="overflow-hidden">
@@ -152,16 +209,25 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
 
                   {/* Details */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-semibold">₹{record.amount.toLocaleString('en-IN')}</span>
                       <Badge className={config.className}>
                         {config.icon}
                         <span className="ml-1">{config.label}</span>
                       </Badge>
+                      <PaymentModeBadge mode={record.payment_mode} />
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Submitted {format(new Date(record.submitted_at), 'dd MMM yyyy, hh:mm a')}
+                      {record.payment_date && (
+                        <span> · Paid {format(new Date(record.payment_date), 'dd MMM yyyy')}</span>
+                      )}
                     </p>
+                    {record.reference_number && (
+                      <p className="text-xs text-muted-foreground font-mono">
+                        Ref: {record.reference_number}
+                      </p>
+                    )}
                     {record.status === 'approved' && record.reviewed_by_name && (
                       <p className="text-xs text-green-600 dark:text-green-400">
                         Approved by {record.reviewed_by_name}

@@ -22,6 +22,8 @@ import { AgingMatrix } from '@/components/finance/AgingMatrix';
 import { useARAging } from '@/hooks/useARAging';
 import { useAPAging } from '@/hooks/useAPAging';
 import { format as fmtDate } from 'date-fns';
+import { PaymentModeBreakdownCard } from '@/components/finance/PaymentModeBreakdownCard';
+import { getPaymentModeLabel } from '@/lib/paymentModes';
 
 interface PaymentRecord {
   id: string;
@@ -30,6 +32,9 @@ interface PaymentRecord {
   status: string;
   submitted_at: string;
   reviewed_at: string | null;
+  payment_mode?: string | null;
+  reference_number?: string | null;
+  payment_date?: string | null;
 }
 
 interface SupplierPayment {
@@ -260,21 +265,27 @@ export default function Finance() {
   const handleExportPayments = () => {
     const rows = enrichedPaymentRecords.map(p => ({
       submitted_at: p.submitted_at,
+      payment_date: p.payment_date ?? null,
       order_number: (p as any).order_number,
       customer_name: (p as any).customer_name,
       amount: p.amount,
+      payment_mode: getPaymentModeLabel(p.payment_mode),
+      reference_number: p.reference_number ?? '',
       status: p.status,
       reviewed_at: p.reviewed_at,
     }));
     exportToExcel(rows, 'payment-records', {
       sheetName: 'Payments',
       amountColumns: ['amount'],
-      dateColumns: ['submitted_at', 'reviewed_at'],
+      dateColumns: ['submitted_at', 'payment_date', 'reviewed_at'],
       headers: {
         submitted_at: 'Submitted',
+        payment_date: 'Payment Date',
         order_number: 'Order #',
         customer_name: 'Customer',
         amount: 'Amount',
+        payment_mode: 'Payment Mode',
+        reference_number: 'Reference #',
         status: 'Status',
         reviewed_at: 'Reviewed',
       },
@@ -385,6 +396,12 @@ export default function Finance() {
           </TabsList>
 
           <TabsContent value="overview">
+            <div className="mb-6">
+              <PaymentModeBreakdownCard
+                paymentRecords={enrichedPaymentRecords as any}
+                periodLabel="All approved payments"
+              />
+            </div>
             <CreditDebitOverview
               paymentRecords={enrichedPaymentRecords}
               supplierPayments={enrichedSupplierPayments}
@@ -393,6 +410,13 @@ export default function Finance() {
           </TabsContent>
 
           <TabsContent value="cashflow">
+            <div className="mb-6">
+              <PaymentModeBreakdownCard
+                paymentRecords={enrichedPaymentRecords as any}
+                title="Cashflow · Received by Payment Mode"
+                periodLabel="All approved payments"
+              />
+            </div>
             <CashflowChart
               expectedPayments={expectedPayments}
               onMarkReceived={markAsReceived}

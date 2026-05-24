@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format, parseISO } from 'date-fns';
 import { CreditCard, Calendar, Hash, FileText, Image, Trash2, Loader2, IndianRupee, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { PAYMENT_MODE_LABELS } from '@/lib/paymentModes';
 
 interface InventoryProcurementPaymentHistoryProps {
   open: boolean;
@@ -19,15 +20,6 @@ interface InventoryProcurementPaymentHistoryProps {
   totalPaid: number;
   onPaymentDeleted?: () => void;
 }
-
-const PAYMENT_MODE_LABELS: Record<string, string> = {
-  bank_transfer: 'Bank Transfer',
-  upi: 'UPI',
-  cash: 'Cash',
-  cheque: 'Cheque',
-  credit_card: 'Credit Card',
-  other: 'Other',
-};
 
 export function InventoryProcurementPaymentHistory({
   open,

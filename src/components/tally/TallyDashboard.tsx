@@ -26,6 +26,10 @@ import { ProcurementOrderDialog } from "@/components/procurement/ProcurementOrde
 import { Order } from "@/hooks/useOrders";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { toast } from "sonner";
+import { PaymentModeBadge } from "@/components/PaymentModeBadge";
+import { getPaymentModeLabel } from "@/lib/paymentModes";
+import { useTableExport } from "@/hooks/useTableExport";
+import { Download } from "lucide-react";
 
 interface TallyOrder {
   id: string;
@@ -100,6 +104,11 @@ interface TallyInventoryLink {
   };
 }
 
+interface TallyPrimaryMode {
+  order_id: string;
+  primary_payment_mode: string | null;
+}
+
 interface TallySupplier {
   id: string;
   brand_name: string | null;
@@ -137,6 +146,7 @@ interface TallyRow {
   inventoryFulfilled: boolean;
   inventorySourcePO: string;
   inventoryCost: number;
+  primaryPaymentMode: string | null;
 }
 
 type SortField = "orderNumber" | "orderDate" | "salesValue" | "pendingPayment" | "procurementValue" | "profit" | "profitMargin";
@@ -195,6 +205,7 @@ export function TallyDashboard() {
   const [invoices, setInvoices] = useState<TallyInvoice[]>([]);
   const [suppliers, setSuppliers] = useState<TallySupplier[]>([]);
   const [invLinks, setInvLinks] = useState<TallyInventoryLink[]>([]);
+  const [primaryModes, setPrimaryModes] = useState<TallyPrimaryMode[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("orderNumber");
@@ -211,6 +222,7 @@ export function TallyDashboard() {
   const [dialogLoading, setDialogLoading] = useState(false);
 
   const { suppliers: suppliersList } = useSuppliers();
+  const { exportToExcel } = useTableExport();
 
   const fetchFullOrder = useCallback(async (orderId: string): Promise<Order | null> => {
     try {
@@ -288,11 +300,15 @@ export function TallyDashboard() {
             .from("order_procurement_links")
             .select("id, order_id, inventory_procurement_id, quantity_used"),
         ]);
+        const modesRes = await supabase
+          .from("order_primary_payment_mode" as any)
+          .select("order_id, primary_payment_mode");
         setAllOrders(ordersRes.data || []);
         setProcurements((procRes.data as TallyProcurement[]) || []);
         setOrderItems(itemsRes.data || []);
         setInvoices(invoicesRes.data || []);
         setSuppliers(suppliersRes.data || []);
+        setPrimaryModes(((modesRes.data as unknown) as TallyPrimaryMode[]) || []);
 
         // Enrich inventory links with procurement details
         const rawLinks = (linksRes.data || []) as TallyInventoryLink[];
@@ -385,6 +401,12 @@ export function TallyDashboard() {
     });
     return map;
   }, [invLinks]);
+
+  const primaryModeByOrder = useMemo(() => {
+    const map = new Map<string, string | null>();
+    primaryModes.forEach((m) => { map.set(m.order_id, m.primary_payment_mode); });
+    return map;
+  }, [primaryModes]);
 
   const suppliersMap = useMemo(() => {
     const map = new Map<string, TallySupplier>();
@@ -527,6 +549,8 @@ export function TallyDashboard() {
         return sum + unitPrice * l.quantity_used;
       }, 0);
 
+      const primaryPaymentMode = primaryModeByOrder.get(o.id) ?? null;
+
       return {
         orderId: o.id,
         orderNumber: o.order_number || "—",
@@ -558,9 +582,10 @@ export function TallyDashboard() {
         inventoryFulfilled,
         inventorySourcePO,
         inventoryCost,
+        primaryPaymentMode,
       };
     });
-  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, suppliersMap, invLinksByOrder]);
+  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, suppliersMap, invLinksByOrder, primaryModeByOrder]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -606,6 +631,60 @@ export function TallyDashboard() {
     const avgMargin = knownSales > 0 ? (knownProfit / knownSales) * 100 : 0;
     return { totalSales, totalReceived, totalPending, totalProcurement, totalProfit, avgMargin, totalEstProcurement, totalEstProfit, avgEstMargin };
   }, [rows]);
+
+  // Received-by-mode summary (uses each row's primary mode and amountReceived)
+  const receivedByMode = useMemo(() => {
+    const totals = new Map<string, number>();
+    rows.forEach((r) => {
+      if (r.amountReceived <= 0) return;
+      const key = r.primaryPaymentMode ?? 'unknown';
+      totals.set(key, (totals.get(key) ?? 0) + r.amountReceived);
+    });
+    const total = Array.from(totals.values()).reduce((s, v) => s + v, 0);
+    return Array.from(totals.entries())
+      .map(([mode, amount]) => ({ mode, amount, pct: total > 0 ? (amount / total) * 100 : 0 }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [rows]);
+
+  const handleExportTally = () => {
+    const exportRows = filtered.map((r) => ({
+      orderNumber: r.orderNumber,
+      orderDate: r.orderDate,
+      customerName: r.customerName,
+      customerCompany: r.customerCompany,
+      productName: r.productName,
+      salesValue: r.salesValue,
+      amountReceived: r.amountReceived,
+      pendingPayment: r.pendingPayment,
+      primaryPaymentMode: getPaymentModeLabel(r.primaryPaymentMode),
+      procurementValue: r.procurementValue,
+      profit: r.profit,
+      profitMargin: Number(r.profitMargin.toFixed(2)),
+      paymentStatus: r.paymentStatus,
+      supplierName: r.supplierName,
+    }));
+    exportToExcel(exportRows, `tally-${format(new Date(), 'yyyyMMdd')}`, {
+      sheetName: 'Tally',
+      amountColumns: ['salesValue', 'amountReceived', 'pendingPayment', 'procurementValue', 'profit'],
+      dateColumns: ['orderDate'],
+      headers: {
+        orderNumber: 'Order #',
+        orderDate: 'Order Date',
+        customerName: 'Customer',
+        customerCompany: 'Company',
+        productName: 'Product',
+        salesValue: 'Sales Value',
+        amountReceived: 'Received',
+        pendingPayment: 'Pending',
+        primaryPaymentMode: 'Primary Payment Mode',
+        procurementValue: 'Procurement Cost',
+        profit: 'Profit',
+        profitMargin: 'Margin %',
+        paymentStatus: 'Pay Status',
+        supplierName: 'Supplier',
+      },
+    });
+  };
 
   // Comparison chart: Current month till date vs Previous month same dates
   const comparisonData = useMemo(() => {
@@ -782,6 +861,10 @@ export function TallyDashboard() {
         <Badge variant="outline" className="text-xs">
           {periodLabel} · {rows.length} orders
         </Badge>
+        <Button variant="outline" size="sm" className="h-9 ml-auto" onClick={handleExportTally} disabled={filtered.length === 0}>
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -800,6 +883,33 @@ export function TallyDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Received by Payment Mode */}
+      <Card className="glass">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <IndianRupee className="h-4 w-4 text-primary" />
+            Received by Payment Mode
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {receivedByMode.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">No received payments in this period.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {receivedByMode.map((r) => (
+                <div key={r.mode} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border">
+                  <PaymentModeBadge mode={r.mode === 'unknown' ? null : r.mode} short />
+                  <div className="text-right">
+                    <p className="text-sm font-semibold">{fmt(r.amount)}</p>
+                    <p className="text-[10px] text-muted-foreground">{r.pct.toFixed(1)}%</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Comparison Chart: Current Month vs Previous Month */}
       <Card className="glass">
@@ -884,6 +994,7 @@ export function TallyDashboard() {
                   <TableHead className="text-right"><SortBtn field="salesValue" label="Sales Value" /></TableHead>
                   <TableHead className="text-right">Received</TableHead>
                   <TableHead className="text-right"><SortBtn field="pendingPayment" label="Pending" /></TableHead>
+                  <TableHead>Pay Mode</TableHead>
                   <TableHead className="text-right"><SortBtn field="procurementValue" label="Proc. Cost" /></TableHead>
                   <TableHead className="text-right text-amber-700 dark:text-amber-400">Est. Cost</TableHead>
                   <TableHead className="text-right"><SortBtn field="profit" label="Profit" /></TableHead>
@@ -898,7 +1009,7 @@ export function TallyDashboard() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={21} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={22} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
@@ -955,6 +1066,9 @@ export function TallyDashboard() {
                         <button onClick={() => openOrderDialog(r.orderId)} className={`cursor-pointer hover:underline ${r.pendingPayment > 0 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"}`} title="View Payment Details">
                           {fmt(r.pendingPayment)}
                         </button>
+                      </TableCell>
+                      <TableCell>
+                        <PaymentModeBadge mode={r.primaryPaymentMode} short />
                       </TableCell>
                       <TableCell className="text-right">
                         <button
