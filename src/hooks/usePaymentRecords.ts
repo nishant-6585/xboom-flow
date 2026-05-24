@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import type { PaymentMode } from '@/lib/paymentModes';
 
 export type PaymentRecordStatus = 'pending' | 'approved' | 'rejected';
 
@@ -21,6 +22,9 @@ export interface PaymentRecord {
   reviewed_at: string | null;
   rejection_reason: string | null;
   created_at: string;
+  payment_mode: PaymentMode | null;
+  reference_number: string | null;
+  payment_date: string | null;
 }
 
 // Helper to extract storage path from a public URL or return as-is if already a path
@@ -147,7 +151,12 @@ export function usePaymentRecords(orderId?: string) {
     orderIdParam: string,
     amount: number,
     screenshotUrl: string,
-    notes?: string
+    notes?: string,
+    extra?: {
+      payment_mode?: PaymentMode | null;
+      reference_number?: string | null;
+      payment_date?: string | null;
+    },
   ): Promise<boolean> => {
     if (!user) {
       toast.error('You must be logged in');
@@ -163,6 +172,9 @@ export function usePaymentRecords(orderId?: string) {
           screenshot_url: screenshotUrl,
           notes: notes || null,
           submitted_by: user.id,
+          payment_mode: extra?.payment_mode ?? null,
+          reference_number: extra?.reference_number?.trim() ? extra.reference_number.trim() : null,
+          payment_date: extra?.payment_date ?? null,
         });
 
       if (error) throw error;
