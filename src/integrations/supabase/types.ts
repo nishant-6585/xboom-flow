@@ -6356,6 +6356,7 @@ export type Database = {
           notes: string | null
           payment_date: string
           payment_method: string | null
+          payment_mode: string | null
           recorded_by: string
           recorded_by_name: string
           reference_number: string | null
@@ -6368,6 +6369,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string
           payment_method?: string | null
+          payment_mode?: string | null
           recorded_by: string
           recorded_by_name: string
           reference_number?: string | null
@@ -6380,6 +6382,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string
           payment_method?: string | null
+          payment_mode?: string | null
           recorded_by?: string
           recorded_by_name?: string
           reference_number?: string | null
@@ -8607,6 +8610,9 @@ export type Database = {
           id: string
           notes: string | null
           order_id: string
+          payment_date: string | null
+          payment_mode: string | null
+          reference_number: string | null
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -8621,6 +8627,9 @@ export type Database = {
           id?: string
           notes?: string | null
           order_id: string
+          payment_date?: string | null
+          payment_mode?: string | null
+          reference_number?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -8635,6 +8644,9 @@ export type Database = {
           id?: string
           notes?: string | null
           order_id?: string
+          payment_date?: string | null
+          payment_mode?: string | null
+          reference_number?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -13850,6 +13862,29 @@ export type Database = {
           retry_rate_pct: number | null
         }
         Relationships: []
+      }
+      order_primary_payment_mode: {
+        Row: {
+          order_id: string | null
+          order_total: number | null
+          primary_payment_mode: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orders_missing_phone: {
         Row: {
