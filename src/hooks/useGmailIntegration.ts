@@ -26,12 +26,14 @@ export function useGmailIntegration() {
   const { data: integrations = [], isLoading } = useQuery({
     queryKey: ['gmail-integrations'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('gmail_integrations')
-        .select('id, user_id, email, is_active, last_synced_at, created_at')
-        .order('created_at', { ascending: false });
+      // Use SECURITY DEFINER RPC so sales_manager can list connected accounts
+      // without exposing access_token / refresh_token columns.
+      const { data, error } = await supabase.rpc('get_gmail_integrations_safe');
       if (error) throw error;
-      return data as GmailIntegration[];
+      const rows = ((data as any[]) || []).slice().sort((a, b) =>
+        (b.created_at || '').localeCompare(a.created_at || '')
+      );
+      return rows as GmailIntegration[];
     },
   });
 

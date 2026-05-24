@@ -14420,6 +14420,19 @@ export type Database = {
           total_working_hours: number
         }[]
       }
+      get_gmail_integrations_safe: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          last_synced_at: string
+          token_expiry: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_low_stock_items: {
         Args: never
         Returns: {
@@ -14515,6 +14528,34 @@ export type Database = {
           on_time_percentage: number
           overall_score: number
           total_ratings: number
+        }[]
+      }
+      get_suppliers_safe: {
+        Args: never
+        Returns: {
+          address: string
+          bank_account_holder: string
+          bank_account_number: string
+          bank_ifsc: string
+          bank_name: string
+          brand_name: string
+          city: string
+          contact_name: string
+          created_at: string
+          created_by: string
+          email: string
+          gst_number: string
+          id: string
+          is_active: boolean
+          mobile: string
+          name: string
+          notes: string
+          phone: string
+          preference: string
+          product_category: string
+          products: string
+          status: string
+          updated_at: string
         }[]
       }
       get_user_activity_summary: {
