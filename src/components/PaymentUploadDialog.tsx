@@ -11,8 +11,13 @@ import {
   PAYMENT_MODES,
   type PaymentMode,
   getReferenceNumberPlaceholder,
+  isScreenshotRequired,
+  getScreenshotHint,
+  getNotesMinLength,
+  getNotesPlaceholder,
 } from '@/lib/paymentModes';
 import { subDays, format as fmtDate } from 'date-fns';
+import { toast } from 'sonner';
 
 interface FileWithPreview {
   file: File;
@@ -73,11 +78,23 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
   };
 
   const handleSubmit = async () => {
-    if (files.length === 0 || !amount || !paymentMode) return;
+    if (!amount || !paymentMode) return;
+
+    const screenshotRequired = isScreenshotRequired(paymentMode);
+    if (screenshotRequired && files.length === 0) {
+      toast.error('Please upload a screenshot for this payment mode.');
+      return;
+    }
+
+    const minNotes = getNotesMinLength(paymentMode);
+    if (minNotes > 0 && notes.trim().length < minNotes) {
+      toast.error(`Please describe the cash receipt in at least ${minNotes} characters.`);
+      return;
+    }
 
     setLoading(true);
     try {
-      // Upload all screenshots
+      // Upload all screenshots (if any)
       const uploadedUrls: string[] = [];
       for (const fileItem of files) {
         const screenshotUrl = await uploadScreenshot(fileItem.file);
@@ -86,13 +103,13 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
         }
       }
 
-      if (uploadedUrls.length === 0) {
+      if (screenshotRequired && uploadedUrls.length === 0) {
         setLoading(false);
         return;
       }
 
-      // Join URLs with comma for storage (or use first one if single)
-      const screenshotUrlsString = uploadedUrls.join(',');
+      // Join URLs with comma for storage; null when no screenshots were attached
+      const screenshotUrlsString = uploadedUrls.length > 0 ? uploadedUrls.join(',') : null;
 
       const success = await submitPayment(
         orderId,
@@ -119,6 +136,17 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
       setLoading(false);
     }
   };
+
+  const screenshotRequired = isScreenshotRequired(paymentMode);
+  const isCash = paymentMode === 'cash';
+  const minNotes = getNotesMinLength(paymentMode);
+  const notesTooShort = minNotes > 0 && notes.trim().length < minNotes;
+  const missingRequiredScreenshot = screenshotRequired && files.length === 0;
+  const screenshotLabel = isCash
+    ? `Receipt Voucher (optional) (${files.length} selected)`
+    : screenshotRequired
+      ? `Payment Screenshots * (${files.length} selected)`
+      : `Payment Screenshots (optional) (${files.length} selected)`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -191,7 +219,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
 
           <div className="space-y-2">
             <Label className="flex items-center justify-between">
-              <span>Payment Screenshots * ({files.length} selected)</span>
+              <span>{screenshotLabel}</span>
               {files.length > 0 && (
                 <Button
                   type="button"
@@ -262,18 +290,41 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
               onChange={handleFileChange}
               className="hidden"
             />
+
+            <p className="text-xs text-muted-foreground">
+              {getScreenshotHint(paymentMode)}
+            </p>
+            {missingRequiredScreenshot && (
+              <p className="text-xs text-destructive">
+                Screenshot required for this mode.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Label htmlFor="notes">
+              Notes {isCash ? <span className="text-destructive">*</span> : '(Optional)'}
+            </Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any notes about this payment..."
+              placeholder={getNotesPlaceholder(paymentMode)}
               disabled={loading}
               rows={2}
             />
+            {isCash && (
+              <div className="flex items-center justify-between text-xs">
+                <span className={notesTooShort ? 'text-destructive' : 'text-muted-foreground'}>
+                  {notesTooShort
+                    ? 'Add at least 20 characters describing the cash receipt.'
+                    : 'Cash receipt details captured.'}
+                </span>
+                <span className="text-muted-foreground tabular-nums">
+                  {notes.trim().length} / {minNotes} minimum
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -281,7 +332,16 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading || files.length === 0 || !amount || !paymentMode}>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              loading ||
+              !amount ||
+              !paymentMode ||
+              missingRequiredScreenshot ||
+              notesTooShort
+            }
+          >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Submit for Approval
           </Button>
