@@ -4,8 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { Loader2, Upload, ImageIcon, X, Plus } from 'lucide-react';
+import {
+  PAYMENT_MODES,
+  type PaymentMode,
+  getReferenceNumberPlaceholder,
+} from '@/lib/paymentModes';
+import { subDays, format as fmtDate } from 'date-fns';
 
 interface FileWithPreview {
   file: File;
@@ -25,6 +32,11 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('upi');
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const todayIso = fmtDate(new Date(), 'yyyy-MM-dd');
+  const minDateIso = fmtDate(subDays(new Date(), 30), 'yyyy-MM-dd');
+  const [paymentDate, setPaymentDate] = useState(todayIso);
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,7 +73,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
   };
 
   const handleSubmit = async () => {
-    if (files.length === 0 || !amount) return;
+    if (files.length === 0 || !amount || !paymentMode) return;
 
     setLoading(true);
     try {
@@ -82,10 +94,23 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
       // Join URLs with comma for storage (or use first one if single)
       const screenshotUrlsString = uploadedUrls.join(',');
 
-      const success = await submitPayment(orderId, parseFloat(amount), screenshotUrlsString, notes);
+      const success = await submitPayment(
+        orderId,
+        parseFloat(amount),
+        screenshotUrlsString,
+        notes,
+        {
+          payment_mode: paymentMode,
+          reference_number: referenceNumber,
+          payment_date: paymentDate || null,
+        },
+      );
       if (success) {
         setAmount('');
         setNotes('');
+        setReferenceNumber('');
+        setPaymentMode('upi');
+        setPaymentDate(todayIso);
         handleClearAll();
         onOpenChange(false);
         onSuccess?.();
@@ -119,6 +144,47 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Enter payment amount"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="payment_mode">Payment Mode *</Label>
+              <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)} disabled={loading}>
+                <SelectTrigger id="payment_mode">
+                  <SelectValue placeholder="Select mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_MODES.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payment_date">Payment Date</Label>
+              <Input
+                id="payment_date"
+                type="date"
+                value={paymentDate}
+                min={minDateIso}
+                max={todayIso}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="reference_number">Reference Number</Label>
+            <Input
+              id="reference_number"
+              value={referenceNumber}
+              onChange={(e) => setReferenceNumber(e.target.value)}
+              placeholder={getReferenceNumberPlaceholder(paymentMode)}
               disabled={loading}
             />
           </div>
@@ -215,7 +281,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading || files.length === 0 || !amount}>
+          <Button onClick={handleSubmit} disabled={loading || files.length === 0 || !amount || !paymentMode}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Submit for Approval
           </Button>
