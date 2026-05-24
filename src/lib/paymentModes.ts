@@ -89,3 +89,58 @@ export function getReferenceNumberPlaceholder(mode: string | null | undefined): 
       return 'Optional';
   }
 }
+
+// Modes where a payment screenshot is REQUIRED before submission.
+export const SCREENSHOT_REQUIRED_MODES: ReadonlySet<PaymentMode> = new Set<PaymentMode>([
+  'upi', 'neft', 'rtgs', 'imps', 'cheque', 'dd', 'credit_card', 'debit_card',
+]);
+
+export function isScreenshotRequired(mode: PaymentMode | null | undefined): boolean {
+  if (!mode) return false;
+  return SCREENSHOT_REQUIRED_MODES.has(mode);
+}
+
+// Mode-specific hint text shown in the upload zone.
+export function getScreenshotHint(mode: PaymentMode | null | undefined): string {
+  switch (mode) {
+    case 'upi':
+      return 'Upload UPI app success screen showing UTR, amount, and timestamp.';
+    case 'neft':
+    case 'rtgs':
+    case 'imps':
+      return 'Upload netbanking transfer confirmation showing UTR and amount.';
+    case 'cheque':
+      return 'Upload a clear photo of the cheque (front side).';
+    case 'dd':
+      return 'Upload a clear photo of the demand draft.';
+    case 'credit_card':
+    case 'debit_card':
+      return 'Upload POS terminal slip OR processor dashboard screenshot.';
+    case 'payment_gateway':
+      return 'Gateway transactions are auto-confirmed via webhook. Screenshot only needed for manual gateway links.';
+    case 'cash':
+      return 'Cash payments do not require a screenshot. Use the notes field to record receipt details.';
+    case 'other':
+      return 'Upload any proof you have, or leave empty and add details in notes.';
+    default:
+      return 'Upload a screenshot of the payment confirmation.';
+  }
+}
+
+// Minimum notes length for "soft modes" where screenshot is optional.
+// For cash specifically, we want a rich note since there's no visual proof.
+export function getNotesMinLength(mode: PaymentMode | null | undefined): number {
+  if (mode === 'cash') return 20;
+  return 0;
+}
+
+export function getNotesPlaceholder(mode: PaymentMode | null | undefined): string {
+  switch (mode) {
+    case 'cash':
+      return 'Who handed over the cash, where, witness name, voucher number if any. Min 20 chars.';
+    case 'payment_gateway':
+      return 'Optional. Add any context (e.g., gateway used, settlement batch).';
+    default:
+      return 'Optional notes about this payment.';
+  }
+}
