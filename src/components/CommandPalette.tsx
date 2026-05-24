@@ -156,15 +156,22 @@ export function CommandPalette() {
             }) as unknown as Promise<void>
         );
 
-        // Search suppliers
+        // Search suppliers via SECURITY DEFINER RPC (works for supply_chain
+        // role which no longer has direct SELECT on the base table).
         promises.push(
           supabase
-            .from('suppliers')
-            .select('id, name, product_category, email, phone')
-            .or(`name.ilike.${searchTerm},product_category.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm}`)
-            .limit(5)
+            .rpc('get_suppliers_safe')
             .then(({ data }) => {
-              data?.forEach(s => {
+              const q = query.toLowerCase();
+              const matches = ((data as any[]) || []).filter(s => {
+                return (
+                  (s.name || '').toLowerCase().includes(q) ||
+                  (s.product_category || '').toLowerCase().includes(q) ||
+                  (s.email || '').toLowerCase().includes(q) ||
+                  (s.phone || '').toLowerCase().includes(q)
+                );
+              }).slice(0, 5);
+              matches.forEach(s => {
                 searchResults.push({
                   id: s.id,
                   label: s.name,
