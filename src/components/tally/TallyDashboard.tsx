@@ -308,7 +308,7 @@ export function TallyDashboard() {
         setOrderItems(itemsRes.data || []);
         setInvoices(invoicesRes.data || []);
         setSuppliers(suppliersRes.data || []);
-        setPrimaryModes((modesRes.data as TallyPrimaryMode[]) || []);
+        setPrimaryModes(((modesRes.data as unknown) as TallyPrimaryMode[]) || []);
 
         // Enrich inventory links with procurement details
         const rawLinks = (linksRes.data || []) as TallyInventoryLink[];
