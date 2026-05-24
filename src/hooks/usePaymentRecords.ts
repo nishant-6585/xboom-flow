@@ -150,7 +150,7 @@ export function usePaymentRecords(orderId?: string) {
   const submitPayment = async (
     orderIdParam: string,
     amount: number,
-    screenshotUrl: string,
+    screenshotUrl: string | null,
     notes?: string,
     extra?: {
       payment_mode?: PaymentMode | null;
@@ -169,7 +169,7 @@ export function usePaymentRecords(orderId?: string) {
         .insert({
           order_id: orderIdParam,
           amount,
-          screenshot_url: screenshotUrl,
+          screenshot_url: screenshotUrl && screenshotUrl.length > 0 ? screenshotUrl : null,
           notes: notes || null,
           submitted_by: user.id,
           payment_mode: extra?.payment_mode ?? null,
