@@ -17,14 +17,7 @@ interface InventoryProcurementPaymentDialogProps {
   onPaymentAdded?: () => void;
 }
 
-const PAYMENT_MODES = [
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'upi', label: 'UPI' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'cheque', label: 'Cheque' },
-  { value: 'credit_card', label: 'Credit Card' },
-  { value: 'other', label: 'Other' },
-];
+import { PAYMENT_MODES } from '@/lib/paymentModes';
 
 export function InventoryProcurementPaymentDialog({
   open,
