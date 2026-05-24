@@ -90,13 +90,6 @@ export function useSuppliers() {
     }
 
     try {
-      // Fetch user role to determine if bank details should be included
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
       // Use the SECURITY DEFINER RPC which enforces banking-field masking
       // server-side based on role (admin/finance see banking; supply_chain
       // gets nulls).
