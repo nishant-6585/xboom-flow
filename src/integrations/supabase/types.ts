@@ -8616,7 +8616,7 @@ export type Database = {
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
-          screenshot_url: string
+          screenshot_url: string | null
           status: string
           submitted_at: string
           submitted_by: string
@@ -8633,7 +8633,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
-          screenshot_url: string
+          screenshot_url?: string | null
           status?: string
           submitted_at?: string
           submitted_by: string
@@ -8650,7 +8650,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
-          screenshot_url?: string
+          screenshot_url?: string | null
           status?: string
           submitted_at?: string
           submitted_by?: string

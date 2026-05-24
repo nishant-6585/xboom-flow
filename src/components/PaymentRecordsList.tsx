@@ -178,12 +178,26 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
                 <div className="flex items-start gap-4">
                   {/* Screenshot thumbnails */}
                   <div className="flex gap-1 shrink-0">
-                    {(record.screenshot_signed_urls || [record.screenshot_signed_url || record.screenshot_url]).slice(0, 3).map((url, idx) => (
+                    {(() => {
+                      const urls = (record.screenshot_signed_urls && record.screenshot_signed_urls.length > 0
+                        ? record.screenshot_signed_urls
+                        : [record.screenshot_signed_url || record.screenshot_url]
+                      ).filter((u): u is string => !!u);
+                      if (urls.length === 0) {
+                        return (
+                          <div className="w-12 h-12 rounded-lg border border-dashed border-border bg-muted/40 flex items-center justify-center text-[10px] text-muted-foreground text-center px-1 leading-tight">
+                            No screenshot
+                          </div>
+                        );
+                      }
+                      return (
+                        <>
+                          {urls.slice(0, 3).map((url, idx) => (
                       <div
                         key={idx}
                         className="w-12 h-12 rounded-lg border border-border overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                         onClick={() => {
-                          setPreviewImages(record.screenshot_signed_urls || [record.screenshot_signed_url || record.screenshot_url]);
+                          setPreviewImages(urls);
                           setCurrentPreviewIndex(idx);
                         }}
                       >
@@ -194,17 +208,20 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
                         />
                       </div>
                     ))}
-                    {(record.screenshot_signed_urls?.length || 1) > 3 && (
+                          {urls.length > 3 && (
                       <div 
                         className="w-12 h-12 rounded-lg border border-border bg-muted flex items-center justify-center text-xs text-muted-foreground cursor-pointer hover:bg-muted/80"
                         onClick={() => {
-                          setPreviewImages(record.screenshot_signed_urls || [record.screenshot_signed_url || record.screenshot_url]);
+                          setPreviewImages(urls);
                           setCurrentPreviewIndex(0);
                         }}
                       >
-                        +{(record.screenshot_signed_urls?.length || 1) - 3}
+                              +{urls.length - 3}
                       </div>
                     )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Details */}
