@@ -23,7 +23,14 @@ export type RepairPaymentStatus = 'pending' | 'partial' | 'paid';
 export interface ComponentReplaced {
   name: string;
   cost: number;
+  // Optional — present only for inventory-linked components
+  part_id?: string | null;
+  part_code?: string | null;
+  quantity?: number;
+  cost_per_unit?: number;
 }
+
+export const isInventoryLinkedComponent = (c: ComponentReplaced): boolean => !!c.part_id;
 
 export interface Repair {
   id: string;

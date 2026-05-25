@@ -5,14 +5,27 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, Link2, Package } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { PartSelector } from "./PartSelector";
 import { 
   RepairFormData, 
   ComponentReplaced, 
   ISSUE_TYPES, 
   PAYMENT_STATUSES,
   RepairIssueType,
-  RepairPaymentStatus 
+  RepairPaymentStatus,
+  isInventoryLinkedComponent,
 } from "@/hooks/useRepairs";
 import { format } from "date-fns";
 
@@ -44,6 +57,8 @@ export function RepairForm({ onSubmit, onCancel, initialData, isEditing }: Repai
 
   const [newComponent, setNewComponent] = useState<ComponentReplaced>({ name: "", cost: 0 });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [partSelectorOpen, setPartSelectorOpen] = useState(false);
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
 
   const totalComponentCost = formData.components_replaced.reduce(
     (sum, comp) => sum + (comp.cost || 0),
@@ -68,9 +83,30 @@ export function RepairForm({ onSubmit, onCancel, initialData, isEditing }: Repai
   };
 
   const handleRemoveComponent = (index: number) => {
+    const comp = formData.components_replaced[index];
+    if (comp && isInventoryLinkedComponent(comp)) {
+      setPendingRemoveIndex(index);
+      return;
+    }
     setFormData({
       ...formData,
       components_replaced: formData.components_replaced.filter((_, i) => i !== index),
+    });
+  };
+
+  const confirmRemoveLinked = () => {
+    if (pendingRemoveIndex === null) return;
+    setFormData({
+      ...formData,
+      components_replaced: formData.components_replaced.filter((_, i) => i !== pendingRemoveIndex),
+    });
+    setPendingRemoveIndex(null);
+  };
+
+  const handleAddFromInventory = (component: ComponentReplaced) => {
+    setFormData({
+      ...formData,
+      components_replaced: [...formData.components_replaced, component],
     });
   };
 
@@ -185,7 +221,24 @@ export function RepairForm({ onSubmit, onCancel, initialData, isEditing }: Repai
             <div className="space-y-2">
               {formData.components_replaced.map((comp, index) => (
                 <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                  <span className="flex-1">{comp.name}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {isInventoryLinkedComponent(comp) && (
+                        <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
+                      <span className="truncate">{comp.name}</span>
+                      {comp.part_code && (
+                        <Badge variant="outline" className="text-xs font-mono">
+                          {comp.part_code}
+                        </Badge>
+                      )}
+                      {comp.quantity && comp.quantity > 1 && (
+                        <Badge variant="secondary" className="text-xs">
+                          Qty: {comp.quantity}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                   <span className="font-medium">₹{comp.cost.toLocaleString()}</span>
                   <Button
                     type="button"
@@ -204,23 +257,42 @@ export function RepairForm({ onSubmit, onCancel, initialData, isEditing }: Repai
             </div>
           )}
           
-          <div className="flex gap-2">
-            <Input
-              placeholder="Component name"
-              value={newComponent.name}
-              onChange={(e) => setNewComponent({ ...newComponent, name: e.target.value })}
-              className="flex-1"
-            />
-            <Input
-              type="number"
-              placeholder="Cost"
-              value={newComponent.cost || ""}
-              onChange={(e) => setNewComponent({ ...newComponent, cost: Number(e.target.value) })}
-              className="w-32"
-            />
-            <Button type="button" variant="outline" onClick={handleAddComponent}>
-              <Plus className="h-4 w-4" />
-            </Button>
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => setPartSelectorOpen(true)}
+              >
+                <Package className="h-4 w-4 mr-2" />
+                Add from Inventory
+              </Button>
+              <p className="text-xs text-muted-foreground self-center">
+                Auto-deducts spare-parts stock.
+              </p>
+            </div>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground">Custom component name</Label>
+                <Input
+                  placeholder="e.g. Custom bracket, third-party part"
+                  value={newComponent.name}
+                  onChange={(e) => setNewComponent({ ...newComponent, name: e.target.value })}
+                />
+              </div>
+              <div className="w-32">
+                <Label className="text-xs text-muted-foreground">Cost (₹)</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={newComponent.cost || ""}
+                  onChange={(e) => setNewComponent({ ...newComponent, cost: Number(e.target.value) })}
+                />
+              </div>
+              <Button type="button" variant="outline" onClick={handleAddComponent}>
+                <Plus className="h-4 w-4 mr-1" /> Add Custom
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -366,6 +438,30 @@ export function RepairForm({ onSubmit, onCancel, initialData, isEditing }: Repai
           {isSubmitting ? "Saving..." : isEditing ? "Update Repair" : "Create Repair Job"}
         </Button>
       </div>
+
+      <PartSelector
+        open={partSelectorOpen}
+        onOpenChange={setPartSelectorOpen}
+        onSelect={handleAddFromInventory}
+      />
+
+      <AlertDialog open={pendingRemoveIndex !== null} onOpenChange={(o) => !o && setPendingRemoveIndex(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove inventory-linked part?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This part was deducted from Spare Parts inventory when it was added.
+              Removing it here will <strong>not</strong> restore stock automatically.
+              If the part wasn't actually used, please adjust the quantity manually
+              in the Spare Parts module.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoveLinked}>Remove anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

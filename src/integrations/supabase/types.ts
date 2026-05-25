@@ -11764,6 +11764,7 @@ export type Database = {
           part_id: string
           quantity_change: number
           reason: Database["public"]["Enums"]["spare_part_change_reason"]
+          repair_id: string | null
         }
         Insert: {
           change_type: Database["public"]["Enums"]["spare_part_change_type"]
@@ -11774,6 +11775,7 @@ export type Database = {
           part_id: string
           quantity_change: number
           reason: Database["public"]["Enums"]["spare_part_change_reason"]
+          repair_id?: string | null
         }
         Update: {
           change_type?: Database["public"]["Enums"]["spare_part_change_type"]
@@ -11784,6 +11786,7 @@ export type Database = {
           part_id?: string
           quantity_change?: number
           reason?: Database["public"]["Enums"]["spare_part_change_reason"]
+          repair_id?: string | null
         }
         Relationships: [
           {
@@ -11791,6 +11794,13 @@ export type Database = {
             columns: ["part_id"]
             isOneToOne: false
             referencedRelation: "spare_parts_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spare_parts_transactions_repair_id_fkey"
+            columns: ["repair_id"]
+            isOneToOne: false
+            referencedRelation: "repairs"
             referencedColumns: ["id"]
           },
         ]
@@ -14075,6 +14085,10 @@ export type Database = {
     Functions: {
       _create_procurement_for_order: {
         Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
+        Returns: undefined
+      }
+      _deduct_parts_for_repair: {
+        Args: { _repair: Database["public"]["Tables"]["repairs"]["Row"] }
         Returns: undefined
       }
       allowed_website_lead_assignees: {

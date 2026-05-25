@@ -38,6 +38,7 @@ import { AdjustQuantityDialog } from "@/components/spare-parts/AdjustQuantityDia
 import { SparePartViewDialog, StatusBadge } from "@/components/spare-parts/SparePartViewDialog";
 import { SparePartsKpiCards } from "@/components/spare-parts/SparePartsKpiCards";
 import { LowStockAlertsWidget } from "@/components/spare-parts/LowStockAlertsWidget";
+import { PartsUsedInRepairs } from "@/components/spare-parts/PartsUsedInRepairs";
 import { exportSparePartsCsv } from "@/lib/sparePartsExport";
 
 type SortKey = "recent" | "margin_desc" | "stock_asc";
@@ -258,6 +259,7 @@ export default function SpareParts() {
 
           <div className="space-y-4">
             <LowStockAlertsWidget />
+            <PartsUsedInRepairs />
           </div>
         </div>
       </main>
