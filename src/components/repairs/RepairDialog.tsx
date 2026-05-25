@@ -5,11 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Repair, RepairFormData, ISSUE_TYPES, PAYMENT_STATUSES } from "@/hooks/useRepairs";
+import { Repair, RepairFormData, ISSUE_TYPES, PAYMENT_STATUSES, isInventoryLinkedComponent } from "@/hooks/useRepairs";
 import { RepairForm } from "./RepairForm";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import { Edit2, Trash2, Phone, Calendar, Clock, User, Wrench, IndianRupee } from "lucide-react";
+import { Edit2, Trash2, Phone, Calendar, Clock, User, Wrench, IndianRupee, Link2 } from "lucide-react";
 
 interface RepairDialogProps {
   repair: Repair | null;
@@ -215,9 +215,30 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                 <h3 className="font-semibold text-lg mb-3">Components Replaced</h3>
                 {repair.components_replaced && repair.components_replaced.length > 0 ? (
                   <div className="space-y-2">
+                    {(() => {
+                      const linked = repair.components_replaced.filter(isInventoryLinkedComponent).length;
+                      const manual = repair.components_replaced.length - linked;
+                      return (
+                        <div className="text-xs text-muted-foreground flex gap-3">
+                          <span>From inventory: {linked}</span>
+                          <span>Custom: {manual}</span>
+                        </div>
+                      );
+                    })()}
                     {repair.components_replaced.map((comp, index) => (
                       <div key={index} className="flex justify-between items-center p-2 bg-muted rounded">
-                        <span>{comp.name}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isInventoryLinkedComponent(comp) && (
+                            <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                          )}
+                          <span className="truncate">{comp.name}</span>
+                          {comp.part_code && (
+                            <Badge variant="outline" className="text-xs font-mono">{comp.part_code}</Badge>
+                          )}
+                          {comp.quantity && comp.quantity > 1 && (
+                            <Badge variant="secondary" className="text-xs">×{comp.quantity}</Badge>
+                          )}
+                        </div>
                         <span className="font-medium">₹{comp.cost.toLocaleString()}</span>
                       </div>
                     ))}
