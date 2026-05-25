@@ -228,6 +228,11 @@ export default function Repairs() {
           </Select>
         </div>
 
+        {/* Parts cost vs revenue analytics */}
+        <div className="mb-6">
+          <RepairPartsAnalytics repairs={filteredRepairs} />
+        </div>
+
         {/* Content */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
