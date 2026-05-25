@@ -22,7 +22,11 @@ export function exportRepairsToExcel(repairs: Repair[]) {
     throw new Error("No repair data to export");
   }
 
-  const rows = repairs.map((r) => ({
+  const rows = repairs.map((r) => {
+    const components = r.components_replaced ?? [];
+    const fromInventoryCount = components.filter((c) => !!c.part_id).length;
+    const customCount = components.length - fromInventoryCount;
+    return ({
     "Repair #": r.repair_number || "—",
     "Customer Name": r.customer_name,
     "Model": r.model_name,
@@ -34,6 +38,8 @@ export function exportRepairsToExcel(repairs: Repair[]) {
     "Date Completed": formatDate(r.date_completed),
     "Days to Complete": r.days_to_complete ?? "",
     "Components Replaced": r.components_replaced?.map((c) => c.name).join(", ") || "",
+    "Parts From Inventory": fromInventoryCount,
+    "Parts Custom": customCount,
     "Component Cost (₹)": r.total_component_cost || 0,
     "Inspection Charges (₹)": r.inspection_charges || 0,
     "Repair Cost (₹)": r.repair_cost_charged || 0,
@@ -45,7 +51,8 @@ export function exportRepairsToExcel(repairs: Repair[]) {
     "Notes": r.notes || "",
     "Created By": r.created_by_name || "",
     "Created At": formatDate(r.created_at),
-  }));
+    });
+  });
 
   const ws = XLSX.utils.json_to_sheet(rows);
 
