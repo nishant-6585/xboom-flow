@@ -14,6 +14,7 @@ import { RepairCard } from "@/components/repairs/RepairCard";
 import { RepairForm } from "@/components/repairs/RepairForm";
 import { RepairImportDialog } from "@/components/repairs/RepairImportDialog";
 import { RepairDialog } from "@/components/repairs/RepairDialog";
+import { RepairPartsAnalytics } from "@/components/repairs/RepairPartsAnalytics";
 import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange } from "lucide-react";
 import { exportRepairsToExcel } from "@/utils/repairExportHelpers";
 import { toast } from "sonner";
