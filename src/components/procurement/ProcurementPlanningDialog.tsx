@@ -69,8 +69,13 @@ export const ProcurementPlanningDialog: React.FC<ProcurementPlanningDialogProps>
     // Match by category
     const categoryMatch = supplier.product_category?.toLowerCase() === productCategory?.toLowerCase();
     
-    // Match by product in products array
-    const productMatch = supplier.products?.some(p => 
+    // Match by product in products array (defensive: products may be a string from older cache)
+    const productsArr = Array.isArray(supplier.products)
+      ? supplier.products
+      : typeof supplier.products === 'string'
+        ? (supplier.products as string).split(',').map((p) => p.trim()).filter(Boolean)
+        : [];
+    const productMatch = productsArr.some(p =>
       p.toLowerCase().includes(productName.toLowerCase()) ||
       productName.toLowerCase().includes(p.toLowerCase())
     );
