@@ -1636,16 +1636,18 @@ export default function Orders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">
-                        All Statuses ({wooTotalCount.toLocaleString()})
+                        Processing + Pending ({((wooStats.statusCounts['processing'] || 0) + (wooStats.statusCounts['pending'] || 0)).toLocaleString()})
                       </SelectItem>
-                      {WOO_STATUS_OPTIONS.map((s) => {
-                        const count = wooStats.statusCounts[s.value] || 0;
-                        return (
-                          <SelectItem key={s.value} value={s.value}>
-                            {s.label} ({count.toLocaleString()})
-                          </SelectItem>
-                        );
-                      })}
+                      {WOO_STATUS_OPTIONS
+                        .filter((s) => s.value === 'processing' || s.value === 'pending')
+                        .map((s) => {
+                          const count = wooStats.statusCounts[s.value] || 0;
+                          return (
+                            <SelectItem key={s.value} value={s.value}>
+                              {s.label} ({count.toLocaleString()})
+                            </SelectItem>
+                          );
+                        })}
                     </SelectContent>
                   </Select>
                 </div>
