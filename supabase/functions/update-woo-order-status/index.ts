@@ -330,7 +330,7 @@ Deno.serve(async (req) => {
   // are recorded implicitly by woo_updated_at.
   let logRow: { id: string } | null = null;
   if (hasStatusChange && previousStatus !== newStatus) {
-  const { data: logRow } = await admin
+    const { data: inserted } = await admin
     .from("woocommerce_order_status_logs")
     .insert({
       woo_order_id: wooOrderId,
@@ -346,6 +346,7 @@ Deno.serve(async (req) => {
     })
     .select("id")
     .maybeSingle();
+    logRow = (inserted as { id: string } | null) ?? null;
   }
 
   // ------------ QUEUE WHATSAPP NOTIFICATION ------------
