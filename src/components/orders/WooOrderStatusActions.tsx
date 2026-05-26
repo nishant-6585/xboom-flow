@@ -70,6 +70,9 @@ export function WooOrderStatusActions({
 
   const isTerminal = TERMINAL_STATUSES.has(normalized);
   const allowed = allowedTransitions(normalized);
+  // Non-terminal but also non-editable (e.g. pending, on-hold, shipped,
+  // delivered, completed). Only `processing` orders are mutable from the UI.
+  const isReadOnly = !isTerminal && allowed.length === 0;
 
   const update = async (status: string, opts: { allowReopen?: boolean } = {}) => {
     if (busy) return;
@@ -190,6 +193,33 @@ export function WooOrderStatusActions({
               </AlertDialog>
             </>
           )}
+        </div>
+      </TooltipProvider>
+    );
+  }
+
+  // ---------------- Read-only (non-processing) UI ----------------
+  if (isReadOnly) {
+    return (
+      <TooltipProvider delayDuration={200}>
+        <div
+          className="flex items-center gap-2"
+          onClick={stop}
+          onPointerDown={stop}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className="gap-1 text-[10px] font-medium text-muted-foreground border-dashed capitalize"
+              >
+                <Lock className="h-3 w-3" /> {normalized.replace(/-/g, ' ')}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              Only orders in <strong>Processing</strong> can be updated here.
+            </TooltipContent>
+          </Tooltip>
         </div>
       </TooltipProvider>
     );
