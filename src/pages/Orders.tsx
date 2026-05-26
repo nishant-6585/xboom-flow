@@ -1033,7 +1033,7 @@ export default function Orders() {
                     ) : (
                       <WooOrderCard
                         order={u.row}
-                        onClick={(o) => { setSelectedWooOrder(o); setWooDetailOpen(true); }}
+                        onClick={(o) => handleWooOrderClick(o)}
                         onUpdated={() => { refetchWooOrders(); refetchWooSync(); }}
                       />
                     )}
@@ -1849,10 +1849,7 @@ export default function Orders() {
                   <WooOrderCard
                     key={order.id}
                     order={order}
-                    onClick={(o) => {
-                      setSelectedWooOrder(o);
-                      setWooDetailOpen(true);
-                    }}
+                    onClick={(o) => handleWooOrderClick(o)}
                     onUpdated={() => {
                       refetchWooOrders();
                       refetchWooSync();
