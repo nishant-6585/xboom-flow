@@ -333,8 +333,18 @@ export default function Orders() {
     }
     if (sourceFilter !== 'manual') {
       // Website rows: respect the page-level search + date filters only.
+      // Per 2026-05-26 product update: All Orders only shows the fulfilled
+      // lifecycle for website orders (processing → on-hold → completed →
+      // delivered). Pending, cancelled, failed, refunded are excluded:
+      // pending lives in Website Orders tab; cancelled/failed/refunded
+      // route to Sales > Leads > Xboom Website.
+      const ALL_ORDERS_WEBSITE_STATUSES = new Set([
+        'processing', 'on-hold', 'completed', 'delivered',
+      ]);
       const searchLower = searchQuery.toLowerCase().trim();
       for (const o of wooOrders) {
+        const s = (o.order_status || '').toLowerCase();
+        if (!ALL_ORDERS_WEBSITE_STATUSES.has(s)) continue;
         if (searchLower) {
           const hit =
             (o.order_number?.toLowerCase().includes(searchLower)) ||
@@ -369,6 +379,11 @@ export default function Orders() {
 
   // WooCommerce filtered orders
   // Website Orders tab → all WooCommerce orders, filtered by status
+  // Per 2026-05-26 product update: Website Orders tab only surfaces
+  // processing + pending orders. Cancelled / failed / refunded / completed
+  // belong elsewhere (Sales > Leads > Xboom Website for cancelled/failed/
+  // refunded; All Orders shows the fulfilled lifecycle).
+  const WEBSITE_TAB_STATUSES = ['processing', 'pending'] as const;
   const filteredWooOrders = wooOrders.filter(o => {
     const searchLower = wooSearchQuery.toLowerCase().trim();
     const matchesSearch = wooSearchQuery === '' ||
@@ -379,14 +394,10 @@ export default function Orders() {
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
     // Status filter supports both raw statuses and grouped buckets (success/failed/pending)
     const status = (o.order_status || '').toLowerCase();
-    // Status filter exposes every Woo status so users can find any order
-    // (processing/completed/delivered/cancelled/refunded/on-hold/pending/failed).
+    // Hard restrict to processing + pending; the dropdown only exposes these.
+    if (!(WEBSITE_TAB_STATUSES as readonly string[]).includes(status)) return false;
     const matchesStatus =
-      wooStatusFilter === 'all'
-        ? true
-        : wooStatusFilter === 'success'
-          ? ['completed', 'delivered'].includes(status)
-          : status === wooStatusFilter;
+      wooStatusFilter === 'all' ? true : status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
     const matchesNotif =
       wooNotifFilter === 'all'
@@ -1625,16 +1636,18 @@ export default function Orders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">
-                        All Statuses ({wooTotalCount.toLocaleString()})
+                        Processing + Pending ({((wooStats.statusCounts['processing'] || 0) + (wooStats.statusCounts['pending'] || 0)).toLocaleString()})
                       </SelectItem>
-                      {WOO_STATUS_OPTIONS.map((s) => {
-                        const count = wooStats.statusCounts[s.value] || 0;
-                        return (
-                          <SelectItem key={s.value} value={s.value}>
-                            {s.label} ({count.toLocaleString()})
-                          </SelectItem>
-                        );
-                      })}
+                      {WOO_STATUS_OPTIONS
+                        .filter((s) => s.value === 'processing' || s.value === 'pending')
+                        .map((s) => {
+                          const count = wooStats.statusCounts[s.value] || 0;
+                          return (
+                            <SelectItem key={s.value} value={s.value}>
+                              {s.label} ({count.toLocaleString()})
+                            </SelectItem>
+                          );
+                        })}
                     </SelectContent>
                   </Select>
                 </div>
