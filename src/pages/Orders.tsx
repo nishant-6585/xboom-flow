@@ -1548,31 +1548,28 @@ export default function Orders() {
                   </div>
                 </div>
                 {/* Status filter chips — grouped buckets first, individual statuses below */}
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <Button
-                    variant={wooStatusFilter === 'all' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('all')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    All ({wooTotalCount.toLocaleString()})
-                  </Button>
-                  <Button
-                    variant={wooStatusFilter === 'success' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('success')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    ✅ Success ({wooStats.grouped.success.toLocaleString()})
-                  </Button>
-                  <Button
-                    variant={wooStatusFilter === 'processing' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('processing')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    🔄 Processing ({wooStats.grouped.processing.toLocaleString()})
-                  </Button>
+                <div className="flex flex-wrap items-center gap-2 mt-4">
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground mr-1">
+                    Status:
+                  </span>
+                  <Select value={wooStatusFilter} onValueChange={setWooStatusFilter}>
+                    <SelectTrigger className="w-[200px] h-9 rounded-lg">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        All Statuses ({wooTotalCount.toLocaleString()})
+                      </SelectItem>
+                      {WOO_STATUS_OPTIONS.map((s) => {
+                        const count = wooStats.statusCounts[s.value] || 0;
+                        return (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label} ({count.toLocaleString()})
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* WhatsApp notification filters + bulk retry */}
