@@ -317,6 +317,47 @@ Deno.serve(async (req) => {
     errMsg = e instanceof Error ? e.message : "WooCommerce request failed";
   }
 
+  // ------------ PUSH SHIPMENT TRACKING (official WC Shipment Tracking plugin) ------------
+  // The plugin exposes /wp-json/wc/v3/orders/<id>/shipment-trackings/. Posting
+  // here makes the tracking appear in the WooCommerce admin "Shipment Tracking"
+  // panel and on the customer's order page — exactly the same as if a staff
+  // member typed it manually in WordPress.
+  if (wooOk && hasTracking && trackingNumber) {
+    try {
+      const stUrl = `${WC_SITE_URL}/wp-json/wc/v3/orders/${wooOrderId}/shipment-trackings/`;
+      const stBody: Record<string, unknown> = {
+        tracking_number: trackingNumber,
+        date_shipped: expectedDelivery || new Date().toISOString().slice(0, 10),
+      };
+      if (trackingCarrier) {
+        // Always use custom-provider mode so any free-text carrier the agent
+        // typed works. Provider slug matching against the plugin's built-in
+        // list would require an extra round-trip to /shipment-trackings/providers.
+        stBody.custom_tracking_provider = trackingCarrier;
+        if (trackingUrl) stBody.custom_tracking_link = trackingUrl;
+      } else if (trackingUrl) {
+        stBody.custom_tracking_provider = "Tracking";
+        stBody.custom_tracking_link = trackingUrl;
+      }
+      const stResp = await fetch(stUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: WC_AUTH,
+        },
+        body: JSON.stringify(stBody),
+      });
+      if (!stResp.ok) {
+        const stText = await stResp.text();
+        console.warn(`[update-woo-order-status] Shipment-tracking POST failed ${stResp.status}: ${stText.slice(0, 200)}`);
+        // Don't fail the whole request — meta_data fallback above already saved it.
+      }
+    } catch (e) {
+      console.warn(`[update-woo-order-status] Shipment-tracking exception:`, e);
+    }
+  }
+
   // ------------ UPDATE LOCAL DB (only if Woo accepted) ------------
   if (wooOk) {
     const updates: Record<string, unknown> = {
