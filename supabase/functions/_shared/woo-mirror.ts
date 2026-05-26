@@ -24,25 +24,48 @@ export function mapWooStatusToInternal(wooStatus: string): string {
  * Tracking, and the generic meta_data array.
  */
 // deno-lint-ignore no-explicit-any
-export function extractTrackingFromWoo(payload: any): { number: string | null; url: string | null } {
+export function extractTrackingFromWoo(payload: any): {
+  number: string | null;
+  url: string | null;
+  provider: string | null;
+  date_shipped: string | null;
+} {
   let number: string | null = null;
   let url: string | null = null;
+  let provider: string | null = null;
+  let date_shipped: string | null = null;
 
   const meta = Array.isArray(payload?.meta_data) ? payload.meta_data : [];
   for (const m of meta) {
     const k = String(m?.key || "").toLowerCase();
     const v = m?.value;
     if (!v) continue;
+    // Official WooCommerce Shipment Tracking plugin stores an array here.
+    if (k === "_wc_shipment_tracking_items" && Array.isArray(v) && v[0]) {
+      const first = v[0];
+      number = number || first.tracking_number || null;
+      url = url || first.tracking_link || first.tracking_url || first.custom_tracking_link || null;
+      provider = provider || first.formatted_tracking_provider || first.tracking_provider ||
+        first.custom_tracking_provider || null;
+      if (!date_shipped && first.date_shipped) {
+        // date_shipped is often a unix timestamp (seconds) from the plugin
+        const ds = first.date_shipped;
+        if (typeof ds === "number" || /^\d+$/.test(String(ds))) {
+          const secs = Number(ds);
+          date_shipped = new Date(secs * 1000).toISOString().slice(0, 10);
+        } else {
+          date_shipped = String(ds).slice(0, 10);
+        }
+      }
+      continue;
+    }
     if (!number && /tracking[_-]?(number|no|id)$/.test(k)) number = String(v);
     if (!url && /tracking[_-]?(url|link)$/.test(k)) url = String(v);
-    if (!number && k === "_wc_shipment_tracking_items" && Array.isArray(v) && v[0]) {
-      number = v[0].tracking_number || null;
-      url = url || v[0].tracking_url || null;
-    }
+    if (!provider && /(tracking[_-]?(provider|carrier|courier))/.test(k)) provider = String(v);
   }
   if (!number && payload?.tracking_number) number = String(payload.tracking_number);
   if (!url && payload?.tracking_url) url = String(payload.tracking_url);
-  return { number, url };
+  return { number, url, provider, date_shipped };
 }
 
 // Only orders dated this day or later may land in the internal `orders` table.
