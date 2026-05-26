@@ -22,6 +22,7 @@ const ALLOWED_STATUSES = new Set([
   "refunded",
   "failed",
   "delivered",
+  "shipped",
   "return-requested",
   "return-approved",
   "return-cancelled",
@@ -42,6 +43,7 @@ const ACTIVE_STATUSES = new Set([
   "on-hold",
   "completed",
   "delivered",
+  "shipped",
   "partially-paid",
 ]);
 
@@ -54,6 +56,7 @@ const REOPEN_ROLES = new Set(["admin", "supply_chain", "sales_manager"]);
  */
 const NOTIFIABLE_STATUSES = new Set([
   "processing",
+  "shipped",
   "completed",
   "delivered",
   "cancelled",
@@ -65,6 +68,7 @@ const NOTIFIABLE_STATUSES = new Set([
  */
 const WHATSAPP_TEMPLATES: Record<string, string> = {
   processing: "order_processing_v1",
+  shipped: "order_shipped_v1",
   completed: "order_completed_v1",
   delivered: "order_delivered_v1",
   cancelled: "order_cancelled_v1",
@@ -167,6 +171,8 @@ Deno.serve(async (req) => {
     allow_reopen?: boolean;
     tracking_carrier?: string;
     tracking_number?: string;
+    tracking_url?: string;
+    expected_delivery?: string;
     customer_note?: string;
   };
   try {
@@ -182,9 +188,11 @@ Deno.serve(async (req) => {
   const newStatus = String(body.new_status || "").trim().toLowerCase();
   const trackingCarrier = (body.tracking_carrier || "").toString().trim().slice(0, 100);
   const trackingNumber = (body.tracking_number || "").toString().trim().slice(0, 200);
+  const trackingUrl = (body.tracking_url || "").toString().trim().slice(0, 500);
+  const expectedDelivery = (body.expected_delivery || "").toString().trim().slice(0, 32);
   const customerNote = (body.customer_note || "").toString().trim().slice(0, 2000);
   const hasStatusChange = !!newStatus;
-  const hasTracking = !!(trackingCarrier || trackingNumber);
+  const hasTracking = !!(trackingCarrier || trackingNumber || trackingUrl || expectedDelivery);
   const hasNote = !!customerNote;
   const allowReopen = body.allow_reopen === true;
 
@@ -197,6 +205,13 @@ Deno.serve(async (req) => {
   if (!hasStatusChange && !hasTracking && !hasNote) {
     return new Response(
       JSON.stringify({ error: "Nothing to update — provide new_status, tracking_*, or customer_note" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  // Validate expected_delivery is ISO date (YYYY-MM-DD) if provided
+  if (expectedDelivery && !/^\d{4}-\d{2}-\d{2}$/.test(expectedDelivery)) {
+    return new Response(
+      JSON.stringify({ error: "expected_delivery must be YYYY-MM-DD" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
@@ -277,6 +292,8 @@ Deno.serve(async (req) => {
     const meta: { key: string; value: string }[] = [];
     if (trackingCarrier) meta.push({ key: "_xboom_tracking_carrier", value: trackingCarrier });
     if (trackingNumber) meta.push({ key: "_xboom_tracking_number", value: trackingNumber });
+    if (trackingUrl) meta.push({ key: "_xboom_tracking_url", value: trackingUrl });
+    if (expectedDelivery) meta.push({ key: "_xboom_expected_delivery", value: expectedDelivery });
     wooBody.meta_data = meta;
   }
 
@@ -319,6 +336,8 @@ Deno.serve(async (req) => {
     }
     if (trackingCarrier) updates.tracking_status = trackingCarrier;
     if (trackingNumber) updates.tracking_number = trackingNumber;
+    if (trackingCarrier) updates.courier = trackingCarrier;
+    if (expectedDelivery) updates.expected_delivery = expectedDelivery;
     await admin
       .from("woocommerce_orders")
       .update(updates)
