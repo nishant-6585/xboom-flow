@@ -29,19 +29,28 @@ export function extractTrackingFromWoo(payload: any): {
   url: string | null;
   provider: string | null;
   date_shipped: string | null;
+  /**
+   * True when the WC Shipment Tracking / AST meta key is present in the
+   * payload (regardless of whether it contains items). Lets callers tell
+   * "tracking was explicitly cleared in Woo" apart from "payload had no
+   * tracking info at all", so they can decide whether to null fields out.
+   */
+  cleared: boolean;
 } {
   let number: string | null = null;
   let url: string | null = null;
   let provider: string | null = null;
   let date_shipped: string | null = null;
+  let trackingMetaSeen = false;
 
   const meta = Array.isArray(payload?.meta_data) ? payload.meta_data : [];
   for (const m of meta) {
     const k = String(m?.key || "").toLowerCase();
     const v = m?.value;
-    if (!v) continue;
     // Official WooCommerce Shipment Tracking plugin stores an array here.
-    if (k === "_wc_shipment_tracking_items" && Array.isArray(v) && v[0]) {
+    if (k === "_wc_shipment_tracking_items") {
+      trackingMetaSeen = true;
+      if (!Array.isArray(v) || !v[0]) continue;
       const first = v[0];
       number = number || first.tracking_number || null;
       url = url || first.tracking_link || first.tracking_url || first.custom_tracking_link || null;
@@ -59,13 +68,15 @@ export function extractTrackingFromWoo(payload: any): {
       }
       continue;
     }
+    if (!v) continue;
     if (!number && /tracking[_-]?(number|no|id)$/.test(k)) number = String(v);
     if (!url && /tracking[_-]?(url|link)$/.test(k)) url = String(v);
     if (!provider && /(tracking[_-]?(provider|carrier|courier))/.test(k)) provider = String(v);
   }
   if (!number && payload?.tracking_number) number = String(payload.tracking_number);
   if (!url && payload?.tracking_url) url = String(payload.tracking_url);
-  return { number, url, provider, date_shipped };
+  const cleared = trackingMetaSeen && !number;
+  return { number, url, provider, date_shipped, cleared };
 }
 
 // Only orders dated this day or later may land in the internal `orders` table.
