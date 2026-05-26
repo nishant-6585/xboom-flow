@@ -1011,10 +1011,10 @@ export default function Orders() {
             )}
 
             {/* Manual Orders Pagination */}
-            {manualTotalPages > 1 && (
+            {unifiedTotalPages > 1 && (
               <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Showing <span className="font-semibold text-foreground">{((manualPage - 1) * MANUAL_PAGE_SIZE) + 1}–{Math.min(manualPage * MANUAL_PAGE_SIZE, filteredOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredOrders.length}</span> orders
+                  Showing <span className="font-semibold text-foreground">{((manualPage - 1) * MANUAL_PAGE_SIZE) + 1}–{Math.min(manualPage * MANUAL_PAGE_SIZE, unifiedRows.length)}</span> of <span className="font-semibold text-foreground">{unifiedRows.length}</span> orders
                 </p>
                 <div className="flex items-center gap-1.5">
                   <Button
@@ -1035,14 +1035,14 @@ export default function Orders() {
                   >
                     ‹ Prev
                   </Button>
-                  {Array.from({ length: Math.min(5, manualTotalPages) }, (_, i) => {
+                  {Array.from({ length: Math.min(5, unifiedTotalPages) }, (_, i) => {
                     let pageNum: number;
-                    if (manualTotalPages <= 5) {
+                    if (unifiedTotalPages <= 5) {
                       pageNum = i + 1;
                     } else if (manualPage <= 3) {
                       pageNum = i + 1;
-                    } else if (manualPage >= manualTotalPages - 2) {
-                      pageNum = manualTotalPages - 4 + i;
+                    } else if (manualPage >= unifiedTotalPages - 2) {
+                      pageNum = unifiedTotalPages - 4 + i;
                     } else {
                       pageNum = manualPage - 2 + i;
                     }
@@ -1061,8 +1061,8 @@ export default function Orders() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setManualPage(p => Math.min(manualTotalPages, p + 1))}
-                    disabled={manualPage === manualTotalPages}
+                    onClick={() => setManualPage(p => Math.min(unifiedTotalPages, p + 1))}
+                    disabled={manualPage === unifiedTotalPages}
                     className="h-8 px-3 rounded-lg text-xs"
                   >
                     Next ›
@@ -1070,8 +1070,8 @@ export default function Orders() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setManualPage(manualTotalPages)}
-                    disabled={manualPage === manualTotalPages}
+                    onClick={() => setManualPage(unifiedTotalPages)}
+                    disabled={manualPage === unifiedTotalPages}
                     className="h-8 px-3 rounded-lg text-xs"
                   >
                     »
@@ -1079,6 +1079,14 @@ export default function Orders() {
                 </div>
               </div>
             )}
+
+            {/* Woo detail dialog — usable from the unified All Orders view */}
+            <WooOrderDetailDialog
+              order={selectedWooOrder}
+              open={wooDetailOpen}
+              onOpenChange={setWooDetailOpen}
+              onUpdated={() => { refetchWooOrders(); refetchWooSync(); }}
+            />
           </TabsContent>
 
           <TabsContent value="shopify" className="space-y-6 mt-0">
