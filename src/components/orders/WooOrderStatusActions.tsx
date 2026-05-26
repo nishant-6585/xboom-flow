@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, CheckCircle2, PlayCircle, XCircle, Lock, RotateCcw } from 'lucide-react';
+import { Loader2, CheckCircle2, Truck, PackageCheck, XCircle, Lock, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -297,11 +297,20 @@ export function WooOrderStatusActions({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => update('processing')}
-          disabled={busy || normalized === 'processing'}
+          onClick={() => update('shipped')}
+          disabled={busy || normalized === 'shipped'}
           className="gap-1.5"
         >
-          <PlayCircle className="h-3.5 w-3.5" /> Mark Processing
+          <Truck className="h-3.5 w-3.5" /> Mark Shipped
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => update('delivered')}
+          disabled={busy || normalized === 'delivered'}
+          className="gap-1.5"
+        >
+          <PackageCheck className="h-3.5 w-3.5" /> Mark Delivered
         </Button>
         <Button
           size="sm"
