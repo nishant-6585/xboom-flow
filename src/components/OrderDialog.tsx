@@ -943,6 +943,35 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               )}
             </div>
 
+            {/* WooCommerce sync — only for website-sourced orders. Lets the
+                user push the order to any Woo status (Processing, Shipped,
+                Completed, etc.) directly from the unified Order dialog. The
+                update-woo-order-status edge function mirrors the change back
+                into woocommerce_orders so the Website Orders tab stays in
+                sync. */}
+            {isWebsiteOrder && wooOrderId && (
+              <div className="p-4 bg-muted/40 rounded-lg border border-primary/20 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" />
+                  <span className="font-medium">WooCommerce Status</span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Woo Order #{wooOrderId}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Change the live status on xboom.in. Customers receive Woo's
+                  email notifications automatically.
+                </p>
+                <WooOrderStatusActions
+                  wooOrderId={wooOrderId}
+                  currentStatus={wooStatus}
+                  variant="full"
+                  stopPropagation={false}
+                  onUpdated={(newStatus) => setWooStatus(newStatus)}
+                />
+              </div>
+            )}
+
             {/* Order Details - Customer Info */}
             <div className="p-4 bg-muted/50 rounded-lg space-y-3">
               <div className="flex items-center justify-between">
