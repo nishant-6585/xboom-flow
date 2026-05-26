@@ -317,44 +317,76 @@ Deno.serve(async (req) => {
     errMsg = e instanceof Error ? e.message : "WooCommerce request failed";
   }
 
-  // ------------ PUSH SHIPMENT TRACKING (official WC Shipment Tracking plugin) ------------
-  // The plugin exposes /wp-json/wc/v3/orders/<id>/shipment-trackings/. Posting
-  // here makes the tracking appear in the WooCommerce admin "Shipment Tracking"
-  // panel and on the customer's order page — exactly the same as if a staff
-  // member typed it manually in WordPress.
+  // ------------ PUSH SHIPMENT TRACKING ------------
+  // Try AST by Zorem first (/wp-json/wc-ast/v3/...), since it owns the UI when
+  // installed. Fall back to the official WooCommerce Shipment Tracking plugin
+  // endpoint (/wp-json/wc/v3/...). Both ultimately write `_wc_shipment_tracking_items`
+  // meta, which the inbound webhook already reads.
   if (wooOk && hasTracking && trackingNumber) {
-    try {
-      const stUrl = `${WC_SITE_URL}/wp-json/wc/v3/orders/${wooOrderId}/shipment-trackings/`;
-      const stBody: Record<string, unknown> = {
+    const dateShipped = (expectedDelivery && /^\d{4}-\d{2}-\d{2}/.test(expectedDelivery))
+      ? expectedDelivery.slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+
+    const buildBody = (forAst: boolean): Record<string, unknown> => {
+      const body: Record<string, unknown> = {
         tracking_number: trackingNumber,
-        date_shipped: expectedDelivery || new Date().toISOString().slice(0, 10),
+        date_shipped: dateShipped,
       };
-      if (trackingCarrier) {
-        // Always use custom-provider mode so any free-text carrier the agent
-        // typed works. Provider slug matching against the plugin's built-in
-        // list would require an extra round-trip to /shipment-trackings/providers.
-        stBody.custom_tracking_provider = trackingCarrier;
-        if (trackingUrl) stBody.custom_tracking_link = trackingUrl;
-      } else if (trackingUrl) {
-        stBody.custom_tracking_provider = "Tracking";
-        stBody.custom_tracking_link = trackingUrl;
+      const carrier = trackingCarrier || (trackingUrl ? "Tracking" : "");
+      if (carrier) {
+        // Both plugins accept custom_tracking_provider + custom_tracking_link
+        // for free-text carriers. AST also supports `tracking_provider` slug,
+        // but custom mode works universally with any string the agent typed.
+        body.custom_tracking_provider = carrier;
+        if (trackingUrl) body.custom_tracking_link = trackingUrl;
+        if (forAst) {
+          // AST status hint — marks the shipment as shipped on creation.
+          body.status_shipped = 1;
+        }
       }
-      const stResp = await fetch(stUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: WC_AUTH,
-        },
-        body: JSON.stringify(stBody),
-      });
-      if (!stResp.ok) {
-        const stText = await stResp.text();
-        console.warn(`[update-woo-order-status] Shipment-tracking POST failed ${stResp.status}: ${stText.slice(0, 200)}`);
-        // Don't fail the whole request — meta_data fallback above already saved it.
+      return body;
+    };
+
+    const endpoints: Array<{ label: string; url: string; body: Record<string, unknown> }> = [
+      {
+        label: "AST",
+        url: `${WC_SITE_URL}/wp-json/wc-ast/v3/orders/${wooOrderId}/shipment-trackings/`,
+        body: buildBody(true),
+      },
+      {
+        label: "WC-Shipment-Tracking",
+        url: `${WC_SITE_URL}/wp-json/wc/v3/orders/${wooOrderId}/shipment-trackings/`,
+        body: buildBody(false),
+      },
+    ];
+
+    let pushed = false;
+    for (const ep of endpoints) {
+      try {
+        const resp = await fetch(ep.url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: WC_AUTH,
+          },
+          body: JSON.stringify(ep.body),
+        });
+        if (resp.ok) {
+          console.log(`[update-woo-order-status] Tracking pushed via ${ep.label} for order ${wooOrderId}`);
+          pushed = true;
+          break;
+        }
+        const txt = await resp.text();
+        // 404 = endpoint not registered (plugin not active); try next.
+        // Other non-OK = log and try next, then fall back to meta-only above.
+        console.warn(`[update-woo-order-status] ${ep.label} POST failed ${resp.status}: ${txt.slice(0, 200)}`);
+      } catch (e) {
+        console.warn(`[update-woo-order-status] ${ep.label} exception:`, e);
       }
-    } catch (e) {
-      console.warn(`[update-woo-order-status] Shipment-tracking exception:`, e);
+    }
+    if (!pushed) {
+      console.warn(`[update-woo-order-status] All shipment-tracking endpoints failed; relying on _xboom_* meta fallback.`);
     }
   }
 
