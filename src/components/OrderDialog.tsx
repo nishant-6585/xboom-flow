@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail, Globe } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
@@ -35,6 +35,7 @@ import { PricelistItem } from '@/hooks/usePricelist';
 import { InventoryFulfillmentPanel } from '@/components/order/InventoryFulfillmentPanel';
 import { DocumentViewer } from '@/components/hr/DocumentViewer';
 import { useOrderInvoices } from '@/hooks/useOrderInvoices';
+import { WooOrderStatusActions } from '@/components/orders/WooOrderStatusActions';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -163,6 +164,30 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerGst, setCustomerGst] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+
+  // Live Woo status (only populated for website-sourced orders). Lets us
+  // render the WooOrderStatusActions control inside the manual dialog so
+  // staff can push status changes back to WooCommerce without leaving
+  // this screen.
+  const isWebsiteOrder = (order as any)?.source === 'website';
+  const wooOrderId = (order as any)?.external_id ? String((order as any).external_id) : null;
+  const [wooStatus, setWooStatus] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isWebsiteOrder || !wooOrderId || !open) {
+      setWooStatus(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('woocommerce_orders')
+        .select('order_status')
+        .eq('woo_order_id', wooOrderId)
+        .maybeSingle();
+      if (!cancelled) setWooStatus((data as any)?.order_status ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isWebsiteOrder, wooOrderId, open]);
 
   // Auto-generate tracking URL whenever courier name + tracking number change.
   // Overwrite previous URL if it was auto-generated for any known courier; keep
@@ -917,6 +942,35 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </div>
               )}
             </div>
+
+            {/* WooCommerce sync — only for website-sourced orders. Lets the
+                user push the order to any Woo status (Processing, Shipped,
+                Completed, etc.) directly from the unified Order dialog. The
+                update-woo-order-status edge function mirrors the change back
+                into woocommerce_orders so the Website Orders tab stays in
+                sync. */}
+            {isWebsiteOrder && wooOrderId && (
+              <div className="p-4 bg-muted/40 rounded-lg border border-primary/20 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" />
+                  <span className="font-medium">WooCommerce Status</span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Woo Order #{wooOrderId}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Change the live status on xboom.in. Customers receive Woo's
+                  email notifications automatically.
+                </p>
+                <WooOrderStatusActions
+                  wooOrderId={wooOrderId}
+                  currentStatus={wooStatus}
+                  variant="full"
+                  stopPropagation={false}
+                  onUpdated={(newStatus) => setWooStatus(newStatus)}
+                />
+              </div>
+            )}
 
             {/* Order Details - Customer Info */}
             <div className="p-4 bg-muted/50 rounded-lg space-y-3">

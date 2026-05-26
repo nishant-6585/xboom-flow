@@ -463,6 +463,27 @@ export default function Orders() {
     setDialogOpen(true);
   };
 
+  /**
+   * Open a WooCommerce (website) order in the standard OrderDialog so it
+   * surfaces ALL fields available on a manual order (line items, payments,
+   * supplier, tracking, invoices, edit history, etc.). Website orders are
+   * mirrored into the internal `orders` table by woo-mirror, keyed on
+   * `external_id == woo_order_id`. If a mirror row is missing (legacy /
+   * outside ingestion window), fall back to the lightweight Woo dialog.
+   */
+  const handleWooOrderClick = (wooOrder: typeof wooOrders[number]) => {
+    const mirrored = (orders as any[]).find(
+      (o) => (o.source === 'website') && String(o.external_id || '') === String(wooOrder.woo_order_id || ''),
+    );
+    if (mirrored) {
+      setSelectedOrder(mirrored as Order);
+      setDialogOpen(true);
+      return;
+    }
+    setSelectedWooOrder(wooOrder);
+    setWooDetailOpen(true);
+  };
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dashTimePeriod, setDashTimePeriod] = useState<"this_week" | "this_month" | "prev_month">("this_month");
   const [dashSalesPersonFilter, setDashSalesPersonFilter] = useState<string>("all");
@@ -1012,7 +1033,7 @@ export default function Orders() {
                     ) : (
                       <WooOrderCard
                         order={u.row}
-                        onClick={(o) => { setSelectedWooOrder(o); setWooDetailOpen(true); }}
+                        onClick={(o) => handleWooOrderClick(o)}
                         onUpdated={() => { refetchWooOrders(); refetchWooSync(); }}
                       />
                     )}
@@ -1828,10 +1849,7 @@ export default function Orders() {
                   <WooOrderCard
                     key={order.id}
                     order={order}
-                    onClick={(o) => {
-                      setSelectedWooOrder(o);
-                      setWooDetailOpen(true);
-                    }}
+                    onClick={(o) => handleWooOrderClick(o)}
                     onUpdated={() => {
                       refetchWooOrders();
                       refetchWooSync();
