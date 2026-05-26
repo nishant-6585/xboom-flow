@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail, Globe } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
