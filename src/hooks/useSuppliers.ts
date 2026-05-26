@@ -97,7 +97,29 @@ export function useSuppliers() {
 
       if (error) throw error;
 
-      const sorted = ((data as any[]) || []).slice().sort((a, b) =>
+      const normalizeProducts = (raw: any): string[] | null => {
+        if (raw == null) return null;
+        if (Array.isArray(raw)) return raw.filter((p) => typeof p === 'string');
+        if (typeof raw === 'string') {
+          const trimmed = raw.trim();
+          if (!trimmed) return null;
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) return parsed.filter((p) => typeof p === 'string');
+          } catch {
+            // fall through
+          }
+          return trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+        }
+        return null;
+      };
+
+      const normalized = ((data as any[]) || []).map((row) => ({
+        ...row,
+        products: normalizeProducts(row?.products),
+      }));
+
+      const sorted = normalized.slice().sort((a, b) =>
         (a.name || '').localeCompare(b.name || '')
       );
 
