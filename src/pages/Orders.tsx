@@ -584,9 +584,13 @@ export default function Orders() {
               <TabsList className="bg-muted/60 backdrop-blur-sm p-1.5 h-auto flex-wrap rounded-xl border border-border/50 shadow-sm">
                 <TabsTrigger value="list" className="gap-2">
                   <LayoutGrid className="h-4 w-4" />
-                  <span className="hidden sm:inline font-medium">Orders</span>
+                  <span className="hidden sm:inline font-medium">All Orders</span>
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
-                    {filteredOrders.length}
+                    {(sourceFilter === 'manual'
+                      ? filteredOrders.length
+                      : sourceFilter === 'website'
+                        ? wooTotalCount
+                        : filteredOrders.length + wooTotalCount).toLocaleString()}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger value="shopify" className="gap-2">
@@ -598,7 +602,7 @@ export default function Orders() {
                 </TabsTrigger>
                 <TabsTrigger value="website" className="gap-2">
                   <Globe className="h-4 w-4" />
-                  <span className="hidden sm:inline font-medium">XBoom Website</span>
+                  <span className="hidden sm:inline font-medium">Website Orders</span>
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
                     {wooTotalCount.toLocaleString()}
                   </Badge>
