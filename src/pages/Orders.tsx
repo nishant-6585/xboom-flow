@@ -53,7 +53,7 @@ export default function Orders() {
     wooOrders: wooOrdersAll,
     loading: wooLoading,
     refetch: refetchWooOrders,
-  } = useWooCommerceOrders();
+  } = useWooCommerceOrders({ sinceDays: 90 });
 
   // Only treat processing/completed/delivered as Xboom website ORDERS.
   // All other statuses (pending, on-hold, failed, cancelled, refunded …) are
