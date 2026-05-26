@@ -335,8 +335,8 @@ export default function Orders() {
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
     // Status filter supports both raw statuses and grouped buckets (success/failed/pending)
     const status = (o.order_status || '').toLowerCase();
-    // Order-page only ever sees processing/completed/delivered rows, so the
-    // status filter is limited to "all" / "success" / "processing".
+    // Status filter exposes every Woo status so users can find any order
+    // (processing/completed/delivered/cancelled/refunded/on-hold/pending/failed).
     const matchesStatus =
       wooStatusFilter === 'all'
         ? true
