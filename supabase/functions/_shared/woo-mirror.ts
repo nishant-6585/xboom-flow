@@ -270,10 +270,12 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     if (wooTracking.number) {
       if (!cur?.tracking_number) orderRow.tracking_number = wooTracking.number;
       if (!cur?.tracking_url && wooTracking.url) orderRow.tracking_url = wooTracking.url;
+      if (wooTracking.provider) orderRow.courier_name = wooTracking.provider;
     } else if (trackingCleared) {
       // Tracking removed in Woo — mirror the clear into internal orders.
       orderRow.tracking_number = null;
       orderRow.tracking_url = null;
+      orderRow.courier_name = null;
     }
     const { error: updErr } = await supabase
       .from("orders").update(orderRow).eq("id", existing.id);
@@ -288,6 +290,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   } else {
     if (wooTracking.number) orderRow.tracking_number = wooTracking.number;
     if (wooTracking.url) orderRow.tracking_url = wooTracking.url;
+    if (wooTracking.provider) orderRow.courier_name = wooTracking.provider;
     const { data: ins, error: insErr } = await supabase
       .from("orders").insert(orderRow).select("id").single();
     if (insErr) {
