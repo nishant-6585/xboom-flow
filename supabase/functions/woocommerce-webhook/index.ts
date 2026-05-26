@@ -198,8 +198,12 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
       orderData.tracking_status =
         (wooStatus === "completed" || wooStatus === "delivered") ? "delivered" : "in_transit";
     }
-  } else if (trk.cleared) {
-    // Tracking was explicitly deleted in WooCommerce — clear the mirror.
+  } else if (trk.cleared || (topic === "order.updated" && Array.isArray(payload?.meta_data))) {
+    // Tracking was deleted in WooCommerce — clear the mirror.
+    // We treat any `order.updated` webhook with a meta_data array but no
+    // tracking info as a clear, because AST / WC Shipment Tracking remove
+    // the `_wc_shipment_tracking_items` meta key entirely on deletion
+    // (so `trackingMetaSeen` would otherwise miss it).
     orderData.tracking_number = null;
     orderData.courier = null;
     orderData.expected_delivery = null;
