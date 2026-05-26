@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { mirrorIntoInternalOrders } from "../_shared/woo-mirror.ts";
+import { mirrorIntoInternalOrders, extractTrackingFromWoo } from "../_shared/woo-mirror.ts";
 export { mirrorIntoInternalOrders } from "../_shared/woo-mirror.ts";
 
 const corsHeaders = {
@@ -185,6 +185,23 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
   };
   // Only include phone in upsert when present — preserves existing valid phone.
   if (phone !== null) orderData.customer_phone = phone;
+
+  // Pull tracking info written by the WooCommerce Shipment Tracking plugin
+  // (or any compatible meta) and mirror it onto woocommerce_orders so the
+  // Website Orders UI shows the same tracking the customer sees.
+  const trk = extractTrackingFromWoo(payload);
+  if (trk.number) orderData.tracking_number = trk.number;
+  if (trk.provider) orderData.courier = trk.provider;
+  if (trk.url) {
+    // woocommerce_orders has no tracking_url column — fold link into the raw
+    // payload only. The internal `orders` mirror keeps tracking_url.
+  }
+  if (trk.date_shipped) orderData.expected_delivery = trk.date_shipped;
+  // When the plugin records a tracking, treat the shipment as in-transit.
+  if (trk.number && !orderData.tracking_status) {
+    orderData.tracking_status = (wooStatus === "completed" || wooStatus === "delivered")
+      ? "delivered" : "in_transit";
+  }
 
   // UPSERT keyed on woo_order_id — same row moves between buckets when status changes.
   const { error } = await supabase
