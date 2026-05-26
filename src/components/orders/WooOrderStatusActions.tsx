@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, CheckCircle2, Truck, PackageCheck, XCircle, Lock, RotateCcw } from 'lucide-react';
+import { Loader2, CheckCircle2, PlayCircle, XCircle, Lock, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -21,8 +21,6 @@ export const WOO_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'pending', label: 'Pending' },
   { value: 'processing', label: 'Processing' },
   { value: 'on-hold', label: 'On Hold' },
-  { value: 'shipped', label: 'Shipped' },
-  { value: 'delivered', label: 'Delivered' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'failed', label: 'Failed' },
@@ -35,15 +33,12 @@ export const TERMINAL_STATUSES = new Set(['cancelled', 'failed', 'refunded']);
 /**
  * Returns the list of statuses a user is allowed to transition INTO from `from`.
  * Terminal states return [] (caller should render the locked UI / reopen flow).
- * Only `processing` orders are editable in the new website-order workflow —
- * any other non-terminal state returns [] so the UI shows a read-only badge.
  */
 function allowedTransitions(from: string): string[] {
   if (TERMINAL_STATUSES.has(from)) return [];
-  // Only processing orders are mutable from the UI per business rule.
-  if (from !== 'processing') return [];
-  // From processing: allow shipped / delivered / completed / on-hold / cancelled.
-  return ['shipped', 'delivered', 'completed', 'on-hold', 'cancelled'];
+  // From any non-terminal state, allow moving to any other non-terminal state
+  // plus cancellation/failure/refund (terminal exits).
+  return WOO_STATUS_OPTIONS.map((s) => s.value).filter((v) => v !== from);
 }
 
 interface Props {
@@ -70,9 +65,6 @@ export function WooOrderStatusActions({
 
   const isTerminal = TERMINAL_STATUSES.has(normalized);
   const allowed = allowedTransitions(normalized);
-  // Non-terminal but also non-editable (e.g. pending, on-hold, shipped,
-  // delivered, completed). Only `processing` orders are mutable from the UI.
-  const isReadOnly = !isTerminal && allowed.length === 0;
 
   const update = async (status: string, opts: { allowReopen?: boolean } = {}) => {
     if (busy) return;
@@ -198,33 +190,6 @@ export function WooOrderStatusActions({
     );
   }
 
-  // ---------------- Read-only (non-processing) UI ----------------
-  if (isReadOnly) {
-    return (
-      <TooltipProvider delayDuration={200}>
-        <div
-          className="flex items-center gap-2"
-          onClick={stop}
-          onPointerDown={stop}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge
-                variant="outline"
-                className="gap-1 text-[10px] font-medium text-muted-foreground border-dashed capitalize"
-              >
-                <Lock className="h-3 w-3" /> {normalized.replace(/-/g, ' ')}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              Only orders in <strong>Processing</strong> can be updated here.
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </TooltipProvider>
-    );
-  }
-
   // ---------------- Active state UI ----------------
   const visibleOptions = WOO_STATUS_OPTIONS.filter(
     (s) => s.value === normalized || allowed.includes(s.value),
@@ -297,20 +262,11 @@ export function WooOrderStatusActions({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => update('shipped')}
-          disabled={busy || normalized === 'shipped'}
+          onClick={() => update('processing')}
+          disabled={busy || normalized === 'processing'}
           className="gap-1.5"
         >
-          <Truck className="h-3.5 w-3.5" /> Mark Shipped
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => update('delivered')}
-          disabled={busy || normalized === 'delivered'}
-          className="gap-1.5"
-        >
-          <PackageCheck className="h-3.5 w-3.5" /> Mark Delivered
+          <PlayCircle className="h-3.5 w-3.5" /> Mark Processing
         </Button>
         <Button
           size="sm"
