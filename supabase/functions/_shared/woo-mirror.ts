@@ -216,6 +216,14 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       (eventType === "order.updated" || eventType === "webhook_in" || eventType === "backfill"))
   );
 
+  // When Woo moves an order BACK to a pre-shipped status (pending,
+  // on-hold, processing), the seller is signalling that fulfilment was
+  // undone. Force-clear tracking + actual_delivery on the internal row
+  // even if the Woo payload still carries stale tracking meta from the
+  // shipment-tracking plugin.
+  const PRE_SHIPPED = new Set(["pending", "on-hold", "processing"]);
+  const forceClearShipping = PRE_SHIPPED.has(wooStatus);
+
   const orderRow: Record<string, unknown> = {
     external_id: String(orderId),
     source: "website",
@@ -263,13 +271,20 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   if (trackingCleared) {
     orderRow.actual_delivery = null;
   }
+  // Status reverted to pre-shipped: wipe shipping completion fields.
+  if (forceClearShipping) {
+    orderRow.tracking_number = null;
+    orderRow.tracking_url = null;
+    orderRow.courier_name = null;
+    orderRow.actual_delivery = null;
+  }
 
   let internalId: string | null = existing?.id ?? null;
   if (existing) {
     const { data: cur } = await supabase
       .from("orders").select("tracking_number, tracking_url")
       .eq("id", existing.id).maybeSingle();
-    if (wooTracking.number) {
+    if (wooTracking.number && !forceClearShipping) {
       if (!cur?.tracking_number) orderRow.tracking_number = wooTracking.number;
       if (!cur?.tracking_url && wooTracking.url) orderRow.tracking_url = wooTracking.url;
       if (wooTracking.provider) orderRow.courier_name = wooTracking.provider;
