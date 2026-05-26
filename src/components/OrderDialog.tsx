@@ -1672,7 +1672,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             )}
 
             {/* Tracking Info */}
-            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+            <div ref={trackingSectionRef} className="p-4 bg-muted/50 rounded-lg space-y-3 scroll-mt-20">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium flex items-center gap-2">
                   <Truck className="h-4 w-4" />
