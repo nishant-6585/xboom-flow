@@ -13,7 +13,7 @@
  * `pending` is included so that website orders awaiting payment confirmation
  * still show up in the unified Orders list (per business request 2026-05-20).
  */
-export const WOO_ORDER_STATUSES = ["pending", "processing", "on-hold", "completed", "delivered"] as const;
+export const WOO_ORDER_STATUSES = ["pending", "processing", "on-hold", "shipped", "completed", "delivered"] as const;
 
 export const isWooOrderStatus = (status: string | null | undefined): boolean => {
   const s = (status || "").toLowerCase();
