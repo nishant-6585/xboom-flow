@@ -165,6 +165,30 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
 
+  // Live Woo status (only populated for website-sourced orders). Lets us
+  // render the WooOrderStatusActions control inside the manual dialog so
+  // staff can push status changes back to WooCommerce without leaving
+  // this screen.
+  const isWebsiteOrder = (order as any)?.source === 'website';
+  const wooOrderId = (order as any)?.external_id ? String((order as any).external_id) : null;
+  const [wooStatus, setWooStatus] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isWebsiteOrder || !wooOrderId || !open) {
+      setWooStatus(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('woocommerce_orders')
+        .select('order_status')
+        .eq('woo_order_id', wooOrderId)
+        .maybeSingle();
+      if (!cancelled) setWooStatus((data as any)?.order_status ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [isWebsiteOrder, wooOrderId, open]);
+
   // Auto-generate tracking URL whenever courier name + tracking number change.
   // Overwrite previous URL if it was auto-generated for any known courier; keep
   // only fully-custom URLs that don't belong to any known carrier domain.
