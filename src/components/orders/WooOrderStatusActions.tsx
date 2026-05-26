@@ -21,6 +21,8 @@ export const WOO_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'pending', label: 'Pending' },
   { value: 'processing', label: 'Processing' },
   { value: 'on-hold', label: 'On Hold' },
+  { value: 'shipped', label: 'Shipped' },
+  { value: 'delivered', label: 'Delivered' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'failed', label: 'Failed' },
@@ -33,12 +35,15 @@ export const TERMINAL_STATUSES = new Set(['cancelled', 'failed', 'refunded']);
 /**
  * Returns the list of statuses a user is allowed to transition INTO from `from`.
  * Terminal states return [] (caller should render the locked UI / reopen flow).
+ * Only `processing` orders are editable in the new website-order workflow —
+ * any other non-terminal state returns [] so the UI shows a read-only badge.
  */
 function allowedTransitions(from: string): string[] {
   if (TERMINAL_STATUSES.has(from)) return [];
-  // From any non-terminal state, allow moving to any other non-terminal state
-  // plus cancellation/failure/refund (terminal exits).
-  return WOO_STATUS_OPTIONS.map((s) => s.value).filter((v) => v !== from);
+  // Only processing orders are mutable from the UI per business rule.
+  if (from !== 'processing') return [];
+  // From processing: allow shipped / delivered / completed / on-hold / cancelled.
+  return ['shipped', 'delivered', 'completed', 'on-hold', 'cancelled'];
 }
 
 interface Props {
