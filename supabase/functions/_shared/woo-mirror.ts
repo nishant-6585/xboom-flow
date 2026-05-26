@@ -261,7 +261,10 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     if (wooTracking.number) {
       if (!cur?.tracking_number) orderRow.tracking_number = wooTracking.number;
       if (!cur?.tracking_url && wooTracking.url) orderRow.tracking_url = wooTracking.url;
-    } else if (wooTracking.cleared) {
+    } else if (
+      wooTracking.cleared ||
+      (eventType === "order.updated" && Array.isArray(payload?.meta_data))
+    ) {
       // Tracking removed in Woo — mirror the clear into internal orders.
       orderRow.tracking_number = null;
       orderRow.tracking_url = null;
