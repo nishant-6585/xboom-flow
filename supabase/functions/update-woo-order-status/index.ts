@@ -21,6 +21,7 @@ const ALLOWED_STATUSES = new Set([
   "cancelled",
   "refunded",
   "failed",
+  "shipped",
   "delivered",
   "return-requested",
   "return-approved",
@@ -54,6 +55,7 @@ const REOPEN_ROLES = new Set(["admin", "supply_chain", "sales_manager"]);
  */
 const NOTIFIABLE_STATUSES = new Set([
   "processing",
+  "shipped",
   "completed",
   "delivered",
   "cancelled",
@@ -65,6 +67,7 @@ const NOTIFIABLE_STATUSES = new Set([
  */
 const WHATSAPP_TEMPLATES: Record<string, string> = {
   processing: "order_processing_v1",
+  shipped: "order_shipped_v1",
   completed: "order_completed_v1",
   delivered: "order_delivered_v1",
   cancelled: "order_cancelled_v1",
@@ -96,11 +99,20 @@ function validateTransition(
     return null;
   }
 
-  // From an active state, terminal exits and other active transitions are fine.
-  if (ACTIVE_STATUSES.has(from) || from === "" || from === "any") {
-    return null;
+  // Only `processing` is a mutable source state for UI-driven transitions.
+  // Everything else (pending, on-hold, shipped, delivered, completed, …)
+  // is read-only from the XBoom UI — changes must come from WooCommerce
+  // itself or the dedicated tracking flow.
+  if (from !== "processing") {
+    return `Only orders in 'processing' can be updated (current: ${from}).`;
   }
-
+  // From processing, allow movement only to a restricted set.
+  const ALLOWED_FROM_PROCESSING = new Set([
+    "shipped", "delivered", "completed", "on-hold", "cancelled",
+  ]);
+  if (!ALLOWED_FROM_PROCESSING.has(to)) {
+    return `Cannot move 'processing' → '${to}'.`;
+  }
   return null;
 }
 
@@ -275,9 +287,8 @@ Deno.serve(async (req) => {
 
   // ------------ UPDATE LOCAL DB (only if Woo accepted) ------------
   if (wooOk) {
-    const isPaid = newStatus === "completed" || newStatus === "processing" || newStatus === "delivered";
     const paymentStatusMap: Record<string, string> = {
-      completed: "paid", processing: "paid", delivered: "paid",
+      completed: "paid", processing: "paid", delivered: "paid", shipped: "paid",
       "on-hold": "pending", pending: "pending",
       failed: "failed", cancelled: "cancelled", refunded: "refunded",
     };
@@ -287,7 +298,8 @@ Deno.serve(async (req) => {
         order_status: newStatus,
         financial_status: newStatus,
         fulfillment_status:
-          (newStatus === "completed" || newStatus === "delivered") ? "fulfilled" : "unfulfilled",
+          (newStatus === "completed" || newStatus === "delivered") ? "fulfilled"
+          : newStatus === "shipped" ? "shipped" : "unfulfilled",
         payment_status: paymentStatusMap[newStatus] || "pending",
         woo_updated_at: new Date().toISOString(),
       })

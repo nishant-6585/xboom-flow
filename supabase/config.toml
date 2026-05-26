@@ -1,5 +1,8 @@
 project_id = "mxsotxddcvmeluqonuuj"
 
+[functions.push-woo-tracking]
+verify_jwt = false
+
 [functions.portal-resend-invite-test]
 verify_jwt = false
 

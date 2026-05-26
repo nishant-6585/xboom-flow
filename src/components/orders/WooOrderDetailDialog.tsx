@@ -4,10 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw } from 'lucide-react';
+import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
+import { AddTrackingDialog } from './AddTrackingDialog';
 import { useOrderNotificationTimeline } from '@/hooks/useOrderNotification';
 
 interface StatusLog {
@@ -43,6 +44,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   const [logsLoading, setLogsLoading] = useState(false);
   // Bumping this re-mounts the actions component so it picks up the new currentStatus
   const [actionsKey, setActionsKey] = useState(0);
+  const [trackingOpen, setTrackingOpen] = useState(false);
 
   const {
     items: notifications,
@@ -72,6 +74,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   if (!order) return null;
 
   const amount = order.total_sales_amount || order.selling_price || 0;
+  const isProcessing = (order.order_status || '').toLowerCase() === 'processing';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -119,6 +122,29 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
                 }}
               />
             </section>
+
+            {/* Tracking — processing only */}
+            {isProcessing && (
+              <>
+                <Separator />
+                <section>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Truck className="h-4 w-4" /> Shipment Tracking
+                  </h3>
+                  <div className="rounded-md border border-dashed border-border/60 p-3 flex items-center justify-between gap-3">
+                    <div className="text-xs text-muted-foreground">
+                      {order.tracking_number
+                        ? <>Current: <strong>{order.courier || '—'}</strong> · {order.tracking_number}</>
+                        : 'No tracking yet. Add courier + AWB to mark Shipped on WooCommerce.'}
+                    </div>
+                    <Button size="sm" onClick={() => setTrackingOpen(true)} className="gap-1.5">
+                      <Truck className="h-3.5 w-3.5" />
+                      {order.tracking_number ? 'Update Tracking' : 'Add Tracking'}
+                    </Button>
+                  </div>
+                </section>
+              </>
+            )}
 
             <Separator />
 
@@ -258,6 +284,15 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
             </section>
           </div>
         </ScrollArea>
+        <AddTrackingDialog
+          wooOrderId={order.woo_order_id}
+          open={trackingOpen}
+          onOpenChange={setTrackingOpen}
+          onSaved={() => {
+            setActionsKey((k) => k + 1);
+            onUpdated?.();
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
