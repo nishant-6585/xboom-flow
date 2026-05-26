@@ -41,12 +41,25 @@ export function SupplierAnalytics({
       const city = supplier.city || 'Unknown';
       cityCount[city] = (cityCount[city] || 0) + 1;
 
-      // Product count (from products array)
-      if (supplier.products && supplier.products.length > 0) {
-        supplier.products.forEach((product) => {
-          productCount[product] = (productCount[product] || 0) + 1;
-        });
+      // Product count (from products array) — normalize defensively
+      let productsList: string[] = [];
+      const rawProducts: any = supplier.products;
+      if (Array.isArray(rawProducts)) {
+        productsList = rawProducts;
+      } else if (typeof rawProducts === 'string' && rawProducts.trim()) {
+        try {
+          const parsed = JSON.parse(rawProducts);
+          productsList = Array.isArray(parsed)
+            ? parsed
+            : rawProducts.split(',').map((p) => p.trim()).filter(Boolean);
+        } catch {
+          productsList = rawProducts.split(',').map((p) => p.trim()).filter(Boolean);
+        }
       }
+      productsList.forEach((product) => {
+        if (!product) return;
+        productCount[product] = (productCount[product] || 0) + 1;
+      });
     });
 
     const sortByCount = (obj: Record<string, number>) =>
