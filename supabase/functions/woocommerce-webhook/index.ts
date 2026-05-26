@@ -190,17 +190,20 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
   // (or any compatible meta) and mirror it onto woocommerce_orders so the
   // Website Orders UI shows the same tracking the customer sees.
   const trk = extractTrackingFromWoo(payload);
-  if (trk.number) orderData.tracking_number = trk.number;
-  if (trk.provider) orderData.courier = trk.provider;
-  if (trk.url) {
-    // woocommerce_orders has no tracking_url column — fold link into the raw
-    // payload only. The internal `orders` mirror keeps tracking_url.
-  }
-  if (trk.date_shipped) orderData.expected_delivery = trk.date_shipped;
-  // When the plugin records a tracking, treat the shipment as in-transit.
-  if (trk.number && !orderData.tracking_status) {
-    orderData.tracking_status = (wooStatus === "completed" || wooStatus === "delivered")
-      ? "delivered" : "in_transit";
+  if (trk.number) {
+    orderData.tracking_number = trk.number;
+    if (trk.provider) orderData.courier = trk.provider;
+    if (trk.date_shipped) orderData.expected_delivery = trk.date_shipped;
+    if (!orderData.tracking_status) {
+      orderData.tracking_status =
+        (wooStatus === "completed" || wooStatus === "delivered") ? "delivered" : "in_transit";
+    }
+  } else if (trk.cleared) {
+    // Tracking was explicitly deleted in WooCommerce — clear the mirror.
+    orderData.tracking_number = null;
+    orderData.courier = null;
+    orderData.expected_delivery = null;
+    orderData.tracking_status = null;
   }
 
   // UPSERT keyed on woo_order_id — same row moves between buckets when status changes.
