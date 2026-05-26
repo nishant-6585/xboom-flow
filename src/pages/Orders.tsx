@@ -317,6 +317,50 @@ export default function Orders() {
     manualPage * MANUAL_PAGE_SIZE
   );
 
+  // Unified All-Orders list: tag each row by source so we can render either
+  // an OrderCard (manual) or a WooOrderCard (website) from one paginated array.
+  type UnifiedRow =
+    | { kind: 'manual'; date: number; row: typeof orders[number] }
+    | { kind: 'woo'; date: number; row: typeof wooOrders[number] };
+
+  const unifiedRows: UnifiedRow[] = (() => {
+    const rows: UnifiedRow[] = [];
+    if (sourceFilter !== 'website') {
+      for (const o of filteredOrders) {
+        const d = new Date(o.order_date || o.created_at).getTime() || 0;
+        rows.push({ kind: 'manual', date: d, row: o });
+      }
+    }
+    if (sourceFilter !== 'manual') {
+      // Website rows: respect the page-level search + date filters only.
+      const searchLower = searchQuery.toLowerCase().trim();
+      for (const o of wooOrders) {
+        if (searchLower) {
+          const hit =
+            (o.order_number?.toLowerCase().includes(searchLower)) ||
+            (o.woo_order_id?.toLowerCase().includes(searchLower) ?? false) ||
+            (o.product_name?.toLowerCase().includes(searchLower) ?? false) ||
+            (o.customer_name?.toLowerCase().includes(searchLower) ?? false) ||
+            (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
+          if (!hit) continue;
+        }
+        const dIso = o.woo_created_at || o.created_at;
+        const d = dIso ? new Date(dIso).getTime() : 0;
+        if (startDate && d < startOfDay(startDate).getTime()) continue;
+        if (endDate && d > endOfDay(endDate).getTime()) continue;
+        rows.push({ kind: 'woo', date: d, row: o });
+      }
+    }
+    rows.sort((a, b) => b.date - a.date);
+    return rows;
+  })();
+
+  const unifiedTotalPages = Math.ceil(unifiedRows.length / MANUAL_PAGE_SIZE);
+  const paginatedUnified = unifiedRows.slice(
+    (manualPage - 1) * MANUAL_PAGE_SIZE,
+    manualPage * MANUAL_PAGE_SIZE
+  );
+
   const shopifyTotalPages = Math.ceil(filteredShopifyOrders.length / SHOPIFY_PAGE_SIZE);
   const paginatedShopifyOrders = filteredShopifyOrders.slice(
     (shopifyPage - 1) * SHOPIFY_PAGE_SIZE,
