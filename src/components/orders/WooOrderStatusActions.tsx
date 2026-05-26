@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +87,13 @@ export function WooOrderStatusActions({
   const [selected, setSelected] = useState<string>(normalized);
   const [busy, setBusy] = useState(false);
   const [confirmReopen, setConfirmReopen] = useState(false);
+
+  // Re-sync the dropdown whenever the parent finishes loading (or refreshes)
+  // the live Woo status. Without this, the Select stays stuck on the
+  // initial 'pending' fallback even after currentStatus arrives.
+  useEffect(() => {
+    setSelected(normalized);
+  }, [normalized]);
 
   const isTerminal = TERMINAL_STATUSES.has(normalized);
   const allowed = allowedTransitions(normalized);
