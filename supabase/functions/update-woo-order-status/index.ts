@@ -287,9 +287,8 @@ Deno.serve(async (req) => {
 
   // ------------ UPDATE LOCAL DB (only if Woo accepted) ------------
   if (wooOk) {
-    const isPaid = newStatus === "completed" || newStatus === "processing" || newStatus === "delivered";
     const paymentStatusMap: Record<string, string> = {
-      completed: "paid", processing: "paid", delivered: "paid",
+      completed: "paid", processing: "paid", delivered: "paid", shipped: "paid",
       "on-hold": "pending", pending: "pending",
       failed: "failed", cancelled: "cancelled", refunded: "refunded",
     };
@@ -299,7 +298,8 @@ Deno.serve(async (req) => {
         order_status: newStatus,
         financial_status: newStatus,
         fulfillment_status:
-          (newStatus === "completed" || newStatus === "delivered") ? "fulfilled" : "unfulfilled",
+          (newStatus === "completed" || newStatus === "delivered") ? "fulfilled"
+          : newStatus === "shipped" ? "shipped" : "unfulfilled",
         payment_status: paymentStatusMap[newStatus] || "pending",
         woo_updated_at: new Date().toISOString(),
       })
