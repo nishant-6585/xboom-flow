@@ -347,10 +347,20 @@ export default function Orders() {
       const ALL_ORDERS_WEBSITE_STATUSES = new Set([
         'processing', 'on-hold', 'shipped', 'completed', 'delivered',
       ]);
+      // Build a set of woo_order_ids that already exist as mirrored
+      // rows in `orders` (source='website'), so we don't render them
+      // twice — once as the rich OrderCard and again as the minimal
+      // WooOrderCard. The mirror keys on external_id == woo_order_id.
+      const mirroredWooIds = new Set(
+        (orders as any[])
+          .filter((o) => (o as any).source === 'website')
+          .map((o) => String((o as any).external_id || '')),
+      );
       const searchLower = searchQuery.toLowerCase().trim();
       for (const o of wooOrders) {
         const s = (o.order_status || '').toLowerCase();
         if (!ALL_ORDERS_WEBSITE_STATUSES.has(s)) continue;
+        if (mirroredWooIds.has(String(o.woo_order_id || ''))) continue;
         if (searchLower) {
           const hit =
             (o.order_number?.toLowerCase().includes(searchLower)) ||
