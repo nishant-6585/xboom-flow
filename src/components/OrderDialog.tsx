@@ -977,6 +977,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   variant="full"
                   stopPropagation={false}
                   onUpdated={(newStatus) => setWooStatus(newStatus)}
+                  hasTracking={
+                    !!((order.tracking_number || trackingNumber) &&
+                       ((order as any).courier_name || courierName))
+                  }
+                  tracking={{
+                    carrier: courierName || (order as any).courier_name || null,
+                    number: trackingNumber || order.tracking_number || null,
+                    url: trackingUrl || order.tracking_url || null,
+                    expected: estimatedDelivery || null,
+                  }}
+                  onTrackingNeeded={focusTrackingSection}
                 />
               </div>
             )}
