@@ -211,7 +211,8 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   const wooTracking = extractTrackingFromWoo(payload);
   const trackingCleared = !wooTracking.number && (
     wooTracking.cleared ||
-    (eventType === "order.updated" && Array.isArray(payload?.meta_data))
+    (Array.isArray(payload?.meta_data) &&
+      (eventType === "order.updated" || eventType === "webhook_in" || eventType === "backfill"))
   );
 
   const orderRow: Record<string, unknown> = {
