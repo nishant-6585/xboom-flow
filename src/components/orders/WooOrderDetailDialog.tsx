@@ -4,11 +4,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw } from 'lucide-react';
+import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
 import { useOrderNotificationTimeline } from '@/hooks/useOrderNotification';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
+
+const TRACKING_ROLES = new Set(['admin', 'supply_chain', 'sales_manager', 'finance']);
 
 interface StatusLog {
   id: string;
