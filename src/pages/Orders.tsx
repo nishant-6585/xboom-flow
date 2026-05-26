@@ -369,6 +369,11 @@ export default function Orders() {
 
   // WooCommerce filtered orders
   // Website Orders tab → all WooCommerce orders, filtered by status
+  // Per 2026-05-26 product update: Website Orders tab only surfaces
+  // processing + pending orders. Cancelled / failed / refunded / completed
+  // belong elsewhere (Sales > Leads > Xboom Website for cancelled/failed/
+  // refunded; All Orders shows the fulfilled lifecycle).
+  const WEBSITE_TAB_STATUSES = ['processing', 'pending'] as const;
   const filteredWooOrders = wooOrders.filter(o => {
     const searchLower = wooSearchQuery.toLowerCase().trim();
     const matchesSearch = wooSearchQuery === '' ||
@@ -379,14 +384,10 @@ export default function Orders() {
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
     // Status filter supports both raw statuses and grouped buckets (success/failed/pending)
     const status = (o.order_status || '').toLowerCase();
-    // Status filter exposes every Woo status so users can find any order
-    // (processing/completed/delivered/cancelled/refunded/on-hold/pending/failed).
+    // Hard restrict to processing + pending; the dropdown only exposes these.
+    if (!(WEBSITE_TAB_STATUSES as readonly string[]).includes(status)) return false;
     const matchesStatus =
-      wooStatusFilter === 'all'
-        ? true
-        : wooStatusFilter === 'success'
-          ? ['completed', 'delivered'].includes(status)
-          : status === wooStatusFilter;
+      wooStatusFilter === 'all' ? true : status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
     const matchesNotif =
       wooNotifFilter === 'all'
