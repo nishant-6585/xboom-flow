@@ -8,6 +8,7 @@
 export function mapWooStatusToInternal(wooStatus: string): string {
   switch (wooStatus) {
     case "processing": return "payment_received";
+    case "shipped": return "in_transit";
     case "completed":
     case "delivered": return "delivery_done";
     case "cancelled": return "cancelled";
