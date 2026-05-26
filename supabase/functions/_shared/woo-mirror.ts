@@ -209,6 +209,10 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   const internalStatus = mapWooStatusToInternal(wooStatus);
   const isPaid = wooStatus === "processing" || wooStatus === "completed" || wooStatus === "delivered";
   const wooTracking = extractTrackingFromWoo(payload);
+  const trackingCleared = !wooTracking.number && (
+    wooTracking.cleared ||
+    (eventType === "order.updated" && Array.isArray(payload?.meta_data))
+  );
 
   const orderRow: Record<string, unknown> = {
     external_id: String(orderId),
@@ -252,6 +256,11 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     orderRow.actual_delivery = new Date().toISOString().slice(0, 10);
     orderRow.order_outcome = "OW";
   }
+  // If tracking was explicitly removed in Woo, clear actual_delivery too —
+  // the user is signalling that this order is no longer delivered.
+  if (trackingCleared) {
+    orderRow.actual_delivery = null;
+  }
 
   let internalId: string | null = existing?.id ?? null;
   if (existing) {
@@ -261,10 +270,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     if (wooTracking.number) {
       if (!cur?.tracking_number) orderRow.tracking_number = wooTracking.number;
       if (!cur?.tracking_url && wooTracking.url) orderRow.tracking_url = wooTracking.url;
-    } else if (
-      wooTracking.cleared ||
-      (eventType === "order.updated" && Array.isArray(payload?.meta_data))
-    ) {
+    } else if (trackingCleared) {
       // Tracking removed in Woo — mirror the clear into internal orders.
       orderRow.tracking_number = null;
       orderRow.tracking_url = null;
