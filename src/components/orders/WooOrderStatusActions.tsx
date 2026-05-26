@@ -106,7 +106,9 @@ export function WooOrderStatusActions({
           'Add courier + tracking number before marking this order as Shipped.',
         variant: 'destructive',
       });
-      setSelected(normalized);
+      // Keep `selected` as "shipped" so the Update button stays enabled —
+      // once the user fills tracking info, they can click Update again
+      // without re-picking the status from the dropdown.
       onTrackingNeeded?.();
       return;
     }
