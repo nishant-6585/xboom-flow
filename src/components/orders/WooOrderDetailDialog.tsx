@@ -233,6 +233,74 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
 
             <Separator />
 
+            {/* Shipping address */}
+            <section className="p-4 bg-muted/50 rounded-lg space-y-2">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <MapPin className="h-4 w-4" /> Shipping Address
+              </h4>
+              {detailLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                </div>
+              ) : (
+                <p className="text-sm whitespace-pre-line">
+                  {detail?.shipping_address || 'No address provided'}
+                </p>
+              )}
+            </section>
+
+            {/* Order items (from Woo line_items) */}
+            <section className="p-4 bg-muted/50 rounded-lg space-y-2">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <Package className="h-4 w-4" /> Order Items
+                {lineItems.length > 0 && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    ({lineItems.length})
+                  </span>
+                )}
+              </h4>
+              {detailLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                </div>
+              ) : lineItems.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No line items recorded.</p>
+              ) : (
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-xs">
+                    <thead className="text-muted-foreground">
+                      <tr className="border-b border-border/50">
+                        <th className="text-left py-1.5 px-1 font-medium">Product</th>
+                        <th className="text-right py-1.5 px-1 font-medium">Qty</th>
+                        <th className="text-right py-1.5 px-1 font-medium">Price</th>
+                        <th className="text-right py-1.5 px-1 font-medium">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lineItems.map((it, idx) => {
+                        const qty = Number(it.quantity ?? it.qty ?? 0) || 0;
+                        const price = Number(it.price ?? 0) || 0;
+                        const total = Number(it.total ?? it.subtotal ?? price * qty) || 0;
+                        return (
+                          <tr key={idx} className="border-b border-border/30 last:border-0">
+                            <td className="py-1.5 px-1">
+                              <div className="font-medium">{it.name || it.product_name || '—'}</div>
+                              {it.sku && <div className="text-[10px] text-muted-foreground">{it.sku}</div>}
+                            </td>
+                            <td className="text-right py-1.5 px-1">{qty}</td>
+                            <td className="text-right py-1.5 px-1">₹{price.toLocaleString('en-IN')}</td>
+                            <td className="text-right py-1.5 px-1 font-medium">₹{total.toLocaleString('en-IN')}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            <Separator />
+
             {/* Status update */}
             <section>
               <h3 className="text-sm font-semibold mb-3">Update Status</h3>
@@ -250,58 +318,133 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
 
             <Separator />
 
-            {/* Tracking + customer note → push to Woo */}
+            {/* Tracking + customer note → push to Woo. Mirrors manual OrderDialog UI. */}
             {canEditTracking && (
               <>
-                <section>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Truck className="h-4 w-4" /> Shipping & Customer Note
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="woo-carrier" className="text-xs">Carrier</Label>
-                      <Input
-                        id="woo-carrier"
-                        value={carrier}
-                        onChange={(e) => setCarrier(e.target.value)}
-                        placeholder="Delhivery, BlueDart, …"
-                        className="h-9"
-                        disabled={savingExtra}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="woo-tracking" className="text-xs">Tracking number</Label>
-                      <Input
-                        id="woo-tracking"
-                        value={trackingNumber}
-                        onChange={(e) => setTrackingNumber(e.target.value)}
-                        placeholder="AWB / Tracking ID"
-                        className="h-9"
-                        disabled={savingExtra}
-                      />
-                    </div>
+                <section className="p-4 bg-muted/50 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <Truck className="h-4 w-4" /> Tracking Information
+                    </h4>
+                    {!editingTracking ? (
+                      <Button variant="ghost" size="sm" onClick={() => setEditingTracking(true)} className="h-7 text-xs">
+                        Edit
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => setEditingTracking(false)} className="h-7 text-xs text-muted-foreground">
+                        Cancel
+                      </Button>
+                    )}
                   </div>
-                  <div className="space-y-1.5 mt-3">
-                    <Label htmlFor="woo-note" className="text-xs">Customer note (optional, pushed to Woo)</Label>
-                    <Textarea
-                      id="woo-note"
-                      value={customerNote}
-                      onChange={(e) => setCustomerNote(e.target.value)}
-                      placeholder="Visible to the customer in their Woo order timeline."
-                      className="min-h-[60px] text-sm"
-                      disabled={savingExtra}
-                      maxLength={2000}
-                    />
-                  </div>
-                  <div className="flex justify-end mt-3">
-                    <Button onClick={saveExtras} disabled={savingExtra} size="sm">
-                      {savingExtra ? (
-                        <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Saving…</>
-                      ) : (
-                        'Save & push to Woo'
+
+                  {editingTracking ? (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="woo-carrier" className="text-xs">Courier Name</Label>
+                          <CourierCombobox
+                            id="woo-carrier"
+                            value={carrier}
+                            onChange={setCarrier}
+                            disabled={savingExtra}
+                            placeholder="Select courier…"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="woo-tracking" className="text-xs">Tracking Number</Label>
+                          <Input
+                            id="woo-tracking"
+                            value={trackingNumber}
+                            onChange={(e) => setTrackingNumber(e.target.value)}
+                            placeholder="AWB / Tracking ID"
+                            className="h-9"
+                            disabled={savingExtra}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="woo-tracking-url" className="text-xs">Tracking URL</Label>
+                          <Input
+                            id="woo-tracking-url"
+                            type="url"
+                            value={trackingUrl}
+                            onChange={(e) => setTrackingUrl(e.target.value)}
+                            placeholder="https://…"
+                            className="h-9"
+                            disabled={savingExtra}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="woo-eta" className="text-xs">Estimated Delivery</Label>
+                          <Input
+                            id="woo-eta"
+                            type="date"
+                            value={expectedDelivery}
+                            onChange={(e) => setExpectedDelivery(e.target.value)}
+                            className="h-9"
+                            disabled={savingExtra}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="woo-note" className="text-xs">Customer note (optional, pushed to Woo)</Label>
+                        <Textarea
+                          id="woo-note"
+                          value={customerNote}
+                          onChange={(e) => setCustomerNote(e.target.value)}
+                          placeholder="Visible to the customer in their Woo order timeline."
+                          className="min-h-[60px] text-sm"
+                          disabled={savingExtra}
+                          maxLength={2000}
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <Button onClick={saveExtras} disabled={savingExtra} size="sm">
+                          {savingExtra ? (
+                            <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Saving…</>
+                          ) : (
+                            'Save & push to Woo'
+                          )}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-2 text-sm">
+                      {(carrier) && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Courier:</span>
+                          <span className="font-medium">{carrier}</span>
+                        </div>
                       )}
-                    </Button>
-                  </div>
+                      {trackingNumber && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Tracking Number:</span>
+                          {trackingUrl ? (
+                            <a
+                              href={trackingUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              {trackingNumber}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span>{trackingNumber}</span>
+                          )}
+                        </div>
+                      )}
+                      {expectedDelivery && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Est. Delivery:</span>
+                          <span>{expectedDelivery}</span>
+                        </div>
+                      )}
+                      {!carrier && !trackingNumber && !expectedDelivery && (
+                        <p className="text-sm text-muted-foreground">No tracking information yet</p>
+                      )}
+                    </div>
+                  )}
                 </section>
                 <Separator />
               </>
