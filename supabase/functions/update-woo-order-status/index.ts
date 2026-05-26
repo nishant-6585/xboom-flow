@@ -165,6 +165,9 @@ Deno.serve(async (req) => {
     new_status?: string;
     note?: string;
     allow_reopen?: boolean;
+    tracking_carrier?: string;
+    tracking_number?: string;
+    customer_note?: string;
   };
   try {
     body = await req.json();
@@ -177,6 +180,12 @@ Deno.serve(async (req) => {
 
   const wooOrderId = String(body.woo_order_id || "").trim();
   const newStatus = String(body.new_status || "").trim().toLowerCase();
+  const trackingCarrier = (body.tracking_carrier || "").toString().trim().slice(0, 100);
+  const trackingNumber = (body.tracking_number || "").toString().trim().slice(0, 200);
+  const customerNote = (body.customer_note || "").toString().trim().slice(0, 2000);
+  const hasStatusChange = !!newStatus;
+  const hasTracking = !!(trackingCarrier || trackingNumber);
+  const hasNote = !!customerNote;
   const allowReopen = body.allow_reopen === true;
 
   if (!wooOrderId || !/^\d+$/.test(wooOrderId)) {
@@ -185,7 +194,13 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  if (!newStatus || !ALLOWED_STATUSES.has(newStatus)) {
+  if (!hasStatusChange && !hasTracking && !hasNote) {
+    return new Response(
+      JSON.stringify({ error: "Nothing to update — provide new_status, tracking_*, or customer_note" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (hasStatusChange && !ALLOWED_STATUSES.has(newStatus)) {
     return new Response(
       JSON.stringify({ error: `Status not allowed: ${newStatus}` }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -207,7 +222,7 @@ Deno.serve(async (req) => {
   }
   const previousStatus = (existing.order_status || "").toLowerCase();
 
-  if (previousStatus === newStatus) {
+  if (hasStatusChange && previousStatus === newStatus && !hasTracking && !hasNote) {
     return new Response(
       JSON.stringify({ success: true, no_change: true, status: newStatus }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -219,7 +234,9 @@ Deno.serve(async (req) => {
   const canReopen = userRoles.some((r: string) => REOPEN_ROLES.has(r));
   const effectiveAllowReopen = allowReopen && canReopen;
 
-  const transitionErr = validateTransition(previousStatus, newStatus, effectiveAllowReopen);
+  const transitionErr = hasStatusChange && previousStatus !== newStatus
+    ? validateTransition(previousStatus, newStatus, effectiveAllowReopen)
+    : null;
   if (transitionErr) {
     // Audit the rejected attempt
     await admin.from("woocommerce_order_status_logs").insert({
@@ -253,6 +270,16 @@ Deno.serve(async (req) => {
   let wooResponse: any = null;
   let errMsg: string | null = null;
 
+  const wooBody: Record<string, unknown> = {};
+  if (hasStatusChange && previousStatus !== newStatus) wooBody.status = newStatus;
+  if (hasNote) wooBody.customer_note = customerNote;
+  if (hasTracking) {
+    const meta: { key: string; value: string }[] = [];
+    if (trackingCarrier) meta.push({ key: "_xboom_tracking_carrier", value: trackingCarrier });
+    if (trackingNumber) meta.push({ key: "_xboom_tracking_number", value: trackingNumber });
+    wooBody.meta_data = meta;
+  }
+
   try {
     const resp = await fetch(url, {
       method: "PUT",
@@ -261,7 +288,7 @@ Deno.serve(async (req) => {
         Accept: "application/json",
         Authorization: WC_AUTH,
       },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify(wooBody),
     });
     const text = await resp.text();
     try { wooResponse = JSON.parse(text); } catch { wooResponse = { raw: text.slice(0, 500) }; }
@@ -275,27 +302,35 @@ Deno.serve(async (req) => {
 
   // ------------ UPDATE LOCAL DB (only if Woo accepted) ------------
   if (wooOk) {
-    const isPaid = newStatus === "completed" || newStatus === "processing" || newStatus === "delivered";
-    const paymentStatusMap: Record<string, string> = {
-      completed: "paid", processing: "paid", delivered: "paid",
-      "on-hold": "pending", pending: "pending",
-      failed: "failed", cancelled: "cancelled", refunded: "refunded",
+    const updates: Record<string, unknown> = {
+      woo_updated_at: new Date().toISOString(),
     };
+    if (hasStatusChange && previousStatus !== newStatus) {
+      const paymentStatusMap: Record<string, string> = {
+        completed: "paid", processing: "paid", delivered: "paid",
+        "on-hold": "pending", pending: "pending",
+        failed: "failed", cancelled: "cancelled", refunded: "refunded",
+      };
+      updates.order_status = newStatus;
+      updates.financial_status = newStatus;
+      updates.fulfillment_status =
+        (newStatus === "completed" || newStatus === "delivered") ? "fulfilled" : "unfulfilled";
+      updates.payment_status = paymentStatusMap[newStatus] || "pending";
+    }
+    if (trackingCarrier) updates.tracking_status = trackingCarrier;
+    if (trackingNumber) updates.tracking_number = trackingNumber;
     await admin
       .from("woocommerce_orders")
-      .update({
-        order_status: newStatus,
-        financial_status: newStatus,
-        fulfillment_status:
-          (newStatus === "completed" || newStatus === "delivered") ? "fulfilled" : "unfulfilled",
-        payment_status: paymentStatusMap[newStatus] || "pending",
-        woo_updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq("woo_order_id", wooOrderId);
   }
 
   // ------------ AUDIT LOG ------------
-  const { data: logRow } = await admin
+  // Only log a row when the status actually changed; tracking/note-only edits
+  // are recorded implicitly by woo_updated_at.
+  let logRow: { id: string } | null = null;
+  if (hasStatusChange && previousStatus !== newStatus) {
+    const { data: inserted } = await admin
     .from("woocommerce_order_status_logs")
     .insert({
       woo_order_id: wooOrderId,
@@ -311,13 +346,15 @@ Deno.serve(async (req) => {
     })
     .select("id")
     .maybeSingle();
+    logRow = (inserted as { id: string } | null) ?? null;
+  }
 
   // ------------ QUEUE WHATSAPP NOTIFICATION ------------
   // Only queue when WooCommerce accepted the change AND the new status is
   // customer-notifiable. Idempotency is enforced by the unique index on
   // (woo_order_id, status_trigger, channel) — duplicates are silently ignored.
   // This MUST NOT fail the request.
-  if (wooOk && NOTIFIABLE_STATUSES.has(newStatus)) {
+  if (wooOk && hasStatusChange && previousStatus !== newStatus && NOTIFIABLE_STATUSES.has(newStatus)) {
     try {
       const customerName =
         (existing as { customer_name?: string | null }).customer_name || null;

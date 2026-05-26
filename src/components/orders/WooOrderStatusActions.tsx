@@ -22,6 +22,7 @@ export const WOO_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'processing', label: 'Processing' },
   { value: 'on-hold', label: 'On Hold' },
   { value: 'completed', label: 'Completed' },
+  { value: 'delivered', label: 'Delivered' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'failed', label: 'Failed' },
   { value: 'refunded', label: 'Refunded' },

@@ -30,6 +30,7 @@ import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
 import { isWooOrderStatus } from '@/lib/wooOrderStatuses';
+import { WOO_STATUS_OPTIONS } from '@/components/orders/WooOrderStatusActions';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -55,22 +56,11 @@ export default function Orders() {
     refetch: refetchWooOrders,
   } = useWooCommerceOrders({ sinceDays: 90 });
 
-  // Only treat processing/completed/delivered as Xboom website ORDERS.
-  // All other statuses (pending, on-hold, failed, cancelled, refunded …) are
-  // routed to Sales > Leads > Xboom Website. See src/lib/wooOrderStatuses.ts.
-  // Additionally, `processing` orders dated BEFORE the website-mirror cutover
-  // (2026-04-30) never made it into the internal Orders tab — they are shown
-  // in the Leads tab instead. Hide them here too so the two views agree.
-  const WEBSITE_ORDER_CUTOFF_MS = new Date('2026-04-30T00:00:00Z').getTime();
-  const wooOrders = wooOrdersAll.filter((o) => {
-    if (!isWooOrderStatus(o.order_status)) return false;
-    const status = (o.order_status || '').toLowerCase();
-    if (status === 'processing') {
-      const created = o.woo_created_at ? new Date(o.woo_created_at).getTime() : 0;
-      if (created && created < WEBSITE_ORDER_CUTOFF_MS) return false;
-    }
-    return true;
-  });
+  // Use the full WooCommerce dataset for both the unified All Orders view and
+  // the Website Orders tab. Per the 2026-05-26 product update users want
+  // visibility (and the ability to push status changes) for every Woo status,
+  // not just the curated order-only subset.
+  const wooOrders = wooOrdersAll;
   const wooTotalCount = wooOrders.length;
 
   // Recompute stats from the order-only subset so dashboards on the Orders
@@ -170,12 +160,26 @@ export default function Orders() {
 
   // Website (WooCommerce) tab filters
   const [wooSearchQuery, setWooSearchQuery] = useState<string>('');
-  const [wooStatusFilter, setWooStatusFilter] = useState<string>('all');
+  const [wooStatusFilter, setWooStatusFilter] = useState<string>('processing');
   const [wooPaymentStatusFilter, setWooPaymentStatusFilter] = useState<string>('all');
   const [wooViewMode, setWooViewMode] = useState<'cards' | 'table'>('cards');
   const [wooPage, setWooPage] = useState(1);
   const WOO_PAGE_SIZE = 50;
   const [wooSyncing, setWooSyncing] = useState(false);
+
+  // All Orders unified tab — source filter
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'manual' | 'website'>('all');
+
+  // Refetch both datasets when user returns to the tab/window so Woo→our-system
+  // status changes show up without a manual reload.
+  useEffect(() => {
+    const onFocus = () => {
+      refetchWooOrders();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [refetchWooOrders]);
+
   // Tick every 60s so the "last synced" relative label stays fresh
   const [, setNowTick] = useState(0);
   useEffect(() => {
@@ -191,7 +195,7 @@ export default function Orders() {
   useEffect(() => { setShopifyPage(1); }, [shopifySearchQuery, shopifyStatusFilter, shopifyPaymentStatusFilter, shopifyStartDate, shopifyEndDate]);
 
   // Reset manual page when filters/search change
-  useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, customerTypeFilter, categoryFilter, startDate, endDate]);
+  useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, customerTypeFilter, categoryFilter, startDate, endDate, sourceFilter]);
 
   // Reset woo page when filters change
   useEffect(() => { setWooPage(1); }, [wooSearchQuery, wooStatusFilter, wooPaymentStatusFilter, wooNotifFilter]);
@@ -313,6 +317,50 @@ export default function Orders() {
     manualPage * MANUAL_PAGE_SIZE
   );
 
+  // Unified All-Orders list: tag each row by source so we can render either
+  // an OrderCard (manual) or a WooOrderCard (website) from one paginated array.
+  type UnifiedRow =
+    | { kind: 'manual'; date: number; row: typeof orders[number] }
+    | { kind: 'woo'; date: number; row: typeof wooOrders[number] };
+
+  const unifiedRows: UnifiedRow[] = (() => {
+    const rows: UnifiedRow[] = [];
+    if (sourceFilter !== 'website') {
+      for (const o of filteredOrders) {
+        const d = new Date(o.order_date || o.created_at).getTime() || 0;
+        rows.push({ kind: 'manual', date: d, row: o });
+      }
+    }
+    if (sourceFilter !== 'manual') {
+      // Website rows: respect the page-level search + date filters only.
+      const searchLower = searchQuery.toLowerCase().trim();
+      for (const o of wooOrders) {
+        if (searchLower) {
+          const hit =
+            (o.order_number?.toLowerCase().includes(searchLower)) ||
+            (o.woo_order_id?.toLowerCase().includes(searchLower) ?? false) ||
+            (o.product_name?.toLowerCase().includes(searchLower) ?? false) ||
+            (o.customer_name?.toLowerCase().includes(searchLower) ?? false) ||
+            (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
+          if (!hit) continue;
+        }
+        const dIso = o.woo_created_at || o.created_at;
+        const d = dIso ? new Date(dIso).getTime() : 0;
+        if (startDate && d < startOfDay(startDate).getTime()) continue;
+        if (endDate && d > endOfDay(endDate).getTime()) continue;
+        rows.push({ kind: 'woo', date: d, row: o });
+      }
+    }
+    rows.sort((a, b) => b.date - a.date);
+    return rows;
+  })();
+
+  const unifiedTotalPages = Math.ceil(unifiedRows.length / MANUAL_PAGE_SIZE);
+  const paginatedUnified = unifiedRows.slice(
+    (manualPage - 1) * MANUAL_PAGE_SIZE,
+    manualPage * MANUAL_PAGE_SIZE
+  );
+
   const shopifyTotalPages = Math.ceil(filteredShopifyOrders.length / SHOPIFY_PAGE_SIZE);
   const paginatedShopifyOrders = filteredShopifyOrders.slice(
     (shopifyPage - 1) * SHOPIFY_PAGE_SIZE,
@@ -331,8 +379,8 @@ export default function Orders() {
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
     // Status filter supports both raw statuses and grouped buckets (success/failed/pending)
     const status = (o.order_status || '').toLowerCase();
-    // Order-page only ever sees processing/completed/delivered rows, so the
-    // status filter is limited to "all" / "success" / "processing".
+    // Status filter exposes every Woo status so users can find any order
+    // (processing/completed/delivered/cancelled/refunded/on-hold/pending/failed).
     const matchesStatus =
       wooStatusFilter === 'all'
         ? true
@@ -580,9 +628,13 @@ export default function Orders() {
               <TabsList className="bg-muted/60 backdrop-blur-sm p-1.5 h-auto flex-wrap rounded-xl border border-border/50 shadow-sm">
                 <TabsTrigger value="list" className="gap-2">
                   <LayoutGrid className="h-4 w-4" />
-                  <span className="hidden sm:inline font-medium">Orders</span>
+                  <span className="hidden sm:inline font-medium">All Orders</span>
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
-                    {filteredOrders.length}
+                    {(sourceFilter === 'manual'
+                      ? filteredOrders.length
+                      : sourceFilter === 'website'
+                        ? wooTotalCount
+                        : filteredOrders.length + wooTotalCount).toLocaleString()}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger value="shopify" className="gap-2">
@@ -594,7 +646,7 @@ export default function Orders() {
                 </TabsTrigger>
                 <TabsTrigger value="website" className="gap-2">
                   <Globe className="h-4 w-4" />
-                  <span className="hidden sm:inline font-medium">XBoom Website</span>
+                  <span className="hidden sm:inline font-medium">Website Orders</span>
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
                     {wooTotalCount.toLocaleString()}
                   </Badge>
@@ -692,6 +744,16 @@ export default function Orders() {
                     </div>
                     
                     <div className="flex items-center gap-3">
+                      <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as 'all' | 'manual' | 'website')}>
+                        <SelectTrigger className="w-[170px] h-11 rounded-xl">
+                          <SelectValue placeholder="Source" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Sources ({(filteredOrders.length + wooTotalCount).toLocaleString()})</SelectItem>
+                          <SelectItem value="manual">Manual ({filteredOrders.length.toLocaleString()})</SelectItem>
+                          <SelectItem value="website">Website ({wooTotalCount.toLocaleString()})</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                         <CollapsibleTrigger asChild>
                           <Button variant="outline" size="default" className="gap-2 h-11 px-4 rounded-xl border-muted-foreground/20 hover:bg-muted/50">
@@ -898,7 +960,7 @@ export default function Orders() {
                 </div>
                 <p className="mt-6 text-sm text-muted-foreground font-medium">Loading orders...</p>
               </div>
-            ) : filteredOrders.length === 0 ? (
+            ) : unifiedRows.length === 0 ? (
               <Card className="border-dashed border-2 bg-gradient-to-br from-muted/30 to-muted/10">
                 <CardContent className="flex flex-col items-center justify-center py-20">
                   <div className="p-6 rounded-2xl bg-gradient-to-br from-muted to-muted/50 mb-6 shadow-inner">
@@ -920,7 +982,7 @@ export default function Orders() {
                   )}
                 </CardContent>
               </Card>
-            ) : viewMode === 'table' ? (
+            ) : viewMode === 'table' && sourceFilter === 'manual' ? (
               <Card className="shadow-sm border-border/60 overflow-hidden">
                 <CardContent className="p-0">
                   <OrderTable orders={paginatedManualOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
@@ -928,26 +990,31 @@ export default function Orders() {
               </Card>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {paginatedManualOrders.map((order, index) => (
-                  <div 
-                    key={order.id}
+                {paginatedUnified.map((u, index) => (
+                  <div
+                    key={u.kind === 'manual' ? `m-${u.row.id}` : `w-${u.row.id}`}
                     className="animate-in fade-in slide-in-from-bottom-2"
                     style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                   >
-                    <OrderCard
-                      order={order}
-                      onClick={() => handleOrderClick(order)}
-                    />
+                    {u.kind === 'manual' ? (
+                      <OrderCard order={u.row} onClick={() => handleOrderClick(u.row)} />
+                    ) : (
+                      <WooOrderCard
+                        order={u.row}
+                        onClick={(o) => { setSelectedWooOrder(o); setWooDetailOpen(true); }}
+                        onUpdated={() => { refetchWooOrders(); refetchWooSync(); }}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
             {/* Manual Orders Pagination */}
-            {manualTotalPages > 1 && (
+            {unifiedTotalPages > 1 && (
               <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Showing <span className="font-semibold text-foreground">{((manualPage - 1) * MANUAL_PAGE_SIZE) + 1}–{Math.min(manualPage * MANUAL_PAGE_SIZE, filteredOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredOrders.length}</span> orders
+                  Showing <span className="font-semibold text-foreground">{((manualPage - 1) * MANUAL_PAGE_SIZE) + 1}–{Math.min(manualPage * MANUAL_PAGE_SIZE, unifiedRows.length)}</span> of <span className="font-semibold text-foreground">{unifiedRows.length}</span> orders
                 </p>
                 <div className="flex items-center gap-1.5">
                   <Button
@@ -968,14 +1035,14 @@ export default function Orders() {
                   >
                     ‹ Prev
                   </Button>
-                  {Array.from({ length: Math.min(5, manualTotalPages) }, (_, i) => {
+                  {Array.from({ length: Math.min(5, unifiedTotalPages) }, (_, i) => {
                     let pageNum: number;
-                    if (manualTotalPages <= 5) {
+                    if (unifiedTotalPages <= 5) {
                       pageNum = i + 1;
                     } else if (manualPage <= 3) {
                       pageNum = i + 1;
-                    } else if (manualPage >= manualTotalPages - 2) {
-                      pageNum = manualTotalPages - 4 + i;
+                    } else if (manualPage >= unifiedTotalPages - 2) {
+                      pageNum = unifiedTotalPages - 4 + i;
                     } else {
                       pageNum = manualPage - 2 + i;
                     }
@@ -994,8 +1061,8 @@ export default function Orders() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setManualPage(p => Math.min(manualTotalPages, p + 1))}
-                    disabled={manualPage === manualTotalPages}
+                    onClick={() => setManualPage(p => Math.min(unifiedTotalPages, p + 1))}
+                    disabled={manualPage === unifiedTotalPages}
                     className="h-8 px-3 rounded-lg text-xs"
                   >
                     Next ›
@@ -1003,8 +1070,8 @@ export default function Orders() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setManualPage(manualTotalPages)}
-                    disabled={manualPage === manualTotalPages}
+                    onClick={() => setManualPage(unifiedTotalPages)}
+                    disabled={manualPage === unifiedTotalPages}
                     className="h-8 px-3 rounded-lg text-xs"
                   >
                     »
@@ -1012,6 +1079,14 @@ export default function Orders() {
                 </div>
               </div>
             )}
+
+            {/* Woo detail dialog — usable from the unified All Orders view */}
+            <WooOrderDetailDialog
+              order={selectedWooOrder}
+              open={wooDetailOpen}
+              onOpenChange={setWooDetailOpen}
+              onUpdated={() => { refetchWooOrders(); refetchWooSync(); }}
+            />
           </TabsContent>
 
           <TabsContent value="shopify" className="space-y-6 mt-0">
@@ -1540,31 +1615,28 @@ export default function Orders() {
                   </div>
                 </div>
                 {/* Status filter chips — grouped buckets first, individual statuses below */}
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <Button
-                    variant={wooStatusFilter === 'all' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('all')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    All ({wooTotalCount.toLocaleString()})
-                  </Button>
-                  <Button
-                    variant={wooStatusFilter === 'success' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('success')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    ✅ Success ({wooStats.grouped.success.toLocaleString()})
-                  </Button>
-                  <Button
-                    variant={wooStatusFilter === 'processing' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('processing')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    🔄 Processing ({wooStats.grouped.processing.toLocaleString()})
-                  </Button>
+                <div className="flex flex-wrap items-center gap-2 mt-4">
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground mr-1">
+                    Status:
+                  </span>
+                  <Select value={wooStatusFilter} onValueChange={setWooStatusFilter}>
+                    <SelectTrigger className="w-[200px] h-9 rounded-lg">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        All Statuses ({wooTotalCount.toLocaleString()})
+                      </SelectItem>
+                      {WOO_STATUS_OPTIONS.map((s) => {
+                        const count = wooStats.statusCounts[s.value] || 0;
+                        return (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label} ({count.toLocaleString()})
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* WhatsApp notification filters + bulk retry */}

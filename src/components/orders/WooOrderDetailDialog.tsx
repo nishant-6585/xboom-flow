@@ -4,11 +4,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw } from 'lucide-react';
+import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
 import { useOrderNotificationTimeline } from '@/hooks/useOrderNotification';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
+
+const TRACKING_ROLES = new Set(['admin', 'supply_chain', 'sales_manager', 'finance']);
 
 interface StatusLog {
   id: string;
@@ -43,6 +50,52 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   const [logsLoading, setLogsLoading] = useState(false);
   // Bumping this re-mounts the actions component so it picks up the new currentStatus
   const [actionsKey, setActionsKey] = useState(0);
+  const { role } = useAuth();
+  const canEditTracking = !!role && TRACKING_ROLES.has(role);
+
+  const [carrier, setCarrier] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [customerNote, setCustomerNote] = useState('');
+  const [savingExtra, setSavingExtra] = useState(false);
+
+  useEffect(() => {
+    if (!open || !order) return;
+    setCarrier(order.tracking_status || '');
+    setTrackingNumber(order.tracking_number || '');
+    setCustomerNote('');
+  }, [open, order]);
+
+  const saveExtras = async () => {
+    if (!order || savingExtra) return;
+    const carrierChanged = (carrier || '') !== (order.tracking_status || '');
+    const numberChanged = (trackingNumber || '') !== (order.tracking_number || '');
+    const noteProvided = customerNote.trim().length > 0;
+    if (!carrierChanged && !numberChanged && !noteProvided) {
+      toast({ title: 'Nothing to save', description: 'No changes detected.' });
+      return;
+    }
+    setSavingExtra(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-woo-order-status', {
+        body: {
+          woo_order_id: order.woo_order_id,
+          tracking_carrier: carrierChanged ? carrier.trim() : undefined,
+          tracking_number: numberChanged ? trackingNumber.trim() : undefined,
+          customer_note: noteProvided ? customerNote.trim() : undefined,
+        },
+      });
+      if (error) throw error;
+      if (data && data.success === false) throw new Error(data.error || 'Update failed');
+      toast({ title: 'Saved & pushed to Woo', description: `Order #${order.order_number || order.woo_order_id}` });
+      setCustomerNote('');
+      onUpdated?.();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update';
+      toast({ title: 'Update failed', description: msg, variant: 'destructive' });
+    } finally {
+      setSavingExtra(false);
+    }
+  };
 
   const {
     items: notifications,
@@ -121,6 +174,63 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
             </section>
 
             <Separator />
+
+            {/* Tracking + customer note → push to Woo */}
+            {canEditTracking && (
+              <>
+                <section>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Truck className="h-4 w-4" /> Shipping & Customer Note
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="woo-carrier" className="text-xs">Carrier</Label>
+                      <Input
+                        id="woo-carrier"
+                        value={carrier}
+                        onChange={(e) => setCarrier(e.target.value)}
+                        placeholder="Delhivery, BlueDart, …"
+                        className="h-9"
+                        disabled={savingExtra}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="woo-tracking" className="text-xs">Tracking number</Label>
+                      <Input
+                        id="woo-tracking"
+                        value={trackingNumber}
+                        onChange={(e) => setTrackingNumber(e.target.value)}
+                        placeholder="AWB / Tracking ID"
+                        className="h-9"
+                        disabled={savingExtra}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 mt-3">
+                    <Label htmlFor="woo-note" className="text-xs">Customer note (optional, pushed to Woo)</Label>
+                    <Textarea
+                      id="woo-note"
+                      value={customerNote}
+                      onChange={(e) => setCustomerNote(e.target.value)}
+                      placeholder="Visible to the customer in their Woo order timeline."
+                      className="min-h-[60px] text-sm"
+                      disabled={savingExtra}
+                      maxLength={2000}
+                    />
+                  </div>
+                  <div className="flex justify-end mt-3">
+                    <Button onClick={saveExtras} disabled={savingExtra} size="sm">
+                      {savingExtra ? (
+                        <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Saving…</>
+                      ) : (
+                        'Save & push to Woo'
+                      )}
+                    </Button>
+                  </div>
+                </section>
+                <Separator />
+              </>
+            )}
 
             {/* Status history */}
             <section>
