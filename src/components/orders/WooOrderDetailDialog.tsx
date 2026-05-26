@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck } from 'lucide-react';
+import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck, MapPin, Package, ExternalLink, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { CourierCombobox } from '@/components/CourierCombobox';
+import { buildTrackingUrl } from '@/lib/courierTracking';
 
 const TRACKING_ROLES = new Set(['admin', 'supply_chain', 'sales_manager', 'finance']);
 
@@ -45,6 +47,33 @@ function fmtDate(iso: string | null) {
   } catch { return iso; }
 }
 
+/** Heavy fields not in the list query — fetched lazily when the dialog opens. */
+interface WooDetail {
+  shipping_address: string | null;
+  line_items: unknown;
+  courier: string | null;
+  expected_delivery: string | null;
+  internal_notes: string | null;
+  sales_notes: string | null;
+}
+
+interface WooLineItem {
+  name?: string;
+  product_name?: string;
+  quantity?: number;
+  qty?: number;
+  price?: number | string;
+  total?: number | string;
+  subtotal?: number | string;
+  sku?: string;
+}
+
+function normalizeLineItems(raw: unknown): WooLineItem[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw as WooLineItem[];
+  return [];
+}
+
 export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: Props) {
   const [logs, setLogs] = useState<StatusLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -53,24 +82,67 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   const { role } = useAuth();
   const canEditTracking = !!role && TRACKING_ROLES.has(role);
 
+  const [detail, setDetail] = useState<WooDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const [editingTracking, setEditingTracking] = useState(false);
   const [carrier, setCarrier] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingUrl, setTrackingUrl] = useState('');
+  const [expectedDelivery, setExpectedDelivery] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [savingExtra, setSavingExtra] = useState(false);
 
   useEffect(() => {
     if (!open || !order) return;
-    setCarrier(order.tracking_status || '');
+    setCarrier(order.tracking_status || order.courier || '');
     setTrackingNumber(order.tracking_number || '');
+    setTrackingUrl('');
+    setExpectedDelivery(order.expected_delivery || '');
     setCustomerNote('');
+    setEditingTracking(false);
   }, [open, order]);
+
+  // Auto-generate tracking URL when carrier + number set and URL still empty
+  // (mirrors manual OrderDialog behaviour).
+  useEffect(() => {
+    if (!carrier || !trackingNumber) return;
+    const generated = buildTrackingUrl(carrier, trackingNumber);
+    if (generated && !trackingUrl) setTrackingUrl(generated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carrier, trackingNumber]);
+
+  // Fetch heavy detail row (line_items, shipping_address, …) when the dialog opens.
+  useEffect(() => {
+    if (!open || !order) {
+      setDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setDetailLoading(true);
+    supabase
+      .from('woocommerce_orders')
+      .select('shipping_address, line_items, courier, expected_delivery, internal_notes, sales_notes')
+      .eq('woo_order_id', order.woo_order_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setDetail((data as WooDetail) || null);
+        setDetailLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [open, order]);
+
+  const lineItems = useMemo(() => normalizeLineItems(detail?.line_items), [detail]);
 
   const saveExtras = async () => {
     if (!order || savingExtra) return;
-    const carrierChanged = (carrier || '') !== (order.tracking_status || '');
+    const carrierChanged = (carrier || '') !== (order.tracking_status || order.courier || '');
     const numberChanged = (trackingNumber || '') !== (order.tracking_number || '');
+    const urlChanged = !!trackingUrl.trim();
+    const etaChanged = (expectedDelivery || '') !== (order.expected_delivery || '');
     const noteProvided = customerNote.trim().length > 0;
-    if (!carrierChanged && !numberChanged && !noteProvided) {
+    if (!carrierChanged && !numberChanged && !urlChanged && !etaChanged && !noteProvided) {
       toast({ title: 'Nothing to save', description: 'No changes detected.' });
       return;
     }
@@ -81,6 +153,8 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
           woo_order_id: order.woo_order_id,
           tracking_carrier: carrierChanged ? carrier.trim() : undefined,
           tracking_number: numberChanged ? trackingNumber.trim() : undefined,
+          tracking_url: urlChanged ? trackingUrl.trim() : undefined,
+          expected_delivery: etaChanged ? (expectedDelivery || undefined) : undefined,
           customer_note: noteProvided ? customerNote.trim() : undefined,
         },
       });
@@ -88,6 +162,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
       if (data && data.success === false) throw new Error(data.error || 'Update failed');
       toast({ title: 'Saved & pushed to Woo', description: `Order #${order.order_number || order.woo_order_id}` });
       setCustomerNote('');
+      setEditingTracking(false);
       onUpdated?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update';
