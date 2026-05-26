@@ -172,6 +172,15 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const isWebsiteOrder = (order as any)?.source === 'website';
   const wooOrderId = (order as any)?.external_id ? String((order as any).external_id) : null;
   const [wooStatus, setWooStatus] = useState<string | null>(null);
+  // Ref to the Tracking Information card — used to auto-scroll the user there
+  // when they try to mark a website order as Shipped without tracking.
+  const trackingSectionRef = useRef<HTMLDivElement>(null);
+  const focusTrackingSection = () => {
+    setEditingTracking(true);
+    setTimeout(() => {
+      trackingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
   useEffect(() => {
     if (!isWebsiteOrder || !wooOrderId || !open) {
       setWooStatus(null);
