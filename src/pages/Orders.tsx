@@ -960,7 +960,7 @@ export default function Orders() {
                 </div>
                 <p className="mt-6 text-sm text-muted-foreground font-medium">Loading orders...</p>
               </div>
-            ) : filteredOrders.length === 0 ? (
+            ) : unifiedRows.length === 0 ? (
               <Card className="border-dashed border-2 bg-gradient-to-br from-muted/30 to-muted/10">
                 <CardContent className="flex flex-col items-center justify-center py-20">
                   <div className="p-6 rounded-2xl bg-gradient-to-br from-muted to-muted/50 mb-6 shadow-inner">
@@ -982,7 +982,7 @@ export default function Orders() {
                   )}
                 </CardContent>
               </Card>
-            ) : viewMode === 'table' ? (
+            ) : viewMode === 'table' && sourceFilter === 'manual' ? (
               <Card className="shadow-sm border-border/60 overflow-hidden">
                 <CardContent className="p-0">
                   <OrderTable orders={paginatedManualOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
@@ -990,16 +990,21 @@ export default function Orders() {
               </Card>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {paginatedManualOrders.map((order, index) => (
-                  <div 
-                    key={order.id}
+                {paginatedUnified.map((u, index) => (
+                  <div
+                    key={u.kind === 'manual' ? `m-${u.row.id}` : `w-${u.row.id}`}
                     className="animate-in fade-in slide-in-from-bottom-2"
                     style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                   >
-                    <OrderCard
-                      order={order}
-                      onClick={() => handleOrderClick(order)}
-                    />
+                    {u.kind === 'manual' ? (
+                      <OrderCard order={u.row} onClick={() => handleOrderClick(u.row)} />
+                    ) : (
+                      <WooOrderCard
+                        order={u.row}
+                        onClick={(o) => { setSelectedWooOrder(o); setWooDetailOpen(true); }}
+                        onUpdated={() => { refetchWooOrders(); refetchWooSync(); }}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
