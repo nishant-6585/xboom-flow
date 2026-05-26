@@ -21,6 +21,9 @@ export const WOO_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'pending', label: 'Pending' },
   { value: 'processing', label: 'Processing' },
   { value: 'on-hold', label: 'On Hold' },
+  // Custom WooCommerce status — must be registered on the WC site as `wc-shipped`.
+  // Sits between Processing and Completed in the fulfilment lifecycle.
+  { value: 'shipped', label: 'Shipped' },
   { value: 'completed', label: 'Completed' },
   { value: 'delivered', label: 'Delivered' },
   { value: 'cancelled', label: 'Cancelled' },
