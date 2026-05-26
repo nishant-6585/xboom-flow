@@ -175,6 +175,63 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
 
             <Separator />
 
+            {/* Tracking + customer note → push to Woo */}
+            {canEditTracking && (
+              <>
+                <section>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Truck className="h-4 w-4" /> Shipping & Customer Note
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="woo-carrier" className="text-xs">Carrier</Label>
+                      <Input
+                        id="woo-carrier"
+                        value={carrier}
+                        onChange={(e) => setCarrier(e.target.value)}
+                        placeholder="Delhivery, BlueDart, …"
+                        className="h-9"
+                        disabled={savingExtra}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="woo-tracking" className="text-xs">Tracking number</Label>
+                      <Input
+                        id="woo-tracking"
+                        value={trackingNumber}
+                        onChange={(e) => setTrackingNumber(e.target.value)}
+                        placeholder="AWB / Tracking ID"
+                        className="h-9"
+                        disabled={savingExtra}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 mt-3">
+                    <Label htmlFor="woo-note" className="text-xs">Customer note (optional, pushed to Woo)</Label>
+                    <Textarea
+                      id="woo-note"
+                      value={customerNote}
+                      onChange={(e) => setCustomerNote(e.target.value)}
+                      placeholder="Visible to the customer in their Woo order timeline."
+                      className="min-h-[60px] text-sm"
+                      disabled={savingExtra}
+                      maxLength={2000}
+                    />
+                  </div>
+                  <div className="flex justify-end mt-3">
+                    <Button onClick={saveExtras} disabled={savingExtra} size="sm">
+                      {savingExtra ? (
+                        <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Saving…</>
+                      ) : (
+                        'Save & push to Woo'
+                      )}
+                    </Button>
+                  </div>
+                </section>
+                <Separator />
+              </>
+            )}
+
             {/* Status history */}
             <section>
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
