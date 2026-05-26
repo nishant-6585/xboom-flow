@@ -563,6 +563,35 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           .update(wooUpdate)
           .eq('order_number', order.order_number);
       }
+
+      // Push the tracking/courier/url change to WooCommerce itself so it
+      // shows up in the official "Shipment Tracking" panel and on the
+      // customer-facing order page. Best-effort: failures are surfaced as a
+      // toast but don't roll back the local save.
+      if (changes['tracking_number'] || changes['tracking_url'] || changes['courier_name']) {
+        const wooOrderId = (order as any).external_id || order.order_number;
+        if (wooOrderId && /^\d+$/.test(String(wooOrderId))) {
+          try {
+            const { error: pushErr } = await supabase.functions.invoke(
+              'update-woo-order-status',
+              {
+                body: {
+                  woo_order_id: String(wooOrderId),
+                  tracking_carrier: courierName || undefined,
+                  tracking_number: trackingNumber || undefined,
+                  tracking_url: trackingUrl || undefined,
+                  expected_delivery: estimatedDelivery || undefined,
+                },
+              },
+            );
+            if (pushErr) {
+              toast.error(`Saved locally but Woo push failed: ${pushErr.message}`);
+            }
+          } catch (e: any) {
+            toast.error(`Saved locally but Woo push failed: ${e?.message || 'unknown'}`);
+          }
+        }
+      }
     }
     
     setLoading(false);
