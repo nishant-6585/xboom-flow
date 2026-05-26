@@ -35,6 +35,7 @@ import { PricelistItem } from '@/hooks/usePricelist';
 import { InventoryFulfillmentPanel } from '@/components/order/InventoryFulfillmentPanel';
 import { DocumentViewer } from '@/components/hr/DocumentViewer';
 import { useOrderInvoices } from '@/hooks/useOrderInvoices';
+import { WooOrderStatusActions } from '@/components/orders/WooOrderStatusActions';
 
 interface OrderDialogProps {
   order: Order | null;
