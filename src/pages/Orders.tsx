@@ -700,6 +700,16 @@ export default function Orders() {
                     </div>
                     
                     <div className="flex items-center gap-3">
+                      <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as 'all' | 'manual' | 'website')}>
+                        <SelectTrigger className="w-[170px] h-11 rounded-xl">
+                          <SelectValue placeholder="Source" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Sources ({(filteredOrders.length + wooTotalCount).toLocaleString()})</SelectItem>
+                          <SelectItem value="manual">Manual ({filteredOrders.length.toLocaleString()})</SelectItem>
+                          <SelectItem value="website">Website ({wooTotalCount.toLocaleString()})</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                         <CollapsibleTrigger asChild>
                           <Button variant="outline" size="default" className="gap-2 h-11 px-4 rounded-xl border-muted-foreground/20 hover:bg-muted/50">
