@@ -53,6 +53,23 @@ interface Props {
   onUpdated?: (newStatus: string) => void;
   /** Stop card click handlers from firing when interacting with the actions */
   stopPropagation?: boolean;
+  /**
+   * When true (default), moving the order to `shipped` is blocked unless
+   * `hasTracking` is true. The parent should render a tracking-info form and
+   * pass `onTrackingNeeded` to focus/scroll the user there.
+   */
+  requireTrackingForShipped?: boolean;
+  /** Whether the parent already has tracking number + courier saved. */
+  hasTracking?: boolean;
+  /** Current tracking values — pushed to Woo alongside the `shipped` status. */
+  tracking?: {
+    carrier?: string | null;
+    number?: string | null;
+    url?: string | null;
+    expected?: string | null;
+  };
+  /** Invoked when the user picks `shipped` but tracking is missing. */
+  onTrackingNeeded?: () => void;
 }
 
 export function WooOrderStatusActions({
@@ -61,6 +78,10 @@ export function WooOrderStatusActions({
   variant = 'inline',
   onUpdated,
   stopPropagation = true,
+  requireTrackingForShipped = true,
+  hasTracking = false,
+  tracking,
+  onTrackingNeeded,
 }: Props) {
   const normalized = (currentStatus || 'pending').toLowerCase();
   const [selected, setSelected] = useState<string>(normalized);
@@ -76,6 +97,19 @@ export function WooOrderStatusActions({
       toast({ title: 'No change', description: `Already ${status}.` });
       return;
     }
+    // Tracking is mandatory before we can flip a Woo order to `shipped`.
+    // Bail out and let the parent surface the tracking form to the user.
+    if (status === 'shipped' && requireTrackingForShipped && !hasTracking) {
+      toast({
+        title: 'Tracking information required',
+        description:
+          'Add courier + tracking number before marking this order as Shipped.',
+        variant: 'destructive',
+      });
+      setSelected(normalized);
+      onTrackingNeeded?.();
+      return;
+    }
     // Frontend guard against invalid transitions
     if (isTerminal && !opts.allowReopen) {
       toast({
@@ -87,11 +121,23 @@ export function WooOrderStatusActions({
     }
     setBusy(true);
     try {
+      // When transitioning to `shipped`, ship the saved tracking info along
+      // so WooCommerce's order meta stays in sync in a single call.
+      const trackingPayload =
+        status === 'shipped' && tracking
+          ? {
+              tracking_carrier: tracking.carrier || undefined,
+              tracking_number: tracking.number || undefined,
+              tracking_url: tracking.url || undefined,
+              expected_delivery: tracking.expected || undefined,
+            }
+          : {};
       const { data, error } = await supabase.functions.invoke('update-woo-order-status', {
         body: {
           woo_order_id: wooOrderId,
           new_status: status,
           allow_reopen: opts.allowReopen === true,
+          ...trackingPayload,
         },
       });
       if (error) throw error;

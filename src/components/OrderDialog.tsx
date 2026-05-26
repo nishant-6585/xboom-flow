@@ -172,6 +172,15 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const isWebsiteOrder = (order as any)?.source === 'website';
   const wooOrderId = (order as any)?.external_id ? String((order as any).external_id) : null;
   const [wooStatus, setWooStatus] = useState<string | null>(null);
+  // Ref to the Tracking Information card — used to auto-scroll the user there
+  // when they try to mark a website order as Shipped without tracking.
+  const trackingSectionRef = useRef<HTMLDivElement>(null);
+  const focusTrackingSection = () => {
+    setEditingTracking(true);
+    setTimeout(() => {
+      trackingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
   useEffect(() => {
     if (!isWebsiteOrder || !wooOrderId || !open) {
       setWooStatus(null);
@@ -968,6 +977,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   variant="full"
                   stopPropagation={false}
                   onUpdated={(newStatus) => setWooStatus(newStatus)}
+                  hasTracking={
+                    !!((order.tracking_number || trackingNumber) &&
+                       ((order as any).courier_name || courierName))
+                  }
+                  tracking={{
+                    carrier: courierName || (order as any).courier_name || null,
+                    number: trackingNumber || order.tracking_number || null,
+                    url: trackingUrl || order.tracking_url || null,
+                    expected: estimatedDelivery || null,
+                  }}
+                  onTrackingNeeded={focusTrackingSection}
                 />
               </div>
             )}
@@ -1652,7 +1672,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             )}
 
             {/* Tracking Info */}
-            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+            <div ref={trackingSectionRef} className="p-4 bg-muted/50 rounded-lg space-y-3 scroll-mt-20">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium flex items-center gap-2">
                   <Truck className="h-4 w-4" />

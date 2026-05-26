@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -92,6 +92,14 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   const [expectedDelivery, setExpectedDelivery] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [savingExtra, setSavingExtra] = useState(false);
+  // Tracking card ref → scroll user here when they pick Shipped w/o tracking.
+  const trackingSectionRef = useRef<HTMLElement>(null);
+  const focusTrackingSection = () => {
+    setEditingTracking(true);
+    setTimeout(() => {
+      trackingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
 
   useEffect(() => {
     if (!open || !order) return;
@@ -309,6 +317,17 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
                 wooOrderId={order.woo_order_id}
                 currentStatus={order.order_status}
                 variant="full"
+                hasTracking={
+                  !!((order.tracking_number || trackingNumber) &&
+                     (order.tracking_status || order.courier || carrier))
+                }
+                tracking={{
+                  carrier: carrier || order.tracking_status || order.courier || null,
+                  number: trackingNumber || order.tracking_number || null,
+                  url: trackingUrl || null,
+                  expected: expectedDelivery || order.expected_delivery || null,
+                }}
+                onTrackingNeeded={focusTrackingSection}
                 onUpdated={() => {
                   setActionsKey((k) => k + 1);
                   onUpdated?.();
@@ -321,7 +340,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
             {/* Tracking + customer note → push to Woo. Mirrors manual OrderDialog UI. */}
             {canEditTracking && (
               <>
-                <section className="p-4 bg-muted/50 rounded-lg space-y-3">
+                <section ref={trackingSectionRef} className="p-4 bg-muted/50 rounded-lg space-y-3 scroll-mt-20">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium text-sm flex items-center gap-2">
                       <Truck className="h-4 w-4" /> Tracking Information
