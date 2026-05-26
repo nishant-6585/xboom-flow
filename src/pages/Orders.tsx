@@ -333,8 +333,18 @@ export default function Orders() {
     }
     if (sourceFilter !== 'manual') {
       // Website rows: respect the page-level search + date filters only.
+      // Per 2026-05-26 product update: All Orders only shows the fulfilled
+      // lifecycle for website orders (processing → on-hold → completed →
+      // delivered). Pending, cancelled, failed, refunded are excluded:
+      // pending lives in Website Orders tab; cancelled/failed/refunded
+      // route to Sales > Leads > Xboom Website.
+      const ALL_ORDERS_WEBSITE_STATUSES = new Set([
+        'processing', 'on-hold', 'completed', 'delivered',
+      ]);
       const searchLower = searchQuery.toLowerCase().trim();
       for (const o of wooOrders) {
+        const s = (o.order_status || '').toLowerCase();
+        if (!ALL_ORDERS_WEBSITE_STATUSES.has(s)) continue;
         if (searchLower) {
           const hit =
             (o.order_number?.toLowerCase().includes(searchLower)) ||
