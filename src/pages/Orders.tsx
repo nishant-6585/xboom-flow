@@ -339,7 +339,7 @@ export default function Orders() {
       // pending lives in Website Orders tab; cancelled/failed/refunded
       // route to Sales > Leads > Xboom Website.
       const ALL_ORDERS_WEBSITE_STATUSES = new Set([
-        'processing', 'on-hold', 'completed', 'delivered',
+        'processing', 'on-hold', 'shipped', 'completed', 'delivered',
       ]);
       const searchLower = searchQuery.toLowerCase().trim();
       for (const o of wooOrders) {
@@ -383,7 +383,7 @@ export default function Orders() {
   // processing + pending orders. Cancelled / failed / refunded / completed
   // belong elsewhere (Sales > Leads > Xboom Website for cancelled/failed/
   // refunded; All Orders shows the fulfilled lifecycle).
-  const WEBSITE_TAB_STATUSES = ['processing', 'pending'] as const;
+  const WEBSITE_TAB_STATUSES = ['processing', 'pending', 'shipped'] as const;
   const filteredWooOrders = wooOrders.filter(o => {
     const searchLower = wooSearchQuery.toLowerCase().trim();
     const matchesSearch = wooSearchQuery === '' ||
@@ -1657,10 +1657,10 @@ export default function Orders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">
-                        Processing + Pending ({((wooStats.statusCounts['processing'] || 0) + (wooStats.statusCounts['pending'] || 0)).toLocaleString()})
+                        Processing + Pending + Shipped ({((wooStats.statusCounts['processing'] || 0) + (wooStats.statusCounts['pending'] || 0) + (wooStats.statusCounts['shipped'] || 0)).toLocaleString()})
                       </SelectItem>
                       {WOO_STATUS_OPTIONS
-                        .filter((s) => s.value === 'processing' || s.value === 'pending')
+                        .filter((s) => s.value === 'processing' || s.value === 'pending' || s.value === 'shipped')
                         .map((s) => {
                           const count = wooStats.statusCounts[s.value] || 0;
                           return (
