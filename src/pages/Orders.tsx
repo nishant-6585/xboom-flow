@@ -160,12 +160,26 @@ export default function Orders() {
 
   // Website (WooCommerce) tab filters
   const [wooSearchQuery, setWooSearchQuery] = useState<string>('');
-  const [wooStatusFilter, setWooStatusFilter] = useState<string>('all');
+  const [wooStatusFilter, setWooStatusFilter] = useState<string>('processing');
   const [wooPaymentStatusFilter, setWooPaymentStatusFilter] = useState<string>('all');
   const [wooViewMode, setWooViewMode] = useState<'cards' | 'table'>('cards');
   const [wooPage, setWooPage] = useState(1);
   const WOO_PAGE_SIZE = 50;
   const [wooSyncing, setWooSyncing] = useState(false);
+
+  // All Orders unified tab — source filter
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'manual' | 'website'>('all');
+
+  // Refetch both datasets when user returns to the tab/window so Woo→our-system
+  // status changes show up without a manual reload.
+  useEffect(() => {
+    const onFocus = () => {
+      refetchWooOrders();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [refetchWooOrders]);
+
   // Tick every 60s so the "last synced" relative label stays fresh
   const [, setNowTick] = useState(0);
   useEffect(() => {
