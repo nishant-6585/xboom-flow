@@ -221,15 +221,14 @@ export default function Orders() {
     role === 'admin' || role === 'finance' || role === 'supply_chain' || role === 'sales_manager';
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
-  // All orders from useOrders are manual/Xboom orders (no shopify mixing).
-  // Website orders are mirrored into the same `orders` table with
-  // source='website' by woo-mirror so other modules (invoices, payments,
-  // tracking) can reference them. Exclude those mirrored rows from the
-  // manual list so they don't appear as duplicates alongside the
-  // WooOrderCard rendered from `wooOrders`.
-  const manualOrders = (orders as any[]).filter(
-    (o) => (o as any).source !== 'website',
-  ) as typeof orders;
+  // All orders from useOrders include both manual/Xboom orders and
+  // website orders mirrored by woo-mirror (source='website',
+  // sales_person_name='Website (Auto)'). We render both with the same
+  // OrderCard so website orders show the full UI (status/payment
+  // badges, inline status-update shortcut, etc.) instead of the
+  // minimal Woo card. De-duplication against `wooOrders` happens
+  // below in the unified-rows loop.
+  const manualOrders = orders;
 
   const filteredOrders = manualOrders.filter(o => {
     // If filtering by enquiry_id from URL, only show that order
