@@ -50,6 +50,52 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   const [logsLoading, setLogsLoading] = useState(false);
   // Bumping this re-mounts the actions component so it picks up the new currentStatus
   const [actionsKey, setActionsKey] = useState(0);
+  const { role } = useAuth();
+  const canEditTracking = !!role && TRACKING_ROLES.has(role);
+
+  const [carrier, setCarrier] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [customerNote, setCustomerNote] = useState('');
+  const [savingExtra, setSavingExtra] = useState(false);
+
+  useEffect(() => {
+    if (!open || !order) return;
+    setCarrier(order.tracking_status || '');
+    setTrackingNumber(order.tracking_number || '');
+    setCustomerNote('');
+  }, [open, order]);
+
+  const saveExtras = async () => {
+    if (!order || savingExtra) return;
+    const carrierChanged = (carrier || '') !== (order.tracking_status || '');
+    const numberChanged = (trackingNumber || '') !== (order.tracking_number || '');
+    const noteProvided = customerNote.trim().length > 0;
+    if (!carrierChanged && !numberChanged && !noteProvided) {
+      toast({ title: 'Nothing to save', description: 'No changes detected.' });
+      return;
+    }
+    setSavingExtra(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-woo-order-status', {
+        body: {
+          woo_order_id: order.woo_order_id,
+          tracking_carrier: carrierChanged ? carrier.trim() : undefined,
+          tracking_number: numberChanged ? trackingNumber.trim() : undefined,
+          customer_note: noteProvided ? customerNote.trim() : undefined,
+        },
+      });
+      if (error) throw error;
+      if (data && data.success === false) throw new Error(data.error || 'Update failed');
+      toast({ title: 'Saved & pushed to Woo', description: `Order #${order.order_number || order.woo_order_id}` });
+      setCustomerNote('');
+      onUpdated?.();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update';
+      toast({ title: 'Update failed', description: msg, variant: 'destructive' });
+    } finally {
+      setSavingExtra(false);
+    }
+  };
 
   const {
     items: notifications,
