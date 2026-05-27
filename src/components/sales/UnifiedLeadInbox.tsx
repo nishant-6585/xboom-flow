@@ -26,6 +26,7 @@ import {
   useUnifiedLeadCounts,
 } from "@/hooks/useUnifiedLeadFeed";
 import { cn } from "@/lib/utils";
+import { useTeamAvailability } from "@/hooks/useTeamAvailability";
 
 const PAGE_SIZES = [50, 100, 250] as const;
 
@@ -45,6 +46,7 @@ function lastSeenKey(userId: string | undefined) {
 }
 
 export function UnifiedLeadInbox() {
+  const { currentlyUnavailable } = useTeamAvailability();
   const { user } = useAuth();
   const navigate = useNavigate();
 
