@@ -15,6 +15,8 @@ import { RepairForm } from "@/components/repairs/RepairForm";
 import { RepairImportDialog } from "@/components/repairs/RepairImportDialog";
 import { RepairDialog } from "@/components/repairs/RepairDialog";
 import { RepairPartsAnalytics } from "@/components/repairs/RepairPartsAnalytics";
+import { RepairStageDistribution } from "@/components/repairs/RepairStageDistribution";
+import { REPAIR_STAGES } from "@/hooks/useRepairs";
 import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange } from "lucide-react";
 import { exportRepairsToExcel } from "@/utils/repairExportHelpers";
 import { toast } from "sonner";
@@ -31,6 +33,7 @@ export default function Repairs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [issueFilter, setIssueFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
   const dateFilter = useDateFilter("current_month");
 
@@ -56,9 +59,10 @@ export default function Repairs() {
     
     const matchesStatus = statusFilter === "all" || repair.payment_status === statusFilter;
     const matchesIssue = issueFilter === "all" || repair.issue_type === issueFilter;
+    const matchesStage = stageFilter === "all" || repair.repair_stage === stageFilter;
     const matchesDate = dateFilter.inRange(repair.created_at);
 
-    return matchesSearch && matchesStatus && matchesIssue && matchesDate;
+    return matchesSearch && matchesStatus && matchesIssue && matchesStage && matchesDate;
   });
 
   // Calculate stats (filtered by selected period)
@@ -226,6 +230,30 @@ export default function Repairs() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={stageFilter} onValueChange={setStageFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Repair Stage" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              {REPAIR_STAGES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Stage distribution strip */}
+        <div className="mb-4">
+          <RepairStageDistribution
+            repairs={repairs.filter((r) => dateFilter.inRange(r.created_at))}
+            activeStage={stageFilter === "all" ? undefined : stageFilter}
+            onStageClick={(s) =>
+              setStageFilter((prev) => (prev === s ? "all" : s))
+            }
+          />
         </div>
 
         {/* Parts cost vs revenue analytics */}

@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Repair, ISSUE_TYPES } from "@/hooks/useRepairs";
+import { RepairStageBadge } from "./RepairStageBadge";
 import { format } from "date-fns";
 import { Phone, Calendar, Wrench, IndianRupee, Clock, User, Globe } from "lucide-react";
 
@@ -39,6 +40,7 @@ export function RepairCard({ repair, onClick }: RepairCardProps) {
                     {repair.repair_number}
                   </Badge>
                 )}
+                <RepairStageBadge stage={repair.repair_stage} />
                 <Badge className={paymentConfig.className}>
                   {paymentConfig.label}
                 </Badge>
