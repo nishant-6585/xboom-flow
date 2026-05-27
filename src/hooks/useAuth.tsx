@@ -707,6 +707,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("xboom_session_sync");
     sessionStorage.removeItem("step_up_required");
     sessionStorage.removeItem("last_mfa_verified_at");
+    sessionStorage.removeItem("xboom_session_row_id");
     sessionStorage.clear();
 
     await supabase.auth.signOut();
