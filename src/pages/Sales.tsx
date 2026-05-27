@@ -35,6 +35,8 @@ import { CompaniesPanel } from "@/components/crm/CompaniesPanel";
 import { UntouchedLeadsPanel } from "@/components/sales/UntouchedLeadsPanel";
 import { UntouchedLoginAlert } from "@/components/sales/UntouchedLoginAlert";
 import { MyLeadsPanel } from "@/components/sales/MyLeadsPanel";
+import { TeamAvailabilityPanel } from "@/components/sales/TeamAvailabilityPanel";
+import { CalendarOff } from "lucide-react";
 
 
 export default function Sales() {
@@ -42,6 +44,7 @@ export default function Sales() {
   const [searchParams] = useSearchParams();
   const isManager = role === 'admin' || role === 'supply_chain';
   const canAccessEnquiries = role === 'admin' || role === 'sales_manager';
+  const canManageAvailability = role === 'admin' || role === 'sales_manager';
   const [assistantOpen, setAssistantOpen] = useState(false);
   const now = new Date();
   const [dashboardDateRange, setDashboardDateRange] = useState({
@@ -160,6 +163,12 @@ export default function Sales() {
                   <BarChart3 className="w-4 h-4" />
                   Source Tracker
                 </TabsTrigger>
+                {canManageAvailability && (
+                  <TabsTrigger value="availability" className={`${triggerBase} data-[state=active]:bg-amber-600 data-[state=active]:text-white`}>
+                    <CalendarOff className="w-4 h-4" />
+                    Availability
+                  </TabsTrigger>
+                )}
               </TabsList>
             </div>
 
@@ -327,6 +336,12 @@ export default function Sales() {
           <TabsContent value="category_funnel" className="space-y-6">
             <CategoryFunnelDashboard />
           </TabsContent>
+
+          {canManageAvailability && (
+            <TabsContent value="availability" className="space-y-6">
+              <TeamAvailabilityPanel />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 
