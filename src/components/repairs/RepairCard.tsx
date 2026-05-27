@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Repair, ISSUE_TYPES } from "@/hooks/useRepairs";
 import { format } from "date-fns";
-import { Phone, Calendar, Wrench, IndianRupee, Clock, User } from "lucide-react";
+import { Phone, Calendar, Wrench, IndianRupee, Clock, User, Globe } from "lucide-react";
 
 interface RepairCardProps {
   repair: Repair;
@@ -18,6 +18,10 @@ const paymentStatusConfig: Record<string, { label: string; className: string }> 
 export function RepairCard({ repair, onClick }: RepairCardProps) {
   const issueTypeLabel = ISSUE_TYPES.find(t => t.value === repair.issue_type)?.label || repair.issue_type;
   const paymentConfig = paymentStatusConfig[repair.payment_status] || paymentStatusConfig.pending;
+  const isWebsite = repair.source_lead_id !== null;
+  const creatorLabel = isWebsite
+    ? "Website"
+    : repair.created_by_name || "Unknown";
 
   return (
     <Card 
@@ -37,6 +41,13 @@ export function RepairCard({ repair, onClick }: RepairCardProps) {
                 )}
                 <Badge className={paymentConfig.className}>
                   {paymentConfig.label}
+                </Badge>
+                <Badge
+                  variant={isWebsite ? "default" : "secondary"}
+                  className={`text-xs flex items-center gap-1 ${isWebsite ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-100' : ''}`}
+                >
+                  {isWebsite ? <Globe className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                  {creatorLabel}
                 </Badge>
               </div>
               <h3 className="font-semibold text-lg mt-1">{repair.customer_name}</h3>
