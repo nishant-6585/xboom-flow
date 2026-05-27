@@ -14616,6 +14616,7 @@ export type Database = {
         Returns: undefined
       }
       infer_industry_from_name: { Args: { p_name: string }; Returns: string }
+      invoke_send_order_sms_msg91: { Args: never; Returns: number }
       is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_reporting_manager: {
         Args: { _employee_id: string; _manager_id: string }
