@@ -7,6 +7,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Repair, RepairFormData, ISSUE_TYPES, PAYMENT_STATUSES, isInventoryLinkedComponent } from "@/hooks/useRepairs";
 import { RepairForm } from "./RepairForm";
+import { RepairStageBadge } from "./RepairStageBadge";
+import { RepairStageActionPanel } from "./RepairStageActionPanel";
+import { RepairStageHistory } from "./RepairStageHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { Edit2, Trash2, Phone, Calendar, Clock, User, Wrench, IndianRupee, Link2 } from "lucide-react";
@@ -90,6 +93,7 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <DialogTitle>{repair.repair_number || "Repair Details"}</DialogTitle>
+                <RepairStageBadge stage={repair.repair_stage} />
                 <Badge className={paymentConfig.className}>{paymentConfig.label}</Badge>
               </div>
               <div className="flex gap-2">
@@ -109,6 +113,9 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
 
           <ScrollArea className="max-h-[calc(90vh-120px)]">
             <div className="space-y-6 pr-4">
+              {/* Stage state machine controls */}
+              <RepairStageActionPanel repair={repair} />
+
               {/* Customer Info */}
               <div>
                 <h3 className="font-semibold text-lg mb-3">Customer Information</h3>
@@ -344,6 +351,13 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                   </div>
                 </>
               )}
+
+              {/* Stage audit trail */}
+              <Separator />
+              <div>
+                <h3 className="font-semibold text-lg mb-3">Stage History</h3>
+                <RepairStageHistory repairId={repair.id} />
+              </div>
             </div>
           </ScrollArea>
         </DialogContent>
