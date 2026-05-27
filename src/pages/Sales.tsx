@@ -40,11 +40,14 @@ import { CalendarOff } from "lucide-react";
 
 
 export default function Sales() {
-  const { role } = useAuth();
+  const { role, roles } = useAuth();
   const [searchParams] = useSearchParams();
   const isManager = role === 'admin' || role === 'supply_chain';
   const canAccessEnquiries = role === 'admin' || role === 'sales_manager';
-  const canManageAvailability = role === 'admin' || role === 'sales_manager';
+  const canManageAvailability =
+    (roles ?? []).some((r) => r === 'admin' || r === 'sales_manager') ||
+    role === 'admin' ||
+    role === 'sales_manager';
   const [assistantOpen, setAssistantOpen] = useState(false);
   const now = new Date();
   const [dashboardDateRange, setDashboardDateRange] = useState({
