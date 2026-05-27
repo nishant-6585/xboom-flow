@@ -26,6 +26,7 @@ import {
   useUnifiedLeadCounts,
 } from "@/hooks/useUnifiedLeadFeed";
 import { cn } from "@/lib/utils";
+import { useTeamAvailability } from "@/hooks/useTeamAvailability";
 
 const PAGE_SIZES = [50, 100, 250] as const;
 
@@ -45,6 +46,7 @@ function lastSeenKey(userId: string | undefined) {
 }
 
 export function UnifiedLeadInbox() {
+  const { currentlyUnavailable } = useTeamAvailability();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -288,7 +290,14 @@ export function UnifiedLeadInbox() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs">{lead.sales_person_name || (lead.is_assigned ? "Assigned" : "—")}</span>
+                      <span className="text-xs">
+                        {lead.sales_person_name || (lead.is_assigned ? "Assigned" : "—")}
+                        {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
+                          <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                            (out today)
+                          </span>
+                        )}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">
