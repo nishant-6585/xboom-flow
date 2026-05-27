@@ -204,8 +204,8 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess, ex
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6">
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
             {isEditMode ? 'Edit & Resubmit Payment' : 'Upload Payment Screenshots'}
@@ -217,7 +217,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess, ex
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto px-6 flex-1">
           {isEditMode && existingRecord?.rejection_reason && (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
               <p className="font-medium text-destructive">Finance rejection reason</p>
@@ -421,7 +421,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess, ex
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 pb-6 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
