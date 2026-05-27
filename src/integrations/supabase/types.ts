@@ -11683,6 +11683,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_phone_suppression: {
+        Row: {
+          created_at: string
+          failure_count: number
+          first_failure_at: string
+          id: string
+          last_failure_at: string
+          last_request_id: string | null
+          notes: string | null
+          phone_e164: string
+          reason: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          failure_count?: number
+          first_failure_at?: string
+          id?: string
+          last_failure_at?: string
+          last_request_id?: string | null
+          notes?: string | null
+          phone_e164: string
+          reason: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          failure_count?: number
+          first_failure_at?: string
+          id?: string
+          last_failure_at?: string
+          last_request_id?: string | null
+          notes?: string | null
+          phone_e164?: string
+          reason?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       spare_parts_inventory: {
         Row: {
           category: string | null
