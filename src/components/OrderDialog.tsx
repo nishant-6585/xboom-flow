@@ -172,30 +172,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const isWebsiteOrder = (order as any)?.source === 'website';
   const wooOrderId = (order as any)?.external_id ? String((order as any).external_id) : null;
   const [wooStatus, setWooStatus] = useState<string | null>(null);
-  // Map Woo status -> internal status (must mirror supabase/functions/_shared/woo-mirror.ts)
-  const mapWooToInternal = (s: string | null): OrderStatus | null => {
-    switch ((s || '').toLowerCase()) {
-      case 'processing': return 'payment_received';
-      case 'shipped': return 'in_transit';
-      case 'completed':
-      case 'delivered': return 'delivery_done';
-      case 'cancelled':
-      case 'refunded': return 'cancelled';
-      case 'on-hold':
-      case 'pending': return 'po_received';
-      default: return null;
-    }
-  };
-  // For website orders: detect mismatch between internal status and Woo status.
-  // When in sync we collapse to a single Woo status control; when out of sync
-  // we expose BOTH so staff can see and reconcile the discrepancy.
-  const wooMappedInternal = isWebsiteOrder ? mapWooToInternal(wooStatus) : null;
-  const statusOutOfSync =
-    isWebsiteOrder &&
-    wooStatus != null &&
-    wooMappedInternal != null &&
-    wooMappedInternal !== order?.status;
-  const showInternalStatusField = !isWebsiteOrder || statusOutOfSync;
   // Ref to the Tracking Information card — used to auto-scroll the user there
   // when they try to mark a website order as Shipped without tracking.
   const trackingSectionRef = useRef<HTMLDivElement>(null);
@@ -928,7 +904,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
             {/* Quick Status Update */}
             <div className="p-4 bg-muted/30 rounded-lg border">
-              <div className={cn("grid grid-cols-1 gap-4", showInternalStatusField && "md:grid-cols-2") }>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-sm font-medium">
                     <CalendarIcon className="h-4 w-4" />
@@ -964,7 +940,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     </p>
                   )}
                 </div>
-                {showInternalStatusField && (
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-sm font-medium">
                     <Package className="h-4 w-4" />
@@ -987,20 +962,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     </div>
                   )}
                 </div>
-                )}
               </div>
-              {statusOutOfSync && (
-                <div className="mt-3 p-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                  <div className="text-xs text-amber-800 dark:text-amber-300">
-                    <p className="font-medium">Order Status and WooCommerce Status are out of sync.</p>
-                    <p className="mt-0.5">
-                      Internal status maps to <span className="font-semibold">{wooMappedInternal}</span> but xboom flow currently shows <span className="font-semibold">{order.status}</span>. Update either status below to reconcile — they will auto-collapse once aligned.
-                    </p>
-                  </div>
-                </div>
-              )}
-              {showInternalStatusField && status === 'cancelled' && canEditSalesFields && (
+              {status === 'cancelled' && canEditSalesFields && (
                 <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
                   <h5 className="font-medium text-red-800 dark:text-red-300 flex items-center gap-2">
                     <XCircle className="h-4 w-4" />
