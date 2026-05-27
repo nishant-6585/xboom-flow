@@ -465,6 +465,22 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit & Resubmit Dialog */}
+      {editRecord && (
+        <PaymentUploadDialog
+          orderId={orderId}
+          open={!!editRecord}
+          onOpenChange={(open) => {
+            if (!open) setEditRecord(null);
+          }}
+          existingRecord={editRecord}
+          onSuccess={() => {
+            setEditRecord(null);
+            onPaymentApproved?.();
+          }}
+        />
+      )}
     </>
   );
 }
