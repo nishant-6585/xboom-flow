@@ -81,7 +81,8 @@ export function extractTrackingFromWoo(payload: any): {
 }
 
 // Only orders dated this day or later may land in the internal `orders` table.
-export const WINDOW_START_ISO = "2026-04-30";
+// HARD FLOOR: never backfill or mirror website orders dated before 2026-04-27.
+export const WINDOW_START_ISO = "2026-04-27";
 
 // System "website" sales user (admin) — required by NOT NULL FK columns.
 const SYSTEM_USER_ID = "a8050cc3-7d17-44ac-a083-d8023d505331";
