@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { PaymentRecord, usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Check, X, Clock, Image, Loader2, ExternalLink, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Check, X, Clock, Image, Loader2, ExternalLink, ChevronLeft, ChevronRight, Trash2, Pencil } from 'lucide-react';
 import { PaymentModeBadge } from '@/components/PaymentModeBadge';
 import { PAYMENT_MODE_CATEGORIES, getPaymentModeCategory } from '@/lib/paymentModes';
 import { cn } from '@/lib/utils';
+import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 
 interface PaymentRecordsListProps {
   orderId: string;
@@ -45,6 +46,7 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
   const [selectedRecord, setSelectedRecord] = useState<PaymentRecord | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editRecord, setEditRecord] = useState<PaymentRecord | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
@@ -107,10 +109,24 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
   };
 
   // Check if current user can delete this record
-  // Sales can delete their own pending records, Admin can delete any record
+  // Sales can delete their own pending or rejected records, Admin can delete any record
   const canDeleteRecord = (record: PaymentRecord) => {
     if (isAdmin) return true;
-    return isSales && record.submitted_by === user?.id && record.status === 'pending';
+    return (
+      isSales &&
+      record.submitted_by === user?.id &&
+      (record.status === 'pending' || record.status === 'rejected')
+    );
+  };
+
+  // Sales can edit & resubmit their own rejected records. Admin can edit any record.
+  const canEditRecord = (record: PaymentRecord) => {
+    if (isAdmin) return true;
+    return (
+      isSales &&
+      record.submitted_by === user?.id &&
+      record.status === 'rejected'
+    );
   };
 
   if (loading) {
@@ -265,7 +281,20 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* Delete button for sales users on their own pending records */}
+                    {/* Edit & resubmit button for rejected records */}
+                    {canEditRecord(record) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditRecord(record)}
+                        disabled={actionLoading === record.id}
+                        title="Edit and resubmit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+
+                    {/* Delete button for own pending/rejected records (sales) or any (admin) */}
                     {canDeleteRecord(record) && (
                       <Button
                         size="sm"
@@ -436,6 +465,22 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit & Resubmit Dialog */}
+      {editRecord && (
+        <PaymentUploadDialog
+          orderId={orderId}
+          open={!!editRecord}
+          onOpenChange={(open) => {
+            if (!open) setEditRecord(null);
+          }}
+          existingRecord={editRecord}
+          onSuccess={() => {
+            setEditRecord(null);
+            onPaymentApproved?.();
+          }}
+        />
+      )}
     </>
   );
 }

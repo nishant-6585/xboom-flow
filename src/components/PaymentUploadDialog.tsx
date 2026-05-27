@@ -1,11 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { usePaymentRecords } from '@/hooks/usePaymentRecords';
+import { usePaymentRecords, type PaymentRecord } from '@/hooks/usePaymentRecords';
 import { Loader2, Upload, ImageIcon, X, Plus } from 'lucide-react';
 import {
   PAYMENT_MODES,
@@ -30,10 +30,13 @@ interface PaymentUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** When provided, the dialog operates in edit/resubmit mode for this record. */
+  existingRecord?: PaymentRecord | null;
 }
 
-export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: PaymentUploadDialogProps) {
-  const { uploadScreenshot, submitPayment } = usePaymentRecords();
+export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess, existingRecord }: PaymentUploadDialogProps) {
+  const { uploadScreenshot, submitPayment, updatePaymentRecord } = usePaymentRecords();
+  const isEditMode = !!existingRecord;
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
@@ -43,7 +46,37 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
   const minDateIso = fmtDate(subDays(new Date(), 30), 'yyyy-MM-dd');
   const [paymentDate, setPaymentDate] = useState(todayIso);
   const [files, setFiles] = useState<FileWithPreview[]>([]);
+  // Existing screenshots to keep (storage paths). Edit mode only.
+  const [keptScreenshots, setKeptScreenshots] = useState<{ path: string; url: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // When opening in edit mode (or when the record changes), seed the form
+  useEffect(() => {
+    if (!open) return;
+    if (existingRecord) {
+      setAmount(String(existingRecord.amount ?? ''));
+      setNotes(existingRecord.notes ?? '');
+      setPaymentMode((existingRecord.payment_mode as PaymentMode) ?? 'upi');
+      setReferenceNumber(existingRecord.reference_number ?? '');
+      setPaymentDate(existingRecord.payment_date ?? todayIso);
+      setFiles([]);
+      const paths = (existingRecord.screenshot_url || '')
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      const urls = existingRecord.screenshot_signed_urls ?? [];
+      setKeptScreenshots(paths.map((path, idx) => ({ path, url: urls[idx] || '' })));
+    } else {
+      setAmount('');
+      setNotes('');
+      setPaymentMode('upi');
+      setReferenceNumber('');
+      setPaymentDate(todayIso);
+      setFiles([]);
+      setKeptScreenshots([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existingRecord?.id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -77,11 +110,16 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
     }
   };
 
+  const handleRemoveKeptScreenshot = (path: string) => {
+    setKeptScreenshots((prev) => prev.filter((s) => s.path !== path));
+  };
+
   const handleSubmit = async () => {
     if (!amount || !paymentMode) return;
 
     const screenshotRequired = isScreenshotRequired(paymentMode);
-    if (screenshotRequired && files.length === 0) {
+    const totalScreenshots = files.length + keptScreenshots.length;
+    if (screenshotRequired && totalScreenshots === 0) {
       toast.error('Please upload a screenshot for this payment mode.');
       return;
     }
@@ -103,25 +141,38 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
         }
       }
 
-      if (screenshotRequired && uploadedUrls.length === 0) {
+      if (screenshotRequired && uploadedUrls.length + keptScreenshots.length === 0) {
         setLoading(false);
         return;
       }
 
-      // Join URLs with comma for storage; null when no screenshots were attached
-      const screenshotUrlsString = uploadedUrls.length > 0 ? uploadedUrls.join(',') : null;
+      // Combine kept + newly uploaded screenshot paths
+      const allPaths = [...keptScreenshots.map((s) => s.path), ...uploadedUrls];
+      const screenshotUrlsString = allPaths.length > 0 ? allPaths.join(',') : null;
 
-      const success = await submitPayment(
-        orderId,
-        parseFloat(amount),
-        screenshotUrlsString,
-        notes,
-        {
-          payment_mode: paymentMode,
-          reference_number: referenceNumber,
-          payment_date: paymentDate || null,
-        },
-      );
+      const success = isEditMode && existingRecord
+        ? await updatePaymentRecord(
+            existingRecord.id,
+            parseFloat(amount),
+            screenshotUrlsString,
+            notes,
+            {
+              payment_mode: paymentMode,
+              reference_number: referenceNumber,
+              payment_date: paymentDate || null,
+            },
+          )
+        : await submitPayment(
+            orderId,
+            parseFloat(amount),
+            screenshotUrlsString,
+            notes,
+            {
+              payment_mode: paymentMode,
+              reference_number: referenceNumber,
+              payment_date: paymentDate || null,
+            },
+          );
       if (success) {
         setAmount('');
         setNotes('');
@@ -129,6 +180,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
         setPaymentMode('upi');
         setPaymentDate(todayIso);
         handleClearAll();
+        setKeptScreenshots([]);
         onOpenChange(false);
         onSuccess?.();
       }
@@ -141,12 +193,14 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
   const isCash = paymentMode === 'cash';
   const minNotes = getNotesMinLength(paymentMode);
   const notesTooShort = minNotes > 0 && notes.trim().length < minNotes;
-  const missingRequiredScreenshot = screenshotRequired && files.length === 0;
+  const missingRequiredScreenshot =
+    screenshotRequired && files.length + keptScreenshots.length === 0;
+  const totalScreenshotCount = files.length + keptScreenshots.length;
   const screenshotLabel = isCash
-    ? `Receipt Voucher (optional) (${files.length} selected)`
+    ? `Receipt Voucher (optional) (${totalScreenshotCount} selected)`
     : screenshotRequired
-      ? `Payment Screenshots * (${files.length} selected)`
-      : `Payment Screenshots (optional) (${files.length} selected)`;
+      ? `Payment Screenshots * (${totalScreenshotCount} selected)`
+      : `Payment Screenshots (optional) (${totalScreenshotCount} selected)`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,14 +208,25 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Upload Payment Screenshots
+            {isEditMode ? 'Edit & Resubmit Payment' : 'Upload Payment Screenshots'}
           </DialogTitle>
           <DialogDescription>
-            Upload proof of payment for admin approval (multiple files allowed)
+            {isEditMode
+              ? 'Update the details and resubmit this payment for approval.'
+              : 'Upload proof of payment for admin approval (multiple files allowed)'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {isEditMode && existingRecord?.rejection_reason && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
+              <p className="font-medium text-destructive">Finance rejection reason</p>
+              <p className="text-destructive/90 mt-1 whitespace-pre-wrap">
+                {existingRecord.rejection_reason}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="amount">Payment Amount (₹) *</Label>
             <Input
@@ -233,10 +298,38 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
                 </Button>
               )}
             </Label>
-            
-            {/* File previews grid */}
-            {files.length > 0 && (
+
+            {/* Existing kept screenshots (edit mode) + new file previews grid */}
+            {(keptScreenshots.length > 0 || files.length > 0) && (
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                {keptScreenshots.map((s) => (
+                  <div key={`kept-${s.path}`} className="relative group">
+                    {s.url ? (
+                      <img
+                        src={s.url}
+                        alt="Existing payment screenshot"
+                        className="w-full h-24 object-cover rounded-lg border border-border bg-muted"
+                      />
+                    ) : (
+                      <div className="w-full h-24 rounded-lg border border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
+                        Existing file
+                      </div>
+                    )}
+                    <span className="absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-background/80 border border-border">
+                      Existing
+                    </span>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRemoveKeptScreenshot(s.path)}
+                      disabled={loading}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
                 {files.map((fileItem) => (
                   <div key={fileItem.id} className="relative group">
                     <img
@@ -265,7 +358,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
               onClick={() => fileInputRef.current?.click()}
             >
               <div className="flex items-center justify-center gap-2">
-                {files.length > 0 ? (
+                {totalScreenshotCount > 0 ? (
                   <>
                     <Plus className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">Add more screenshots</span>
@@ -343,7 +436,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
             }
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Submit for Approval
+            {isEditMode ? 'Resubmit for Approval' : 'Submit for Approval'}
           </Button>
         </DialogFooter>
       </DialogContent>
