@@ -172,6 +172,30 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const isWebsiteOrder = (order as any)?.source === 'website';
   const wooOrderId = (order as any)?.external_id ? String((order as any).external_id) : null;
   const [wooStatus, setWooStatus] = useState<string | null>(null);
+  // Map Woo status -> internal status (must mirror supabase/functions/_shared/woo-mirror.ts)
+  const mapWooToInternal = (s: string | null): OrderStatus | null => {
+    switch ((s || '').toLowerCase()) {
+      case 'processing': return 'payment_received';
+      case 'shipped': return 'in_transit';
+      case 'completed':
+      case 'delivered': return 'delivery_done';
+      case 'cancelled':
+      case 'refunded': return 'cancelled';
+      case 'on-hold':
+      case 'pending': return 'po_received';
+      default: return null;
+    }
+  };
+  // For website orders: detect mismatch between internal status and Woo status.
+  // When in sync we collapse to a single Woo status control; when out of sync
+  // we expose BOTH so staff can see and reconcile the discrepancy.
+  const wooMappedInternal = isWebsiteOrder ? mapWooToInternal(wooStatus) : null;
+  const statusOutOfSync =
+    isWebsiteOrder &&
+    wooStatus != null &&
+    wooMappedInternal != null &&
+    wooMappedInternal !== order?.status;
+  const showInternalStatusField = !isWebsiteOrder || statusOutOfSync;
   // Ref to the Tracking Information card — used to auto-scroll the user there
   // when they try to mark a website order as Shipped without tracking.
   const trackingSectionRef = useRef<HTMLDivElement>(null);
