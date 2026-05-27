@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { mirrorIntoInternalOrders } from "../_shared/woo-mirror.ts";
+import { mirrorIntoInternalOrders, WINDOW_START_ISO } from "../_shared/woo-mirror.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,7 +69,11 @@ Deno.serve(async (req) => {
       if (!isNaN(d) && d > 0 && d <= 30) days = d;
     }
 
-    const after = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    // Compute window start, then clamp to the hard floor (WINDOW_START_ISO).
+    // We must NEVER backfill website orders dated before this date.
+    const requestedAfter = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const hardFloor = new Date(`${WINDOW_START_ISO}T00:00:00.000Z`);
+    const after = (requestedAfter < hardFloor ? hardFloor : requestedAfter).toISOString();
 
     // Page through Woo orders
     const base = wcUrl.replace(/\/$/, "");
