@@ -10714,10 +10714,56 @@ export type Database = {
           },
         ]
       }
+      repair_stage_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          changed_by_name: string | null
+          from_stage: Database["public"]["Enums"]["repair_stage"] | null
+          id: string
+          notes: string | null
+          repair_id: string
+          to_stage: Database["public"]["Enums"]["repair_stage"]
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          from_stage?: Database["public"]["Enums"]["repair_stage"] | null
+          id?: string
+          notes?: string | null
+          repair_id: string
+          to_stage: Database["public"]["Enums"]["repair_stage"]
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          from_stage?: Database["public"]["Enums"]["repair_stage"] | null
+          id?: string
+          notes?: string | null
+          repair_id?: string
+          to_stage?: Database["public"]["Enums"]["repair_stage"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repair_stage_history_repair_id_fkey"
+            columns: ["repair_id"]
+            isOneToOne: false
+            referencedRelation: "repairs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       repairs: {
         Row: {
           advance_amount: number | null
+          assigned_technician_id: string | null
+          assigned_technician_name: string | null
           balance_amount: number | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           committed_date: string | null
           components_replaced: Json | null
           contact_no: string
@@ -10728,18 +10774,23 @@ export type Database = {
           date_completed: string | null
           date_of_receipt: string
           days_to_complete: number | null
+          duplicate_source_lead_ids: Json
           email: string | null
           id: string
           inspection_charges: number | null
           intake_payload: Json | null
           issue_details: string | null
           issue_type: Database["public"]["Enums"]["repair_issue_type"]
+          item_received_at: string | null
           model_name: string
           notes: string | null
           payment_status: Database["public"]["Enums"]["repair_payment_status"]
           profit: number | null
+          quote_accepted_at: string | null
+          quote_sent_at: string | null
           repair_cost_charged: number | null
           repair_number: string | null
+          repair_stage: Database["public"]["Enums"]["repair_stage"]
           source_lead_id: number | null
           total_component_cost: number | null
           total_quote_amount: number | null
@@ -10747,7 +10798,12 @@ export type Database = {
         }
         Insert: {
           advance_amount?: number | null
+          assigned_technician_id?: string | null
+          assigned_technician_name?: string | null
           balance_amount?: number | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           committed_date?: string | null
           components_replaced?: Json | null
           contact_no: string
@@ -10758,18 +10814,23 @@ export type Database = {
           date_completed?: string | null
           date_of_receipt?: string
           days_to_complete?: number | null
+          duplicate_source_lead_ids?: Json
           email?: string | null
           id?: string
           inspection_charges?: number | null
           intake_payload?: Json | null
           issue_details?: string | null
           issue_type?: Database["public"]["Enums"]["repair_issue_type"]
+          item_received_at?: string | null
           model_name: string
           notes?: string | null
           payment_status?: Database["public"]["Enums"]["repair_payment_status"]
           profit?: number | null
+          quote_accepted_at?: string | null
+          quote_sent_at?: string | null
           repair_cost_charged?: number | null
           repair_number?: string | null
+          repair_stage?: Database["public"]["Enums"]["repair_stage"]
           source_lead_id?: number | null
           total_component_cost?: number | null
           total_quote_amount?: number | null
@@ -10777,7 +10838,12 @@ export type Database = {
         }
         Update: {
           advance_amount?: number | null
+          assigned_technician_id?: string | null
+          assigned_technician_name?: string | null
           balance_amount?: number | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           committed_date?: string | null
           components_replaced?: Json | null
           contact_no?: string
@@ -10788,18 +10854,23 @@ export type Database = {
           date_completed?: string | null
           date_of_receipt?: string
           days_to_complete?: number | null
+          duplicate_source_lead_ids?: Json
           email?: string | null
           id?: string
           inspection_charges?: number | null
           intake_payload?: Json | null
           issue_details?: string | null
           issue_type?: Database["public"]["Enums"]["repair_issue_type"]
+          item_received_at?: string | null
           model_name?: string
           notes?: string | null
           payment_status?: Database["public"]["Enums"]["repair_payment_status"]
           profit?: number | null
+          quote_accepted_at?: string | null
+          quote_sent_at?: string | null
           repair_cost_charged?: number | null
           repair_number?: string | null
+          repair_stage?: Database["public"]["Enums"]["repair_stage"]
           source_lead_id?: number | null
           total_component_cost?: number | null
           total_quote_amount?: number | null
@@ -14665,6 +14736,13 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_valid_repair_stage_transition: {
+        Args: {
+          _from: Database["public"]["Enums"]["repair_stage"]
+          _to: Database["public"]["Enums"]["repair_stage"]
+        }
+        Returns: boolean
+      }
       lead_company_coverage: {
         Args: never
         Returns: {
@@ -14945,6 +15023,60 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      update_repair_stage: {
+        Args: {
+          _cancellation_reason?: string
+          _new_stage: Database["public"]["Enums"]["repair_stage"]
+          _notes?: string
+          _repair_id: string
+        }
+        Returns: {
+          advance_amount: number | null
+          assigned_technician_id: string | null
+          assigned_technician_name: string | null
+          balance_amount: number | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          committed_date: string | null
+          components_replaced: Json | null
+          contact_no: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          customer_name: string
+          date_completed: string | null
+          date_of_receipt: string
+          days_to_complete: number | null
+          duplicate_source_lead_ids: Json
+          email: string | null
+          id: string
+          inspection_charges: number | null
+          intake_payload: Json | null
+          issue_details: string | null
+          issue_type: Database["public"]["Enums"]["repair_issue_type"]
+          item_received_at: string | null
+          model_name: string
+          notes: string | null
+          payment_status: Database["public"]["Enums"]["repair_payment_status"]
+          profit: number | null
+          quote_accepted_at: string | null
+          quote_sent_at: string | null
+          repair_cost_charged: number | null
+          repair_number: string | null
+          repair_stage: Database["public"]["Enums"]["repair_stage"]
+          source_lead_id: number | null
+          total_component_cost: number | null
+          total_quote_amount: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "repairs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       update_woo_lead_status: {
         Args: { p_new_status: string; p_order_id: string }
         Returns: {
@@ -15137,6 +15269,16 @@ export type Database = {
         | "crash_damage"
         | "other"
       repair_payment_status: "pending" | "partial" | "paid"
+      repair_stage:
+        | "pending_receipt"
+        | "received"
+        | "diagnosing"
+        | "quoted"
+        | "in_repair"
+        | "ready_for_pickup"
+        | "delivered"
+        | "cancelled"
+        | "returned_unrepaired"
       resume_access_failure_reason:
         | "missing_path"
         | "unsupported_format"
@@ -15468,6 +15610,17 @@ export const Constants = {
         "other",
       ],
       repair_payment_status: ["pending", "partial", "paid"],
+      repair_stage: [
+        "pending_receipt",
+        "received",
+        "diagnosing",
+        "quoted",
+        "in_repair",
+        "ready_for_pickup",
+        "delivered",
+        "cancelled",
+        "returned_unrepaired",
+      ],
       resume_access_failure_reason: [
         "missing_path",
         "unsupported_format",
