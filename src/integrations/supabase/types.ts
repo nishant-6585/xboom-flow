@@ -11460,6 +11460,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_unavailability: {
+        Row: {
+          cancelled_at: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          ends_at: string
+          id: string
+          notes: string | null
+          reason: Database["public"]["Enums"]["unavailability_reason"]
+          starts_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          ends_at: string
+          id?: string
+          notes?: string | null
+          reason?: Database["public"]["Enums"]["unavailability_reason"]
+          starts_at: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          ends_at?: string
+          id?: string
+          notes?: string | null
+          reason?: Database["public"]["Enums"]["unavailability_reason"]
+          starts_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       security_alerts: {
         Row: {
           alert_type: string
@@ -14230,6 +14272,13 @@ export type Database = {
         Returns: undefined
       }
       auto_assign_woo_leads: { Args: never; Returns: number }
+      available_website_lead_assignees: {
+        Args: never
+        Returns: {
+          uid: string
+          uname: string
+        }[]
+      }
       bulk_delete_companies: {
         Args: { _ids: string[]; _unlink_first?: boolean }
         Returns: Json
@@ -14736,6 +14785,10 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_user_available_on: {
+        Args: { _on?: string; _user_id: string }
+        Returns: boolean
+      }
       is_valid_repair_stage_transition: {
         Args: {
           _from: Database["public"]["Enums"]["repair_stage"]
@@ -15343,6 +15396,13 @@ export type Database = {
       training_payment_status: "pending" | "partial" | "paid"
       training_status: "requested" | "pending" | "done"
       training_type: "demo" | "training"
+      unavailability_reason:
+        | "vacation"
+        | "sick_leave"
+        | "training"
+        | "official_travel"
+        | "personal"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -15692,6 +15752,14 @@ export const Constants = {
       training_payment_status: ["pending", "partial", "paid"],
       training_status: ["requested", "pending", "done"],
       training_type: ["demo", "training"],
+      unavailability_reason: [
+        "vacation",
+        "sick_leave",
+        "training",
+        "official_travel",
+        "personal",
+        "other",
+      ],
     },
   },
 } as const
