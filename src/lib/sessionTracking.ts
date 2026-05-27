@@ -38,7 +38,12 @@ export async function recordSession(userId: string): Promise<void> {
   try {
     const { browser, os, device } = parseUserAgent();
 
-    // Mark all previous sessions as not current
+    // Demote any prior "current" rows for this user to non-current — but DO NOT
+    // revoke them (is_active stays true). This allows the same user to stay
+    // signed in on multiple devices/tabs concurrently; only the newest login
+    // owns the `is_current` flag (used purely for the "current session" badge
+    // in Security Settings). Other devices keep their active rows so their
+    // session validator does not force-logout them.
     await supabase
       .from("user_sessions")
       .update({ is_current: false })
@@ -46,17 +51,42 @@ export async function recordSession(userId: string): Promise<void> {
       .eq("is_current", true);
 
     // Insert new session
-    await supabase.from("user_sessions").insert({
-      user_id: userId,
-      browser,
-      os,
-      device_info: device,
-      is_current: true,
-      is_active: true,
-      last_active_at: new Date().toISOString(),
-    });
+    const { data: inserted } = await supabase
+      .from("user_sessions")
+      .insert({
+        user_id: userId,
+        browser,
+        os,
+        device_info: device,
+        is_current: true,
+        is_active: true,
+        last_active_at: new Date().toISOString(),
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (inserted?.id && typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("xboom_session_row_id", inserted.id);
+      } catch {}
+    }
   } catch (e) {
     console.warn("Failed to record session:", e);
+  }
+}
+
+/**
+ * Returns the session_row_id this tab owns (set by recordSession on fresh login).
+ * Used by useSessionPolicy to validate/refresh ONLY this tab's row instead of
+ * relying on the user-wide `is_current` flag, which can be flipped by other
+ * devices logging in.
+ */
+export function getCurrentSessionRowId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem("xboom_session_row_id");
+  } catch {
+    return null;
   }
 }
 
