@@ -305,11 +305,58 @@ export function usePaymentRecords(orderId?: string) {
     }
   };
 
+  const updatePaymentRecord = async (
+    recordId: string,
+    amount: number,
+    screenshotUrl: string | null,
+    notes?: string,
+    extra?: {
+      payment_mode?: PaymentMode | null;
+      reference_number?: string | null;
+      payment_date?: string | null;
+    },
+  ): Promise<boolean> => {
+    if (!user) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('payment_records')
+        .update({
+          amount,
+          screenshot_url: screenshotUrl && screenshotUrl.length > 0 ? screenshotUrl : null,
+          notes: notes || null,
+          payment_mode: extra?.payment_mode ?? null,
+          reference_number: extra?.reference_number?.trim() ? extra.reference_number.trim() : null,
+          payment_date: extra?.payment_date ?? null,
+          // Resubmit: reset to pending and clear prior review
+          status: 'pending',
+          rejection_reason: null,
+          reviewed_by: null,
+          reviewed_at: null,
+        })
+        .eq('id', recordId);
+
+      if (error) throw error;
+
+      toast.success('Payment resubmitted for approval');
+      await fetchRecords();
+      return true;
+    } catch (error: any) {
+      console.error('Error updating payment record:', error);
+      toast.error(error.message || 'Failed to update payment record');
+      return false;
+    }
+  };
+
   return {
     records,
     loading,
     uploadScreenshot,
     submitPayment,
+    updatePaymentRecord,
     approvePayment,
     rejectPayment,
     disapprovePayment,
