@@ -904,7 +904,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
             {/* Quick Status Update */}
             <div className="p-4 bg-muted/30 rounded-lg border">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={cn("grid grid-cols-1 gap-4", !isWebsiteOrder && "md:grid-cols-2") }>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-sm font-medium">
                     <CalendarIcon className="h-4 w-4" />
@@ -940,6 +940,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     </p>
                   )}
                 </div>
+                {!isWebsiteOrder && (
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-sm font-medium">
                     <Package className="h-4 w-4" />
@@ -962,8 +963,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     </div>
                   )}
                 </div>
+                )}
               </div>
-              {status === 'cancelled' && canEditSalesFields && (
+              {!isWebsiteOrder && status === 'cancelled' && canEditSalesFields && (
                 <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
                   <h5 className="font-medium text-red-800 dark:text-red-300 flex items-center gap-2">
                     <XCircle className="h-4 w-4" />
