@@ -32,10 +32,12 @@ export default function Forms() {
 
   const access = useMemo(() => {
     const isAdmin = role === "admin";
-    const canView = isAdmin || !!permissions?.can_view_forms;
-    const canCreate = isAdmin || !!permissions?.can_create_forms;
-    const canEdit = isAdmin || !!permissions?.can_edit_forms;
-    const canViewSubmissions = isAdmin || !!permissions?.can_view_submissions;
+    const isIt = role === "it";
+    const isPrivileged = isAdmin || isIt;
+    const canView = isPrivileged || !!permissions?.can_view_forms;
+    const canCreate = isPrivileged || !!permissions?.can_create_forms;
+    const canEdit = isPrivileged || !!permissions?.can_edit_forms;
+    const canViewSubmissions = isPrivileged || !!permissions?.can_view_submissions;
 
     return { isAdmin, canView, canCreate, canEdit, canViewSubmissions };
   }, [permissions, role]);
