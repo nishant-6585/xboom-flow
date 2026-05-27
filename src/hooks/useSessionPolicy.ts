@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { recordAuditLog } from "@/lib/auditLog";
-import { enrichLoginAttempt } from "@/lib/sessionTracking";
+import { enrichLoginAttempt, getCurrentSessionRowId, recordSession } from "@/lib/sessionTracking";
 import { acquireRefreshLock, releaseRefreshLock, broadcastSessionRefresh } from "@/lib/refreshLock";
 
 const IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000; // 12 hours
@@ -134,12 +134,24 @@ export function useSessionPolicy(
 
     for (let attempt = 1; attempt <= MAX_VALIDATION_RETRIES; attempt++) {
       try {
-        const { data: session, error } = await supabase
+        // Prefer this tab's own session row (set by recordSession on fresh
+        // login). Falls back to the most-recent active row for the user so
+        // tabs hydrated from a persisted Supabase session (no fresh login)
+        // still validate correctly even when another device owns is_current.
+        const ownRowId = getCurrentSessionRowId();
+        let query = supabase
           .from("user_sessions")
           .select("id, started_at, last_active_at, revoked_at, is_active, session_version")
-          .eq("user_id", userId)
-          .eq("is_current", true)
-          .maybeSingle();
+          .eq("user_id", userId);
+
+        const { data: session, error } = ownRowId
+          ? await query.eq("id", ownRowId).maybeSingle()
+          : await query
+              .eq("is_active", true)
+              .is("revoked_at", null)
+              .order("last_active_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
 
         if (error) {
           // Fatal auth error → immediate logout
@@ -225,14 +237,33 @@ export function useSessionPolicy(
       return;
     }
 
-    // No session record
-    if (!result) {
-      await forceLogout("SESSION_MISSING");
-      return;
-    }
-
-    // Already revoked server-side
-    if (result.revoked_at || !result.is_active) {
+    // No session record OR row revoked. Before forcing a logout, confirm
+    // the underlying Supabase auth session is actually invalid. If auth is
+    // still healthy this is just a stale/missing tracking row (e.g. another
+    // device logged in and demoted is_current, or recordSession never ran
+    // for this tab) — auto-recover by creating a fresh row instead of
+    // kicking the user back through MFA.
+    const isMissing = !result;
+    const isRevoked = !!result && (result.revoked_at || !result.is_active);
+    if (isMissing || isRevoked) {
+      try {
+        const { data: authData, error: authErr } = await supabase.auth.getSession();
+        const authValid = !authErr && !!authData?.session?.user?.id;
+        if (authValid) {
+          if (import.meta.env.DEV) {
+            console.warn(
+              "[SessionPolicy] Tracking row missing/revoked but auth session valid — recovering instead of forcing logout"
+            );
+          }
+          // Recreate a tracking row owned by this tab and skip this cycle.
+          await recordSession(userId).catch(() => {});
+          return;
+        }
+      } catch (e) {
+        // If the auth check itself fails (network), skip this cycle.
+        console.warn("[SessionPolicy] Auth recovery check failed, skipping cycle:", e);
+        return;
+      }
       await forceLogout("SESSION_MISSING");
       return;
     }
@@ -332,11 +363,20 @@ export function useSessionPolicy(
     lastActivityUpdate.current = now;
 
     try {
-      await supabase
-        .from("user_sessions")
-        .update({ last_active_at: new Date().toISOString() })
-        .eq("user_id", userId)
-        .eq("is_current", true);
+      const ownRowId = getCurrentSessionRowId();
+      const ts = new Date().toISOString();
+      if (ownRowId) {
+        await supabase
+          .from("user_sessions")
+          .update({ last_active_at: ts })
+          .eq("id", ownRowId);
+      } else {
+        await supabase
+          .from("user_sessions")
+          .update({ last_active_at: ts })
+          .eq("user_id", userId)
+          .eq("is_current", true);
+      }
     } catch (e) {
       console.warn("[SessionPolicy] Failed to update last_activity_at:", e);
     }
