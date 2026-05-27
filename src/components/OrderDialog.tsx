@@ -1000,7 +1000,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   </div>
                 </div>
               )}
-              {!isWebsiteOrder && status === 'cancelled' && canEditSalesFields && (
+              {showInternalStatusField && status === 'cancelled' && canEditSalesFields && (
                 <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
                   <h5 className="font-medium text-red-800 dark:text-red-300 flex items-center gap-2">
                     <XCircle className="h-4 w-4" />
