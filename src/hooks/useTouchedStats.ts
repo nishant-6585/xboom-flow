@@ -384,7 +384,16 @@ export function useTouchedStats(source: TouchedSource, range?: DateRange | null)
       const allRows = await fetchSource(source);
       const ids = new Set(allRows.map((r) => String(r.id)));
       const allActivity = await fetchActivity(source, ids);
-      const rows = allRows.filter((r) => inRange(r.created_at, range));
+      // Any lead with a logged followup or created prospect counts as touched,
+      // even if its source-table row never had status/notes updated.
+      const engagedIds = new Set<string>([
+        ...allActivity.followups.map((f) => String(f.source_id)),
+        ...allActivity.prospects.map((p) => String(p.source_id)),
+      ]);
+      const enriched = allRows.map((r) =>
+        r.touched || engagedIds.has(String(r.id)) ? { ...r, touched: true } : r,
+      );
+      const rows = enriched.filter((r) => inRange(r.created_at, range));
       const activity = {
         followups: allActivity.followups.filter((f) => inRange(f.created_at, range)),
         prospects: allActivity.prospects.filter((p) => inRange(p.created_at, range)),
