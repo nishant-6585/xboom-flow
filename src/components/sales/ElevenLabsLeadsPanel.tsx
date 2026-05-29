@@ -28,6 +28,8 @@ import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { AttentionButton } from "./AttentionButton";
+import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
+import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 import { LeadActionsCell } from "./LeadActionsCell";
 import { ElevenLabsAnalytics } from "./ElevenLabsAnalytics";
 import { BarChart3 } from "lucide-react";
@@ -239,6 +241,7 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
 };
 
 export function ElevenLabsLeadsPanel() {
+  const { data: engagedIds } = useEngagedLeadIds('myoperator');
   const { user, role } = useAuth();
   const canManage = role === "admin" || role === "sales_manager";
 
@@ -615,7 +618,7 @@ export function ElevenLabsLeadsPanel() {
                 <>
                   <TableRow
                     key={r.id}
-                    className={`cursor-pointer hover:bg-muted/30 ${hot ? "border-l-2 border-l-destructive" : newish ? "border-l-2 border-l-success" : ""}`}
+                    className={touchedRowCn(isRowTouched('elevenlabs', r, engagedIds), `cursor-pointer ${hot ? "ring-1 ring-destructive/40" : newish ? "ring-1 ring-success/40" : ""}`)}
                     onClick={() => setSelectedId(r.id)}
                   >
                     <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
