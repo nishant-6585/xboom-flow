@@ -83,11 +83,14 @@ export function useLeaveHistory() {
       if (filters.leaveType) {
         query = query.eq('leave_type', filters.leaveType);
       }
-      if (filters.startDate) {
-        query = query.gte('start_date', filters.startDate);
-      }
+      // Overlap semantics: include any leave whose period intersects
+      // [startDate, endDate]. A leave that starts on/before endDate AND
+      // ends on/after startDate overlaps the window.
       if (filters.endDate) {
-        query = query.lte('end_date', filters.endDate);
+        query = query.lte('start_date', filters.endDate);
+      }
+      if (filters.startDate) {
+        query = query.gte('end_date', filters.startDate);
       }
 
       const from = pageNum * PAGE_SIZE;
@@ -137,8 +140,8 @@ export function useLeaveHistory() {
       }
       if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
       if (filters.leaveType) query = query.eq('leave_type', filters.leaveType);
-      if (filters.startDate) query = query.gte('start_date', filters.startDate);
-      if (filters.endDate) query = query.lte('end_date', filters.endDate);
+      if (filters.endDate) query = query.lte('start_date', filters.endDate);
+      if (filters.startDate) query = query.gte('end_date', filters.startDate);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -170,8 +173,8 @@ export function useLeaveHistory() {
         .eq('status', 'approved');
 
       if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
-      if (filters.startDate) query = query.gte('start_date', filters.startDate);
-      if (filters.endDate) query = query.lte('end_date', filters.endDate);
+      if (filters.endDate) query = query.lte('start_date', filters.endDate);
+      if (filters.startDate) query = query.gte('end_date', filters.startDate);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -237,8 +240,8 @@ export function useLeaveHistory() {
 
     if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
     if (filters.leaveType) query = query.eq('leave_type', filters.leaveType);
-    if (filters.startDate) query = query.gte('start_date', filters.startDate);
-    if (filters.endDate) query = query.lte('end_date', filters.endDate);
+    if (filters.endDate) query = query.lte('start_date', filters.endDate);
+    if (filters.startDate) query = query.gte('end_date', filters.startDate);
 
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;
