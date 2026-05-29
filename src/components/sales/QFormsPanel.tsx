@@ -31,6 +31,8 @@ import { AttentionButton } from "./AttentionButton";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { LeadActionsCell } from "./LeadActionsCell";
+import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
+import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 
 const FORM_TYPES = [
   "contact", "quote", "demo", "dealer", "newsletter", "popup",
@@ -554,7 +556,7 @@ export default function QFormsPanel() {
                 <>
                   <TableRow
                     key={r.id}
-                    className="cursor-pointer hover:bg-muted/30"
+                    className={touchedRowCn(isRowTouched('qforms', r, engagedIds), "cursor-pointer")}
                     onClick={() => setDrawerLead(r)}
                   >
                     <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
