@@ -462,6 +462,15 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PartSelector
+        open={partSelectorOpen}
+        onOpenChange={setPartSelectorOpen}
+        onSelect={(component) => {
+          setPartSelectorOpen(false);
+          handleAddComponent(component);
+        }}
+      />
     </>
   );
 }
