@@ -105,6 +105,7 @@ function relativeTime(iso?: string | null) {
 
 export default function QFormsPanel() {
   const { user, profile, role } = useAuth();
+  const { data: engagedIds } = useEngagedLeadIds('lead');
   const [rows, setRows] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
