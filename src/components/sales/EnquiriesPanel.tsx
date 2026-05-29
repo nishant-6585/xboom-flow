@@ -25,6 +25,8 @@ import { AssigneeCell } from './AssigneeCell';
 import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { useProfileNames } from '@/hooks/useProfileNames';
 import { cn } from '@/lib/utils';
+import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
+import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
 
 interface EnquiriesPanelProps {
   selectedLeadId?: string | null;
@@ -33,6 +35,7 @@ interface EnquiriesPanelProps {
 export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
   const { enquiries, loading, refetch } = useEnquiries();
   const { fetchEnquiryItems } = useEnquiryItems();
+  const { data: engagedIds } = useEngagedLeadIds('enquiry');
   const { user, profile, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -323,7 +326,7 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                      {filteredEnquiries.map((enquiry) => (
                        <TableRow
                          key={enquiry.id}
-                         className="hover:bg-muted/50 cursor-pointer transition-colors"
+                         className={touchedRowCn(isRowTouched('enquiries', enquiry, engagedIds), "cursor-pointer transition-colors")}
                          onClick={() => handleViewEnquiry(enquiry)}
                        >
                          <TableCell>
