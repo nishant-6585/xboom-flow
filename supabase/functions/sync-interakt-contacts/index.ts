@@ -109,8 +109,13 @@ Deno.serve(async (req) => {
     // Determine if this is a cron (automated) call or a user-initiated call
     let syncedByUserId: string | null = null;
     const authHeader = req.headers.get("Authorization");
+    const cronSecretHeader = req.headers.get("x-cron-secret") ?? req.headers.get("X-Cron-Secret");
+    const expectedCronSecret = Deno.env.get("CRON_SECRET");
+    const cronAuthorized = !!(cronSecretHeader && expectedCronSecret && cronSecretHeader === expectedCronSecret);
 
-    if (authHeader && !authHeader.includes(Deno.env.get("SUPABASE_ANON_KEY")!.slice(-20))) {
+    if (cronAuthorized) {
+      // Cron-triggered call — no user attribution
+    } else if (authHeader && authHeader.startsWith("Bearer ") && !authHeader.includes(Deno.env.get("SUPABASE_ANON_KEY")!.slice(-20))) {
       // User-initiated call — verify JWT
       const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: authHeader } },
@@ -141,6 +146,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    } else {
+      // No cron secret and no valid user JWT — reject
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Use service client for DB operations
