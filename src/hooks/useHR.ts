@@ -610,14 +610,69 @@ export function useHR() {
       });
   };
 
+  const refundLeaveBalance = async (
+    employeeId: string,
+    leaveType: string,
+    totalDays: number,
+    reasonRemark: string,
+  ) => {
+    const balanceTypeMap: Record<string, string> = {
+      EL: 'EL', half_day_EL: 'EL',
+      casual: 'EL', half_day_casual: 'EL',
+      paid: 'EL', half_day_paid: 'EL',
+      sick: 'sick', half_day_sick: 'sick',
+    };
+    const balanceType = balanceTypeMap[leaveType];
+    if (!balanceType || totalDays <= 0) return;
+
+    const year = new Date().getFullYear();
+    const { data: existing } = await supabase
+      .from('leave_balances')
+      .select('balance')
+      .eq('employee_id', employeeId)
+      .eq('leave_type', balanceType)
+      .eq('year', year)
+      .maybeSingle();
+
+    const oldBalance = existing?.balance ?? 0;
+    const newBalance = oldBalance + totalDays;
+
+    const { error: balErr } = await supabase
+      .from('leave_balances')
+      .upsert({
+        employee_id: employeeId,
+        leave_type: balanceType,
+        year,
+        balance: newBalance,
+      }, { onConflict: 'employee_id,leave_type,year' });
+
+    if (balErr) console.error('Balance refund error:', balErr);
+
+    await supabase
+      .from('leave_transactions')
+      .insert({
+        employee_id: employeeId,
+        leave_type: balanceType,
+        transaction_type: 'credit',
+        amount: totalDays,
+        balance_after: newBalance,
+        credit_date: new Date().toISOString().split('T')[0],
+        remarks: `${reasonRemark}: ${leaveType} (${totalDays} days)`,
+        created_by: user!.id,
+      });
+  };
+
   const approveLeave = async (leaveId: string, approve: boolean, comments?: string): Promise<boolean> => {
     if (!user || !profile) return false;
 
     try {
-      // Fetch leave request details for balance deduction
-      const { data: leaveReq } = approve
-        ? await supabase.from('leave_requests').select('employee_id, leave_type, total_days').eq('id', leaveId).single()
-        : { data: null };
+      // Fetch current request so we can deduct on approval OR refund a
+      // previously-approved leave that is now being rejected.
+      const { data: leaveReq } = await supabase
+        .from('leave_requests')
+        .select('employee_id, leave_type, total_days, status')
+        .eq('id', leaveId)
+        .single();
 
       const { error } = await supabase
         .from('leave_requests')
@@ -634,7 +689,20 @@ export function useHR() {
 
       // Deduct balance when approving
       if (approve && leaveReq) {
-        await deductLeaveBalance(leaveReq.employee_id, leaveReq.leave_type, leaveReq.total_days ?? 0);
+        // Only deduct if it wasn't already approved (prevents double-deduction).
+        if (leaveReq.status !== 'approved') {
+          await deductLeaveBalance(leaveReq.employee_id, leaveReq.leave_type, leaveReq.total_days ?? 0);
+        }
+      }
+
+      // Refund balance when rejecting a leave that had been approved
+      if (!approve && leaveReq && leaveReq.status === 'approved') {
+        await refundLeaveBalance(
+          leaveReq.employee_id,
+          leaveReq.leave_type,
+          leaveReq.total_days ?? 0,
+          'Leave rejected — balance refunded',
+        );
       }
 
       toast.success(approve ? 'Leave approved' : 'Leave rejected');
