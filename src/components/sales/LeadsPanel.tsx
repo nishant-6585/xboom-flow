@@ -38,6 +38,8 @@ import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { Mail, FileText, Megaphone } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
+import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
+import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
 import { InteraktAnalytics } from './InteraktAnalytics';
 import QFormsPanel from './QFormsPanel';
@@ -89,6 +91,8 @@ interface LeadsPanelProps {
 }
 
 export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
+  const { data: engagedEnquiryIds } = useEngagedLeadIds('enquiry');
+  const { data: engagedInteraktIds } = useEngagedLeadIds('interakt');
   const { enquiries, loading, refetch } = useEnquiries();
   const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
   const { prospects } = useProspects();
@@ -591,7 +595,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                   </TableHeader>
                   <TableBody>
                     {leads.map((lead) => (
-                      <TableRow key={lead.id} className="hover:bg-muted/50">
+                      <TableRow key={lead.id} className={touchedRowCn(isRowTouched('enquiries', lead, engagedEnquiryIds))}>
                         <TableCell>
                           <div className="flex gap-1">
                             <ProspectButton
@@ -926,7 +930,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                       </TableHeader>
                       <TableBody>
                         {filteredInteraktLeads.map((lead) => (
-                          <TableRow key={lead.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setInteraktDrawerLead(lead)}>
+                          <TableRow key={lead.id} className={touchedRowCn(isRowTouched('interakt', lead, engagedInteraktIds), "cursor-pointer")} onClick={() => setInteraktDrawerLead(lead)}>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <div className="flex gap-1">
                                 <ProspectButton

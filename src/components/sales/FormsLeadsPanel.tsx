@@ -24,6 +24,8 @@ import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { FormsLeadsAnalytics } from "./FormsLeadsAnalytics";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
+import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
+import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 
 interface FormLead {
   id: string;
@@ -60,6 +62,7 @@ export function FormsLeadsPanel() {
   const isManager = role === "admin" || role === "supply_chain";
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
+  const { data: engagedIds } = useEngagedLeadIds('form_lead');
 
   const prospectSourceIds = new Set(prospects.map(p => `${p.source_type}:${p.source_id}`));
   const attentionSourceIds = new Set(attentionItems.map(a => `${a.source_type}:${a.source_id}`));
@@ -280,7 +283,7 @@ export function FormsLeadsPanel() {
                 </thead>
                 <tbody>
                   {paginatedLeads.map((lead) => (
-                    <tr key={lead.id} className="border-b hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setDrawerLead(lead)}>
+                    <tr key={lead.id} className={touchedRowCn(isRowTouched('form-leads', lead, engagedIds), "border-b transition-colors cursor-pointer")} onClick={() => setDrawerLead(lead)}>
                       <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <LeadActionsCell
                           sourceType="form_lead"

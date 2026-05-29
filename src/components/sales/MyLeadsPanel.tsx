@@ -12,6 +12,7 @@ import { CallButton } from "@/components/calls/CallButton";
 import type { CallEntityType } from "@/hooks/useInitiateCall";
 import { LogCallDialog } from "./LogCallDialog";
 import { PhoneCall } from "lucide-react";
+import { touchedRowCn } from "@/lib/touchedRow";
 
 const SOURCE_TO_ENTITY: Record<string, CallEntityType> = {
   "Google Ads": "lead",
@@ -468,8 +469,9 @@ export function MyLeadsPanel() {
                     const isOverdue = lead.has_followup && lead.followup_status === "pending" && lead.next_followup_at && isBefore(parseISO(lead.next_followup_at), now);
                     const sourceType = SOURCE_TYPE_MAP[lead.source] || 'lead';
                     const untouched = getUntouchedBucket(lead.created_at);
+                    const touched = lead.has_followup === true || (!!lead.status && !["new", "New", "pending"].includes(lead.status));
                     return (
-                      <TableRow key={`${lead.source}-${lead.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLead(lead)}>
+                      <TableRow key={`${lead.source}-${lead.id}`} className={touchedRowCn(touched, "cursor-pointer")} onClick={() => setSelectedLead(lead)}>
                         <TableCell className="font-medium">{lead.customer_name}</TableCell>
                         <TableCell>
                           <Badge variant="outline" style={{ borderColor: SOURCE_COLORS[lead.source], color: SOURCE_COLORS[lead.source] }}>

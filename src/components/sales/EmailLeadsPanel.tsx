@@ -30,6 +30,8 @@ import { GmailIntegrationCard } from './GmailIntegrationCard';
 import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { LeadActionsCell } from './LeadActionsCell';
 import { toast } from 'sonner';
+import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
+import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
 
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
 type SortDir = 'asc' | 'desc';
@@ -39,6 +41,7 @@ export function EmailLeadsPanel() {
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
   const { role } = useAuth();
+  const { data: engagedIds } = useEngagedLeadIds('email');
   const { processWithAI, isProcessingAI } = useGmailIntegration();
   const [search, setSearch] = useState('');
   const [mailSourceFilter, setMailSourceFilter] = useState<string>('all');
@@ -565,7 +568,7 @@ export function EmailLeadsPanel() {
                       <>
                         <TableRow 
                           key={lead.id} 
-                          className={`cursor-pointer ${lead.processing_status === 'needs_review' ? 'bg-orange-500/5' : ''} ${isSelected ? 'bg-primary/5' : ''} hover:bg-muted/50 transition-colors`}
+                          className={touchedRowCn(isRowTouched('emails', lead, engagedIds), `cursor-pointer transition-colors ${lead.processing_status === 'needs_review' ? 'ring-1 ring-orange-500/30' : ''} ${isSelected ? 'ring-1 ring-primary/40' : ''}`)}
                           onClick={(e) => {
                             // Don't open drawer when clicking checkboxes, buttons, or expand toggles
                             const target = e.target as HTMLElement;

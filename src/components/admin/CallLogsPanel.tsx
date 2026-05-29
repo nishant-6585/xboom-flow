@@ -18,6 +18,8 @@ import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
 import type { Prospect } from "@/hooks/useProspects";
 import { useSalesUsers } from "@/hooks/useSalesUsers";
+import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
+import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
@@ -274,6 +276,7 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
 }
 
 export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), attentionSourceIds = new Set(), onLogsLoaded, dateRange, defaultDepartment }: CallLogsPanelProps) {
+  const { data: engagedCallIds } = useEngagedLeadIds('myoperator');
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -683,7 +686,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                     <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
-                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-destructive/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ''}`}
+                        className={touchedRowCn(isRowTouched('myoperator', log, engagedCallIds), `cursor-pointer ${newIds.has(log.id) ? "ring-2 ring-primary animate-pulse" : ''}`)}
                         onClick={() => setEditingLog(log)}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
