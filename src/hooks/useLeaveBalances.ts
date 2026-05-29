@@ -99,12 +99,32 @@ export function useLeaveBalances(employeeId?: string) {
     leaveTypes.forEach(lt => {
       if (deprecated.has(lt)) return;
       const bal = balanceData.find(b => b.leave_type === lt);
-      const credits = yearTx
-        .filter(tx => tx.leave_type === lt && tx.transaction_type === 'credit')
+      const isRefund = (remarks: string | null) => {
+        const r = (remarks || '').toLowerCase();
+        return (
+          r.includes('refund') ||
+          r.includes('reject') ||
+          r.includes('reversal') ||
+          r.includes('reversed') ||
+          r.includes('cancel') ||
+          r.includes('came to office') ||
+          r.includes('add back') ||
+          r.includes('added back')
+        );
+      };
+      const typeTx = yearTx.filter(tx => tx.leave_type === lt);
+      const grantedCredits = typeTx
+        .filter(tx => tx.transaction_type === 'credit' && !isRefund(tx.remarks))
         .reduce((sum, tx) => sum + tx.amount, 0);
-      const debits = yearTx
-        .filter(tx => tx.leave_type === lt && tx.transaction_type === 'debit')
+      const refundCredits = typeTx
+        .filter(tx => tx.transaction_type === 'credit' && isRefund(tx.remarks))
         .reduce((sum, tx) => sum + tx.amount, 0);
+      const rawDebits = typeTx
+        .filter(tx => tx.transaction_type === 'debit')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      // Net used = actual debits minus refunds that reversed those debits
+      const credits = grantedCredits;
+      const debits = Math.max(0, rawDebits - refundCredits);
 
       summaries.push({
         leave_type: lt,
