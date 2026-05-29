@@ -254,7 +254,18 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
 
               {/* Components Replaced */}
               <div>
-                <h3 className="font-semibold text-lg mb-3">Components Replaced</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-lg">Components Replaced</h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPartSelectorOpen(true)}
+                    disabled={savingComponent}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add from Inventory
+                  </Button>
+                </div>
                 {repair.components_replaced && repair.components_replaced.length > 0 ? (
                   <div className="space-y-2">
                     {(() => {
@@ -281,7 +292,18 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                             <Badge variant="secondary" className="text-xs">×{comp.quantity}</Badge>
                           )}
                         </div>
-                        <span className="font-medium">₹{comp.cost.toLocaleString()}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">₹{comp.cost.toLocaleString()}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleRemoveComponent(index)}
+                            disabled={savingComponent}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     <div className="flex justify-between items-center pt-2 border-t font-medium">
@@ -292,6 +314,32 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                 ) : (
                   <p className="text-muted-foreground">No components replaced</p>
                 )}
+
+                {/* Quick add custom component */}
+                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                  <Input
+                    placeholder="Custom component name"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Cost (₹)"
+                    value={customCost}
+                    onChange={(e) => setCustomCost(e.target.value)}
+                    className="sm:w-32"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleAddCustom}
+                    disabled={savingComponent || !customName.trim() || !customCost}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Custom
+                  </Button>
+                </div>
               </div>
 
               <Separator />
