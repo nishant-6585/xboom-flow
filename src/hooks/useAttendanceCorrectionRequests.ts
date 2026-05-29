@@ -166,12 +166,31 @@ export function useAttendanceCorrectionRequests() {
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
 
+  const bulkReviewRequests = async (
+    requestIds: string[],
+    decision: 'approved' | 'rejected',
+    reviewNotes: string
+  ) => {
+    let success = 0;
+    const failures: { id: string; error: string }[] = [];
+    for (const id of requestIds) {
+      try {
+        await reviewRequest(id, decision, reviewNotes);
+        success++;
+      } catch (e: any) {
+        failures.push({ id, error: e?.message || 'Unknown error' });
+      }
+    }
+    return { success, failures };
+  };
+
   return {
     requests,
     pendingRequests,
     loading,
     submitRequest,
     reviewRequest,
+    bulkReviewRequests,
     refetch: fetchRequests,
     isHROrAdmin,
   };
