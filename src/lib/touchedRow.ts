@@ -43,7 +43,7 @@ export function isRowTouched(
       );
     case "qforms":
     case "form-leads":
-      return (r.status && r.status !== "new") || !!norm(r.notes);
+      return (r.status && r.status !== "new") || !!norm(r.notes) || !!norm(r.message);
     case "interakt":
       return (
         (r.status && r.status !== "new") ||
