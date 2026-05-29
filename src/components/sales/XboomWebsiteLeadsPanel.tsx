@@ -21,6 +21,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWooLeadsPaginated } from "@/hooks/useWooLeadsPaginated";
 import { isWooLeadStatus } from "@/lib/wooOrderStatuses";
+import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
+import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 import { WooLeadActivityLog } from "./WooLeadActivityLog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -79,6 +81,7 @@ const relativeTime = (iso?: string | null) => {
 };
 
 export function XboomWebsiteLeadsPanel() {
+  const { data: engagedIds } = useEngagedLeadIds('woocommerce');
   const { user } = useAuth();
   // Filters / pagination state — declared up-front because the data hook
   // pushes them down to Postgres (server-side pagination & search).
@@ -482,7 +485,7 @@ export function XboomWebsiteLeadsPanel() {
                   return (
                     <Fragment key={l.id}>
                        <TableRow
-                         className={`cursor-pointer hover:bg-muted/40 ${lastFocusedId === l.id ? "bg-primary/5 ring-1 ring-inset ring-primary/30" : ""}`}
+                         className={touchedRowCn(isRowTouched('xboom-website', l, engagedIds), `cursor-pointer ${lastFocusedId === l.id ? "ring-1 ring-inset ring-primary/30" : ""}`)}
                          onClick={() => toggleRow(l.id)}
                          ref={(el) => {
                            if (el) rowRefs.current.set(l.id, el);
