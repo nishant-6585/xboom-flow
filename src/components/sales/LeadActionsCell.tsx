@@ -4,6 +4,7 @@ import { ProspectButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
+import MarkTouchedButton from "./MarkTouchedButton";
 
 /**
  * Canonical lead actions row used across every Lead Sources panel.
@@ -191,6 +192,9 @@ export function LeadActionsCell(props: LeadActionsCellProps) {
           source_label: sourceLabel,
         }}
       />
+
+      {/* 8. Mark as touched (manual override) */}
+      <MarkTouchedButton sourceType={sourceType} sourceId={sourceId} className="h-7 w-7 p-0" />
     </div>
   );
 }

@@ -6648,6 +6648,36 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_touch_marks: {
+        Row: {
+          created_at: string
+          id: string
+          marked_by: string
+          marked_by_name: string | null
+          note: string | null
+          source_id: string
+          source_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marked_by: string
+          marked_by_name?: string | null
+          note?: string | null
+          source_id: string
+          source_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marked_by?: string
+          marked_by_name?: string | null
+          note?: string | null
+          source_id?: string
+          source_type?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           assigned_to: string | null

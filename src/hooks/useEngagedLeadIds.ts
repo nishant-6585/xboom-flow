@@ -29,7 +29,7 @@ export function useEngagedLeadIds(sourceType: string | string[]) {
           f += PAGE;
         }
       };
-      await Promise.all([pull("followups"), pull("prospects")]);
+      await Promise.all([pull("followups"), pull("prospects"), pull("lead_touch_marks")]);
       return out;
     },
     staleTime: 60_000,

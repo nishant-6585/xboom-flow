@@ -98,16 +98,21 @@ async function fetchSource(source: TouchedSource): Promise<NormalizedLead[]> {
       }));
     }
     case "qforms": {
-      const rows = await pull<any>("form_leads", "id, customer_name, sales_person_id, sales_person_name, status, notes, created_at, updated_at");
+      // QFormsPanel reads from the `leads` table, so the stats chart must
+      // do the same — otherwise the graph and the row indicators disagree.
+      const rows = await pull<any>(
+        "leads",
+        "id, name, assigned_to, assigned_to_name, status, message, created_at",
+      );
       return rows.map((r) => ({
         id: r.id,
-        sales_person_id: r.sales_person_id,
-        sales_person_name: r.sales_person_name,
-        touched: r.status !== "new" || !!norm(r.notes),
-        customer_name: r.customer_name ?? null,
+        sales_person_id: r.assigned_to ?? null,
+        sales_person_name: r.assigned_to_name ?? null,
+        touched: (r.status && r.status !== "new") || !!norm(r.message),
+        customer_name: r.name ?? null,
         status: r.status ?? null,
         created_at: r.created_at ?? null,
-        updated_at: r.updated_at ?? null,
+        updated_at: r.created_at ?? null,
       }));
     }
     case "interakt": {
@@ -231,6 +236,7 @@ async function fetchActivity(
   followups: ActivityRow[];
   prospects: ActivityRow[];
   pipeline: { sales_person_name: string | null; value: number; enquiry_id: string | null; created_at: string | null }[];
+  touchMarks: ActivityRow[];
 }> {
   const sourceType = SOURCE_TYPE_MAP[source];
   const PAGE = 1000;
@@ -258,6 +264,14 @@ async function fetchActivity(
     pull<any>("prospects", "source_type, source_id, created_by_name, quoted_price, created_at", "source_type", sourceType),
   ]);
 
+  // Manual "mark as touched" overrides also count toward engagement.
+  const touchMarksRaw = await pull<any>(
+    "lead_touch_marks",
+    "source_type, source_id, marked_by_name, created_at",
+    "source_type",
+    sourceType,
+  );
+
   const followups = followupsRaw
     .filter((r) => leadIds.has(String(r.source_id)))
     .map((r) => ({ source_type: r.source_type, source_id: r.source_id, created_by_name: r.created_by_name, created_at: r.created_at ?? null }));
@@ -269,6 +283,15 @@ async function fetchActivity(
       source_id: r.source_id,
       created_by_name: r.created_by_name,
       value: Number(r.quoted_price ?? 0) || 0,
+      created_at: r.created_at ?? null,
+    }));
+
+  const touchMarks = touchMarksRaw
+    .filter((r) => leadIds.has(String(r.source_id)))
+    .map((r) => ({
+      source_type: r.source_type,
+      source_id: r.source_id,
+      created_by_name: r.marked_by_name ?? null,
       created_at: r.created_at ?? null,
     }));
 
@@ -295,7 +318,7 @@ async function fetchActivity(
     }
   }
 
-  return { followups, prospects, pipeline };
+  return { followups, prospects, pipeline, touchMarks };
 }
 
 function aggregate(
@@ -389,6 +412,7 @@ export function useTouchedStats(source: TouchedSource, range?: DateRange | null)
       const engagedIds = new Set<string>([
         ...allActivity.followups.map((f) => String(f.source_id)),
         ...allActivity.prospects.map((p) => String(p.source_id)),
+        ...allActivity.touchMarks.map((t) => String(t.source_id)),
       ]);
       const enriched = allRows.map((r) =>
         r.touched || engagedIds.has(String(r.id)) ? { ...r, touched: true } : r,
