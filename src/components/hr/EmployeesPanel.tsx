@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Eye, Users } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { EmployeeDetailDialog } from "./EmployeeDetailDialog";
 import { toast } from "sonner";
 
@@ -48,6 +49,21 @@ export function EmployeesPanel() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRecord | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
+  type SortKey = "employee_number" | "name" | "department" | "role";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(k);
+      setSortDir("asc");
+    }
+  };
+  const SortIcon = ({ k }: { k: SortKey }) =>
+    sortKey !== k ? <ArrowUpDown className="inline h-3 w-3 ml-1 opacity-50" />
+      : sortDir === "asc" ? <ArrowUp className="inline h-3 w-3 ml-1" />
+      : <ArrowDown className="inline h-3 w-3 ml-1" />;
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -108,7 +124,7 @@ export function EmployeesPanel() {
   }, [employees]);
 
   const filtered = useMemo(() => {
-    return employees.filter(e => {
+    const result = employees.filter(e => {
       const matchSearch = !search || e.name.toLowerCase().includes(search.toLowerCase()) ||
         (e.employee_number || "").toLowerCase().includes(search.toLowerCase()) ||
         (e.designation || "").toLowerCase().includes(search.toLowerCase());
@@ -116,7 +132,25 @@ export function EmployeesPanel() {
       const matchType = typeFilter === "all" || e.employee_type === typeFilter;
       return matchSearch && matchDept && matchType;
     });
-  }, [employees, search, deptFilter, typeFilter]);
+    if (!sortKey) return result;
+    const getVal = (e: EmployeeRecord): string | number => {
+      if (sortKey === "employee_number") {
+        const n = parseInt(e.employee_number || "", 10);
+        return Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n;
+      }
+      if (sortKey === "name") return (e.name || "").toLowerCase();
+      if (sortKey === "department") return (e.department || "").toLowerCase();
+      if (sortKey === "role") return (e.user_roles?.[0] || "").toLowerCase();
+      return "";
+    };
+    const sorted = [...result].sort((a, b) => {
+      const av = getVal(a), bv = getVal(b);
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [employees, search, deptFilter, typeFilter, sortKey, sortDir]);
 
   const formatType = (t: string | null) => {
     if (!t) return "—";
@@ -171,10 +205,10 @@ export function EmployeesPanel() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
-                <TableHead>Employee ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead className="hidden md:table-cell">Role</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("employee_number")}>Employee ID<SortIcon k="employee_number" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>Name<SortIcon k="name" /></TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("department")}>Department<SortIcon k="department" /></TableHead>
+                <TableHead className="hidden md:table-cell cursor-pointer select-none" onClick={() => toggleSort("role")}>Role<SortIcon k="role" /></TableHead>
                 <TableHead className="hidden lg:table-cell">Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-20">Action</TableHead>
