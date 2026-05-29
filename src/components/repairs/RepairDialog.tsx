@@ -10,9 +10,12 @@ import { RepairForm } from "./RepairForm";
 import { RepairStageBadge } from "./RepairStageBadge";
 import { RepairStageActionPanel } from "./RepairStageActionPanel";
 import { RepairStageHistory } from "./RepairStageHistory";
+import { PartSelector } from "./PartSelector";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import { Edit2, Trash2, Phone, Calendar, Clock, User, Wrench, IndianRupee, Link2 } from "lucide-react";
+import { Edit2, Trash2, Phone, Calendar, Clock, User, Wrench, IndianRupee, Link2, Plus, X } from "lucide-react";
+import type { ComponentReplaced } from "@/hooks/useRepairs";
 
 interface RepairDialogProps {
   repair: Repair | null;
@@ -32,6 +35,10 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
   const { role } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [partSelectorOpen, setPartSelectorOpen] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const [customCost, setCustomCost] = useState<string>("");
+  const [savingComponent, setSavingComponent] = useState(false);
 
   if (!repair) return null;
 
@@ -47,6 +54,34 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
     await onDelete(repair.id);
     setShowDeleteDialog(false);
     onOpenChange(false);
+  };
+
+  const persistComponents = async (next: ComponentReplaced[]) => {
+    setSavingComponent(true);
+    try {
+      await onUpdate(repair.id, { components_replaced: next });
+    } finally {
+      setSavingComponent(false);
+    }
+  };
+
+  const handleAddComponent = async (component: ComponentReplaced) => {
+    const current = repair.components_replaced || [];
+    await persistComponents([...current, component]);
+  };
+
+  const handleRemoveComponent = async (index: number) => {
+    const current = repair.components_replaced || [];
+    await persistComponents(current.filter((_, i) => i !== index));
+  };
+
+  const handleAddCustom = async () => {
+    const name = customName.trim();
+    const cost = parseFloat(customCost);
+    if (!name || isNaN(cost) || cost < 0) return;
+    await handleAddComponent({ name, cost });
+    setCustomName("");
+    setCustomCost("");
   };
 
   if (isEditing) {
