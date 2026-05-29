@@ -111,12 +111,18 @@ async function fetchSource(source: TouchedSource): Promise<NormalizedLead[]> {
       }));
     }
     case "interakt": {
-      const rows = await pull<any>("interakt_leads", "id, customer_name, sales_person_id, sales_person_name, status, notes, created_at, updated_at");
+      const rows = await pull<any>("interakt_leads", "id, customer_name, sales_person_id, sales_person_name, status, notes, is_prospect, is_a_category, is_enquiry_converted, updated_by, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
         sales_person_id: r.sales_person_id,
         sales_person_name: r.sales_person_name,
-        touched: r.status !== "new" || !!norm(r.notes),
+        touched:
+          (r.status && r.status !== "new") ||
+          !!norm(r.notes) ||
+          r.is_prospect === true ||
+          r.is_a_category === true ||
+          r.is_enquiry_converted === true ||
+          !!norm(r.updated_by),
         customer_name: r.customer_name ?? null,
         status: r.status ?? null,
         created_at: r.created_at ?? null,
