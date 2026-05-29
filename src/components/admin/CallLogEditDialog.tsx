@@ -81,7 +81,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
     if (!callLog) return;
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('call_logs')
         .update({
           customer_name: form.customer_name.trim() || null,
@@ -100,9 +100,13 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
           customer_type: form.customer_type || null,
           outcall_info: form.outcall_info.trim() || null,
         } as Record<string, unknown>)
-        .eq('id', callLog.id);
+        .eq('id', callLog.id)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("You don't have permission to edit this call log, or it no longer exists.");
+      }
       toast.success('Call log updated successfully');
       onSuccess();
       onOpenChange(false);
