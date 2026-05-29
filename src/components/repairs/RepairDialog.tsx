@@ -10,9 +10,12 @@ import { RepairForm } from "./RepairForm";
 import { RepairStageBadge } from "./RepairStageBadge";
 import { RepairStageActionPanel } from "./RepairStageActionPanel";
 import { RepairStageHistory } from "./RepairStageHistory";
+import { PartSelector } from "./PartSelector";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import { Edit2, Trash2, Phone, Calendar, Clock, User, Wrench, IndianRupee, Link2 } from "lucide-react";
+import { Edit2, Trash2, Phone, Calendar, Clock, User, Wrench, IndianRupee, Link2, Plus, X } from "lucide-react";
+import type { ComponentReplaced } from "@/hooks/useRepairs";
 
 interface RepairDialogProps {
   repair: Repair | null;
@@ -32,6 +35,10 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
   const { role } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [partSelectorOpen, setPartSelectorOpen] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const [customCost, setCustomCost] = useState<string>("");
+  const [savingComponent, setSavingComponent] = useState(false);
 
   if (!repair) return null;
 
@@ -47,6 +54,34 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
     await onDelete(repair.id);
     setShowDeleteDialog(false);
     onOpenChange(false);
+  };
+
+  const persistComponents = async (next: ComponentReplaced[]) => {
+    setSavingComponent(true);
+    try {
+      await onUpdate(repair.id, { components_replaced: next });
+    } finally {
+      setSavingComponent(false);
+    }
+  };
+
+  const handleAddComponent = async (component: ComponentReplaced) => {
+    const current = repair.components_replaced || [];
+    await persistComponents([...current, component]);
+  };
+
+  const handleRemoveComponent = async (index: number) => {
+    const current = repair.components_replaced || [];
+    await persistComponents(current.filter((_, i) => i !== index));
+  };
+
+  const handleAddCustom = async () => {
+    const name = customName.trim();
+    const cost = parseFloat(customCost);
+    if (!name || isNaN(cost) || cost < 0) return;
+    await handleAddComponent({ name, cost });
+    setCustomName("");
+    setCustomCost("");
   };
 
   if (isEditing) {
@@ -219,7 +254,18 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
 
               {/* Components Replaced */}
               <div>
-                <h3 className="font-semibold text-lg mb-3">Components Replaced</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-lg">Components Replaced</h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPartSelectorOpen(true)}
+                    disabled={savingComponent}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add from Inventory
+                  </Button>
+                </div>
                 {repair.components_replaced && repair.components_replaced.length > 0 ? (
                   <div className="space-y-2">
                     {(() => {
@@ -246,7 +292,18 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                             <Badge variant="secondary" className="text-xs">×{comp.quantity}</Badge>
                           )}
                         </div>
-                        <span className="font-medium">₹{comp.cost.toLocaleString()}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">₹{comp.cost.toLocaleString()}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleRemoveComponent(index)}
+                            disabled={savingComponent}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     <div className="flex justify-between items-center pt-2 border-t font-medium">
@@ -257,6 +314,32 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                 ) : (
                   <p className="text-muted-foreground">No components replaced</p>
                 )}
+
+                {/* Quick add custom component */}
+                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                  <Input
+                    placeholder="Custom component name"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Cost (₹)"
+                    value={customCost}
+                    onChange={(e) => setCustomCost(e.target.value)}
+                    className="sm:w-32"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleAddCustom}
+                    disabled={savingComponent || !customName.trim() || !customCost}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Custom
+                  </Button>
+                </div>
               </div>
 
               <Separator />
@@ -379,6 +462,15 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PartSelector
+        open={partSelectorOpen}
+        onOpenChange={setPartSelectorOpen}
+        onSelect={(component) => {
+          setPartSelectorOpen(false);
+          handleAddComponent(component);
+        }}
+      />
     </>
   );
 }
