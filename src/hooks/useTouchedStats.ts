@@ -98,13 +98,13 @@ async function fetchSource(source: TouchedSource): Promise<NormalizedLead[]> {
       }));
     }
     case "qforms": {
-      const rows = await pull<any>("leads", "id, name, assigned_to, assigned_to_name, status, form_type, created_at, updated_at");
+      const rows = await pull<any>("form_leads", "id, customer_name, sales_person_id, sales_person_name, status, notes, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
-        sales_person_id: r.assigned_to,
-        sales_person_name: r.assigned_to_name,
-        touched: r.status !== "new",
-        customer_name: r.name ?? null,
+        sales_person_id: r.sales_person_id,
+        sales_person_name: r.sales_person_name,
+        touched: r.status !== "new" || !!norm(r.notes),
+        customer_name: r.customer_name ?? null,
         status: r.status ?? null,
         created_at: r.created_at ?? null,
         updated_at: r.updated_at ?? null,
