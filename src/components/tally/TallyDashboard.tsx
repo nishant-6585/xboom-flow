@@ -1025,14 +1025,8 @@ export function TallyDashboard() {
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {r.orderDate ? format(new Date(r.orderDate), "dd MMM yyyy") : "—"}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.invoiceNumber}</TableCell>
-                      <TableCell>
-                        {r.poNumber !== "—" ? (
-                          <button onClick={() => openProcDialog(r.orderId)} className="text-xs text-primary hover:underline cursor-pointer" title="View Procurement">
-                            {r.poNumber}
-                          </button>
-                        ) : <span className="text-xs text-muted-foreground">—</span>}
-                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-normal break-all">{r.invoiceNumber}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-normal break-all">{r.poNumber}</TableCell>
                       <TableCell>
                         <button onClick={() => openOrderDialog(r.orderId)} className="max-w-[140px] text-left cursor-pointer hover:opacity-80" title="View Order">
                           <p className="text-sm font-medium truncate">{r.customerName}</p>
