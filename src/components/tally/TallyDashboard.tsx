@@ -51,6 +51,7 @@ interface TallyOrder {
   estimated_procurement_rate: number | null;
   sales_person_name: string;
   sales_person_id: string;
+  po_number: string | null;
 }
 
 interface TallyProcurement {
@@ -86,7 +87,6 @@ interface TallyInvoice {
   id: string;
   invoice_number: string | null;
   order_id: string | null;
-  customer_gst: string | null;
 }
 
 interface TallyInventoryLink {
@@ -279,7 +279,7 @@ export function TallyDashboard() {
       const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes, linksRes] = await Promise.all([
           supabase
             .from("orders")
-            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, customer_gst, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, estimated_procurement_rate, sales_person_name, sales_person_id")
+            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, customer_gst, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, estimated_procurement_rate, sales_person_name, sales_person_id, po_number")
             .not("status", "eq", "cancelled")
             .order("created_at", { ascending: false }),
           supabase
@@ -290,8 +290,8 @@ export function TallyDashboard() {
             .from("order_items")
             .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, procurement_price_includes_gst, unit_price, sales_gst_amount, sales_price_includes_gst, supplier_id"),
           supabase
-            .from("invoices")
-            .select("id, invoice_number, order_id, customer_gst")
+            .from("order_invoices")
+            .select("id, invoice_number, order_id")
             .not("order_id", "is", null),
           supabase
             .from("suppliers")
@@ -521,11 +521,13 @@ export function TallyDashboard() {
         : procPayStatuses.every((s) => s === "paid") ? "paid"
         : procPayStatuses.some((s) => s === "partial") ? "partial" : "pending";
 
-      // Invoice number(s)
-      const invoiceNumber = invs.map(i => i.invoice_number).filter(Boolean).join(", ") || "—";
+      // Invoice number(s) — from order_invoices uploaded against the order
+      const invoiceNumber = [...new Set(invs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
 
-      // PO number: from order procurements
-      const poNumber = procs.map(p => p.po_number).filter(Boolean).join(", ") || "—";
+      // PO number: prefer PO uploaded on the order itself, fall back to linked procurement POs
+      const orderPoNumbers = (o.po_number || "").split(",").map(s => s.trim()).filter(Boolean);
+      const procPoNumbers = procs.map(p => p.po_number).filter(Boolean) as string[];
+      const poNumber = [...new Set([...orderPoNumbers, ...procPoNumbers])].join(", ") || "—";
 
       // Supplier name(s): from order_items supplier_id → suppliers table, or from procurements
       const itemSupplierNames = items
@@ -535,9 +537,8 @@ export function TallyDashboard() {
       const allSuppliers = [...new Set([...itemSupplierNames, ...procSupplierNames])];
       const supplierName = allSuppliers.join(", ") || "—";
 
-      // Customer GST: prefer order-level GST, fall back to invoice GST
-      const invoiceGst = invs.map(i => i.customer_gst).filter(Boolean).join(", ");
-      const customerGst = o.customer_gst?.trim() || invoiceGst || "—";
+      // Customer GST: order-level GST only (order_invoices doesn't carry GST)
+      const customerGst = o.customer_gst?.trim() || "—";
 
       // Inventory fulfillment
       const inventoryFulfilled = orderInvLinks.length > 0;
