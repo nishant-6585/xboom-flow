@@ -24,6 +24,7 @@ import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail, Globe } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
+import { LeadSourceBadge } from '@/components/LeadSourceBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
 import { EditHistoryPanel } from '@/components/EditHistoryPanel';
