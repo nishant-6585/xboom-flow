@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { ProductSelect } from '@/components/ProductSelect';
 import { LeadTemperatureBadge, LEAD_TEMPERATURES } from '@/components/LeadTemperatureBadge';
+import { LeadSourceBadge } from '@/components/LeadSourceBadge';
 import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { useOrders } from '@/hooks/useOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -469,6 +470,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <TableHeader>
               <TableRow>
                 <TableHead>Lead</TableHead>
+                <TableHead>Source</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Qty</TableHead>
@@ -496,7 +498,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <TableBody>
               {sortedOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                     No pipeline orders found
                   </TableCell>
                 </TableRow>
@@ -509,6 +511,9 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                         isMegaDeal={order.is_mega_deal || false}
                         size="sm"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <LeadSourceBadge source={order.lead_source} size="sm" />
                     </TableCell>
                     <TableCell>
                       <div>

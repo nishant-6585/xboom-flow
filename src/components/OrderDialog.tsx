@@ -24,6 +24,7 @@ import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail, Globe } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
+import { LeadSourceBadge } from '@/components/LeadSourceBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
 import { EditHistoryPanel } from '@/components/EditHistoryPanel';
@@ -759,6 +760,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </DialogTitle>
                 <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}
+                  <LeadSourceBadge source={order.lead_source || (order as any).source} size="sm" />
                   <Badge variant="outline" className="text-xs">
                     {order.customer_type.toUpperCase()}
                   </Badge>

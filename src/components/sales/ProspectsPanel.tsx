@@ -25,6 +25,7 @@ import { LogCallDialog } from './LogCallDialog';
 import { AssigneeCell } from './AssigneeCell';
 import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { SourceCoverageCard } from '@/components/crm/SourceCoverageCard';
+import { LeadSourceBadge, normalizeSource } from '@/components/LeadSourceBadge';
 import { Target as TargetIcon } from 'lucide-react';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
@@ -498,6 +499,11 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                             {SOURCE_ICONS[p.source_type]}
                             {p.source_type === 'myoperator' ? 'MyOp' : p.source_type.charAt(0).toUpperCase() + p.source_type.slice(1)}
                           </Badge>
+                          {p.lead_source && normalizeSource(p.lead_source) !== p.source_type && (
+                            <div className="mt-1">
+                              <LeadSourceBadge source={p.lead_source} size="xs" />
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell><p className="font-medium text-sm">{p.customer_name}</p></TableCell>
                         <TableCell><span className="text-sm font-mono">{p.phone_number || '—'}</span></TableCell>
@@ -645,6 +651,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                   customer_email: orderWonProspect.email || undefined,
                   product_name: orderWonProspect.product_name || undefined,
                   customer_notes: orderWonProspect.notes || undefined,
+                  lead_source: (orderWonProspect.lead_source || orderWonProspect.source_type) as any,
                   source_prospect_id: orderWonProspect.id,
                 }}
               />

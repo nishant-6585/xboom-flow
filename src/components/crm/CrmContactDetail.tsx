@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallButton } from '@/components/calls/CallButton';
+import { LeadSourceBadge, normalizeSource } from '@/components/LeadSourceBadge';
 
 const ACTIVITY_TYPES = [
   { value: 'call', label: 'Call', icon: Phone, color: 'bg-blue-500/15 text-blue-700 dark:text-blue-400' },
@@ -80,6 +81,10 @@ export function CrmContactDetail({ prospect, open, onClose }: Props) {
         <SheetHeader className="p-6 pb-4 border-b bg-muted/30">
           <SheetTitle className="text-xl">{prospect.customer_name}</SheetTitle>
           <div className="flex flex-wrap gap-2 mt-1">
+            <LeadSourceBadge source={prospect.source_type} size="sm" />
+            {prospect.lead_source && normalizeSource(prospect.lead_source) !== normalizeSource(prospect.source_type) && (
+              <LeadSourceBadge source={prospect.lead_source} size="sm" />
+            )}
             <Badge variant="outline" className="text-xs gap-1"><Building2 className="h-3 w-3" />{prospect.company || 'N/A'}</Badge>
             {prospect.city && <Badge variant="outline" className="text-xs gap-1"><MapPin className="h-3 w-3" />{prospect.city}</Badge>}
             {prospect.product_name && <Badge variant="outline" className="text-xs gap-1"><Package className="h-3 w-3" />{prospect.product_name}</Badge>}
