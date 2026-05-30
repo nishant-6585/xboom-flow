@@ -760,6 +760,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </DialogTitle>
                 <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}
+                  <LeadSourceBadge source={order.lead_source || (order as any).source} size="sm" />
                   <Badge variant="outline" className="text-xs">
                     {order.customer_type.toUpperCase()}
                   </Badge>
