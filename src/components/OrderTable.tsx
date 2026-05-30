@@ -263,6 +263,9 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
                       </span>
                     </TableCell>
                     <TableCell>
+                      <LeadSourceBadge source={order.lead_source || (order as any).source} size="sm" />
+                    </TableCell>
+                    <TableCell>
                       <div className="max-w-[200px]">
                         <div className="font-medium truncate">{order.product_name}</div>
                         <div className="text-xs text-muted-foreground truncate">{order.product_category}</div>
