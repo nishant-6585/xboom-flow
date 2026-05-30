@@ -17,6 +17,7 @@ import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2, Undo2, Indian
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTableExport } from '@/hooks/useTableExport';
+import { LeadSourceBadge } from '@/components/LeadSourceBadge';
 
 interface OrderTableProps {
   orders: Order[];
