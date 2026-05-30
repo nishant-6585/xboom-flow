@@ -1,0 +1,2 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS source_pipeline_id uuid REFERENCES public.pipeline_orders(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_source_pipeline_id ON public.orders(source_pipeline_id);
