@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,17 @@ export default function Repairs() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedRepair, setSelectedRepair] = useState<Repair | null>(null);
+
+  // Keep selectedRepair in sync with the live repairs list so updates
+  // (e.g. adding/removing components in the dialog) reflect immediately
+  // instead of showing a stale snapshot from when the row was opened.
+  useEffect(() => {
+    if (!selectedRepair) return;
+    const fresh = repairs.find((r) => r.id === selectedRepair.id);
+    if (fresh && fresh !== selectedRepair) {
+      setSelectedRepair(fresh);
+    }
+  }, [repairs, selectedRepair]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [issueFilter, setIssueFilter] = useState<string>("all");
