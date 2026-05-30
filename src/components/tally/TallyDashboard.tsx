@@ -51,6 +51,7 @@ interface TallyOrder {
   estimated_procurement_rate: number | null;
   sales_person_name: string;
   sales_person_id: string;
+  po_number: string | null;
 }
 
 interface TallyProcurement {
@@ -86,7 +87,6 @@ interface TallyInvoice {
   id: string;
   invoice_number: string | null;
   order_id: string | null;
-  customer_gst: string | null;
 }
 
 interface TallyInventoryLink {
