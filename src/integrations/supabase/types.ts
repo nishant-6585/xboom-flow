@@ -8043,6 +8043,7 @@ export type Database = {
           selling_price: number | null
           shipping_address: string | null
           source: string
+          source_pipeline_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           supplier_contact: string | null
           supplier_id: string | null
@@ -8129,6 +8130,7 @@ export type Database = {
           selling_price?: number | null
           shipping_address?: string | null
           source?: string
+          source_pipeline_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
           supplier_id?: string | null
@@ -8215,6 +8217,7 @@ export type Database = {
           selling_price?: number | null
           shipping_address?: string | null
           source?: string
+          source_pipeline_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
           supplier_id?: string | null
@@ -8239,6 +8242,20 @@ export type Database = {
             columns: ["enquiry_id"]
             isOneToOne: false
             referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_source_pipeline_id_fkey"
+            columns: ["source_pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_source_pipeline_id_fkey"
+            columns: ["source_pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "sales_weighted_forecast_view"
             referencedColumns: ["id"]
           },
           {
@@ -14987,6 +15004,7 @@ export type Database = {
           selling_price: number | null
           shipping_address: string | null
           source: string
+          source_pipeline_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           supplier_contact: string | null
           supplier_id: string | null
