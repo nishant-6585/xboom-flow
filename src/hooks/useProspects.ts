@@ -13,6 +13,7 @@ export interface Prospect {
   city: string | null;
   product_name: string | null;
   notes: string | null;
+  lead_source: string | null;
   is_a_category: boolean;
   a_category_marked_at: string | null;
   a_category_marked_by: string | null;
