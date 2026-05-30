@@ -191,6 +191,7 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
               </TableHead>
               <TableHead className="font-semibold">Order No</TableHead>
               <TableHead className="font-semibold">Order Date</TableHead>
+              <TableHead className="font-semibold">Source</TableHead>
               <TableHead className="font-semibold">Product</TableHead>
               <TableHead className="font-semibold">Customer</TableHead>
               <TableHead className="font-semibold text-center">Qty</TableHead>
@@ -208,7 +209,7 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canSeeProcurement ? 15 : 11} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={canSeeProcurement ? 16 : 12} className="text-center py-12 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 rounded-full bg-muted">
                       <Eye className="h-6 w-6 text-muted-foreground" />
