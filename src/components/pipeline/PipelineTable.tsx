@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { ProductSelect } from '@/components/ProductSelect';
 import { LeadTemperatureBadge, LEAD_TEMPERATURES } from '@/components/LeadTemperatureBadge';
+import { LeadSourceBadge } from '@/components/LeadSourceBadge';
 import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { useOrders } from '@/hooks/useOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
