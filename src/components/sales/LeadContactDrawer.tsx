@@ -21,6 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CallButton } from '@/components/calls/CallButton';
+import { LeadSourceBadge, normalizeSource } from '@/components/LeadSourceBadge';
 import { usePushToCompany, pushLeadToCompanyToast } from '@/hooks/usePushToCompany';
 import { isValidCompanyName } from '@/lib/companyNormalize';
 import { Building } from 'lucide-react';
@@ -38,6 +39,8 @@ export interface LeadContactData {
   status?: string | null;
   assigned_to_name?: string | null;
   created_at?: string;
+  /** Free-text channel label carried from prospect/pipeline/order (e.g. 'call', 'whatsapp', 'website'). */
+  lead_source?: string | null;
   // extra fields for display
   extras?: Record<string, string | number | boolean | null>;
 }
@@ -195,7 +198,10 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
               <div>
                 <SheetTitle className="text-lg">{lead.customer_name}</SheetTitle>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-[10px]">{lead.source_type.replace('_', ' ').toUpperCase()}</Badge>
+                  <LeadSourceBadge source={lead.source_type} size="sm" />
+                  {lead.lead_source && normalizeSource(lead.lead_source) !== normalizeSource(lead.source_type) && (
+                    <LeadSourceBadge source={lead.lead_source} size="sm" />
+                  )}
                   {lead.status && <Badge variant="secondary" className="text-[10px] capitalize">{lead.status}</Badge>}
                   {pendingFollowups.length > 0 && (
                     <Badge className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-400 border-0">
