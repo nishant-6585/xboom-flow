@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -59,11 +59,6 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
   const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<ShopifyOrder | null>(null);
   const [shopifyDetailOpen, setShopifyDetailOpen] = useState(false);
-
-  // Reset page when filters/search change (mirrors original page-level effect)
-  useEffect(() => {
-    setShopifyPage(1);
-  }, [shopifySearchQuery, shopifyStatusFilter, shopifyPaymentStatusFilter, shopifyStartDate, shopifyEndDate, setShopifyPage]);
 
   return (
     <TabsContent value="shopify" className="space-y-6 mt-0">
