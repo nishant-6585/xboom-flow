@@ -390,9 +390,15 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       const remainingUrls = existingUrls.filter(u => u !== urlToRemove);
       const newPoUrl = remainingUrls.length > 0 ? remainingUrls.join(', ') : null;
 
-      const success = await onUpdate(order.id, { po_url: newPoUrl } as any);
+      // When the last PO file is removed, also clear the auto-extracted PO number
+      // so we don't leave a stale number with no document attached.
+      const updatePayload: any = { po_url: newPoUrl };
+      if (!newPoUrl) updatePayload.po_number = null;
+
+      const success = await onUpdate(order.id, updatePayload);
       if (success) {
         setPoUrl(newPoUrl);
+        if (!newPoUrl) setPoNumber('');
         toast.success('PO removed');
       }
     } catch (error: any) {
