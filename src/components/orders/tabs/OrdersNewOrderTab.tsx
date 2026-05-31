@@ -1,15 +1,17 @@
 import { TabsContent } from '@/components/ui/tabs';
 import { OrderForm } from '@/components/OrderForm';
 
-type CreateOrder = Parameters<typeof OrderForm>[0]['onSubmit'];
-type EnquiriesProp = Parameters<typeof OrderForm>[0]['enquiries'];
-type SuppliersProp = Parameters<typeof OrderForm>[0]['suppliers'];
+type OrderFormProps = Parameters<typeof OrderForm>[0];
+type CreateOrder = OrderFormProps['onSubmit'];
+type EnquiriesProp = OrderFormProps['enquiries'];
+type SuppliersProp = OrderFormProps['suppliers'];
+type UserRole = OrderFormProps['userRole'];
 
 export interface OrdersNewOrderTabProps {
   createOrder: CreateOrder;
   enquiries: EnquiriesProp;
   suppliers: SuppliersProp;
-  userRole: string;
+  userRole: UserRole;
   preSelectEnquiryId: string | null;
 }
 
@@ -23,7 +25,7 @@ export default function OrdersNewOrderTab({
         enquiries={enquiries}
         suppliers={suppliers}
         showProcurementRate={false}
-        userRole={userRole || 'sales'}
+        userRole={userRole}
         preSelectEnquiryId={preSelectEnquiryId || undefined}
       />
     </TabsContent>
