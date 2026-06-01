@@ -15,6 +15,7 @@ import { PortalChatButton } from "@/components/chat/PortalChatButton";
 
 import { FollowupReminderPopup } from "@/components/sales/FollowupReminderPopup";
 import { EnquiryResponseAlert } from "@/components/sales/EnquiryResponseAlert";
+import { NewEnquiryAlert } from "@/components/sales/NewEnquiryAlert";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeLoader } from "@/hooks/useThemeLoader";
 
@@ -263,6 +264,7 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
       
       <FollowupReminderPopup />
       <EnquiryResponseAlert />
+      <NewEnquiryAlert />
     </ErrorBoundary>
   );
 }
