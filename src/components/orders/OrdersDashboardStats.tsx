@@ -20,6 +20,7 @@ type TimePeriod = "this_week" | "this_month" | "prev_month";
 
 interface OrdersDashboardStatsProps {
   orders: Order[];
+  allOrders?: Order[];
   timePeriod: TimePeriod;
   onTimePeriodChange: (v: TimePeriod) => void;
   salesPersonFilter: string;
@@ -49,6 +50,7 @@ function getDateRange(period: TimePeriod): { start: Date; end: Date } {
 
 export function OrdersDashboardStats({
   orders,
+  allOrders,
   timePeriod,
   onTimePeriodChange,
   salesPersonFilter,
@@ -61,6 +63,13 @@ export function OrdersDashboardStats({
   const scopedOrders = useMemo(
     () => filterByAnalyticsScope(orders, includeWebsite),
     [orders, includeWebsite],
+  );
+
+  // For the month-vs-month comparison chart we want the full dataset, not the
+  // user-filtered one, so the chart isn't blanked when filters narrow the period.
+  const chartOrders = useMemo(
+    () => filterByAnalyticsScope(allOrders ?? orders, includeWebsite),
+    [allOrders, orders, includeWebsite],
   );
 
   const salesPersons = useMemo(() => {
@@ -129,7 +138,7 @@ export function OrdersDashboardStats({
     const days = Array.from({ length: dayOfMonth }, (_, i) => i + 1);
 
     return days.map((day) => {
-      const currentDayOrders = scopedOrders.filter((o) => {
+      const currentDayOrders = chartOrders.filter((o) => {
         if (o.status === "cancelled") return false;
         const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
@@ -137,7 +146,7 @@ export function OrdersDashboardStats({
           d.getFullYear() === currentMonthStart.getFullYear() &&
           (salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter);
       });
-      const prevDayOrders = scopedOrders.filter((o) => {
+      const prevDayOrders = chartOrders.filter((o) => {
         if (o.status === "cancelled") return false;
         const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
@@ -151,7 +160,7 @@ export function OrdersDashboardStats({
         prevMonth: prevDayOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0),
       };
     });
-  }, [scopedOrders, salesPersonFilter]);
+  }, [chartOrders, salesPersonFilter]);
 
   const currentMonthLabel = format(new Date(), "MMM yyyy");
   const prevMonthLabel = format(subMonths(new Date(), 1), "MMM yyyy");
