@@ -26,6 +26,12 @@ export interface UnifiedLead {
   sales_person_name: string | null;
   is_assigned: boolean;
   created_at: string;
+  source_table: string;
+  disposition: string;
+  disposition_reason_code: string | null;
+  disposition_reason_note: string | null;
+  disposition_at: string | null;
+  disposition_by_name: string | null;
 }
 
 export interface UseUnifiedLeadFeedParams {
@@ -36,6 +42,8 @@ export interface UseUnifiedLeadFeedParams {
   endDate?: Date;
   page: number;
   pageSize: number;
+  /** When false (default), hides qualified + not_qualified leads. */
+  includeDispositioned?: boolean;
 }
 
 const FEED_KEY = "unified-lead-feed";
@@ -59,14 +67,14 @@ function escapeOr(v: string) {
 
 export function useUnifiedLeadFeed(params: UseUnifiedLeadFeedParams) {
   const queryClient = useQueryClient();
-  const { sources, search, status, startDate, endDate, page, pageSize } = params;
+  const { sources, search, status, startDate, endDate, page, pageSize, includeDispositioned } = params;
 
   const queryKey = useMemo(
     () => [
       FEED_KEY,
-      { sources: sources?.slice().sort(), search, status, startDate, endDate, page, pageSize },
+      { sources: sources?.slice().sort(), search, status, startDate, endDate, page, pageSize, includeDispositioned },
     ],
-    [sources, search, status, startDate, endDate, page, pageSize],
+    [sources, search, status, startDate, endDate, page, pageSize, includeDispositioned],
   );
 
   const query = useQuery({
@@ -86,6 +94,9 @@ export function useUnifiedLeadFeed(params: UseUnifiedLeadFeedParams) {
       if (status) q = q.eq("status", status);
       if (startDate) q = q.gte("created_at", startDate.toISOString());
       if (endDate) q = q.lte("created_at", endDate.toISOString());
+      if (!includeDispositioned) {
+        q = q.in("disposition", ["untouched", "prospect"]);
+      }
       if (search && search.trim().length > 0) {
         const s = `%${escapeOr(search)}%`;
         q = q.or(

@@ -5,6 +5,9 @@ import { AttentionButton } from "./AttentionButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import MarkTouchedButton from "./MarkTouchedButton";
+import { LeadRowActions } from "./LeadRowActions";
+import { DispositionBadge } from "./DispositionBadge";
+import type { LeadDisposition } from "@/lib/leadDispositions";
 
 /**
  * Canonical lead actions row used across every Lead Sources panel.
@@ -22,6 +25,20 @@ export type LeadSourceType =
   | "form_lead"
   | "google_ads"
   | "lead";
+
+/** Maps the panel-side source type to the actual public table that the
+ *  set_lead_disposition RPC expects. */
+const SOURCE_TYPE_TO_TABLE: Record<
+  LeadSourceType,
+  "leads" | "form_leads" | "interakt_leads" | "email_leads" | "google_ads_leads" | "call_logs"
+> = {
+  lead: "leads",
+  form_lead: "form_leads",
+  interakt: "interakt_leads",
+  email: "email_leads",
+  google_ads: "google_ads_leads",
+  myoperator: "call_logs",
+};
 
 export interface LeadActionsCellProps {
   sourceType: LeadSourceType;
@@ -50,6 +67,15 @@ export interface LeadActionsCellProps {
   /** Optional WhatsApp opener override (some panels prefer a curated message). */
   openWhatsApp?: (phone: string) => void;
   className?: string;
+  /** Current disposition for this lead (used by the LeadRowActions dropdown). */
+  currentDisposition?: LeadDisposition | string | null;
+  /** Disposition metadata for the inline badge + tooltip. */
+  dispositionReasonCode?: string | null;
+  dispositionReasonNote?: string | null;
+  dispositionAt?: string | null;
+  dispositionByName?: string | null;
+  /** Fired after the disposition changes successfully (re-fetch hook etc.). */
+  onDispositionChanged?: () => void;
 }
 
 const defaultOpenWhatsApp = (phone: string) => {
@@ -83,9 +109,16 @@ export function LeadActionsCell(props: LeadActionsCellProps) {
     onContacted,
     openWhatsApp = defaultOpenWhatsApp,
     className,
+    currentDisposition,
+    dispositionReasonCode,
+    dispositionReasonNote,
+    dispositionAt,
+    dispositionByName,
+    onDispositionChanged,
   } = props;
 
   const safeName = customerName || "Unknown";
+  const dispositionTable = SOURCE_TYPE_TO_TABLE[sourceType];
 
   return (
     <div
@@ -195,6 +228,27 @@ export function LeadActionsCell(props: LeadActionsCellProps) {
 
       {/* 8. Mark as touched (manual override) */}
       <MarkTouchedButton sourceType={sourceType} sourceId={sourceId} className="h-7 w-7 p-0" />
+
+      {/* 9. Inline disposition badge (only shown when already qualified / not_qualified) */}
+      <DispositionBadge
+        disposition={currentDisposition}
+        reasonCode={dispositionReasonCode}
+        reasonNote={dispositionReasonNote}
+        dispositionAt={dispositionAt}
+        dispositionByName={dispositionByName}
+      />
+
+      {/* 10. Qualify / Not Qualify / Re-evaluate */}
+      {dispositionTable && (
+        <LeadRowActions
+          sourceTable={dispositionTable}
+          sourceRowId={String(sourceId)}
+          contactName={safeName}
+          contactPhone={phone}
+          currentDisposition={currentDisposition ?? "untouched"}
+          onDispositionChanged={onDispositionChanged}
+        />
+      )}
     </div>
   );
 }

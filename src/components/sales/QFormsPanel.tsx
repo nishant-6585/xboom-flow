@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
+import { LeadRowActions } from "./LeadRowActions";
 import { AttentionButton } from "./AttentionButton";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
@@ -740,6 +741,7 @@ export default function QFormsPanel() {
                     <ProspectButton sourceType="lead" sourceId={String(r.id)} customerName={r.name ?? "Unknown"} phoneNumber={r.phone} email={r.email} company={r.company} city={r.location} productName={r.subject || r.form_type || ""} notes={r.message} />
                     <AttentionButton sourceType="lead" sourceId={String(r.id)} customerName={r.name ?? "Unknown"} phoneNumber={r.phone} email={r.email} company={r.company} city={r.location} productName={r.subject || r.form_type || ""} notes={r.message} />
                     <EnquiryConvertButton sourceType="lead" sourceId={String(r.id)} customerName={r.name ?? "Unknown"} phoneNumber={r.phone} email={r.email} company={r.company} city={r.location} productName={r.subject || r.form_type || ""} urgency={r.urgency} notes={r.message} isAlreadyConverted={r.is_enquiry_converted} />
+                    <LeadRowActions sourceTable="leads" sourceRowId={String(r.id)} contactName={r.name ?? "Unknown"} contactPhone={r.phone} currentDisposition={(r as any).disposition ?? "untouched"} onDispositionChanged={() => load()} />
                   </div>
                 </div>
               </Card>
