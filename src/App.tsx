@@ -16,6 +16,7 @@ import { PortalChatButton } from "@/components/chat/PortalChatButton";
 import { FollowupReminderPopup } from "@/components/sales/FollowupReminderPopup";
 import { EnquiryResponseAlert } from "@/components/sales/EnquiryResponseAlert";
 import { NewEnquiryAlert } from "@/components/sales/NewEnquiryAlert";
+import { SLAReminderAlert } from "@/components/sales/SLAReminderAlert";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeLoader } from "@/hooks/useThemeLoader";
 
