@@ -1,0 +1,1 @@
+ALTER TABLE public.enquiries REPLICA IDENTITY FULL;
