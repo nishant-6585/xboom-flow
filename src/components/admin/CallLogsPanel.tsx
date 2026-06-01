@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
-import { LeadActionsCell } from "@/components/sales/LeadActionsCell";
+import { LeadRowActions } from "@/components/sales/LeadRowActions";
 import { DispositionBadge } from "@/components/sales/DispositionBadge";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import type { LeadDisposition } from "@/lib/leadDispositions";
