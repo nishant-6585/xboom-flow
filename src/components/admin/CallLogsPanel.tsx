@@ -860,6 +860,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
                               <Eye className="w-4 h-4 mr-1" /> Details
                             </Button>
+                            <LeadRowActions
+                              sourceTable="call_logs"
+                              sourceRowId={log.id}
+                              contactName={(log as any).customer_name || log.full_number || log.caller_number || "Unknown"}
+                              contactPhone={log.full_number || log.caller_number}
+                              currentDisposition={log.disposition ?? "untouched"}
+                              onDispositionChanged={fetchLogs}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
