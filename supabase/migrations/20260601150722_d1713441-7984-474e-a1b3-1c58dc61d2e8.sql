@@ -1,0 +1,1 @@
+DELETE FROM public.sales_unavailability WHERE id = '5d952dce-2f48-4b49-acba-73776ff844f4';
