@@ -11,6 +11,7 @@ import { OrderTable } from '@/components/OrderTable';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
+import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import {
   Loader2, Package, Search, Filter, X, ChevronDown, LayoutGrid, Table,
 } from 'lucide-react';
@@ -87,6 +88,11 @@ export interface OrdersListTabProps {
   handleWooOrderClick: (o: WooCommerceOrder) => void;
   refetchWooOrders: () => void;
   refetchWooSync: () => void;
+  // dashboard stats
+  dashTimePeriod: 'this_week' | 'this_month' | 'prev_month';
+  setDashTimePeriod: (v: 'this_week' | 'this_month' | 'prev_month') => void;
+  dashSalesPersonFilter: string;
+  setDashSalesPersonFilter: (v: string) => void;
   // woo detail dialog (parent-owned because also used by website tab)
   selectedWooOrder: WooCommerceOrder | null;
   wooDetailOpen: boolean;
@@ -117,6 +123,8 @@ export default function OrdersListTab(props: OrdersListTabProps) {
     unifiedRows, unifiedTotalPages, paginatedUnified,
     handleOrderClick, handleUpdateOutcome, handleWooOrderClick,
     refetchWooOrders, refetchWooSync,
+    dashTimePeriod, setDashTimePeriod,
+    dashSalesPersonFilter, setDashSalesPersonFilter,
     selectedWooOrder, wooDetailOpen, setWooDetailOpen,
   } = props;
 
@@ -189,17 +197,6 @@ export default function OrdersListTab(props: OrdersListTabProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap pt-1">
-              <span className="text-xs font-medium text-muted-foreground mr-1">Date:</span>
-              <DateRangeFilter
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateChange={setStartDate}
-                onEndDateChange={setEndDate}
-                onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
-              />
-            </div>
-
             <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
               <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 pt-5 border-t border-border/50">
@@ -261,19 +258,30 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                   </Select>
                 </div>
                 <div className="mt-5 pt-5 border-t border-border/50">
-                  <DateRangeFilter
-                    startDate={startDate}
-                    endDate={endDate}
-                    onStartDateChange={setStartDate}
-                    onEndDateChange={setEndDate}
-                    onClear={clearFilters}
-                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-muted-foreground mr-1">Date:</span>
+                    <DateRangeFilter
+                      startDate={startDate}
+                      endDate={endDate}
+                      onStartDateChange={setStartDate}
+                      onEndDateChange={setEndDate}
+                      onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
+                    />
+                  </div>
                 </div>
               </CollapsibleContent>
             </Collapsible>
           </div>
         </CardContent>
       </Card>
+
+      <OrdersDashboardStats
+        orders={filteredOrders}
+        timePeriod={dashTimePeriod}
+        onTimePeriodChange={setDashTimePeriod}
+        salesPersonFilter={dashSalesPersonFilter}
+        onSalesPersonFilterChange={setDashSalesPersonFilter}
+      />
 
       {manualTotalPages > 1 && !loading && filteredOrders.length > 0 && (
         <div className="flex items-center justify-between flex-wrap gap-3">

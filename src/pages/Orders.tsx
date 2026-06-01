@@ -6,7 +6,6 @@ import { Package, ArrowLeft } from 'lucide-react';
 import { startOfMonth } from 'date-fns';
 
 import { OrderDialog } from '@/components/OrderDialog';
-import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
 import { OrdersExportButton } from '@/components/orders/OrdersExportButton';
 import { OrderPipelineAnalytics } from '@/components/orders/OrderPipelineAnalytics';
@@ -278,15 +277,6 @@ export default function Orders() {
               />
             </div>
 
-            {activeTab === 'list' && (
-              <OrdersDashboardStats
-                orders={orders}
-                timePeriod={dashTimePeriod}
-                onTimePeriodChange={setDashTimePeriod}
-                salesPersonFilter={dashSalesPersonFilter}
-                onSalesPersonFilterChange={setDashSalesPersonFilter}
-              />
-            )}
           </div>
 
           <OrdersListTab
@@ -325,6 +315,10 @@ export default function Orders() {
             handleWooOrderClick={handleWooOrderClick}
             refetchWooOrders={refetchWooOrders}
             refetchWooSync={refetchWooSync}
+            dashTimePeriod={dashTimePeriod}
+            setDashTimePeriod={setDashTimePeriod}
+            dashSalesPersonFilter={dashSalesPersonFilter}
+            setDashSalesPersonFilter={setDashSalesPersonFilter}
             selectedWooOrder={selectedWooOrder}
             wooDetailOpen={wooDetailOpen}
             setWooDetailOpen={setWooDetailOpen}
