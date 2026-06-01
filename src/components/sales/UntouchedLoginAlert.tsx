@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useUntouchedLeads } from "@/hooks/useUntouchedLeads";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,30 +16,53 @@ export function UntouchedLoginAlert() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
-  // Only for sales roles
-  const isSales = role === "sales" || role === "sales_manager" || role === "admin";
+  // Only for sales rep + sales manager. Admins do not get this org-wide alert.
+  const isSales = role === "sales" || role === "sales_manager";
+
+  // For sales managers: fetch the user_ids of their direct reportees so we can
+  // scope the alert to leads assigned to their team (not the whole org).
+  const { data: reporteeIds } = useQuery({
+    queryKey: ["untouched-alert-reportees", user?.id],
+    enabled: !!user?.id && role === "sales_manager",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("reporting_manager_id", user!.id);
+      if (error) throw error;
+      return (data ?? []).map((r: any) => r.user_id).filter(Boolean) as string[];
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const scopedLeads = (() => {
+    if (!leads || !user) return [];
+    if (role === "sales") {
+      return leads.filter((l) => l.sales_person_id === user.id);
+    }
+    if (role === "sales_manager") {
+      // Include manager's own + their reportees' leads
+      const allowed = new Set<string>([user.id, ...(reporteeIds ?? [])]);
+      return leads.filter((l) => l.sales_person_id && allowed.has(l.sales_person_id));
+    }
+    return [];
+  })();
 
   useEffect(() => {
     if (!user || !isSales || !leads || leads.length === 0) return;
     if (sessionStorage.getItem(ALERT_SESSION_KEY)) return;
+    if (role === "sales_manager" && reporteeIds === undefined) return; // wait for reportees
 
-    // Filter to current user's leads (for sales), or all for admin/manager
-    const myLeads = role === "sales"
-      ? leads.filter((l) => l.sales_person_id === user.id)
-      : leads;
-
-    const hasUrgent = myLeads.some((l) => l.bucket === "T+2" || l.bucket === "T+3" || l.bucket === "T++");
+    const hasUrgent = scopedLeads.some((l) => l.bucket === "T+2" || l.bucket === "T+3" || l.bucket === "T++");
     if (hasUrgent) {
       setOpen(true);
       sessionStorage.setItem(ALERT_SESSION_KEY, "1");
     }
-  }, [user, leads, isSales, role]);
+  }, [user, leads, isSales, role, reporteeIds, scopedLeads]);
 
-  if (!leads) return null;
+  if (!leads || !isSales) return null;
 
-  const myLeads = role === "sales" && user
-    ? leads.filter((l) => l.sales_person_id === user.id)
-    : leads;
+  const myLeads = scopedLeads;
 
   const t1 = myLeads.filter((l) => l.bucket === "T+1").length;
   const t2 = myLeads.filter((l) => l.bucket === "T+2").length;
