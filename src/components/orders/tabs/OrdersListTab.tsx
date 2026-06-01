@@ -67,6 +67,7 @@ export interface OrdersListTabProps {
   setViewMode: (m: 'cards' | 'table') => void;
   loading: boolean;
   filteredOrders: Order[];
+  allOrders: Order[];
   wooTotalCount: number;
   // pagination
   manualPage: number;
@@ -118,6 +119,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
     startDate, endDate, setStartDate, setEndDate,
     viewMode, setViewMode,
     loading, filteredOrders, wooTotalCount,
+    allOrders,
     manualPage, setManualPage, MANUAL_PAGE_SIZE,
     manualTotalPages, paginatedManualOrders,
     unifiedRows, unifiedTotalPages, paginatedUnified,
@@ -277,6 +279,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
 
       <OrdersDashboardStats
         orders={filteredOrders}
+        allOrders={allOrders}
         timePeriod={dashTimePeriod}
         onTimePeriodChange={setDashTimePeriod}
         salesPersonFilter={dashSalesPersonFilter}
