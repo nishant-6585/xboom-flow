@@ -302,6 +302,7 @@ export default function Orders() {
             viewMode={viewMode} setViewMode={setViewMode}
             loading={loading}
             filteredOrders={filteredOrders}
+            allOrders={orders}
             wooTotalCount={wooTotalCount}
             manualPage={manualPage} setManualPage={setManualPage}
             MANUAL_PAGE_SIZE={MANUAL_PAGE_SIZE}
