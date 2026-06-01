@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Label as ToggleLabel } from "@/components/ui/label";
 import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { ProspectButton, ACategoryButton } from "./ProspectButton";
@@ -274,9 +273,9 @@ export function FormsLeadsPanel() {
                 checked={includeDispositioned}
                 onCheckedChange={setIncludeDispositioned}
               />
-              <ToggleLabel htmlFor="form-leads-show-all-dispositions" className="text-xs cursor-pointer">
+              <Label htmlFor="form-leads-show-all-dispositions" className="text-xs cursor-pointer">
                 Show all dispositions
-              </ToggleLabel>
+              </Label>
             </div>
           </div>
 
