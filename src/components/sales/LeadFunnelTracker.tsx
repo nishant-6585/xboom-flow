@@ -142,7 +142,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
         { name: 'Emails', count: emailCount, icon: Mail, color: 'text-red-600' },
         { name: 'QForms', count: formCount, icon: FileText, color: 'text-orange-600' },
         { name: 'Google Ads', count: googleAdsCount, icon: Globe, color: 'text-cyan-600' },
-        { name: 'Xboom Website', count: wooCount, icon: Globe, color: 'text-emerald-600' },
+        { name: 'Abandoned Cart', count: wooCount, icon: Globe, color: 'text-emerald-600' },
       ],
       totalLeads,
       prospectsCount,

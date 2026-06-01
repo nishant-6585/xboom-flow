@@ -372,7 +372,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     { name: 'QForms', value: filtered.forms.length, icon: FileText, color: 'hsl(var(--chart-5))' },
     { name: 'ElevenLabs', value: filtered.elevenLabs.length, icon: Bot, color: '#8b5cf6' },
     { name: 'Google Ads', value: filtered.googleAds.length, icon: Megaphone, color: '#f59e0b' },
-    { name: 'Xboom Website', value: filtered.woo.length, icon: Globe, color: '#10b981' },
+    { name: 'Abandoned Cart', value: filtered.woo.length, icon: Globe, color: '#10b981' },
   ];
 
   // ============ Category Breakdown (list style) ============
@@ -881,7 +881,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
         customer_company: g.company || '', product_name: g.product_name || g.campaign_name || '',
         value: 0, date: g.created_at, status: g.status || 'new', tab: 'google-ads',
       }));
-    } else if (sourceName === 'Xboom Website') {
+    } else if (sourceName === 'Abandoned Cart') {
       items = filtered.woo.slice(0, 50).map((w: any) => ({
         id: w.id, type: 'lead' as const, customer_name: w.customer_name || 'Unknown',
         customer_company: '', product_name: '',

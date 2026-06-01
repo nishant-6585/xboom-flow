@@ -34,7 +34,7 @@ import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { LeadActionsCell } from "./LeadActionsCell";
 
 /**
- * Xboom Website Leads
+ * Abandoned Cart Leads
  *
  * Surfaces every WooCommerce order whose status is NOT processing / completed /
  * delivered as a sales lead — these are abandoned carts, failed payments,
@@ -282,7 +282,7 @@ export function XboomWebsiteLeadsPanel() {
             <Globe className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Xboom Website Leads</h2>
+            <h2 className="text-xl font-semibold tracking-tight">Abandoned Cart Leads</h2>
             <p className="text-sm text-muted-foreground">
               Abandoned, failed and cancelled orders from xboom.in — recover them as sales leads
             </p>
@@ -506,7 +506,7 @@ export function XboomWebsiteLeadsPanel() {
                             company={l.customer_company ?? null}
                             productName={l.product_name || ""}
                             quantity={l.quantity}
-                            sourceLabel="Xboom Website"
+                            sourceLabel="Abandoned Cart"
                           />
                         </TableCell>
                         <TableCell>
