@@ -296,6 +296,14 @@ export default function Sales() {
             <AttentionPanel />
           </TabsContent>
 
+          <TabsContent value="disp_qualified" className="space-y-6">
+            <DispositionBucketView target="qualified" />
+          </TabsContent>
+
+          <TabsContent value="disp_not_qualified" className="space-y-6">
+            <DispositionBucketView target="not_qualified" />
+          </TabsContent>
+
 
           <TabsContent value="mega_deals" className="space-y-6">
             <PipelineOrders megaDealsOnly />
