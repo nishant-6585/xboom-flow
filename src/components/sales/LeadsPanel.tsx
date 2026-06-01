@@ -136,6 +136,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [interaktDateStart, setInteraktDateStart] = useState<Date | undefined>();
   const [interaktDateEnd, setInteraktDateEnd] = useState<Date | undefined>();
   const [interaktSalesPersonFilter, setInteraktSalesPersonFilter] = useState('all');
+  const [interaktIncludeDispositioned, setInteraktIncludeDispositioned] = useState(false);
 
   const interaktSalesPersons = Array.from(new Set(interaktLeads.map(l => l.sales_person_name).filter(Boolean))).sort() as string[];
   const [editingInteraktLead, setEditingInteraktLead] = useState<InteraktLead | null>(null);
@@ -147,7 +148,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const canEditInteraktLeads = role === 'admin' || role === 'sales' || role === 'sales_manager';
 
   // Filter Interakt leads
-  const filteredInteraktLeads = interaktLeads.filter((lead) => {
+  const filteredInteraktLeadsBase = interaktLeads.filter((lead) => {
     const matchesSearch = !interaktSearch || 
       lead.customer_name.toLowerCase().includes(interaktSearch.toLowerCase()) ||
       lead.phone_number.includes(interaktSearch) ||
