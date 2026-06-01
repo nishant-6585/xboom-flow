@@ -15,6 +15,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { LeadRowActions } from "./LeadRowActions";
+import { DispositionBadge } from "./DispositionBadge";
 import { useNavigate } from "react-router-dom";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { TableSkeleton, EmptyState, DataErrorState } from "@/components/data-states";
@@ -57,6 +61,7 @@ export function UnifiedLeadInbox() {
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
+  const [includeDispositioned, setIncludeDispositioned] = useState(false);
 
   // last-seen for "new since last visit" indicators
   const [lastSeen, setLastSeen] = useState<string | null>(() => {
@@ -73,7 +78,7 @@ export function UnifiedLeadInbox() {
   // Reset to page 1 on filter change
   useEffect(() => {
     setPage(1);
-  }, [selectedSources, debouncedSearch, startDate, endDate, pageSize]);
+  }, [selectedSources, debouncedSearch, startDate, endDate, pageSize, includeDispositioned]);
 
   // After visit, advance last-seen after 5s grace
   useEffect(() => {
@@ -92,6 +97,7 @@ export function UnifiedLeadInbox() {
     endDate,
     page,
     pageSize,
+    includeDispositioned,
   });
 
   // Counts of "new since last seen" per source (fallback 24h)
@@ -161,6 +167,16 @@ export function UnifiedLeadInbox() {
               <CheckCheck className="h-4 w-4 mr-2" />
               Mark all seen
             </Button>
+            <div className="flex items-center gap-2 pl-2 border-l">
+              <Switch
+                id="show-all-dispositions"
+                checked={includeDispositioned}
+                onCheckedChange={setIncludeDispositioned}
+              />
+              <Label htmlFor="show-all-dispositions" className="text-xs cursor-pointer">
+                Show all dispositions
+              </Label>
+            </div>
           </div>
         </div>
 
@@ -271,6 +287,17 @@ export function UnifiedLeadInbox() {
                       {lead.company && (
                         <div className="text-xs text-muted-foreground">{lead.company}</div>
                       )}
+                      {lead.disposition && lead.disposition !== "untouched" && (
+                        <div className="mt-1">
+                          <DispositionBadge
+                            disposition={lead.disposition}
+                            reasonCode={lead.disposition_reason_code}
+                            reasonNote={lead.disposition_reason_note}
+                            dispositionAt={lead.disposition_at}
+                            dispositionByName={lead.disposition_by_name}
+                          />
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       {lead.phone && <div className="text-sm">{lead.phone}</div>}
@@ -318,6 +345,14 @@ export function UnifiedLeadInbox() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      <LeadRowActions
+                        sourceTable={lead.source_table as any}
+                        sourceRowId={lead.source_row_id}
+                        contactName={lead.name ?? undefined}
+                        contactPhone={lead.phone}
+                        currentDisposition={lead.disposition as any}
+                        onDispositionChanged={() => refetch()}
+                      />
                     </TableCell>
                   </TableRow>
                 );
