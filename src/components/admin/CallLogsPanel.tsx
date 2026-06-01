@@ -399,8 +399,10 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         return true;
       });
     }
+    // Hide qualified/not_qualified rows from the default view.
+    result = applyDispositionFilter(result, includeDispositioned);
     return result;
-  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
