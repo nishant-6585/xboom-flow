@@ -32,6 +32,9 @@ import { AttentionButton } from "./AttentionButton";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 import { LeadActionsCell } from "./LeadActionsCell";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { ElevenLabsAnalytics } from "./ElevenLabsAnalytics";
 import { BarChart3 } from "lucide-react";
 
@@ -53,6 +56,11 @@ type ElevenLead = {
   last_contacted_at: string | null;
   lead_temperature: string;
   is_enquiry_converted: boolean;
+  disposition?: string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 };
 
 type AIAnalysis = {
@@ -257,6 +265,7 @@ export function ElevenLabsLeadsPanel() {
   const [budgetFilter, setBudgetFilter] = useState("all");
   const [tempFilter, setTempFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
@@ -270,7 +279,7 @@ export function ElevenLabsLeadsPanel() {
     let q = supabase
       .from("call_logs")
       .select(
-        "id,caller_number,customer_name,call_duration,requirement,budget,priority,lead_score,lead_status,raw_transcript,notes,created_at,assigned_to,assigned_to_name,last_contacted_at,lead_temperature,is_enquiry_converted",
+        "id,caller_number,customer_name,call_duration,requirement,budget,priority,lead_score,lead_status,raw_transcript,notes,created_at,assigned_to,assigned_to_name,last_contacted_at,lead_temperature,is_enquiry_converted,disposition,disposition_reason_code,disposition_reason_note,disposition_at,disposition_by_name",
       )
       .eq("lead_source", "ElevenLabs")
       .order("created_at", { ascending: false })
@@ -369,7 +378,7 @@ export function ElevenLabsLeadsPanel() {
   };
 
   const filtered = useMemo(() => {
-    return leads.filter((l) => {
+    const base = leads.filter((l) => {
       if (priorityFilter !== "all" && (l.priority ?? "").toLowerCase() !== priorityFilter) return false;
       if (intentFilter !== "all" && (l.requirement ?? "") !== intentFilter) return false;
       if (statusFilter !== "all" && (l.lead_status ?? "New").toLowerCase() !== statusFilter) return false;
@@ -386,7 +395,8 @@ export function ElevenLabsLeadsPanel() {
       }
       return true;
     });
-  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter]);
+    return applyDispositionFilter(base, includeDispositioned);
+  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter, includeDispositioned]);
 
   const stats = useMemo(() => {
     const total = leads.length;
@@ -573,6 +583,16 @@ export function ElevenLabsLeadsPanel() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-2 ml-auto">
+            <Switch
+              id="elevenlabs-show-all-dispositions"
+              checked={includeDispositioned}
+              onCheckedChange={setIncludeDispositioned}
+            />
+            <Label htmlFor="elevenlabs-show-all-dispositions" className="text-xs cursor-pointer">
+              Show all dispositions
+            </Label>
+          </div>
         </div>
       </Card>
 
@@ -627,7 +647,7 @@ export function ElevenLabsLeadsPanel() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <LeadActionsCell
-                        sourceType="lead"
+                        sourceType="myoperator"
                         sourceId={r.id}
                         customerName={isUnidentified ? "Unknown" : name}
                         phone={phoneForActions}
@@ -639,6 +659,12 @@ export function ElevenLabsLeadsPanel() {
                         sourceLabel="Call"
                         onContacted={() => markContacted(r)}
                         openWhatsApp={openWhatsApp}
+                        currentDisposition={r.disposition}
+                        dispositionReasonCode={r.disposition_reason_code}
+                        dispositionReasonNote={r.disposition_reason_note}
+                        dispositionAt={r.disposition_at}
+                        dispositionByName={r.disposition_by_name}
+                        onDispositionChanged={() => load()}
                       />
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">

@@ -32,6 +32,9 @@ import { AttentionButton } from "./AttentionButton";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { LeadActionsCell } from "./LeadActionsCell";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 
@@ -87,6 +90,11 @@ interface Lead {
   last_contacted_at: string | null;
   is_enquiry_converted: boolean;
   lead_temperature: string;
+  disposition?: string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 }
 
 interface SalesUser { user_id: string; name: string }
@@ -124,6 +132,7 @@ export default function QFormsPanel() {
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [includeDispositioned, setIncludeDispositioned] = useState(false);
 
   const canManage = role === "admin" || role === "sales" || role === "sales_manager";
 
@@ -192,13 +201,15 @@ export default function QFormsPanel() {
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter(r =>
-      [r.name, r.email, r.phone, r.company, r.message, r.assigned_to_name]
-        .filter(Boolean)
-        .some(v => v!.toString().toLowerCase().includes(term))
-    );
-  }, [rows, search]);
+    const searched = !term
+      ? rows
+      : rows.filter(r =>
+          [r.name, r.email, r.phone, r.company, r.message, r.assigned_to_name]
+            .filter(Boolean)
+            .some(v => v!.toString().toLowerCase().includes(term))
+        );
+    return applyDispositionFilter(searched, includeDispositioned);
+  }, [rows, search, includeDispositioned]);
 
   // Stats (computed on full rows ignoring search but respecting filters)
   const stats = useMemo(() => {
@@ -511,6 +522,16 @@ export default function QFormsPanel() {
           <Button variant="ghost" size="sm" onClick={clearFilters}>
             <X className="h-4 w-4 mr-1" /> Clear
           </Button>
+          <div className="flex items-center gap-2 ml-auto">
+            <Switch
+              id="qforms-show-all-dispositions"
+              checked={includeDispositioned}
+              onCheckedChange={setIncludeDispositioned}
+            />
+            <Label htmlFor="qforms-show-all-dispositions" className="text-xs cursor-pointer">
+              Show all dispositions
+            </Label>
+          </div>
         </div>
 
         <div className="relative">
@@ -579,6 +600,12 @@ export default function QFormsPanel() {
                         isAlreadyConverted={r.is_enquiry_converted}
                         sourceLabel="Q-Form"
                         onContacted={() => markContacted(r)}
+                        currentDisposition={r.disposition}
+                        dispositionReasonCode={r.disposition_reason_code}
+                        dispositionReasonNote={r.disposition_reason_note}
+                        dispositionAt={r.disposition_at}
+                        dispositionByName={r.disposition_by_name}
+                        onDispositionChanged={() => load()}
                       />
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{submittedFmt}</TableCell>

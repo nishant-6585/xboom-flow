@@ -12,6 +12,9 @@ import { ProspectButton, ACategoryButton } from "../ProspectButton";
 import { AttentionButton } from "../AttentionButton";
 import { EnquiryConvertButton } from "../EnquiryConvertButton";
 import { LeadActionsCell } from "../LeadActionsCell";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { LeadContactDrawer, LeadContactData } from "../LeadContactDrawer";
@@ -43,6 +46,11 @@ interface GoogleAdsLead {
   email: string | null;
   phone: string | null;
   city: string | null;
+  disposition?: string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 }
 
 // Parse structured data from notes field
@@ -125,6 +133,7 @@ export function GoogleAdsLeadsTab() {
   const [leads, setLeads] = useState<GoogleAdsLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<GoogleAdsLead | null>(null);
+  const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const navigate = useNavigate();
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
@@ -132,23 +141,26 @@ export function GoogleAdsLeadsTab() {
   const isProspect = (leadId: string) => prospects.some(p => p.source_id === leadId && p.source_type === 'google_ads');
   const isAttention = (leadId: string) => attentionItems.some(a => a.source_id === leadId && a.source_type === 'google_ads');
 
-  useEffect(() => {
-    async function fetchLeads() {
-      const { data } = await supabase
-        .from("google_ads_leads")
-        .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name, product_category, quantity, urgency, requested_timeline, email, phone, city")
-        .order("created_at", { ascending: false })
-        .limit(200);
+  const fetchLeads = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("google_ads_leads")
+      .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name, product_category, quantity, urgency, requested_timeline, email, phone, city, disposition, disposition_reason_code, disposition_reason_note, disposition_at, disposition_by_name")
+      .order("created_at", { ascending: false })
+      .limit(200);
 
-      if (data) setLeads(data as GoogleAdsLead[]);
-      setLoading(false);
-    }
+    if (data) setLeads(data as GoogleAdsLead[]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchLeads();
   }, []);
 
   // Sort: high-intent + recent first
   const sortedLeads = useMemo(() => {
-    return [...leads].sort((a, b) => {
+    const filtered = applyDispositionFilter(leads, includeDispositioned);
+    return [...filtered].sort((a, b) => {
       // Unconverted first
       if (a.is_converted !== b.is_converted) return a.is_converted ? 1 : -1;
       // Then by temperature: hot > warm > cold
@@ -159,7 +171,7 @@ export function GoogleAdsLeadsTab() {
       // Then recent first
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leads]);
+  }, [leads, includeDispositioned]);
 
   const convertedCount = leads.filter((l) => l.is_converted).length;
   const unconvertedCount = leads.length - convertedCount;
@@ -208,8 +220,18 @@ export function GoogleAdsLeadsTab() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Google Ads Leads ({leads.length})</CardTitle>
+            <CardTitle className="text-lg">Google Ads Leads ({sortedLeads.length})</CardTitle>
             <div className="flex gap-2 text-xs">
+              <div className="flex items-center gap-2 mr-2">
+                <Switch
+                  id="googleads-show-all-dispositions"
+                  checked={includeDispositioned}
+                  onCheckedChange={setIncludeDispositioned}
+                />
+                <Label htmlFor="googleads-show-all-dispositions" className="text-xs cursor-pointer">
+                  Show all dispositions
+                </Label>
+              </div>
               <Badge variant="outline" className="text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200">
                 <CheckCircle2 className="w-3 h-3 mr-1" /> {convertedCount} Converted
               </Badge>
@@ -282,6 +304,12 @@ export function GoogleAdsLeadsTab() {
                               isAlreadyAttention={isAttention(lead.id)}
                               isAlreadyConverted={lead.is_converted}
                               sourceLabel="Google Ads"
+                              currentDisposition={lead.disposition}
+                              dispositionReasonCode={lead.disposition_reason_code}
+                              dispositionReasonNote={lead.disposition_reason_note}
+                              dispositionAt={lead.disposition_at}
+                              dispositionByName={lead.disposition_by_name}
+                              onDispositionChanged={() => fetchLeads()}
                             />
                             <ACategoryButton sourceType="google_ads" sourceId={lead.id} isACategory={false} />
                           </div>

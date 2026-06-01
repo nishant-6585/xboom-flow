@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { ProspectButton, ACategoryButton } from "./ProspectButton";
@@ -26,6 +27,8 @@ import { FormsLeadsAnalytics } from "./FormsLeadsAnalytics";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
+import { applyDispositionFilter } from "@/lib/dispositionFilter";
+import type { LeadDisposition } from "@/lib/leadDispositions";
 
 interface FormLead {
   id: string;
@@ -45,6 +48,11 @@ interface FormLead {
   customer_type: string | null;
   created_at: string;
   updated_at: string;
+  disposition?: LeadDisposition | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 }
 
 const STATUS_OPTIONS = [
@@ -70,6 +78,7 @@ export function FormsLeadsPanel() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [formSourceFilter, setFormSourceFilter] = useState<string>("all");
+  const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [selectedLead, setSelectedLead] = useState<FormLead | null>(null);
   const [drawerLead, setDrawerLead] = useState<FormLead | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -177,13 +186,14 @@ export function FormsLeadsPanel() {
     const matchesFormSource = formSourceFilter === "all" || lead.form_name === formSourceFilter;
     return matchesSearch && matchesStatus && matchesFormSource;
   });
+  const visible = applyDispositionFilter(filtered, includeDispositioned);
 
   // Reset page when filters change
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginatedLeads = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.ceil(visible.length / PAGE_SIZE);
+  const paginatedLeads = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Reset to page 1 when search/filter changes
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, formSourceFilter]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, formSourceFilter, includeDispositioned]);
 
   const getStatusBadge = (status: string) => {
     const opt = STATUS_OPTIONS.find((s) => s.value === status);
@@ -198,7 +208,7 @@ export function FormsLeadsPanel() {
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
               Forms Leads
-              <Badge variant="secondary">{filtered.length}</Badge>
+              <Badge variant="secondary">{visible.length}</Badge>
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button
@@ -257,11 +267,21 @@ export function FormsLeadsPanel() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-2 ml-auto">
+              <Switch
+                id="form-leads-show-all-dispositions"
+                checked={includeDispositioned}
+                onCheckedChange={setIncludeDispositioned}
+              />
+              <Label htmlFor="form-leads-show-all-dispositions" className="text-xs cursor-pointer">
+                Show all dispositions
+              </Label>
+            </div>
           </div>
 
           {isLoading ? (
             <p className="text-muted-foreground text-center py-8">Loading...</p>
-          ) : filtered.length === 0 ? (
+          ) : visible.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No form leads found. Leads will appear here when forms are submitted.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -299,6 +319,12 @@ export function FormsLeadsPanel() {
                           isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
                           customerType={lead.customer_type}
                           sourceLabel="Form"
+                          currentDisposition={lead.disposition}
+                          dispositionReasonCode={lead.disposition_reason_code}
+                          dispositionReasonNote={lead.disposition_reason_note}
+                          dispositionAt={lead.disposition_at}
+                          dispositionByName={lead.disposition_by_name}
+                          onDispositionChanged={() => refetch()}
                         />
                       </td>
                       <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>

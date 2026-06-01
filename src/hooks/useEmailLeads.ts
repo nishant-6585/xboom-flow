@@ -51,6 +51,11 @@ export interface EmailLead {
   last_error: string | null;
   created_at: string;
   updated_at: string;
+  disposition?: string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 }
 
 export function useEmailLeads() {

@@ -33,6 +33,11 @@ export interface InteraktLead {
   purpose_of_purchase: string | null;
   sales_person_id: string | null;
   sales_person_name: string | null;
+  disposition?: string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 }
 
 export function useInteraktLeads() {
