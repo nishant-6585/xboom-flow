@@ -278,9 +278,6 @@ export default function Orders() {
               />
             </div>
 
-            {activeTab === 'list' && (
-              null
-            )}
           </div>
 
           <OrdersListTab
