@@ -135,10 +135,15 @@ export function OrdersDashboardStats({
     const currentMonthStart = startOfMonth(now);
     const dayOfMonth = now.getDate();
     const prevMonthStart = startOfMonth(subMonths(now, 1));
-    const days = Array.from({ length: dayOfMonth }, (_, i) => i + 1);
+    const prevMonthEnd = endOfMonth(subMonths(now, 1));
+    const daysInPrevMonth = prevMonthEnd.getDate();
+    // Always render the full previous month; current-month bars only render
+    // for days that have already occurred this month.
+    const totalDays = Math.max(dayOfMonth, daysInPrevMonth);
+    const days = Array.from({ length: totalDays }, (_, i) => i + 1);
 
     return days.map((day) => {
-      const currentDayOrders = chartOrders.filter((o) => {
+      const currentDayOrders = day > dayOfMonth ? [] : chartOrders.filter((o) => {
         if (o.status === "cancelled") return false;
         const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
@@ -146,7 +151,7 @@ export function OrdersDashboardStats({
           d.getFullYear() === currentMonthStart.getFullYear() &&
           (salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter);
       });
-      const prevDayOrders = chartOrders.filter((o) => {
+      const prevDayOrders = day > daysInPrevMonth ? [] : chartOrders.filter((o) => {
         if (o.status === "cancelled") return false;
         const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
