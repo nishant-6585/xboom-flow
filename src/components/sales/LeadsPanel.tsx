@@ -385,7 +385,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         </TabsTrigger>
         <TabsTrigger value="xboom-website" className="gap-1.5">
           <Globe className="h-3.5 w-3.5" />
-          Xboom Website
+          Abandoned Cart
         </TabsTrigger>
         <TabsTrigger value="call-tracker" className="gap-1.5">
           <PhoneOutgoing className="h-3.5 w-3.5" />

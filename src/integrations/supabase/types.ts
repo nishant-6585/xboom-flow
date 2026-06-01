@@ -2358,6 +2358,107 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_directory: {
+        Row: {
+          contact_key: string
+          created_at: string
+          current_owner: string | null
+          current_owner_name: string | null
+          display_name: string | null
+          email_key: string | null
+          first_seen_at: string
+          last_seen_at: string
+          normalized_phone: string | null
+          touchpoint_count: number
+          updated_at: string
+        }
+        Insert: {
+          contact_key: string
+          created_at?: string
+          current_owner?: string | null
+          current_owner_name?: string | null
+          display_name?: string | null
+          email_key?: string | null
+          first_seen_at?: string
+          last_seen_at?: string
+          normalized_phone?: string | null
+          touchpoint_count?: number
+          updated_at?: string
+        }
+        Update: {
+          contact_key?: string
+          created_at?: string
+          current_owner?: string | null
+          current_owner_name?: string | null
+          display_name?: string | null
+          email_key?: string | null
+          first_seen_at?: string
+          last_seen_at?: string
+          normalized_phone?: string | null
+          touchpoint_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contact_touchpoints: {
+        Row: {
+          assigned_to: string | null
+          assigned_to_name: string | null
+          contact_key: string
+          contact_name: string | null
+          created_at: string
+          email_key: string | null
+          id: string
+          normalized_phone: string | null
+          occurred_at: string
+          raw: Json | null
+          source: string
+          source_row_id: string
+          status: string | null
+          summary: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          contact_key: string
+          contact_name?: string | null
+          created_at?: string
+          email_key?: string | null
+          id?: string
+          normalized_phone?: string | null
+          occurred_at?: string
+          raw?: Json | null
+          source: string
+          source_row_id: string
+          status?: string | null
+          summary?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          contact_key?: string
+          contact_name?: string | null
+          created_at?: string
+          email_key?: string | null
+          id?: string
+          normalized_phone?: string | null
+          occurred_at?: string
+          raw?: Json | null
+          source?: string
+          source_row_id?: string
+          status?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_touchpoints_contact_key_fkey"
+            columns: ["contact_key"]
+            isOneToOne: false
+            referencedRelation: "contact_directory"
+            referencedColumns: ["contact_key"]
+          },
+        ]
+      }
       credit_cards: {
         Row: {
           bank_name: string
@@ -3103,6 +3204,8 @@ export type Database = {
           ai_confidence: number | null
           ai_extracted_json: Json | null
           ai_processed: boolean
+          assigned_to: string | null
+          assigned_to_name: string | null
           body_html: string | null
           body_text: string | null
           city: string | null
@@ -3147,6 +3250,8 @@ export type Database = {
           ai_confidence?: number | null
           ai_extracted_json?: Json | null
           ai_processed?: boolean
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           body_html?: string | null
           body_text?: string | null
           city?: string | null
@@ -3191,6 +3296,8 @@ export type Database = {
           ai_confidence?: number | null
           ai_extracted_json?: Json | null
           ai_processed?: boolean
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           body_html?: string | null
           body_text?: string | null
           city?: string | null
@@ -5096,6 +5203,8 @@ export type Database = {
       google_ads_leads: {
         Row: {
           ad_group_id: string | null
+          assigned_to: string | null
+          assigned_to_name: string | null
           campaign_id: string | null
           campaign_name: string | null
           city: string | null
@@ -5130,6 +5239,8 @@ export type Database = {
         }
         Insert: {
           ad_group_id?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           campaign_id?: string | null
           campaign_name?: string | null
           city?: string | null
@@ -5164,6 +5275,8 @@ export type Database = {
         }
         Update: {
           ad_group_id?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           campaign_id?: string | null
           campaign_name?: string | null
           city?: string | null
@@ -5758,6 +5871,8 @@ export type Database = {
       }
       interakt_leads: {
         Row: {
+          assigned_to: string | null
+          assigned_to_name: string | null
           city: string | null
           company: string | null
           country_code: string
@@ -5793,6 +5908,8 @@ export type Database = {
           urgency: string | null
         }
         Insert: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           city?: string | null
           company?: string | null
           country_code?: string
@@ -5828,6 +5945,8 @@ export type Database = {
           urgency?: string | null
         }
         Update: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           city?: string | null
           company?: string | null
           country_code?: string
@@ -14314,6 +14433,11 @@ export type Database = {
         }
         Returns: Json
       }
+      assign_lead_with_sticky: {
+        Args: { _email: string; _form_type?: string; _phone: string }
+        Returns: Record<string, unknown>
+      }
+      assign_orphan_leads_sweep: { Args: never; Returns: number }
       assign_woo_lead: {
         Args: { p_assignee: string; p_order_id: string }
         Returns: undefined
@@ -14396,6 +14520,8 @@ export type Database = {
           ai_confidence: number | null
           ai_extracted_json: Json | null
           ai_processed: boolean
+          assigned_to: string | null
+          assigned_to_name: string | null
           body_html: string | null
           body_text: string | null
           city: string | null
@@ -14485,6 +14611,10 @@ export type Database = {
       }
       cleanup_expired_devices: { Args: never; Returns: undefined }
       cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
+      compute_contact_key: {
+        Args: { _email: string; _phone: string }
+        Returns: string
+      }
       compute_notification_health: {
         Args: never
         Returns: {
@@ -15029,6 +15159,7 @@ export type Database = {
       }
       needs_step_up_auth: { Args: { p_user_id: string }; Returns: boolean }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
+      normalize_phone: { Args: { _raw: string }; Returns: string }
       recompute_company_health: {
         Args: { _company_id: string }
         Returns: undefined
@@ -15040,6 +15171,22 @@ export type Database = {
           p_failure_reason?: string
           p_status: string
           p_user_id?: string
+        }
+        Returns: undefined
+      }
+      record_touchpoint: {
+        Args: {
+          _assigned_to: string
+          _assigned_to_name: string
+          _email: string
+          _name: string
+          _occurred_at: string
+          _phone: string
+          _raw: Json
+          _source: string
+          _source_row_id: string
+          _status: string
+          _summary: string
         }
         Returns: undefined
       }
