@@ -41,6 +41,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Role guard: only admin/hr can invoke AI ticket analysis (matches
+    // apply-lovable-resolution). Prevents arbitrary authenticated users from
+    // reading any ticket via the service-role client below.
+    const { data: callerRoles } = await supabaseUser
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const allowed = (callerRoles || []).some(
+      (r: { role: string }) => r.role === "admin" || r.role === "hr"
+    );
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { ticket_id } = await req.json();
     if (!ticket_id) {
       return new Response(JSON.stringify({ error: "ticket_id required" }), {
