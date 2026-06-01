@@ -181,6 +181,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
     return matchesSearch && matchesStatus && matchesDate && matchesSalesPerson;
   });
+  const filteredInteraktLeads = applyDispositionFilter(
+    filteredInteraktLeadsBase,
+    interaktIncludeDispositioned,
+  );
 
   // Check if user can see all leads (admin, supply_chain, or sales_manager)
   const canSeeAllLeads = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
