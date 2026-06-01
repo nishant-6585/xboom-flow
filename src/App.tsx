@@ -266,6 +266,7 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
       <FollowupReminderPopup />
       <EnquiryResponseAlert />
       <NewEnquiryAlert />
+      <SLAReminderAlert />
     </ErrorBoundary>
   );
 }
