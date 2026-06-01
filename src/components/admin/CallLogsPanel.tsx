@@ -663,6 +663,13 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           >
             {uniqueOnly ? '✓ Unique Numbers' : 'Unique Numbers'}
           </Button>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 cursor-pointer">
+            <Switch
+              checked={includeDispositioned}
+              onCheckedChange={setIncludeDispositioned}
+            />
+            Show all dispositions
+          </label>
         </div>
 
         {loading && logs.length === 0 ? (
