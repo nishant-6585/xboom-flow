@@ -16,6 +16,7 @@ import { SalesCommandCenter } from "@/components/sales/SalesCommandCenter";
 import { TestimonialsPanel } from "@/components/sales/TestimonialsPanel";
 import { SalesRulesPanel } from "@/components/sales/SalesRulesPanel";
 import { LeadsPanel } from "@/components/sales/LeadsPanel";
+import { DispositionBucketView } from "@/components/sales/DispositionBucketView";
 import { SalesFunnelDashboard } from "@/components/sales/SalesFunnelDashboard";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
