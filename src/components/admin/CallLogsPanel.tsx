@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, MessageSquare } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
@@ -16,6 +17,10 @@ import { toast } from "sonner";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
+import { LeadRowActions } from "@/components/sales/LeadRowActions";
+import { DispositionBadge } from "@/components/sales/DispositionBadge";
+import { applyDispositionFilter } from "@/lib/dispositionFilter";
+import type { LeadDisposition } from "@/lib/leadDispositions";
 import type { Prospect } from "@/hooks/useProspects";
 import { useSalesUsers } from "@/hooks/useSalesUsers";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
@@ -52,6 +57,11 @@ interface CallLog {
   created_at: string;
   sales_person_name: string | null;
   outcall_info: string | null;
+  disposition?: LeadDisposition | string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 }
 
 interface LegDetail {
@@ -288,6 +298,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [departmentFilter, setDepartmentFilter] = useState(defaultDepartment || "all");
   const [missedOnly, setMissedOnly] = useState(false);
   const [uniqueOnly, setUniqueOnly] = useState(false);
+  const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
@@ -388,8 +399,10 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         return true;
       });
     }
+    // Hide qualified/not_qualified rows from the default view.
+    result = applyDispositionFilter(result, includeDispositioned);
     return result;
-  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
@@ -650,6 +663,13 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           >
             {uniqueOnly ? '✓ Unique Numbers' : 'Unique Numbers'}
           </Button>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 cursor-pointer">
+            <Switch
+              checked={includeDispositioned}
+              onCheckedChange={setIncludeDispositioned}
+            />
+            Show all dispositions
+          </label>
         </div>
 
         {loading && logs.length === 0 ? (
@@ -728,8 +748,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className="space-y-0.5">
-                            <div className={`font-semibold ${info.status === 'missed' ? 'text-destructive' : 'text-foreground'}`}>
-                              {(log as any).customer_name || 'Unknown'}
+                            <div className={`font-semibold flex items-center gap-1.5 ${info.status === 'missed' ? 'text-destructive' : 'text-foreground'}`}>
+                              <span>{(log as any).customer_name || 'Unknown'}</span>
+                              <DispositionBadge
+                                disposition={log.disposition}
+                                reasonCode={log.disposition_reason_code}
+                                reasonNote={log.disposition_reason_note}
+                                dispositionAt={log.disposition_at}
+                                dispositionByName={log.disposition_by_name}
+                              />
                             </div>
                             <div className={`font-mono text-xs ${info.status === 'missed' ? 'text-destructive/80' : 'text-primary'}`}>
                               {log.full_number || log.caller_number}
@@ -833,6 +860,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
                               <Eye className="w-4 h-4 mr-1" /> Details
                             </Button>
+                            <LeadRowActions
+                              sourceTable="call_logs"
+                              sourceRowId={log.id}
+                              contactName={(log as any).customer_name || log.full_number || log.caller_number || "Unknown"}
+                              contactPhone={log.full_number || log.caller_number}
+                              currentDisposition={log.disposition ?? "untouched"}
+                              onDispositionChanged={fetchLogs}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
