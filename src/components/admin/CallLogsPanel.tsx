@@ -748,8 +748,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className="space-y-0.5">
-                            <div className={`font-semibold ${info.status === 'missed' ? 'text-destructive' : 'text-foreground'}`}>
-                              {(log as any).customer_name || 'Unknown'}
+                            <div className={`font-semibold flex items-center gap-1.5 ${info.status === 'missed' ? 'text-destructive' : 'text-foreground'}`}>
+                              <span>{(log as any).customer_name || 'Unknown'}</span>
+                              <DispositionBadge
+                                disposition={log.disposition}
+                                reasonCode={log.disposition_reason_code}
+                                reasonNote={log.disposition_reason_note}
+                                dispositionAt={log.disposition_at}
+                                dispositionByName={log.disposition_by_name}
+                              />
                             </div>
                             <div className={`font-mono text-xs ${info.status === 'missed' ? 'text-destructive/80' : 'text-primary'}`}>
                               {log.full_number || log.caller_number}
