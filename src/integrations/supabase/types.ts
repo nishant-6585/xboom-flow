@@ -1468,6 +1468,12 @@ export type Database = {
           customer_name: string | null
           customer_type: string | null
           department: string | null
+          disposition: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at: string | null
+          disposition_by: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
           email: string | null
           end_time: string | null
           entity_id: string | null
@@ -1527,6 +1533,12 @@ export type Database = {
           customer_name?: string | null
           customer_type?: string | null
           department?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           end_time?: string | null
           entity_id?: string | null
@@ -1586,6 +1598,12 @@ export type Database = {
           customer_name?: string | null
           customer_type?: string | null
           department?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           end_time?: string | null
           entity_id?: string | null
@@ -2367,6 +2385,10 @@ export type Database = {
           display_name: string | null
           email_key: string | null
           first_seen_at: string
+          last_disposition: Database["public"]["Enums"]["lead_disposition"]
+          last_disposition_at: string | null
+          last_disposition_reason_code: string | null
+          last_disposition_reason_note: string | null
           last_seen_at: string
           normalized_phone: string | null
           touchpoint_count: number
@@ -2380,6 +2402,10 @@ export type Database = {
           display_name?: string | null
           email_key?: string | null
           first_seen_at?: string
+          last_disposition?: Database["public"]["Enums"]["lead_disposition"]
+          last_disposition_at?: string | null
+          last_disposition_reason_code?: string | null
+          last_disposition_reason_note?: string | null
           last_seen_at?: string
           normalized_phone?: string | null
           touchpoint_count?: number
@@ -2393,6 +2419,10 @@ export type Database = {
           display_name?: string | null
           email_key?: string | null
           first_seen_at?: string
+          last_disposition?: Database["public"]["Enums"]["lead_disposition"]
+          last_disposition_at?: string | null
+          last_disposition_reason_code?: string | null
+          last_disposition_reason_note?: string | null
           last_seen_at?: string
           normalized_phone?: string | null
           touchpoint_count?: number
@@ -3215,6 +3245,12 @@ export type Database = {
           customer_company: string | null
           customer_name: string
           customer_type: string | null
+          disposition: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at: string | null
+          disposition_by: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
           email: string | null
           email_lead_id: string | null
           error_message: string | null
@@ -3261,6 +3297,12 @@ export type Database = {
           customer_company?: string | null
           customer_name: string
           customer_type?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           email_lead_id?: string | null
           error_message?: string | null
@@ -3307,6 +3349,12 @@ export type Database = {
           customer_company?: string | null
           customer_name?: string
           customer_type?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           email_lead_id?: string | null
           error_message?: string | null
@@ -4894,6 +4942,12 @@ export type Database = {
           created_at: string
           customer_name: string
           customer_type: string | null
+          disposition: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at: string | null
+          disposition_by: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
           email: string | null
           form_id: string | null
           form_name: string
@@ -4916,6 +4970,12 @@ export type Database = {
           created_at?: string
           customer_name?: string
           customer_type?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           form_id?: string | null
           form_name: string
@@ -4938,6 +4998,12 @@ export type Database = {
           created_at?: string
           customer_name?: string
           customer_type?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           form_id?: string | null
           form_name?: string
@@ -5214,6 +5280,12 @@ export type Database = {
           customer_company: string | null
           customer_name: string
           customer_state: string | null
+          disposition: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at: string | null
+          disposition_by: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
           email: string | null
           google_lead_id: string | null
           id: string
@@ -5250,6 +5322,12 @@ export type Database = {
           customer_company?: string | null
           customer_name?: string
           customer_state?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           google_lead_id?: string | null
           id?: string
@@ -5286,6 +5364,12 @@ export type Database = {
           customer_company?: string | null
           customer_name?: string
           customer_state?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           google_lead_id?: string | null
           id?: string
@@ -5880,6 +5964,12 @@ export type Database = {
           customer_company: string | null
           customer_name: string
           customer_type: string | null
+          disposition: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at: string | null
+          disposition_by: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
           email: string | null
           id: string
           interakt_created_at: string | null
@@ -5917,6 +6007,12 @@ export type Database = {
           customer_company?: string | null
           customer_name: string
           customer_type?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           id?: string
           interakt_created_at?: string | null
@@ -5954,6 +6050,12 @@ export type Database = {
           customer_company?: string | null
           customer_name?: string
           customer_type?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           id?: string
           interakt_created_at?: string | null
@@ -6804,6 +6906,12 @@ export type Database = {
           company: string | null
           created_at: string
           destinations: Json | null
+          disposition: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at: string | null
+          disposition_by: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
           email: string | null
           form_type: string | null
           id: number
@@ -6831,6 +6939,12 @@ export type Database = {
           company?: string | null
           created_at?: string
           destinations?: Json | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           form_type?: string | null
           id?: never
@@ -6858,6 +6972,12 @@ export type Database = {
           company?: string | null
           created_at?: string
           destinations?: Json | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
           email?: string | null
           form_type?: string | null
           id?: never
@@ -14402,6 +14522,27 @@ export type Database = {
         }
         Relationships: []
       }
+      unified_lead_feed_dispositions: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          disposition: Database["public"]["Enums"]["lead_disposition"] | null
+          disposition_at: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
+          email: string | null
+          name: string | null
+          phone: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
+          source: string | null
+          source_row_id: string | null
+          source_table: string | null
+          subject_or_message: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _create_procurement_for_order: {
@@ -14531,6 +14672,12 @@ export type Database = {
           customer_company: string | null
           customer_name: string
           customer_type: string | null
+          disposition: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at: string | null
+          disposition_by: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
           email: string | null
           email_lead_id: string | null
           error_message: string | null
@@ -15256,6 +15403,16 @@ export type Database = {
           total_orders_count: number
         }[]
       }
+      set_lead_disposition: {
+        Args: {
+          _new_disposition: Database["public"]["Enums"]["lead_disposition"]
+          _reason_code: string
+          _reason_note: string
+          _source_row_id: string
+          _source_table: string
+        }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sync_profiles_to_employees: { Args: never; Returns: number }
@@ -15473,6 +15630,7 @@ export type Database = {
       kpi_rag_status: "green" | "amber" | "red" | "not_started"
       kpi_source: "hr" | "employee"
       kpi_workflow_status: "draft" | "active" | "completed" | "reviewed"
+      lead_disposition: "untouched" | "prospect" | "qualified" | "not_qualified"
       notice_visibility:
         | "all"
         | "sales"
@@ -15817,6 +15975,7 @@ export const Constants = {
       kpi_rag_status: ["green", "amber", "red", "not_started"],
       kpi_source: ["hr", "employee"],
       kpi_workflow_status: ["draft", "active", "completed", "reviewed"],
+      lead_disposition: ["untouched", "prospect", "qualified", "not_qualified"],
       notice_visibility: [
         "all",
         "sales",
