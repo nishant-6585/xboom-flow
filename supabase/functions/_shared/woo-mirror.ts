@@ -170,10 +170,15 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   }
 
   // Mirror website orders into the internal `orders` table for any status
-  // that the UI treats as an "order" (pending, processing, on-hold,
-  // completed, delivered). Other statuses (failed, cancelled, refunded, …)
-  // are still routed to Sales > Leads > Xboom Website only.
-  const MIRROR_STATUSES = new Set(["pending", "processing", "on-hold", "shipped", "completed", "delivered"]);
+  // that the UI treats as a paid/working order (processing, on-hold,
+  // shipped, completed, delivered). "pending" (= Woo "Pending Payment")
+  // is intentionally EXCLUDED: most of those abandon checkout and get
+  // auto-cancelled, so they pollute Tally / Orders. When payment lands,
+  // Woo flips the status to "processing" and the webhook fires again,
+  // which is when we create the internal row.
+  // Other statuses (failed, cancelled, refunded, …) are still routed to
+  // Sales > Leads > Xboom Website only.
+  const MIRROR_STATUSES = new Set(["processing", "on-hold", "shipped", "completed", "delivered"]);
   if (!existing && (!MIRROR_STATUSES.has(wooStatus) || !inWindow)) {
     await supabase.from("woo_sync_logs").insert({
       woo_order_id: orderId, event_type: eventType, direction: "in",
