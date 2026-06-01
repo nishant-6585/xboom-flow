@@ -14,9 +14,15 @@ export function isTerminalDisposition(
  * Pass-through filter used by every source panel.
  * When `includeDispositioned` is false (default) terminal rows are removed.
  */
-export function applyDispositionFilter<
-  T extends { disposition?: LeadDisposition | string | null },
->(rows: T[], includeDispositioned: boolean): T[] {
+export function applyDispositionFilter<T>(
+  rows: T[],
+  includeDispositioned: boolean,
+): T[] {
   if (includeDispositioned) return rows;
-  return rows.filter((r) => !isTerminalDisposition(r.disposition));
+  return rows.filter(
+    (r) =>
+      !isTerminalDisposition(
+        (r as { disposition?: LeadDisposition | string | null })?.disposition,
+      ),
+  );
 }
