@@ -53,6 +53,11 @@ type ElevenLead = {
   last_contacted_at: string | null;
   lead_temperature: string;
   is_enquiry_converted: boolean;
+  disposition?: string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 };
 
 type AIAnalysis = {
