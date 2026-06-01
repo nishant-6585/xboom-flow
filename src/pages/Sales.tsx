@@ -153,6 +153,14 @@ export default function Sales() {
                   <AlertTriangle className="w-4 h-4" />
                   Attention
                 </TabsTrigger>
+                <TabsTrigger value="disp_qualified" className={`${triggerBase} data-[state=active]:bg-green-600 data-[state=active]:text-white`}>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Qualified
+                </TabsTrigger>
+                <TabsTrigger value="disp_not_qualified" className={`${triggerBase} data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground`}>
+                  <XCircle className="w-4 h-4" />
+                  Not Qualified
+                </TabsTrigger>
                 {canAccessEnquiries && (
                 <TabsTrigger value="enquiries" className={triggerPrimary}>
                   <Package className="w-4 h-4" />
