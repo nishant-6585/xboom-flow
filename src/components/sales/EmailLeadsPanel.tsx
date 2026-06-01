@@ -11,6 +11,8 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useEmailLeads, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
 import { useProspects } from '@/hooks/useProspects';
 import { useAttentionItems } from '@/hooks/useAttentionItems';
@@ -32,6 +34,7 @@ import { LeadActionsCell } from './LeadActionsCell';
 import { toast } from 'sonner';
 import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
 import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
+import { applyDispositionFilter } from '@/lib/dispositionFilter';
 
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
 type SortDir = 'asc' | 'desc';
@@ -47,6 +50,7 @@ export function EmailLeadsPanel() {
   const [mailSourceFilter, setMailSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [processingFilter, setProcessingFilter] = useState<string>('all');
+  const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editLead, setEditLead] = useState<EmailLead | null>(null);
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -92,7 +96,8 @@ export function EmailLeadsPanel() {
       return matchesSearch && matchesMail && matchesStatus && matchesProcessing && matchesDate;
     });
 
-    return filtered.sort((a, b) => {
+    const visible = applyDispositionFilter(filtered, includeDispositioned);
+    return visible.sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
         case 'customer_name':
@@ -109,7 +114,7 @@ export function EmailLeadsPanel() {
       }
       return sortDir === 'desc' ? -cmp : cmp;
     });
-  }, [leads, search, mailSourceFilter, statusFilter, processingFilter, startDate, endDate, sortField, sortDir]);
+  }, [leads, search, mailSourceFilter, statusFilter, processingFilter, startDate, endDate, sortField, sortDir, includeDispositioned]);
 
   // Source breakdown
   const sourceBreakdown = useMemo(() => {
@@ -499,6 +504,16 @@ export function EmailLeadsPanel() {
               onEndDateChange={setEndDate}
               onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
             />
+            <div className="flex items-center gap-2 ml-auto">
+              <Switch
+                id="email-leads-show-all-dispositions"
+                checked={includeDispositioned}
+                onCheckedChange={setIncludeDispositioned}
+              />
+              <Label htmlFor="email-leads-show-all-dispositions" className="text-xs cursor-pointer">
+                Show all dispositions
+              </Label>
+            </div>
           </div>
         </CardHeader>
 
@@ -606,6 +621,12 @@ export function EmailLeadsPanel() {
                                 isAlreadyAttention={isAttention(lead.id)}
                                 customerType={(lead as any).customer_type}
                                 sourceLabel="Email"
+                                currentDisposition={lead.disposition}
+                                dispositionReasonCode={lead.disposition_reason_code}
+                                dispositionReasonNote={lead.disposition_reason_note}
+                                dispositionAt={lead.disposition_at}
+                                dispositionByName={lead.disposition_by_name}
+                                onDispositionChanged={() => refetch()}
                               />
                               <ACategoryButton sourceType="email" sourceId={lead.id} isACategory={lead.is_a_category} />
                             </div>
