@@ -177,43 +177,6 @@ export function OrdersDashboardStats({
 
   return (
     <div className="space-y-5 mb-6">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <Select value={timePeriod} onValueChange={(v) => onTimePeriodChange(v as TimePeriod)}>
-            <SelectTrigger className="w-[160px] h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="this_week">This Week</SelectItem>
-              <SelectItem value="this_month">This Month</SelectItem>
-              <SelectItem value="prev_month">Previous Month</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2">
-          <User className="w-4 h-4 text-muted-foreground" />
-          <Select value={salesPersonFilter} onValueChange={onSalesPersonFilterChange}>
-            <SelectTrigger className="w-[180px] h-9">
-              <SelectValue placeholder="All Salespersons" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Salespersons</SelectItem>
-              {salesPersons.map((name) => (
-                <SelectItem key={name} value={name}>{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Badge variant="outline" className="text-xs">
-          {periodLabel} · {filteredOrders.length} orders
-        </Badge>
-        <div className="sm:ml-auto">
-          <IncludeWebsiteToggle />
-        </div>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {statCards.map((s) => (
