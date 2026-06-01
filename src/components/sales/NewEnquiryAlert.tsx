@@ -55,7 +55,7 @@ export function NewEnquiryAlert() {
   const [current, setCurrent] = useState<NewEnquiry | null>(null);
   const seenRef = useRef<Set<string>>(new Set());
 
-  const isSupplyChain = roles?.includes("supply_chain") || roles?.includes("admin");
+  const isSupplyChain = roles?.includes("supply_chain");
 
   const enqueue = useCallback((items: NewEnquiry[]) => {
     if (!items.length) return;
