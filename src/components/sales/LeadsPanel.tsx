@@ -98,7 +98,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const { data: engagedEnquiryIds } = useEngagedLeadIds('enquiry');
   const { data: engagedInteraktIds } = useEngagedLeadIds('interakt');
   const { enquiries, loading, refetch } = useEnquiries();
-  const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
+  const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating, refetch: refetchInterakt } = useInteraktLeads();
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
   const { user, profile, role } = useAuth();
@@ -976,6 +976,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                                 dispositionReasonNote={lead.disposition_reason_note}
                                 dispositionAt={lead.disposition_at}
                                 dispositionByName={lead.disposition_by_name}
+                                onDispositionChanged={() => refetchInterakt()}
                               />
                             </TableCell>
                             <TableCell>
