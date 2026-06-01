@@ -846,7 +846,7 @@ export function ElevenLabsLeadsPanel() {
                     <ProspectButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
                     <AttentionButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
                     <EnquiryConvertButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={phoneForActions} email={null} company={null} city={null} productName={r.requirement || ""} urgency={r.priority} notes={r.notes || r.raw_transcript} isAlreadyConverted={r.is_enquiry_converted} />
-                    <LeadRowActions sourceTable="call_logs" sourceRowId={r.id} contactName={isUnidentified ? "Unknown" : name} contactPhone={phoneForActions} currentDisposition={(r as any).disposition ?? "untouched"} onDispositionChanged={() => loadLeads()} />
+                    <LeadRowActions sourceTable="call_logs" sourceRowId={r.id} contactName={isUnidentified ? "Unknown" : name} contactPhone={phoneForActions} currentDisposition={(r as any).disposition ?? "untouched"} onDispositionChanged={() => load()} />
                   </div>
                 </div>
               </Card>
