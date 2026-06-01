@@ -889,6 +889,16 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     Clear filters
                   </Button>
                 )}
+                <div className="flex items-center gap-2 ml-auto">
+                  <Switch
+                    id="interakt-show-all-dispositions"
+                    checked={interaktIncludeDispositioned}
+                    onCheckedChange={setInteraktIncludeDispositioned}
+                  />
+                  <Label htmlFor="interakt-show-all-dispositions" className="text-xs cursor-pointer">
+                    Show all dispositions
+                  </Label>
+                </div>
               </div>
 
               {interaktLoading ? (
@@ -941,50 +951,32 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         {filteredInteraktLeads.map((lead) => (
                           <TableRow key={lead.id} className={touchedRowCn(isRowTouched('interakt', lead, engagedInteraktIds), "cursor-pointer")} onClick={() => setInteraktDrawerLead(lead)}>
                             <TableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex gap-1">
-                                <ProspectButton
-                                  sourceType="interakt"
-                                  sourceId={lead.id}
-                                  customerName={lead.customer_name}
-                                  phoneNumber={lead.phone_number}
-                                  email={lead.email}
-                                  company={lead.company}
-                                  city={lead.city}
-                                  productName={lead.product_name}
-                                  notes={lead.notes}
-                                  isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
-                                  customerType={(lead as any).customer_type}
-                                />
-                                <AttentionButton
-                                  sourceType="interakt"
-                                  sourceId={lead.id}
-                                  customerName={lead.customer_name}
-                                  phoneNumber={lead.phone_number}
-                                  email={lead.email}
-                                  company={lead.company}
-                                  city={lead.city}
-                                  productName={lead.product_name}
-                                  notes={lead.notes}
-                                  isAlreadyAttention={attentionSourceIds.has(`interakt:${lead.id}`)}
-                                />
-                                <EnquiryConvertButton
-                                  sourceType="interakt"
-                                  sourceId={lead.id}
-                                  customerName={lead.customer_name}
-                                  phoneNumber={lead.phone_number}
-                                  email={lead.email}
-                                  company={lead.company}
-                                  city={lead.city}
-                                  productName={lead.product_name}
-                                  productCategory={lead.product_category}
-                                  productCode={lead.product_code}
-                                  quantity={lead.quantity}
-                                  urgency={lead.urgency}
-                                  requestedTimeline={lead.requested_timeline}
-                                  purposeOfPurchase={lead.purpose_of_purchase}
-                                  notes={lead.notes}
-                                />
-                              </div>
+                              <LeadActionsCell
+                                sourceType="interakt"
+                                sourceId={lead.id}
+                                customerName={lead.customer_name}
+                                phone={lead.phone_number}
+                                email={lead.email}
+                                company={lead.company}
+                                city={lead.city}
+                                productName={lead.product_name}
+                                productCategory={lead.product_category}
+                                productCode={lead.product_code}
+                                quantity={lead.quantity}
+                                urgency={lead.urgency}
+                                requestedTimeline={lead.requested_timeline}
+                                purposeOfPurchase={lead.purpose_of_purchase}
+                                notes={lead.notes}
+                                isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
+                                isAlreadyAttention={attentionSourceIds.has(`interakt:${lead.id}`)}
+                                customerType={(lead as any).customer_type}
+                                sourceLabel="Interakt"
+                                currentDisposition={lead.disposition}
+                                dispositionReasonCode={lead.disposition_reason_code}
+                                dispositionReasonNote={lead.disposition_reason_note}
+                                dispositionAt={lead.disposition_at}
+                                dispositionByName={lead.disposition_by_name}
+                              />
                             </TableCell>
                             <TableCell>
                               <p className="font-medium">{lead.customer_name}</p>
