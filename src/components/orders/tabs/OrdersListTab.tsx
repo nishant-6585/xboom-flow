@@ -11,6 +11,7 @@ import { OrderTable } from '@/components/OrderTable';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
+import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import {
   Loader2, Package, Search, Filter, X, ChevronDown, LayoutGrid, Table,
 } from 'lucide-react';
@@ -87,6 +88,11 @@ export interface OrdersListTabProps {
   handleWooOrderClick: (o: WooCommerceOrder) => void;
   refetchWooOrders: () => void;
   refetchWooSync: () => void;
+  // dashboard stats
+  dashTimePeriod: 'this_week' | 'this_month' | 'prev_month';
+  setDashTimePeriod: (v: 'this_week' | 'this_month' | 'prev_month') => void;
+  dashSalesPersonFilter: string;
+  setDashSalesPersonFilter: (v: string) => void;
   // woo detail dialog (parent-owned because also used by website tab)
   selectedWooOrder: WooCommerceOrder | null;
   wooDetailOpen: boolean;
