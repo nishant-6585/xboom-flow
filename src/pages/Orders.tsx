@@ -6,7 +6,6 @@ import { Package, ArrowLeft } from 'lucide-react';
 import { startOfMonth } from 'date-fns';
 
 import { OrderDialog } from '@/components/OrderDialog';
-import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
 import { OrdersExportButton } from '@/components/orders/OrdersExportButton';
 import { OrderPipelineAnalytics } from '@/components/orders/OrderPipelineAnalytics';
