@@ -16,6 +16,7 @@ import { SalesCommandCenter } from "@/components/sales/SalesCommandCenter";
 import { TestimonialsPanel } from "@/components/sales/TestimonialsPanel";
 import { SalesRulesPanel } from "@/components/sales/SalesRulesPanel";
 import { LeadsPanel } from "@/components/sales/LeadsPanel";
+import { DispositionBucketView } from "@/components/sales/DispositionBucketView";
 import { SalesFunnelDashboard } from "@/components/sales/SalesFunnelDashboard";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
@@ -152,6 +153,14 @@ export default function Sales() {
                   <AlertTriangle className="w-4 h-4" />
                   Attention
                 </TabsTrigger>
+                <TabsTrigger value="disp_qualified" className={`${triggerBase} data-[state=active]:bg-green-600 data-[state=active]:text-white`}>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Qualified
+                </TabsTrigger>
+                <TabsTrigger value="disp_not_qualified" className={`${triggerBase} data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground`}>
+                  <XCircle className="w-4 h-4" />
+                  Not Qualified
+                </TabsTrigger>
                 {canAccessEnquiries && (
                 <TabsTrigger value="enquiries" className={triggerPrimary}>
                   <Package className="w-4 h-4" />
@@ -285,6 +294,14 @@ export default function Sales() {
 
           <TabsContent value="attention" className="space-y-6">
             <AttentionPanel />
+          </TabsContent>
+
+          <TabsContent value="disp_qualified" className="space-y-6">
+            <DispositionBucketView target="qualified" />
+          </TabsContent>
+
+          <TabsContent value="disp_not_qualified" className="space-y-6">
+            <DispositionBucketView target="not_qualified" />
           </TabsContent>
 
 
