@@ -14509,6 +14509,11 @@ export type Database = {
         Row: {
           company: string | null
           created_at: string | null
+          disposition: string | null
+          disposition_at: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
           email: string | null
           is_assigned: boolean | null
           name: string | null
@@ -14517,6 +14522,7 @@ export type Database = {
           sales_person_name: string | null
           source: string | null
           source_row_id: string | null
+          source_table: string | null
           status: string | null
           subject_or_message: string | null
         }
