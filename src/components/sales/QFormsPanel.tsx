@@ -90,6 +90,11 @@ interface Lead {
   last_contacted_at: string | null;
   is_enquiry_converted: boolean;
   lead_temperature: string;
+  disposition?: string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 }
 
 interface SalesUser { user_id: string; name: string }
