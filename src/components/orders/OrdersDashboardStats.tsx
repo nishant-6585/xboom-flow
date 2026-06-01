@@ -70,15 +70,12 @@ export function OrdersDashboardStats({
   }, [scopedOrders]);
 
   const filteredOrders = useMemo(() => {
-    const { start, end } = getDateRange(timePeriod);
     return scopedOrders.filter((o) => {
       if (o.status === "cancelled") return false;
-      const d = new Date(o.order_date || o.created_at);
-      const inRange = isWithinInterval(d, { start: startOfDay(start), end });
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
-      return inRange && matchesPerson;
+      return matchesPerson;
     });
-  }, [scopedOrders, timePeriod, salesPersonFilter]);
+  }, [scopedOrders, salesPersonFilter]);
 
   // Fetch profit data from order_items via DB function
   const [profitData, setProfitData] = useState<Record<string, { profit: number; total_sales: number }>>({});
@@ -158,7 +155,7 @@ export function OrdersDashboardStats({
 
   const currentMonthLabel = format(new Date(), "MMM yyyy");
   const prevMonthLabel = format(subMonths(new Date(), 1), "MMM yyyy");
-  const periodLabel = timePeriod === "this_week" ? "This Week" : timePeriod === "this_month" ? "Month Till Date" : "Previous Month";
+  const periodLabel = "Filtered";
 
   const formatChartValue = (value: number) => {
     if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
