@@ -27,7 +27,7 @@ export interface UseOrdersFilteringArgs {
   categoryFilter: string;
   startDate: Date | undefined;
   endDate: Date | undefined;
-  sourceFilter: 'all' | 'manual' | 'website';
+  sourceFilter: 'all' | 'manual' | 'website_synced' | 'website_manual';
   // shopify
   shopifySearchQuery: string;
   shopifyStatusFilter: string;
@@ -49,6 +49,11 @@ const ALL_ORDERS_WEBSITE_STATUSES = new Set([
 export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
   const filteredOrders = a.orders.filter(o => {
     if (a.enquiryIdFromUrl && a.activeTab === 'list') return o.enquiry_id === a.enquiryIdFromUrl;
+    const src = (o as any).source as string | null | undefined;
+    const ext = (o as any).external_id;
+    if (a.sourceFilter === 'manual' && src === 'website') return false;
+    if (a.sourceFilter === 'website_manual' && !(src === 'website' && !ext)) return false;
+    if (a.sourceFilter === 'website_synced' && !(src === 'website' && !!ext)) return false;
     const sl = a.searchQuery.toLowerCase().trim();
     const matchesSearch = a.searchQuery === '' ||
       (o.order_number?.toLowerCase().includes(sl)) ||
@@ -110,13 +115,16 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
 
   const unifiedRows: UnifiedRow[] = (() => {
     const rows: UnifiedRow[] = [];
-    if (a.sourceFilter !== 'website') {
+    // Manual list rows (already source-filtered inside filteredOrders).
+    // Skip when user explicitly picked the live-synced Woo feed only.
+    if (a.sourceFilter !== 'website_synced') {
       for (const o of filteredOrders) {
         const d = new Date(o.order_date || o.created_at).getTime() || 0;
         rows.push({ kind: 'manual', date: d, row: o });
       }
     }
-    if (a.sourceFilter !== 'manual') {
+    // Live Woo feed — only include for 'all' and 'website_synced'.
+    if (a.sourceFilter === 'all' || a.sourceFilter === 'website_synced') {
       const mirroredWooIds = new Set(
         (a.orders as any[])
           .filter((o) => (o as any).source === 'website')
