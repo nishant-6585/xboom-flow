@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, MessageSquare } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
@@ -16,6 +17,10 @@ import { toast } from "sonner";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
+import { LeadActionsCell } from "@/components/sales/LeadActionsCell";
+import { DispositionBadge } from "@/components/sales/DispositionBadge";
+import { applyDispositionFilter } from "@/lib/dispositionFilter";
+import type { LeadDisposition } from "@/lib/leadDispositions";
 import type { Prospect } from "@/hooks/useProspects";
 import { useSalesUsers } from "@/hooks/useSalesUsers";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
@@ -52,6 +57,11 @@ interface CallLog {
   created_at: string;
   sales_person_name: string | null;
   outcall_info: string | null;
+  disposition?: LeadDisposition | string | null;
+  disposition_reason_code?: string | null;
+  disposition_reason_note?: string | null;
+  disposition_at?: string | null;
+  disposition_by_name?: string | null;
 }
 
 interface LegDetail {
