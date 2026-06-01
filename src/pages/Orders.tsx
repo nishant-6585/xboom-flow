@@ -279,13 +279,7 @@ export default function Orders() {
             </div>
 
             {activeTab === 'list' && (
-              <OrdersDashboardStats
-                orders={orders}
-                timePeriod={dashTimePeriod}
-                onTimePeriodChange={setDashTimePeriod}
-                salesPersonFilter={dashSalesPersonFilter}
-                onSalesPersonFilterChange={setDashSalesPersonFilter}
-              />
+              null
             )}
           </div>
 
@@ -325,6 +319,10 @@ export default function Orders() {
             handleWooOrderClick={handleWooOrderClick}
             refetchWooOrders={refetchWooOrders}
             refetchWooSync={refetchWooSync}
+            dashTimePeriod={dashTimePeriod}
+            setDashTimePeriod={setDashTimePeriod}
+            dashSalesPersonFilter={dashSalesPersonFilter}
+            setDashSalesPersonFilter={setDashSalesPersonFilter}
             selectedWooOrder={selectedWooOrder}
             wooDetailOpen={wooDetailOpen}
             setWooDetailOpen={setWooDetailOpen}
