@@ -77,15 +77,11 @@ export function OrdersDashboardStats({
 
   const filteredOrders = useMemo(() => {
     return scopedOrders.filter((o) => {
+      if (o.status === "cancelled") return false;
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
       return matchesPerson;
     });
   }, [scopedOrders, salesPersonFilter]);
-
-  const revenueOrders = useMemo(
-    () => filteredOrders.filter((o) => o.status !== "cancelled"),
-    [filteredOrders],
-  );
 
   // Fetch profit data from order_items via DB function
   const [profitData, setProfitData] = useState<Record<string, { profit: number; total_sales: number }>>({});
@@ -95,7 +91,7 @@ export function OrdersDashboardStats({
   );
   
   useEffect(() => {
-    const orderIds = revenueOrders.map(o => o.id);
+    const orderIds = filteredOrders.map(o => o.id);
     if (orderIds.length === 0) {
       setProfitData({});
       return;
@@ -115,12 +111,12 @@ export function OrdersDashboardStats({
       }
     };
     fetchProfits();
-  }, [revenueOrders, hasWebsiteRows]);
+  }, [filteredOrders, hasWebsiteRows]);
 
   const totals = useMemo(() => {
     const totalOrders = filteredOrders.length;
-    const totalOrderValue = revenueOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
-    const totalReceived = revenueOrders.reduce((s, o) => s + (o.amount_paid || 0), 0);
+    const totalOrderValue = filteredOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
+    const totalReceived = filteredOrders.reduce((s, o) => s + (o.amount_paid || 0), 0);
     const totalPending = totalOrderValue - totalReceived;
     
     // Calculate profit from order_items data
@@ -132,7 +128,7 @@ export function OrdersDashboardStats({
     });
     const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     return { totalOrders, totalOrderValue, totalReceived, totalPending, totalProfit, avgMargin };
-  }, [filteredOrders, revenueOrders, profitData]);
+  }, [filteredOrders, profitData]);
 
   // Comparison chart data
   const comparisonData = useMemo(() => {
