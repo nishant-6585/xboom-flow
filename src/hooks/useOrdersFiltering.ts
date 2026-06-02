@@ -46,16 +46,17 @@ const ALL_ORDERS_WEBSITE_STATUSES = new Set([
   'processing', 'on-hold', 'shipped', 'completed', 'delivered',
 ]);
 
+const isWebsiteMirror = (o: Order) => ((o as any).source as string | null | undefined) === 'website';
+
+const isWebsiteMirrorPaid = (o: Order) => {
+  const total = Number(o.total_sales_amount) || 0;
+  const paid = Number(o.amount_paid) || 0;
+  return o.payment_status === 'full' || (total > 0 && paid >= total);
+};
+
 export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
-  const filteredOrders = a.orders.filter(o => {
+  const passesManualOrderFilters = (o: Order) => {
     if (a.enquiryIdFromUrl && a.activeTab === 'list') return o.enquiry_id === a.enquiryIdFromUrl;
-    const src = (o as any).source as string | null | undefined;
-    // Manual = anything not flagged as website.
-    if (a.sourceFilter === 'manual' && src === 'website') return false;
-    // Website (Auto) is sourced from the live WooCommerce feed only,
-    // injected via unifiedRows below — hide every row from the manual
-    // orders table when that filter is active.
-    if (a.sourceFilter === 'website_auto') return false;
     const sl = a.searchQuery.toLowerCase().trim();
     const matchesSearch = a.searchQuery === '' ||
       (o.order_number?.toLowerCase().includes(sl)) ||
@@ -77,6 +78,14 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     if (a.startDate) return od >= startOfDay(a.startDate);
     if (a.endDate) return od <= endOfDay(a.endDate);
     return true;
+  };
+
+  const filteredOrders = a.orders.filter(o => {
+    if (!passesManualOrderFilters(o)) return false;
+    const isWebsite = isWebsiteMirror(o);
+    if (a.sourceFilter === 'manual') return !isWebsite;
+    if (a.sourceFilter === 'website_auto') return isWebsite && isWebsiteMirrorPaid(o);
+    return !isWebsite || isWebsiteMirrorPaid(o);
   });
 
   const filteredShopifyOrders = a.shopifyOrders.filter(o => {
@@ -117,13 +126,12 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
 
   const unifiedRows: UnifiedRow[] = (() => {
     const rows: UnifiedRow[] = [];
-    // Manual list rows (already source-filtered inside filteredOrders).
-    // Skip when user explicitly picked the live-synced Woo feed only.
-    if (a.sourceFilter !== 'website_auto') {
-      for (const o of filteredOrders) {
-        const d = new Date(o.order_date || o.created_at).getTime() || 0;
-        rows.push({ kind: 'manual', date: d, row: o });
-      }
+    // Orders table rows are already source-filtered above. This includes
+    // paid Website (Auto) mirrors, which must be counted in the same way they
+    // are displayed in the list.
+    for (const o of filteredOrders) {
+      const d = new Date(o.order_date || o.created_at).getTime() || 0;
+      rows.push({ kind: 'manual', date: d, row: o });
     }
     // Live Woo feed — only include for 'all' and 'website_auto'.
     if (a.sourceFilter === 'all' || a.sourceFilter === 'website_auto') {
