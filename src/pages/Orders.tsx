@@ -140,7 +140,7 @@ export default function Orders() {
   const categoryOptions = [...new Set(orders.map(o => o.product_category).filter(Boolean))] as string[];
 
   // Derived: filtering
-  const { filteredOrders, filteredShopifyOrders, filteredWooOrders, unifiedRows } = useOrdersFiltering({
+  const { filteredOrders, filteredShopifyOrders, filteredWooOrders, unifiedRows, sourceCounts } = useOrdersFiltering({
     orders, shopifyOrders, wooOrders,
     wooFailedNotifIds, wooPendingNotifIds,
     enquiryIdFromUrl, activeTab,
