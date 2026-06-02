@@ -294,7 +294,11 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                 sales_person_name: w.assigned_to_name || null,
                 order_date: w.woo_created_at || w.created_at,
                 created_at: w.created_at,
-                source: 'website',
+                // Use a non-'website' token so the analytics-scope toggle
+                // (which strips source='website') does not zero the
+                // Total Orders / Order Value cards when the user is
+                // explicitly viewing Website (Auto) feed.
+                source: 'website_auto',
               } as any;
             });
           return [...filteredOrders, ...wooMapped];
