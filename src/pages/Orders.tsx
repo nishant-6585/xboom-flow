@@ -304,6 +304,7 @@ export default function Orders() {
             filteredOrders={filteredOrders}
             allOrders={orders}
             wooTotalCount={wooTotalCount}
+            sourceCounts={sourceCounts}
             manualPage={manualPage} setManualPage={setManualPage}
             MANUAL_PAGE_SIZE={MANUAL_PAGE_SIZE}
             manualTotalPages={manualTotalPages}
