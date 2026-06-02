@@ -1,4 +1,4 @@
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, subDays, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { CalendarIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,10 @@ interface DateRangeFilterProps {
   onClear: () => void;
 }
 
-const PRESETS = [
+type Preset = { label: string; getRange: () => { start: Date | undefined; end: Date | undefined } };
+
+const PRESETS: Preset[] = [
+  { label: 'All Time', getRange: () => ({ start: undefined, end: undefined }) },
   { label: 'Today', getRange: () => { const t = startOfDay(new Date()); return { start: t, end: endOfDay(new Date()) }; } },
   { label: 'Yesterday', getRange: () => { const y = subDays(new Date(), 1); return { start: startOfDay(y), end: endOfDay(y) }; } },
   { label: 'This Week', getRange: () => ({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: new Date() }) },
@@ -31,7 +34,14 @@ export function DateRangeFilter({
 }: DateRangeFilterProps) {
   const hasDateFilter = startDate || endDate;
 
-  const applyPreset = (preset: typeof PRESETS[0]) => {
+  const isPresetActive = (preset: Preset) => {
+    const { start, end } = preset.getRange();
+    if (!start && !end) return !startDate && !endDate;
+    if (!startDate || !endDate) return false;
+    return isSameDay(startDate, start as Date) && isSameDay(endDate, end as Date);
+  };
+
+  const applyPreset = (preset: Preset) => {
     const { start, end } = preset.getRange();
     onStartDateChange(start);
     onEndDateChange(end);
@@ -42,9 +52,12 @@ export function DateRangeFilter({
       {PRESETS.map(p => (
         <Button
           key={p.label}
-          variant="outline"
+          variant={isPresetActive(p) ? 'default' : 'outline'}
           size="sm"
-          className="text-xs h-8"
+          className={cn(
+            "text-xs h-8",
+            isPresetActive(p) && "bg-primary text-primary-foreground hover:bg-primary/90",
+          )}
           onClick={() => applyPreset(p)}
         >
           {p.label}

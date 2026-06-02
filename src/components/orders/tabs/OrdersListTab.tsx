@@ -260,26 +260,46 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="mt-5 pt-5 border-t border-border/50">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-muted-foreground mr-1">Date:</span>
-                    <DateRangeFilter
-                      startDate={startDate}
-                      endDate={endDate}
-                      onStartDateChange={setStartDate}
-                      onEndDateChange={setEndDate}
-                      onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
-                    />
-                  </div>
-                </div>
               </CollapsibleContent>
             </Collapsible>
+
+            <div className="pt-4 border-t border-border/50">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-medium text-muted-foreground mr-1">Date:</span>
+                <DateRangeFilter
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <OrdersDashboardStats
-        orders={filteredOrders}
+        orders={(() => {
+          const wooMapped = unifiedRows
+            .filter((r) => r.kind === 'woo')
+            .map((r: any) => {
+              const w = r.row;
+              return {
+                id: w.id,
+                order_number: w.order_number,
+                status: (w.order_status || '').toLowerCase(),
+                payment_status: w.payment_status,
+                total_sales_amount: Number(w.total_sales_amount) || 0,
+                amount_paid: Number(w.amount_paid) || 0,
+                sales_person_name: w.assigned_to_name || null,
+                order_date: w.woo_created_at || w.created_at,
+                created_at: w.created_at,
+                source: 'website',
+              } as any;
+            });
+          return [...filteredOrders, ...wooMapped];
+        })()}
         allOrders={allOrders}
         timePeriod={dashTimePeriod}
         onTimePeriodChange={setDashTimePeriod}
