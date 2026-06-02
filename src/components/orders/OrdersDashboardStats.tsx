@@ -32,6 +32,9 @@ const fmt = (v: number) => {
   return `₹${v.toLocaleString("en-IN")}`;
 };
 
+type ProfitRow = { order_id: string; profit: number | string | null; total_sales: number | string | null };
+type ChartPayloadItem = { color?: string; name?: string; value?: number | string };
+
 function getDateRange(period: TimePeriod): { start: Date; end: Date } {
   const now = new Date();
   switch (period) {
@@ -101,7 +104,7 @@ export function OrdersDashboardStats({
       });
       if (!error && data) {
         const map: Record<string, { profit: number; total_sales: number }> = {};
-        (data as any[]).forEach((row: any) => {
+        (data as ProfitRow[]).forEach((row) => {
           map[row.order_id] = { profit: Number(row.profit) || 0, total_sales: Number(row.total_sales) || 0 };
         });
         setProfitData(map);
@@ -239,11 +242,11 @@ export function OrdersDashboardStats({
                     return (
                       <div className="bg-popover border border-border rounded-lg p-3 shadow-lg text-sm">
                         <p className="font-medium mb-2">Day {label}</p>
-                        {payload.map((entry: any, i: number) => (
+                        {payload.map((entry: ChartPayloadItem, i: number) => (
                           <div key={i} className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: entry.color }} />
                             <span className="text-muted-foreground">{entry.name}:</span>
-                            <span className="font-medium">{fmt(entry.value)}</span>
+                            <span className="font-medium">{fmt(Number(entry.value) || 0)}</span>
                           </div>
                         ))}
                       </div>
