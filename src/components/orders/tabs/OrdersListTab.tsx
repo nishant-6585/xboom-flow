@@ -69,6 +69,7 @@ export interface OrdersListTabProps {
   filteredOrders: Order[];
   allOrders: Order[];
   wooTotalCount: number;
+  sourceCounts: { all: number; manual: number; website_auto: number };
   // pagination
   manualPage: number;
   setManualPage: (n: number | ((p: number) => number)) => void;
