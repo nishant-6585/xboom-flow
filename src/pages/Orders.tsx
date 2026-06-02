@@ -69,7 +69,7 @@ export default function Orders() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'manual' | 'website_synced' | 'website_manual'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'manual' | 'website_auto'>('all');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Dialogs
