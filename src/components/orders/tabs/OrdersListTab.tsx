@@ -120,7 +120,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
     startDate, endDate, setStartDate, setEndDate,
     viewMode, setViewMode,
     loading, filteredOrders, wooTotalCount,
-    allOrders,
+    allOrders, sourceCounts,
     manualPage, setManualPage, MANUAL_PAGE_SIZE,
     manualTotalPages, paginatedManualOrders,
     unifiedRows, unifiedTotalPages, paginatedUnified,
