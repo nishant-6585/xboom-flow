@@ -69,6 +69,7 @@ export interface OrdersListTabProps {
   filteredOrders: Order[];
   allOrders: Order[];
   wooTotalCount: number;
+  sourceCounts: { all: number; manual: number; website_auto: number };
   // pagination
   manualPage: number;
   setManualPage: (n: number | ((p: number) => number)) => void;
@@ -119,7 +120,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
     startDate, endDate, setStartDate, setEndDate,
     viewMode, setViewMode,
     loading, filteredOrders, wooTotalCount,
-    allOrders,
+    allOrders, sourceCounts,
     manualPage, setManualPage, MANUAL_PAGE_SIZE,
     manualTotalPages, paginatedManualOrders,
     unifiedRows, unifiedTotalPages, paginatedUnified,
@@ -163,9 +164,9 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                     <SelectValue placeholder="Source" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Sources ({(filteredOrders.length + wooTotalCount).toLocaleString()})</SelectItem>
-                    <SelectItem value="manual">Manual ({filteredOrders.length.toLocaleString()})</SelectItem>
-                    <SelectItem value="website_auto">Website (Auto) ({wooTotalCount.toLocaleString()})</SelectItem>
+                    <SelectItem value="all">All Sources ({sourceCounts.all.toLocaleString()})</SelectItem>
+                    <SelectItem value="manual">Manual ({sourceCounts.manual.toLocaleString()})</SelectItem>
+                    <SelectItem value="website_auto">Website (Auto) ({sourceCounts.website_auto.toLocaleString()})</SelectItem>
                   </SelectContent>
                 </Select>
                 <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>

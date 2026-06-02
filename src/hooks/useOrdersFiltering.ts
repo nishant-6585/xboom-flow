@@ -167,5 +167,64 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     return rows;
   })();
 
-  return { filteredOrders, filteredShopifyOrders, filteredWooOrders, unifiedRows };
+  // === Counts for the source-filter dropdown =====================================
+  // These reflect what the user will actually see when each source is selected
+  // (date / search / status / paid filters all respected), independent of the
+  // currently-selected sourceFilter — so the dropdown is never misleading.
+  const dateOk = (d: number) => {
+    if (a.startDate && d < startOfDay(a.startDate).getTime()) return false;
+    if (a.endDate && d > endOfDay(a.endDate).getTime()) return false;
+    return true;
+  };
+
+  const manualCount = a.orders.reduce((n, o) => {
+    if (!passesManualOrderFilters(o)) return n;
+    if (isWebsiteMirror(o)) return n;
+    return n + 1;
+  }, 0);
+
+  const websiteMirrorPaidIds = new Set<string>();
+  let websiteAutoCount = 0;
+  for (const o of a.orders) {
+    if (!passesManualOrderFilters(o)) continue;
+    if (!isWebsiteMirror(o)) continue;
+    if (!isWebsiteMirrorPaid(o)) continue;
+    websiteAutoCount++;
+    const ext = String((o as any).external_id || '');
+    if (ext) websiteMirrorPaidIds.add(ext);
+  }
+
+  const sl = a.searchQuery.toLowerCase().trim();
+  const mirroredWooIds = new Set(
+    (a.orders as any[])
+      .filter((o) => (o as any).source === 'website')
+      .map((o) => String((o as any).external_id || '')),
+  );
+  for (const o of a.wooOrders) {
+    const s = (o.order_status || '').toLowerCase();
+    if (!ALL_ORDERS_WEBSITE_STATUSES.has(s)) continue;
+    if (mirroredWooIds.has(String(o.woo_order_id || ''))) continue;
+    if ((o.payment_status || '').toLowerCase() !== 'paid') continue;
+    if (sl) {
+      const hit =
+        (o.order_number?.toLowerCase().includes(sl)) ||
+        (o.woo_order_id?.toLowerCase().includes(sl) ?? false) ||
+        (o.product_name?.toLowerCase().includes(sl) ?? false) ||
+        (o.customer_name?.toLowerCase().includes(sl) ?? false) ||
+        (o.customer_email?.toLowerCase().includes(sl) ?? false);
+      if (!hit) continue;
+    }
+    const dIso = o.woo_created_at || o.created_at;
+    const d = dIso ? new Date(dIso).getTime() : 0;
+    if (!dateOk(d)) continue;
+    websiteAutoCount++;
+  }
+
+  const sourceCounts = {
+    manual: manualCount,
+    website_auto: websiteAutoCount,
+    all: manualCount + websiteAutoCount,
+  };
+
+  return { filteredOrders, filteredShopifyOrders, filteredWooOrders, unifiedRows, sourceCounts };
 }

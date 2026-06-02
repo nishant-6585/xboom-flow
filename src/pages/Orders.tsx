@@ -140,7 +140,7 @@ export default function Orders() {
   const categoryOptions = [...new Set(orders.map(o => o.product_category).filter(Boolean))] as string[];
 
   // Derived: filtering
-  const { filteredOrders, filteredShopifyOrders, filteredWooOrders, unifiedRows } = useOrdersFiltering({
+  const { filteredOrders, filteredShopifyOrders, filteredWooOrders, unifiedRows, sourceCounts } = useOrdersFiltering({
     orders, shopifyOrders, wooOrders,
     wooFailedNotifIds, wooPendingNotifIds,
     enquiryIdFromUrl, activeTab,
@@ -267,6 +267,7 @@ export default function Orders() {
                 sourceFilter={sourceFilter}
                 filteredOrdersCount={filteredOrders.length}
                 wooTotalCount={wooTotalCount}
+                sourceCounts={sourceCounts}
                 shopifyTotalCount={shopifyTotalCount}
                 refundCount={refundCount}
                 canViewPipelineAnalytics={canViewPipelineAnalytics}
@@ -304,6 +305,7 @@ export default function Orders() {
             filteredOrders={filteredOrders}
             allOrders={orders}
             wooTotalCount={wooTotalCount}
+            sourceCounts={sourceCounts}
             manualPage={manualPage} setManualPage={setManualPage}
             MANUAL_PAGE_SIZE={MANUAL_PAGE_SIZE}
             manualTotalPages={manualTotalPages}
