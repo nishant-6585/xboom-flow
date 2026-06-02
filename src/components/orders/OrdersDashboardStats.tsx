@@ -13,8 +13,6 @@ import {
 } from "date-fns";
 import { Order } from "@/hooks/useOrders";
 import { supabase } from "@/integrations/supabase/client";
-import { useAnalyticsScope, filterByAnalyticsScope } from "@/contexts/AnalyticsScopeContext";
-import { IncludeWebsiteToggle } from "@/components/analytics/IncludeWebsiteToggle";
 
 type TimePeriod = "this_week" | "this_month" | "prev_month";
 
@@ -56,20 +54,16 @@ export function OrdersDashboardStats({
   salesPersonFilter,
   onSalesPersonFilterChange,
 }: OrdersDashboardStatsProps) {
-  const { includeWebsite } = useAnalyticsScope();
-
-  // Scope all dashboard math to the analytics-scope toggle. Operational order
-  // lists elsewhere are unaffected — only this dashboard filters.
-  const scopedOrders = useMemo(
-    () => filterByAnalyticsScope(orders, includeWebsite),
-    [orders, includeWebsite],
-  );
+  // These cards should match the currently visible Orders list filters exactly.
+  // Website (Auto) is controlled by the source filter, not by the global
+  // analytics website toggle.
+  const scopedOrders = orders;
 
   // For the month-vs-month comparison chart we want the full dataset, not the
   // user-filtered one, so the chart isn't blanked when filters narrow the period.
   const chartOrders = useMemo(
-    () => filterByAnalyticsScope(allOrders ?? orders, includeWebsite),
-    [allOrders, orders, includeWebsite],
+    () => allOrders ?? orders,
+    [allOrders, orders],
   );
 
   const salesPersons = useMemo(() => {
@@ -88,6 +82,10 @@ export function OrdersDashboardStats({
 
   // Fetch profit data from order_items via DB function
   const [profitData, setProfitData] = useState<Record<string, { profit: number; total_sales: number }>>({});
+  const hasWebsiteRows = useMemo(
+    () => filteredOrders.some((o) => o.source === 'website' || o.source === 'website_auto'),
+    [filteredOrders],
+  );
   
   useEffect(() => {
     const orderIds = filteredOrders.map(o => o.id);
@@ -99,7 +97,7 @@ export function OrdersDashboardStats({
     const fetchProfits = async () => {
       const { data, error } = await supabase.rpc('get_order_profits', {
         p_order_ids: orderIds,
-        p_include_website: includeWebsite,
+        p_include_website: hasWebsiteRows,
       });
       if (!error && data) {
         const map: Record<string, { profit: number; total_sales: number }> = {};
@@ -110,7 +108,7 @@ export function OrdersDashboardStats({
       }
     };
     fetchProfits();
-  }, [filteredOrders, includeWebsite]);
+  }, [filteredOrders, hasWebsiteRows]);
 
   const totals = useMemo(() => {
     const totalOrders = filteredOrders.length;
