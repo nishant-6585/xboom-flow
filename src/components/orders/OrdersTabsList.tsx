@@ -15,18 +15,21 @@ export interface OrdersTabsListProps {
   canViewRefunds: boolean;
   canViewSupportCalls: boolean;
   isAdmin: boolean;
+  sourceCounts?: { all: number; manual: number; website_auto: number };
 }
 
 export function OrdersTabsList(props: OrdersTabsListProps) {
   const {
     sourceFilter, filteredOrdersCount, wooTotalCount, shopifyTotalCount, refundCount,
     canViewPipelineAnalytics, canCreateOrder, canViewRefunds, canViewSupportCalls, isAdmin,
+    sourceCounts,
   } = props;
 
-  const allOrdersBadge =
-    sourceFilter === 'manual' ? filteredOrdersCount
-    : sourceFilter === 'website_auto' ? wooTotalCount
-    : filteredOrdersCount + wooTotalCount;
+  const allOrdersBadge = sourceCounts
+    ? sourceCounts[sourceFilter]
+    : (sourceFilter === 'manual' ? filteredOrdersCount
+       : sourceFilter === 'website_auto' ? wooTotalCount
+       : filteredOrdersCount + wooTotalCount);
 
   return (
     <TabsList className="bg-muted/60 backdrop-blur-sm p-1.5 h-auto flex-wrap rounded-xl border border-border/50 shadow-sm">
