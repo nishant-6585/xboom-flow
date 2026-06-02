@@ -180,7 +180,6 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
   const manualCount = a.orders.reduce((n, o) => {
     if (!passesManualOrderFilters(o)) return n;
     if (isWebsiteMirror(o)) return n;
-    if (o.status === 'cancelled') return n;
     return n + 1;
   }, 0);
 
@@ -190,7 +189,6 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     if (!passesManualOrderFilters(o)) continue;
     if (!isWebsiteMirror(o)) continue;
     if (!isWebsiteMirrorPaid(o)) continue;
-    if (o.status === 'cancelled') continue;
     websiteAutoCount++;
     const ext = String((o as any).external_id || '');
     if (ext) websiteMirrorPaidIds.add(ext);
@@ -205,7 +203,6 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
   for (const o of a.wooOrders) {
     const s = (o.order_status || '').toLowerCase();
     if (!ALL_ORDERS_WEBSITE_STATUSES.has(s)) continue;
-    if (s === 'cancelled') continue;
     if (mirroredWooIds.has(String(o.woo_order_id || ''))) continue;
     if ((o.payment_status || '').toLowerCase() !== 'paid') continue;
     if (sl) {
