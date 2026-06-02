@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 
 export interface OrdersTabsListProps {
-  sourceFilter: 'all' | 'manual' | 'website_synced' | 'website_manual';
+  sourceFilter: 'all' | 'manual' | 'website_auto';
   filteredOrdersCount: number;
   wooTotalCount: number;
   shopifyTotalCount: number;
@@ -25,8 +25,7 @@ export function OrdersTabsList(props: OrdersTabsListProps) {
 
   const allOrdersBadge =
     sourceFilter === 'manual' ? filteredOrdersCount
-    : sourceFilter === 'website_synced' ? wooTotalCount
-    : sourceFilter === 'website_manual' ? filteredOrdersCount
+    : sourceFilter === 'website_auto' ? wooTotalCount
     : filteredOrdersCount + wooTotalCount;
 
   return (

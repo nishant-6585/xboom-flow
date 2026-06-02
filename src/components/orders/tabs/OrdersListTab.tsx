@@ -32,8 +32,8 @@ export interface OrdersListTabProps {
   // search + filters
   searchQuery: string;
   setSearchQuery: (v: string) => void;
-  sourceFilter: 'all' | 'manual' | 'website_synced' | 'website_manual';
-  setSourceFilter: (v: 'all' | 'manual' | 'website_synced' | 'website_manual') => void;
+  sourceFilter: 'all' | 'manual' | 'website_auto';
+  setSourceFilter: (v: 'all' | 'manual' | 'website_auto') => void;
   statusFilter: string;
   setStatusFilter: (v: string) => void;
   paymentStatusFilter: string;
@@ -158,15 +158,14 @@ export default function OrdersListTab(props: OrdersListTabProps) {
               </div>
 
               <div className="flex items-center gap-3">
-                <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as 'all' | 'manual' | 'website_synced' | 'website_manual')}>
+                <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as 'all' | 'manual' | 'website_auto')}>
                   <SelectTrigger className="w-[200px] h-11 rounded-xl">
                     <SelectValue placeholder="Source" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Sources ({(filteredOrders.length + wooTotalCount).toLocaleString()})</SelectItem>
                     <SelectItem value="manual">Manual ({filteredOrders.length.toLocaleString()})</SelectItem>
-                    <SelectItem value="website_synced">Website-Synced ({wooTotalCount.toLocaleString()})</SelectItem>
-                    <SelectItem value="website_manual">Website-Manual ({filteredOrders.length.toLocaleString()})</SelectItem>
+                    <SelectItem value="website_auto">Website (Auto) ({wooTotalCount.toLocaleString()})</SelectItem>
                   </SelectContent>
                 </Select>
                 <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
