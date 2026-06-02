@@ -46,7 +46,7 @@ const ALL_ORDERS_WEBSITE_STATUSES = new Set([
   'processing', 'on-hold', 'shipped', 'completed', 'delivered',
 ]);
 
-const isWebsiteMirror = (o: Order) => ((o as any).source as string | null | undefined) === 'website';
+const isWebsiteMirror = (o: Order) => o.source === 'website';
 
 const isWebsiteMirrorPaid = (o: Order) => {
   const total = Number(o.total_sales_amount) || 0;
@@ -136,9 +136,9 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     // Live Woo feed — only include for 'all' and 'website_auto'.
     if (a.sourceFilter === 'all' || a.sourceFilter === 'website_auto') {
       const mirroredWooIds = new Set(
-        (a.orders as any[])
-          .filter((o) => (o as any).source === 'website')
-          .map((o) => String((o as any).external_id || '')),
+        a.orders
+          .filter((o) => o.source === 'website')
+          .map((o) => String(o.external_id || '')),
       );
       const sl = a.searchQuery.toLowerCase().trim();
       for (const o of a.wooOrders) {
@@ -190,15 +190,15 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     if (!isWebsiteMirror(o)) continue;
     if (!isWebsiteMirrorPaid(o)) continue;
     websiteAutoCount++;
-    const ext = String((o as any).external_id || '');
+    const ext = String(o.external_id || '');
     if (ext) websiteMirrorPaidIds.add(ext);
   }
 
   const sl = a.searchQuery.toLowerCase().trim();
   const mirroredWooIds = new Set(
-    (a.orders as any[])
-      .filter((o) => (o as any).source === 'website')
-      .map((o) => String((o as any).external_id || '')),
+    a.orders
+      .filter((o) => o.source === 'website')
+      .map((o) => String(o.external_id || '')),
   );
   for (const o of a.wooOrders) {
     const s = (o.order_status || '').toLowerCase();
