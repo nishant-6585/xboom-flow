@@ -179,7 +179,7 @@ export function OrdersDashboardStats({
   };
 
   const statCards = [
-    { label: "Total Orders", value: String(totals.totalOrders), icon: Package, color: "text-blue-500", bg: "bg-blue-500/10" },
+    { label: "Total Orders", value: String(totals.totalOrders), icon: Package, color: "text-blue-500", bg: "bg-blue-500/10", version: "v2 (excl. cancelled)" },
     { label: "Order Value", value: fmt(totals.totalOrderValue), icon: IndianRupee, color: "text-primary", bg: "bg-primary/10" },
     { label: "Received", value: fmt(totals.totalReceived), icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10" },
     { label: "Pending", value: fmt(totals.totalPending), icon: Clock, color: "text-amber-500", bg: "bg-amber-500/10" },
@@ -195,7 +195,14 @@ export function OrdersDashboardStats({
           <Card key={s.label} className="border border-border/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  {s.version && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 font-mono">
+                      {s.version}
+                    </span>
+                  )}
+                </div>
                 <div className={`p-1.5 rounded-md ${s.bg}`}>
                   <s.icon className={`w-3.5 h-3.5 ${s.color}`} />
                 </div>

@@ -164,7 +164,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                     <SelectValue placeholder="Source" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Sources ({sourceCounts.all.toLocaleString()})</SelectItem>
+                    <SelectItem value="all">All Sources ({sourceCounts.all.toLocaleString()}) · v2</SelectItem>
                     <SelectItem value="manual">Manual ({sourceCounts.manual.toLocaleString()})</SelectItem>
                     <SelectItem value="website_auto">Website (Auto) ({sourceCounts.website_auto.toLocaleString()})</SelectItem>
                   </SelectContent>
