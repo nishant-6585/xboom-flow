@@ -266,7 +266,9 @@ export function useOrders() {
             escalated_at,
             escalated_by,
             escalation_reason,
-            order_date
+            order_date,
+            source,
+            external_id
           `)
           .order('created_at', { ascending: false })
           .limit(5000);
