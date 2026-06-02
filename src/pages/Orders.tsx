@@ -267,6 +267,7 @@ export default function Orders() {
                 sourceFilter={sourceFilter}
                 filteredOrdersCount={filteredOrders.length}
                 wooTotalCount={wooTotalCount}
+                sourceCounts={sourceCounts}
                 shopifyTotalCount={shopifyTotalCount}
                 refundCount={refundCount}
                 canViewPipelineAnalytics={canViewPipelineAnalytics}
