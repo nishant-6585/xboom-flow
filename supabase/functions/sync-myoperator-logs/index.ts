@@ -330,16 +330,46 @@ Deno.serve(async (req) => {
         if (stickyAssignment) {
           salesPersonId = stickyAssignment.id;
           salesPersonName = stickyAssignment.name;
-        } else if (callStatus === 'answered' && assignedAgentName && salesProfiles) {
-          // 2. For answered calls: assign to the person who picked up
-          const matchedProfile = salesProfiles.find((p: { user_id: string; name: string }) =>
+        } else if (callStatus === 'answered') {
+          // 2a. Resolve answering agent via centralized agent_user_mapping (phone is most reliable)
+          if (assignedAgentPhone) {
+            try {
+              const { data: resolved } = await supabase.rpc('resolve_agent_user', {
+                _provider: 'myoperator',
+                _agent_id: null,
+                _agent_phone: assignedAgentPhone,
+              });
+              if (resolved) {
+                const { data: prof } = await supabase
+                  .from('profiles')
+                  .select('user_id, name')
+                  .eq('user_id', resolved as string)
+                  .maybeSingle();
+                if (prof) {
+                  salesPersonId = prof.user_id;
+                  salesPersonName = prof.name;
+                }
+              }
+            } catch (e) {
+              console.error('[sync-myoperator-logs] resolve_agent_user failed:', e);
+            }
+          }
+
+          // 2b. Name fallback (spelling-tolerant: strip vowels)
+          if (!salesPersonId && assignedAgentName && salesProfiles) {
+            const stripVowels = (s: string) => s.toLowerCase().replace(/[aeiou]/g, '');
+            const agentNorm = stripVowels(assignedAgentName);
+            const matchedProfile = salesProfiles.find((p: { user_id: string; name: string }) =>
             p.name.toLowerCase() === assignedAgentName!.toLowerCase() ||
             p.name.toLowerCase().includes(assignedAgentName!.toLowerCase()) ||
-            assignedAgentName!.toLowerCase().includes(p.name.toLowerCase())
-          );
-          if (matchedProfile) {
-            salesPersonId = matchedProfile.user_id;
-            salesPersonName = matchedProfile.name;
+            assignedAgentName!.toLowerCase().includes(p.name.toLowerCase()) ||
+            stripVowels(p.name) === agentNorm ||
+            stripVowels(p.name.split(' ')[0]) === agentNorm
+            );
+            if (matchedProfile) {
+              salesPersonId = matchedProfile.user_id;
+              salesPersonName = matchedProfile.name;
+            }
           }
         } else if (callStatus === 'missed') {
           // 3. Round-robin only for brand new missed callers
