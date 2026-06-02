@@ -129,7 +129,11 @@ export function useMyLeads() {
           .select("id, customer_name, product_name, company, created_at, call_status, city, caller_number, email, customer_type, sales_person_id, lead_source")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
-        q = scope(q);
+        // Scope by either sales_person_id OR assigned_to so a rep sees both
+        // leads they own AND leads currently routed to them via re-assignment.
+        if (!seeAll) {
+          q = q.or(`sales_person_id.eq.${userId},assigned_to.eq.${userId}`);
+        }
         const { data } = await q;
         data?.forEach((r: any) =>
           results.push(addFollowup({

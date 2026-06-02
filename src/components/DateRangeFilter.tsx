@@ -34,12 +34,25 @@ export function DateRangeFilter({
 }: DateRangeFilterProps) {
   const hasDateFilter = startDate || endDate;
 
-  const isPresetActive = (preset: Preset) => {
-    const { start, end } = preset.getRange();
-    if (!start && !end) return !startDate && !endDate;
-    if (!startDate || !endDate) return false;
-    return isSameDay(startDate, start as Date) && isSameDay(endDate, end as Date);
-  };
+  // Find the LAST preset whose range matches the current selection.
+  // Multiple presets can collapse to the same range (e.g. early in a month,
+  // "This Week" and "This Month" both start at the 1st and end today). We
+  // pick the most specific one (last in the ordered list) so clicking
+  // "This Month" doesn't visually light up "This Week" too.
+  const activePresetIndex = (() => {
+    for (let i = PRESETS.length - 1; i >= 0; i--) {
+      const { start, end } = PRESETS[i].getRange();
+      if (!start && !end) {
+        if (!startDate && !endDate) return i;
+        continue;
+      }
+      if (!startDate || !endDate) continue;
+      if (isSameDay(startDate, start as Date) && isSameDay(endDate, end as Date)) return i;
+    }
+    return -1;
+  })();
+
+  const isPresetActive = (_preset: Preset, index: number) => index === activePresetIndex;
 
   const applyPreset = (preset: Preset) => {
     const { start, end } = preset.getRange();
@@ -49,14 +62,14 @@ export function DateRangeFilter({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {PRESETS.map(p => (
+      {PRESETS.map((p, i) => (
         <Button
           key={p.label}
-          variant={isPresetActive(p) ? 'default' : 'outline'}
+          variant={isPresetActive(p, i) ? 'default' : 'outline'}
           size="sm"
           className={cn(
             "text-xs h-8",
-            isPresetActive(p) && "bg-primary text-primary-foreground hover:bg-primary/90",
+            isPresetActive(p, i) && "bg-primary text-primary-foreground hover:bg-primary/90",
           )}
           onClick={() => applyPreset(p)}
         >
