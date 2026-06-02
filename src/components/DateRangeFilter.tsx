@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, subDays, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { CalendarIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -34,12 +35,32 @@ export function DateRangeFilter({
 }: DateRangeFilterProps) {
   const hasDateFilter = startDate || endDate;
 
-  // Find the LAST preset whose range matches the current selection.
-  // Multiple presets can collapse to the same range (e.g. early in a month,
-  // "This Week" and "This Month" both start at the 1st and end today). We
-  // pick the most specific one (last in the ordered list) so clicking
-  // "This Month" doesn't visually light up "This Week" too.
+  // Track the last preset the user clicked. This avoids ambiguity when two
+  // presets resolve to the same range (e.g. early in a month, "This Week"
+  // and "This Month" both start at the 1st and end today).
+  const [lastClickedPreset, setLastClickedPreset] = useState<string | null>(null);
+
+  // Reset memory if the dates no longer match the remembered preset (e.g.
+  // user picked a custom date or cleared).
+  useEffect(() => {
+    if (!lastClickedPreset) return;
+    const preset = PRESETS.find((p) => p.label === lastClickedPreset);
+    if (!preset) return;
+    const { start, end } = preset.getRange();
+    const matches =
+      (!start && !end && !startDate && !endDate) ||
+      (!!start && !!end && !!startDate && !!endDate &&
+        isSameDay(startDate, start) && isSameDay(endDate, end));
+    if (!matches) setLastClickedPreset(null);
+  }, [startDate, endDate, lastClickedPreset]);
+
   const activePresetIndex = (() => {
+    // Prefer the explicitly clicked preset.
+    if (lastClickedPreset) {
+      const idx = PRESETS.findIndex((p) => p.label === lastClickedPreset);
+      if (idx >= 0) return idx;
+    }
+    // Fallback: find any preset whose range matches (last match wins).
     for (let i = PRESETS.length - 1; i >= 0; i--) {
       const { start, end } = PRESETS[i].getRange();
       if (!start && !end) {
@@ -56,6 +77,7 @@ export function DateRangeFilter({
 
   const applyPreset = (preset: Preset) => {
     const { start, end } = preset.getRange();
+    setLastClickedPreset(preset.label);
     onStartDateChange(start);
     onEndDateChange(end);
   };
