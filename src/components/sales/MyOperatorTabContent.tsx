@@ -7,6 +7,7 @@ import { SalespersonCallStats } from './SalespersonCallStats';
 import { Button } from '@/components/ui/button';
 import { Users, Headphones } from 'lucide-react';
 import type { Prospect } from '@/hooks/useProspects';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Props {
   prospects: Prospect[];
@@ -15,6 +16,8 @@ interface Props {
 }
 
 export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSourceIds }: Props) {
+  const { role } = useAuth();
+  const canManage = role === 'admin' || role === 'sales_manager';
   const [rawLogs, setRawLogs] = useState<any[]>([]);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -48,18 +51,22 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSo
             onClear={handleClearDates}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowSalesStats(true)} className="gap-1.5">
-            <Users className="h-4 w-4" />
-            Sales Stats
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowSupportStats(true)} className="gap-1.5">
-            <Headphones className="h-4 w-4" />
-            Support Stats
-          </Button>
-        </div>
+        {canManage && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSalesStats(true)} className="gap-1.5">
+              <Users className="h-4 w-4" />
+              Sales Stats
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowSupportStats(true)} className="gap-1.5">
+              <Headphones className="h-4 w-4" />
+              Support Stats
+            </Button>
+          </div>
+        )}
       </div>
-      <MyOperatorAnalytics logs={rawLogs} prospects={prospects} dateRange={dateRange} />
+      {canManage && (
+        <MyOperatorAnalytics logs={rawLogs} prospects={prospects} dateRange={dateRange} />
+      )}
       <CallLogsPanel
         prospects={prospects}
         prospectSourceIds={prospectSourceIds}
@@ -67,20 +74,24 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSo
         onLogsLoaded={handleLogsLoaded}
         dateRange={dateRange}
       />
-      <SalespersonCallStats
-        open={showSalesStats}
-        onOpenChange={setShowSalesStats}
-        logs={rawLogs}
-        dateRange={dateRange}
-        department="sales"
-      />
-      <SalespersonCallStats
-        open={showSupportStats}
-        onOpenChange={setShowSupportStats}
-        logs={rawLogs}
-        dateRange={dateRange}
-        department="support"
-      />
+      {canManage && (
+        <>
+          <SalespersonCallStats
+            open={showSalesStats}
+            onOpenChange={setShowSalesStats}
+            logs={rawLogs}
+            dateRange={dateRange}
+            department="sales"
+          />
+          <SalespersonCallStats
+            open={showSupportStats}
+            onOpenChange={setShowSupportStats}
+            logs={rawLogs}
+            dateRange={dateRange}
+            department="support"
+          />
+        </>
+      )}
     </div>
   );
 }
