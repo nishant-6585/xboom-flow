@@ -79,11 +79,14 @@ export function NewEnquiryAlert() {
     if (!user || !isSupplyChain) return;
     let cancelled = false;
     (async () => {
-      // Pre-ack any existing enquiries so they never pop up later.
+      // Pre-ack any enquiries created before today (local midnight) so
+      // backlog never pops up. Only today's and future enquiries will alert.
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
         .from("enquiries")
         .select("id")
-        .is("responded_at", null);
+        .lt("created_at", startOfToday.toISOString());
       if (cancelled || error || !data) return;
       const acks = loadAcks();
       for (const row of data as { id: string }[]) acks[row.id] = true;
@@ -106,10 +109,11 @@ export function NewEnquiryAlert() {
           const row = payload.new as NewEnquiry;
           if (!row?.id) return;
           if (row.sales_person_id === user.id) return; // ignore self
-          // Only alert for enquiries created in the last 2 minutes — guards
-          // against replayed/buffered realtime events for older rows.
-          const ageMs = Date.now() - new Date(row.created_at).getTime();
-          if (ageMs > 2 * 60 * 1000) return;
+          // Only alert for enquiries created today or later. Guards against
+          // replayed/buffered realtime events for older rows.
+          const startOfToday = new Date();
+          startOfToday.setHours(0, 0, 0, 0);
+          if (new Date(row.created_at).getTime() < startOfToday.getTime()) return;
           const acks = loadAcks();
           if (acks[row.id]) return;
           enqueue([row]);
