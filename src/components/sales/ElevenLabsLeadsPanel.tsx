@@ -478,9 +478,11 @@ export function ElevenLabsLeadsPanel() {
               <LayoutGrid className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setShowAnalytics(s => !s)} className="gap-2">
-            <BarChart3 className="h-4 w-4" /> {showAnalytics ? "Hide" : "Show"} Analytics
-          </Button>
+          {canManage && (
+            <Button variant="outline" size="sm" onClick={() => setShowAnalytics(s => !s)} className="gap-2">
+              <BarChart3 className="h-4 w-4" /> {showAnalytics ? "Hide" : "Show"} Analytics
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={load} className="gap-2">
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
@@ -510,8 +512,8 @@ export function ElevenLabsLeadsPanel() {
         ))}
       </div>
 
-      {/* Analytics dashboard */}
-      {showAnalytics && (
+      {/* Analytics dashboard - managers only */}
+      {canManage && showAnalytics && (
         <ElevenLabsAnalytics leads={leads} prospectIds={prospectIds} />
       )}
 
