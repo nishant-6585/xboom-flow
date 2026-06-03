@@ -469,6 +469,11 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       query = query.or(`caller_number.ilike.%${searchPhone.trim()}%,full_number.ilike.%${searchPhone.trim()}%`);
     }
 
+    // Server-side role scoping: sales reps may only fetch their own assigned logs.
+    if (!canManage && user?.id) {
+      query = query.eq('sales_person_id', user.id);
+    }
+
     const { data, error } = await query;
     if (!error && data) {
       let allLogs = data as CallLog[];
@@ -523,7 +528,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       onLogsLoaded?.(allLogs);
     }
     setLoading(false);
-  }, [searchPhone, statusFilter, dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
+  }, [searchPhone, statusFilter, dateRange?.start?.getTime(), dateRange?.end?.getTime(), canManage, user?.id]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
