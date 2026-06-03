@@ -2376,6 +2376,83 @@ export type Database = {
         }
         Relationships: []
       }
+      compoff_ledger: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          earned_date: string
+          earned_type: string
+          employee_id: string
+          expires_at: string
+          holiday_id: string | null
+          holiday_name: string | null
+          id: string
+          leave_request_id: string | null
+          redeemed_on: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          earned_date: string
+          earned_type: string
+          employee_id: string
+          expires_at: string
+          holiday_id?: string | null
+          holiday_name?: string | null
+          id?: string
+          leave_request_id?: string | null
+          redeemed_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          earned_date?: string
+          earned_type?: string
+          employee_id?: string
+          expires_at?: string
+          holiday_id?: string | null
+          holiday_name?: string | null
+          id?: string
+          leave_request_id?: string | null
+          redeemed_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compoff_ledger_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compoff_ledger_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compoff_ledger_holiday_id_fkey"
+            columns: ["holiday_id"]
+            isOneToOne: false
+            referencedRelation: "holidays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compoff_ledger_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_directory: {
         Row: {
           contact_key: string
@@ -14911,6 +14988,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_compoff_balance: { Args: { _employee_id: string }; Returns: number }
       get_cron_secret: { Args: never; Returns: string }
       get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
       get_employee_kpi: {
