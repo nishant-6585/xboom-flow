@@ -179,7 +179,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
     const matchesSalesPerson = interaktSalesPersonFilter === 'all' || lead.sales_person_name === interaktSalesPersonFilter;
 
-    return matchesSearch && matchesStatus && matchesDate && matchesSalesPerson;
+    // Sales reps: only see their own leads (server already scopes, but enforce on client too)
+    const canSeeAll = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
+    const matchesScope = canSeeAll || lead.sales_person_id === user?.id;
+
+    return matchesSearch && matchesStatus && matchesDate && matchesSalesPerson && matchesScope;
   });
   const filteredInteraktLeads = applyDispositionFilter(
     filteredInteraktLeadsBase,
