@@ -8,7 +8,9 @@ import { useLeaveBalances, EmployeeLeaveRow } from '@/hooks/useLeaveBalances';
 import { useAuth } from '@/hooks/useAuth';
 import { LeaveBalanceEditDialog } from '@/components/hr/LeaveBalanceEditDialog';
 import { format } from 'date-fns';
-import { Leaf, History, Users, Pencil } from 'lucide-react';
+import { Leaf, History, Users, Pencil, Gift } from 'lucide-react';
+import { useCompOff } from '@/hooks/useCompOff';
+import { CompOffHistoryTable } from '@/components/hr/CompOffHistoryTable';
 
 interface LeaveBalancePanelProps {
   employeeId?: string;
@@ -25,6 +27,7 @@ const LEAVE_TYPE_DISPLAY: Record<string, string> = {
 export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
   const { role } = useAuth();
   const { balanceSummaries, transactions, employeeRows, loading, fetchAllBalances, adjustBalances } = useLeaveBalances(employeeId);
+  const { balance: compoffBalance } = useCompOff(employeeId);
   const isHROrAdmin = role === 'admin' || role === 'hr';
 
   const [editRow, setEditRow] = useState<EmployeeLeaveRow | null>(null);
@@ -61,12 +64,30 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
             </CardContent>
           </Card>
         ))}
+        <Card className="border-primary/20">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Gift className="h-4 w-4 text-primary" />
+              Compensatory Off
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-primary">{compoffBalance}</span>
+              <span className="text-sm text-muted-foreground">days</span>
+            </div>
+            <div className="text-xs text-muted-foreground mt-2">Earned by working on holidays/weekends</div>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="history">
         <TabsList>
           <TabsTrigger value="history" className="gap-1.5">
             <History className="h-4 w-4" /> Credit History
+          </TabsTrigger>
+          <TabsTrigger value="compoff" className="gap-1.5">
+            <Gift className="h-4 w-4" /> CompOff History
           </TabsTrigger>
           {isHROrAdmin && (
             <TabsTrigger value="team" className="gap-1.5">
@@ -110,6 +131,10 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
               </Table>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="compoff" className="mt-4">
+          <CompOffHistoryTable employeeId={employeeId} />
         </TabsContent>
 
         {isHROrAdmin && (

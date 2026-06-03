@@ -20,7 +20,10 @@ import { LeaveType } from "@/hooks/useHR";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
-import { Wallet } from "lucide-react";
+import { Wallet, Gift, CalendarDays } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useCompOff } from "@/hooks/useCompOff";
+import { format, parseISO } from "date-fns";
 
 interface LeaveApplyDialogProps {
   open: boolean;
@@ -30,6 +33,12 @@ interface LeaveApplyDialogProps {
     start_date: string;
     end_date: string;
     reason?: string;
+    compoff?: {
+      earned_date: string;
+      earned_type: 'holiday' | 'weekend';
+      holiday_id?: string | null;
+      holiday_name?: string | null;
+    };
   }) => Promise<boolean>;
 }
 
@@ -40,6 +49,7 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: 'half_day_sick', label: 'Half Day Sick Leave' },
   { value: 'unpaid', label: 'Unpaid Leave' },
   { value: 'half_day_unpaid', label: 'Half Day Unpaid Leave' },
+  { value: 'compoff', label: 'Compensatory Off (CompOff)' },
 ];
 
 export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps>(({ open, onOpenChange, onSubmit }, ref) => {
@@ -52,9 +62,43 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
   const [leaveBalance, setLeaveBalance] = useState<number | null>(null);
   const { user } = useAuth();
 
+  // CompOff-specific state
+  const { balance: compoffBalance, holidays, claimedEarnedDates, refetch: refetchCompoff } = useCompOff();
+  const [earnedTab, setEarnedTab] = useState<'holiday' | 'weekend'>('holiday');
+  const [selectedHolidayId, setSelectedHolidayId] = useState<string>('');
+  const [weekendDate, setWeekendDate] = useState<string>('');
+  const [compoffLeaveDate, setCompoffLeaveDate] = useState<string>('');
+  const [compoffError, setCompoffError] = useState<string>('');
+
+  const isCompOff = leaveType === 'compoff';
+  const holidayDateSet = new Set(holidays.map(h => h.holiday_date));
+  const availableHolidays = holidays.filter(h => !claimedEarnedDates.has(h.holiday_date) && h.holiday_date <= new Date().toISOString().split('T')[0]);
+  const selectedHoliday = holidays.find(h => h.id === selectedHolidayId);
+  const earnedDate = earnedTab === 'holiday' ? selectedHoliday?.holiday_date ?? '' : weekendDate;
+
+  const validateWeekend = (d: string) => {
+    if (!d) return 'Pick a Saturday or Sunday you worked on.';
+    const day = new Date(d).getDay();
+    if (day !== 0 && day !== 6) return 'Selected date must be a Saturday or Sunday.';
+    if (d > new Date().toISOString().split('T')[0]) return 'Cannot pick a future date.';
+    if (claimedEarnedDates.has(d)) return 'This date is already claimed.';
+    return '';
+  };
+
+  const validateCompoffLeaveDate = (d: string) => {
+    if (!d) return 'Pick your CompOff leave date.';
+    const today = new Date().toISOString().split('T')[0];
+    if (d <= today) return 'CompOff leave date must be in the future.';
+    const day = new Date(d).getDay();
+    if (day === 0 || day === 6) return 'CompOff leave must be on a working day.';
+    if (holidayDateSet.has(d)) return 'CompOff leave cannot fall on a holiday.';
+    return '';
+  };
+
   // Fetch balance for the selected leave type
   useEffect(() => {
     if (!open || !user) return;
+    if (leaveType === 'compoff') { setLeaveBalance(null); return; }
     const fetchBalance = async () => {
       // Get employee id for current user
       const { data: emp } = await supabase
@@ -80,20 +124,44 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
   }, [open, user, leaveType]);
 
   const handleSubmit = async () => {
-    if (!startDate || !endDate) return;
-    
+    if (isCompOff) {
+      if (!earnedDate) { setCompoffError('Select the day you worked extra.'); return; }
+      if (earnedTab === 'weekend') {
+        const e = validateWeekend(weekendDate);
+        if (e) { setCompoffError(e); return; }
+      }
+      const e2 = validateCompoffLeaveDate(compoffLeaveDate);
+      if (e2) { setCompoffError(e2); return; }
+    } else if (!startDate || !endDate) return;
+
     setSubmitting(true);
-    const success = await onSubmit({
-      leave_type: leaveType,
-      start_date: startDate,
-      end_date: endDate,
-      reason: reason || undefined,
-    });
+    const success = await onSubmit(
+      isCompOff
+        ? {
+            leave_type: 'compoff',
+            start_date: compoffLeaveDate,
+            end_date: compoffLeaveDate,
+            reason: reason || undefined,
+            compoff: {
+              earned_date: earnedDate,
+              earned_type: earnedTab,
+              holiday_id: earnedTab === 'holiday' ? selectedHolidayId : null,
+              holiday_name: earnedTab === 'holiday' ? selectedHoliday?.name ?? null : null,
+            },
+          }
+        : {
+            leave_type: leaveType,
+            start_date: startDate,
+            end_date: endDate,
+            reason: reason || undefined,
+          }
+    );
 
     setSubmitting(false);
     if (success) {
       onOpenChange(false);
       resetForm();
+      refetchCompoff();
     }
   };
 
@@ -103,6 +171,11 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
     setStartDate('');
     setEndDate('');
     setReason('');
+    setSelectedHolidayId('');
+    setWeekendDate('');
+    setCompoffLeaveDate('');
+    setCompoffError('');
+    setEarnedTab('holiday');
   };
 
   const calculateDays = () => {
@@ -143,7 +216,7 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                 </Select>
               </div>
 
-              {leaveBalance !== null && (
+              {leaveBalance !== null && !isCompOff && (
                 <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                   <Wallet className="h-4 w-4 text-primary" />
                   <span className="text-sm text-muted-foreground">Available Balance:</span>
@@ -153,7 +226,17 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                 </div>
               )}
 
-              <Button className="w-full" onClick={() => setStep(2)}>
+              {isCompOff && (
+                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                  <Gift className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">CompOff Balance:</span>
+                  <Badge variant={compoffBalance > 0 ? "default" : "secondary"} className="text-sm">
+                    {compoffBalance} day(s)
+                  </Badge>
+                </div>
+              )}
+
+              <Button className="w-full" onClick={() => { setCompoffError(''); setStep(2); }}>
                 Next
               </Button>
             </div>
@@ -161,6 +244,8 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
 
           {step === 2 && (
             <div className="space-y-4">
+              {!isCompOff && (
+              <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Date</Label>
@@ -189,6 +274,77 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                   </span>
                 </div>
               )}
+              </>
+              )}
+
+              {isCompOff && (
+                <div className="space-y-4 animate-in fade-in-50 slide-in-from-top-2">
+                  <div className="space-y-2">
+                    <Label>Select the day you worked extra</Label>
+                    <Tabs value={earnedTab} onValueChange={(v) => { setEarnedTab(v as any); setCompoffError(''); }}>
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="holiday">Worked on a Holiday</TabsTrigger>
+                        <TabsTrigger value="weekend">Worked on a Weekend</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="holiday" className="space-y-2 pt-3">
+                        {availableHolidays.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No unclaimed past holidays available.</p>
+                        ) : (
+                          <Select value={selectedHolidayId} onValueChange={setSelectedHolidayId}>
+                            <SelectTrigger><SelectValue placeholder="Pick a holiday you worked on" /></SelectTrigger>
+                            <SelectContent>
+                              {availableHolidays.map(h => (
+                                <SelectItem key={h.id} value={h.id}>
+                                  {h.name} — {format(parseISO(h.holiday_date), 'MMM d, yyyy')}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TabsContent>
+                      <TabsContent value="weekend" className="space-y-2 pt-3">
+                        <Input
+                          type="date"
+                          value={weekendDate}
+                          max={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => {
+                            setWeekendDate(e.target.value);
+                            setCompoffError(validateWeekend(e.target.value));
+                          }}
+                        />
+                        {weekendDate && !compoffError && (
+                          <p className="text-xs text-muted-foreground">
+                            {format(parseISO(weekendDate), 'EEEE, MMM d, yyyy')}
+                          </p>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4" /> Select CompOff Date</Label>
+                    <Input
+                      type="date"
+                      value={compoffLeaveDate}
+                      min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                      onChange={(e) => {
+                        setCompoffLeaveDate(e.target.value);
+                        setCompoffError(validateCompoffLeaveDate(e.target.value));
+                      }}
+                    />
+                    {earnedDate && (
+                      <p className="text-xs text-muted-foreground">
+                        You are applying CompOff earned by working on {format(parseISO(earnedDate), 'MMM d, yyyy')}
+                        {earnedTab === 'holiday' && selectedHoliday ? ` (${selectedHoliday.name})` : ''}.
+                      </p>
+                    )}
+                  </div>
+
+                  {compoffError && (
+                    <p className="text-sm text-destructive">{compoffError}</p>
+                  )}
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
@@ -197,7 +353,11 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                 <Button
                   onClick={() => setStep(3)}
                   className="flex-1"
-                  disabled={!startDate || !endDate}
+                  disabled={
+                    isCompOff
+                      ? !earnedDate || !compoffLeaveDate || !!compoffError
+                      : !startDate || !endDate
+                  }
                 >
                   Next
                 </Button>
@@ -223,14 +383,34 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                   <span className="text-muted-foreground">Type:</span>{' '}
                   {LEAVE_TYPES.find((t) => t.value === leaveType)?.label}
                 </p>
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Duration:</span>{' '}
-                  {calculateDays()} day(s)
-                </p>
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Dates:</span>{' '}
-                  {startDate} to {endDate}
-                </p>
+                {isCompOff ? (
+                  <>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Earned by working on:</span>{' '}
+                      {earnedTab === 'holiday' && selectedHoliday
+                        ? `${selectedHoliday.name} (${format(parseISO(selectedHoliday.holiday_date), 'MMM d, yyyy')})`
+                        : weekendDate ? format(parseISO(weekendDate), 'EEEE, MMM d, yyyy') : '—'}
+                    </p>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">CompOff Leave Date:</span>{' '}
+                      {compoffLeaveDate ? format(parseISO(compoffLeaveDate), 'MMM d, yyyy') : '—'}
+                    </p>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Status:</span> Pending Approval
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Duration:</span>{' '}
+                      {calculateDays()} day(s)
+                    </p>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Dates:</span>{' '}
+                      {startDate} to {endDate}
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="flex gap-2">
@@ -240,13 +420,13 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                 <Button
                   onClick={handleSubmit}
                   className="flex-1"
-                  disabled={submitting || (leaveBalance !== null && leaveBalance <= 0)}
+                  disabled={submitting || (!isCompOff && leaveBalance !== null && leaveBalance <= 0)}
                 >
                   {submitting ? 'Submitting...' : 'Submit Request'}
                 </Button>
               </div>
 
-              {leaveBalance !== null && leaveBalance <= 0 && (
+              {!isCompOff && leaveBalance !== null && leaveBalance <= 0 && (
                 <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive font-medium text-center">
                   Insufficient leave balance. You cannot apply for this leave type.
                 </div>
