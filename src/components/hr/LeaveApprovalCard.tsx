@@ -30,6 +30,7 @@ const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   half_day_EL: 'Half Day Earned',
   half_day_unpaid: 'Half Day Unpaid',
   wfh: 'Work from Home',
+  compoff: 'Compensatory Off',
 };
 
 export function LeaveApprovalCard({
