@@ -385,6 +385,7 @@ const Index = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 space-y-4">
                     <QuickActions />
+                    <HRPendingApprovalsWidget />
                     <FollowupCallbackWidget />
                   </div>
                   <div>
