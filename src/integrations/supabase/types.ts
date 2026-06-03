@@ -5816,6 +5816,54 @@ export type Database = {
           },
         ]
       }
+      hr_process_documents: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          is_active: boolean
+          mime_type: string | null
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+          version: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number
+          id?: string
+          is_active?: boolean
+          mime_type?: string | null
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          is_active?: boolean
+          mime_type?: string | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       import_items: {
         Row: {
           created_at: string
