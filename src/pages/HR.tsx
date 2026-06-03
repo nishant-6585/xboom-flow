@@ -134,6 +134,7 @@ export default function HR() {
               )}
               <TabsTrigger value="kpi_management" className="gap-1.5 whitespace-nowrap"><Target className="h-4 w-4 shrink-0" /><span>KPI</span></TabsTrigger>
               <TabsTrigger value="documents" className="gap-1.5 whitespace-nowrap"><FolderOpen className="h-4 w-4 shrink-0" /><span>Documents</span></TabsTrigger>
+              <TabsTrigger value="process_docs" className="gap-1.5 whitespace-nowrap"><BookMarked className="h-4 w-4 shrink-0" /><span>Process Docs</span></TabsTrigger>
               <TabsTrigger value="my_financial" className="gap-1.5 whitespace-nowrap"><CreditCard className="h-4 w-4 shrink-0" /><span>My Financial Details</span></TabsTrigger>
               {isHROrAdmin && (
                 <TabsTrigger value="assets" className="gap-1.5 whitespace-nowrap"><Package className="h-4 w-4 shrink-0" /><span>Assets</span></TabsTrigger>
@@ -244,6 +245,7 @@ export default function HR() {
           <TabsContent value="kpi_management" className="space-y-4"><KPIManagementPanel /></TabsContent>
           
           <TabsContent value="documents" className="space-y-4"><HRDocumentsPanel /></TabsContent>
+          <TabsContent value="process_docs" className="space-y-4"><ProcessDocumentsPanel canManage={isHROrAdmin} /></TabsContent>
           <TabsContent value="my_financial"><MyFinancialDetailsPanel /></TabsContent>
           {isHROrAdmin && <TabsContent value="assets" className="space-y-4"><AssetManagementPanel /></TabsContent>}
           {isHROrAdmin && <TabsContent value="candidates"><CandidatesPanel /></TabsContent>}
