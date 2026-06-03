@@ -58,6 +58,7 @@ export function isRowTouched(
       return (
         (r.lead_status && r.lead_status !== "New") ||
         !!norm(r.notes) ||
+        !!norm(r.outcall_info) ||
         r.lead_created === true
       );
     case "emails":
