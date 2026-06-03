@@ -30,7 +30,7 @@ export function HRPendingApprovalsWidget() {
         supabase
           .from("leave_requests")
           .select("id", { count: "exact", head: true })
-          .eq("status", "pending"),
+          .eq("status", "submitted"),
         supabase
           .from("attendance_correction_requests")
           .select("id", { count: "exact", head: true })
