@@ -25,6 +25,7 @@ import type { Prospect } from "@/hooks/useProspects";
 import { useSalesUsers } from "@/hooks/useSalesUsers";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
@@ -286,6 +287,8 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
 }
 
 export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), attentionSourceIds = new Set(), onLogsLoaded, dateRange, defaultDepartment }: CallLogsPanelProps) {
+  const { user, role } = useAuth();
+  const canManage = role === 'admin' || role === 'sales_manager';
   const { data: engagedCallIds } = useEngagedLeadIds('myoperator');
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -377,6 +380,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     if (salesPersonFilter !== "all") {
       result = result.filter(log => log.sales_person_name === salesPersonFilter);
     }
+    if (!canManage && user?.id) {
+      result = result.filter(log => {
+        const l = log as unknown as Record<string, unknown>;
+        return l.sales_person_id === user.id || l.assigned_to === user.id;
+      });
+    }
     if (agentFilter !== "all") {
       result = result.filter(log => {
         const info = deriveCallInfo(log);
@@ -405,7 +414,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     // Hide qualified/not_qualified rows from the default view.
     result = applyDispositionFilter(result, includeDispositioned);
     return result;
-  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned, canManage, user?.id]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
@@ -603,15 +612,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               <SelectItem value="busy">Busy</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Sales Person" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sales Persons</SelectItem>
-              {salesPersons.map(sp => (
-                <SelectItem key={sp} value={sp}>{sp}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {canManage && (
+            <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="Sales Person" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sales Persons</SelectItem>
+                {salesPersons.map(sp => (
+                  <SelectItem key={sp} value={sp}>{sp}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={agentFilter} onValueChange={setAgentFilter}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Agent" /></SelectTrigger>
             <SelectContent>

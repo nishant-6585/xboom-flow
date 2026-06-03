@@ -179,7 +179,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
     const matchesSalesPerson = interaktSalesPersonFilter === 'all' || lead.sales_person_name === interaktSalesPersonFilter;
 
-    return matchesSearch && matchesStatus && matchesDate && matchesSalesPerson;
+    // Sales reps: only see their own leads (server already scopes, but enforce on client too)
+    const canSeeAll = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
+    const matchesScope = canSeeAll || lead.sales_person_id === user?.id;
+
+    return matchesSearch && matchesStatus && matchesDate && matchesSalesPerson && matchesScope;
   });
   const filteredInteraktLeads = applyDispositionFilter(
     filteredInteraktLeadsBase,
@@ -788,8 +792,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           {/* Touched vs Untouched */}
           <TouchedDashboard source="interakt" />
 
-          {/* Interakt Analytics Dashboard */}
-          <InteraktAnalytics leads={interaktLeads} prospects={prospects} />
+          {/* Interakt Analytics Dashboard - managers only */}
+          {canSeeAllLeads && (
+            <InteraktAnalytics leads={interaktLeads} prospects={prospects} />
+          )}
 
           {/* Sync Button */}
           <Card>
@@ -868,15 +874,17 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     <SelectItem value="last_month">Last Month</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={interaktSalesPersonFilter} onValueChange={setInteraktSalesPersonFilter}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Sales Person" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sales Persons</SelectItem>
-                    {interaktSalesPersons.map(sp => <SelectItem key={sp} value={sp}>{sp}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {canSeeAllLeads && (
+                  <Select value={interaktSalesPersonFilter} onValueChange={setInteraktSalesPersonFilter}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Sales Person" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Sales Persons</SelectItem>
+                      {interaktSalesPersons.map(sp => <SelectItem key={sp} value={sp}>{sp}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
                 <DateRangeFilter
                   startDate={interaktDateStart}
                   endDate={interaktDateEnd}
