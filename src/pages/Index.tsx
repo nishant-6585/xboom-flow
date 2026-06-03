@@ -22,6 +22,7 @@ import { HolidayCalendarWidget } from "@/components/dashboard/HolidayCalendarWid
 import { HolidayPopup } from "@/components/dashboard/HolidayPopup";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
+import { HRPendingApprovalsWidget } from "@/components/dashboard/HRPendingApprovalsWidget";
 import {
   useEnquiries,
   Enquiry,
