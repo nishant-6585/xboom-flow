@@ -144,7 +144,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const policyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeSubTab, setActiveSubTab] = useState('employees');
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   useEffect(() => {
     const sub = searchParams.get('subtab');
     if (sub && ['employees', 'reports_alerts', 'analytics', 'backfill'].includes(sub)) {
