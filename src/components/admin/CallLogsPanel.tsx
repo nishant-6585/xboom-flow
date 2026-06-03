@@ -380,6 +380,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     if (salesPersonFilter !== "all") {
       result = result.filter(log => log.sales_person_name === salesPersonFilter);
     }
+    if (!canManage && user?.id) {
+      result = result.filter(log => {
+        const l = log as unknown as Record<string, unknown>;
+        return l.sales_person_id === user.id || l.assigned_to === user.id;
+      });
+    }
     if (agentFilter !== "all") {
       result = result.filter(log => {
         const info = deriveCallInfo(log);
@@ -408,7 +414,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     // Hide qualified/not_qualified rows from the default view.
     result = applyDispositionFilter(result, includeDispositioned);
     return result;
-  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned, canManage, user?.id]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
