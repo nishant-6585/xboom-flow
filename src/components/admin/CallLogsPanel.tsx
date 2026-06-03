@@ -337,16 +337,19 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     const spSet = new Set<string>();
     const agSet = new Set<string>();
     logs.forEach(log => {
-      if (log.sales_person_name) spSet.add(log.sales_person_name);
+      if (log.sales_person_name) {
+        const trimmed = log.sales_person_name.trim();
+        if (trimmed) spSet.add(trimmed);
+      }
       const info = deriveCallInfo(log);
-      if (info.finalAgent) agSet.add(info.finalAgent);
+      if (info.finalAgent) agSet.add(info.finalAgent.trim());
       // Also add individual agents from legs
       const payload = parseRawPayload(log.raw_payload);
       const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
       for (const leg of legs) {
         if (Array.isArray(leg._rr)) {
           for (const r of leg._rr) {
-            if (r._na) agSet.add(r._na);
+            if (r._na) agSet.add(r._na.trim());
           }
         }
       }
