@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Check, User, X } from "lucide-react";
+import { Calendar, Check, User, X, Gift } from "lucide-react";
 import { format } from "date-fns";
 import { LeaveRequest, LeaveType } from "@/hooks/useHR";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LeaveApprovalCardProps {
   leave: LeaveRequest;
@@ -43,6 +44,21 @@ export function LeaveApprovalCard({
   const [showActions, setShowActions] = useState(false);
   const [comments, setComments] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [compoffMeta, setCompoffMeta] = useState<{ earned_date: string; earned_type: string; holiday_name: string | null } | null>(null);
+
+  useEffect(() => {
+    if (leave.leave_type !== 'compoff') return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('compoff_ledger')
+        .select('earned_date, earned_type, holiday_name')
+        .eq('leave_request_id', leave.id)
+        .maybeSingle();
+      if (!cancelled && data) setCompoffMeta(data as any);
+    })();
+    return () => { cancelled = true; };
+  }, [leave.id, leave.leave_type]);
 
   const handleAction = async (approve: boolean) => {
     setProcessing(true);
@@ -67,18 +83,42 @@ export function LeaveApprovalCard({
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">{leave.employee_name}</span>
           </div>
-          <Badge variant="outline">
-            {LEAVE_TYPE_LABELS[leave.leave_type]}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            {leave.leave_type === 'compoff' && (
+              <Badge className="gap-1 bg-amber-500 hover:bg-amber-500/90 text-white">
+                <Gift className="h-3 w-3" /> CompOff
+              </Badge>
+            )}
+            <Badge variant="outline">
+              {LEAVE_TYPE_LABELS[leave.leave_type]}
+            </Badge>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Calendar className="h-4 w-4" />
-          <span>
-            {format(new Date(leave.start_date), 'MMM dd')} - {format(new Date(leave.end_date), 'MMM dd')}
-          </span>
-          <Badge variant="secondary">{leave.total_days} day(s)</Badge>
-        </div>
+        {leave.leave_type === 'compoff' ? (
+          <div className="space-y-1 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>Applying leave on: <span className="font-medium text-foreground">{format(new Date(leave.start_date), 'MMM dd, yyyy')}</span></span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Gift className="h-4 w-4" />
+              <span>
+                Earned on: <span className="font-medium text-foreground">
+                  {compoffMeta ? `${format(new Date(compoffMeta.earned_date), 'MMM dd, yyyy')}${compoffMeta.holiday_name ? ` — ${compoffMeta.holiday_name}` : ` (${compoffMeta.earned_type})`}` : '—'}
+                </span>
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span>
+              {format(new Date(leave.start_date), 'MMM dd')} - {format(new Date(leave.end_date), 'MMM dd')}
+            </span>
+            <Badge variant="secondary">{leave.total_days} day(s)</Badge>
+          </div>
+        )}
 
         {leave.reason && (
           <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
