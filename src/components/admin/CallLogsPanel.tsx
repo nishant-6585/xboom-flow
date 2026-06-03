@@ -836,7 +836,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-primary hover:text-primary"
+                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
                               onClick={() => setLogCallData({
                                 id: log.id,
                                 name: (log as any).customer_name || log.full_number || log.caller_number,
