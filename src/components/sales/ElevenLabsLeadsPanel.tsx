@@ -289,6 +289,9 @@ export function ElevenLabsLeadsPanel() {
     else if (assigneeFilter === "mine" && user) q = q.eq("assigned_to", user.id);
     else if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
 
+    // Server-side scoping: sales reps can only see leads assigned to them.
+    if (!canManage && user) q = q.eq("assigned_to", user.id);
+
     const { data, error } = await q;
     if (!error && data) setLeads(data as any as ElevenLead[]);
     const ids = (data ?? []).map((d: any) => d.id);
@@ -572,17 +575,19 @@ export function ElevenLabsLeadsPanel() {
               <SelectItem value="closed">Closed</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Assignee" /></SelectTrigger>
-            <SelectContent className="max-h-80">
-              <SelectItem value="all">All assignees</SelectItem>
-              <SelectItem value="mine">Assigned to me</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {salesPool.map(s => (
-                <SelectItem key={s.user_id} value={s.user_id}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {canManage && (
+            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Assignee" /></SelectTrigger>
+              <SelectContent className="max-h-80">
+                <SelectItem value="all">All assignees</SelectItem>
+                <SelectItem value="mine">Assigned to me</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {salesPool.map(s => (
+                  <SelectItem key={s.user_id} value={s.user_id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="flex items-center gap-2 ml-auto">
             <Switch
               id="elevenlabs-show-all-dispositions"

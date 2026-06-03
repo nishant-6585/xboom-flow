@@ -67,7 +67,8 @@ export function FormsLeadsPanel() {
   const { user, role, profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isManager = role === "admin" || role === "supply_chain";
+  const isManager =
+    role === "admin" || role === "sales_manager" || role === "supply_chain";
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
   const { data: engagedIds } = useEngagedLeadIds('form_lead');
@@ -86,15 +87,19 @@ export function FormsLeadsPanel() {
   const PAGE_SIZE = 20;
 
   const { data: leads = [], isLoading, refetch } = useQuery({
-    queryKey: ["form_leads"],
+    queryKey: ["form_leads", isManager ? "all" : user?.id ?? "anon"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("form_leads")
         .select("*")
         .order("created_at", { ascending: false });
+      // Sales reps can only see leads assigned to them (server-side scope).
+      if (!isManager && user) q = q.eq("assigned_to", user.id);
+      const { data, error } = await q;
       if (error) throw error;
       return data as FormLead[];
     },
+    enabled: isManager || !!user,
   });
 
   // Fetch sales team + Rohit for assignment dropdown

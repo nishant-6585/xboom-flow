@@ -51,9 +51,11 @@ interface LeadFiltersSheetProps {
   filters: LeadFilters;
   onApply: (filters: LeadFilters) => void;
   salesTeam: { user_id: string; name: string }[];
+  /** When false, hide the "Assigned To" filter (sales reps can't switch assignees). */
+  isManagerView?: boolean;
 }
 
-export function LeadFiltersSheet({ open, onOpenChange, filters, onApply, salesTeam }: LeadFiltersSheetProps) {
+export function LeadFiltersSheet({ open, onOpenChange, filters, onApply, salesTeam, isManagerView = true }: LeadFiltersSheetProps) {
   const [localFilters, setLocalFilters] = useState<LeadFilters>(filters);
 
   const handleReset = () => {
@@ -115,7 +117,7 @@ export function LeadFiltersSheet({ open, onOpenChange, filters, onApply, salesTe
           </div>
 
           {/* Assigned To */}
-          {salesTeam.length > 0 && (
+          {isManagerView && salesTeam.length > 0 && (
             <div className="space-y-2">
               <Label>Assigned To</Label>
               <Select 
