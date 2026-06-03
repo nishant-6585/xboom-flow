@@ -25,6 +25,7 @@ export interface UseWooLeadsPaginatedOptions {
   status?: string;     // 'all' | one of the lead statuses
   sinceDays?: number;  // optional time window
   excludeLost?: boolean;
+  assignedTo?: string; // restrict to a specific assignee user_id (sales rep scope)
 }
 
 export interface WooLeadStats {
@@ -63,7 +64,7 @@ const LIST_COLUMNS = [
 ].join(',');
 
 export function useWooLeadsPaginated(opts: UseWooLeadsPaginatedOptions) {
-  const { page, pageSize, search = '', status = 'all', sinceDays, excludeLost } = opts;
+  const { page, pageSize, search = '', status = 'all', sinceDays, excludeLost, assignedTo } = opts;
 
   const [rows, setRows] = useState<WooCommerceOrder[]>([]);
   const [filteredCount, setFilteredCount] = useState(0);
@@ -106,6 +107,7 @@ export function useWooLeadsPaginated(opts: UseWooLeadsPaginatedOptions) {
       if (sinceIso) q = q.gte('woo_created_at', sinceIso);
       if (excludeLost) q = q.eq('is_lost_lead', false);
       if (status && status !== 'all') q = q.eq('order_status', status);
+      if (assignedTo) q = q.eq('assigned_to', assignedTo);
 
       if (debouncedSearch.trim()) {
         const term = debouncedSearch.trim().replace(/[%,]/g, '');
@@ -125,7 +127,7 @@ export function useWooLeadsPaginated(opts: UseWooLeadsPaginatedOptions) {
 
       return q;
     },
-    [sinceIso, excludeLost, status, debouncedSearch],
+    [sinceIso, excludeLost, status, debouncedSearch, assignedTo],
   );
 
   const fetchPage = useCallback(async () => {
@@ -172,6 +174,7 @@ export function useWooLeadsPaginated(opts: UseWooLeadsPaginatedOptions) {
         );
       if (sinceIso) q = q.gte('woo_created_at', sinceIso);
       if (excludeLost) q = q.eq('is_lost_lead', false);
+      if (assignedTo) q = q.eq('assigned_to', assignedTo);
 
       // Stats set is small (last 60–90 days of leads). Cap defensively.
       const { data, error } = await q.limit(5000);
@@ -190,7 +193,7 @@ export function useWooLeadsPaginated(opts: UseWooLeadsPaginatedOptions) {
     } finally {
       setStatsLoading(false);
     }
-  }, [sinceIso, excludeLost]);
+  }, [sinceIso, excludeLost, assignedTo]);
 
   // Coalesce realtime bursts
   const scheduleRefetch = useCallback(() => {
