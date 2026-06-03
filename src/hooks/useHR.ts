@@ -748,6 +748,21 @@ export function useHR() {
         );
       }
 
+      // CompOff: flip ledger status on approval, revert on rejection of a previously approved compoff.
+      if (leaveReq && leaveReq.leave_type === 'compoff') {
+        if (approve) {
+          await supabase
+            .from('compoff_ledger')
+            .update({ status: 'redeemed', redeemed_on: new Date().toISOString().split('T')[0] })
+            .eq('leave_request_id', leaveId);
+        } else if (leaveReq.status === 'approved') {
+          await supabase
+            .from('compoff_ledger')
+            .update({ status: 'available', redeemed_on: null })
+            .eq('leave_request_id', leaveId);
+        }
+      }
+
       toast.success(approve ? 'Leave approved' : 'Leave rejected');
       return true;
     } catch (error: any) {
