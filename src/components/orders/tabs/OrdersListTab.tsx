@@ -366,10 +366,19 @@ export default function OrdersListTab(props: OrdersListTabProps) {
             )}
           </CardContent>
         </Card>
-      ) : viewMode === 'table' && sourceFilter === 'manual' ? (
+      ) : viewMode === 'table' ? (
         <Card className="shadow-sm border-border/60 overflow-hidden">
           <CardContent className="p-0">
-            <OrderTable orders={paginatedManualOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
+            <OrderTable
+              orders={paginatedUnified.filter(u => u.kind === 'manual').map(u => u.row)}
+              onOrderClick={handleOrderClick}
+              onUpdateOutcome={handleUpdateOutcome}
+            />
+            {sourceFilter === 'website_auto' && (
+              <div className="px-5 py-4 text-sm text-muted-foreground border-t">
+                Table view shows manual orders only. Switch source to All or Manual, or use card view to see website orders.
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
