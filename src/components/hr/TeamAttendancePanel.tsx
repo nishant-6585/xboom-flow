@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   format, isToday, differenceInMinutes, subDays, addDays, isFuture,
   getDay, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend as isWeekendFn, parseISO, isWithinInterval,
@@ -143,6 +144,13 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const policyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeSubTab, setActiveSubTab] = useState('employees');
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const sub = searchParams.get('subtab');
+    if (sub && ['employees', 'reports_alerts', 'analytics', 'backfill'].includes(sub)) {
+      setActiveSubTab(sub);
+    }
+  }, [searchParams]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [empCalendarMonth, setEmpCalendarMonth] = useState<Date>(new Date());
   const [empAttendanceLogs, setEmpAttendanceLogs] = useState<AttendanceLog[]>([]);
