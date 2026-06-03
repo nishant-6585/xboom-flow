@@ -612,15 +612,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               <SelectItem value="busy">Busy</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Sales Person" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sales Persons</SelectItem>
-              {salesPersons.map(sp => (
-                <SelectItem key={sp} value={sp}>{sp}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {canManage && (
+            <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="Sales Person" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sales Persons</SelectItem>
+                {salesPersons.map(sp => (
+                  <SelectItem key={sp} value={sp}>{sp}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={agentFilter} onValueChange={setAgentFilter}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Agent" /></SelectTrigger>
             <SelectContent>
