@@ -533,6 +533,13 @@ export function useHR() {
     start_date: string;
     end_date: string;
     reason?: string;
+    compoff?: {
+      earned_date: string;
+      earned_type: 'holiday' | 'weekend';
+      holiday_id?: string | null;
+      holiday_name?: string | null;
+      ledger_id?: string | null; // if already-earned available row being redeemed
+    };
   }): Promise<boolean> => {
     if (!user || !myEmployee) {
       toast.error('Employee record not found');
@@ -540,6 +547,30 @@ export function useHR() {
     }
 
     try {
+      // CompOff: ensure a ledger row exists (status='available') and link to leave request.
+      let ledgerId: string | null = data.compoff?.ledger_id ?? null;
+      if (data.leave_type === 'compoff' && data.compoff && !ledgerId) {
+        const earned = new Date(data.compoff.earned_date);
+        const expires = new Date(earned);
+        expires.setDate(expires.getDate() + 90);
+        const { data: ledgerRow, error: ledgerErr } = await supabase
+          .from('compoff_ledger')
+          .insert({
+            employee_id: myEmployee.id,
+            earned_date: data.compoff.earned_date,
+            earned_type: data.compoff.earned_type,
+            holiday_id: data.compoff.holiday_id ?? null,
+            holiday_name: data.compoff.holiday_name ?? null,
+            status: 'available',
+            expires_at: expires.toISOString().split('T')[0],
+            created_by: user.id,
+          } as any)
+          .select('id')
+          .single();
+        if (ledgerErr) throw ledgerErr;
+        ledgerId = ledgerRow?.id ?? null;
+      }
+
       const { error } = await supabase
         .from('leave_requests')
         .insert({
@@ -549,6 +580,18 @@ export function useHR() {
           end_date: data.end_date,
           reason: data.reason,
           status: 'submitted',
+        })
+        .select('id')
+        .single()
+        .then(async (res) => {
+          if (res.error) return res;
+          if (ledgerId && res.data?.id) {
+            await supabase
+              .from('compoff_ledger')
+              .update({ leave_request_id: res.data.id })
+              .eq('id', ledgerId);
+          }
+          return res;
         });
 
       if (error) throw error;
