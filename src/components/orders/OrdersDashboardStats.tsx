@@ -77,7 +77,6 @@ export function OrdersDashboardStats({
 
   const filteredOrders = useMemo(() => {
     return scopedOrders.filter((o) => {
-      if (o.status === "cancelled") return false;
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
       return matchesPerson;
     });
@@ -115,8 +114,10 @@ export function OrdersDashboardStats({
 
   const totals = useMemo(() => {
     const totalOrders = filteredOrders.length;
-    const totalOrderValue = filteredOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
-    const totalReceived = filteredOrders.reduce((s, o) => s + (o.amount_paid || 0), 0);
+    // Financial totals exclude cancelled orders, but the count matches the visible list.
+    const nonCancelled = filteredOrders.filter((o) => o.status !== "cancelled");
+    const totalOrderValue = nonCancelled.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
+    const totalReceived = nonCancelled.reduce((s, o) => s + (o.amount_paid || 0), 0);
     const totalPending = totalOrderValue - totalReceived;
     
     // Calculate profit from order_items data
