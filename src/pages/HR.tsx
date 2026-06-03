@@ -199,13 +199,13 @@ export default function HR() {
           )}
 
           <TabsContent value="leave" className="space-y-4">
-            <LeaveBalancePanel employeeId={myEmployee?.id} />
             {isHROrAdmin && pendingLeaves.length > 0 && (
               <BulkLeaveApprovalSection
                 pendingLeaves={pendingLeaves}
                 onApprove={approveLeave}
               />
             )}
+            <LeaveBalancePanel employeeId={myEmployee?.id} />
             <div className="flex gap-2">
               <Button className="flex-1" onClick={() => setLeaveDialogOpen(true)}><Plus className="mr-2 h-4 w-4" /> Apply for Leave</Button>
               {isHROrAdmin && (
