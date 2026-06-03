@@ -82,7 +82,8 @@ const relativeTime = (iso?: string | null) => {
 
 export function XboomWebsiteLeadsPanel() {
   const { data: engagedIds } = useEngagedLeadIds('woocommerce');
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const canManage = role === "admin" || role === "sales_manager";
   // Filters / pagination state — declared up-front because the data hook
   // pushes them down to Postgres (server-side pagination & search).
   const [search, setSearch] = useState("");
@@ -107,6 +108,7 @@ export function XboomWebsiteLeadsPanel() {
     status: statusFilter,
     sinceDays: 90,
     excludeLost: true,
+    assignedTo: canManage ? undefined : user?.id,
   });
 
   // Salespeople available for assignment (admin / sales / sales_manager).
