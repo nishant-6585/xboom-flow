@@ -19,6 +19,7 @@ import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { LeadContactDrawer, LeadContactData } from "../LeadContactDrawer";
 import { CallButton } from "@/components/calls/CallButton";
+import { useAuth } from "@/hooks/useAuth";
 
 interface GoogleAdsLead {
   id: string;
@@ -130,6 +131,8 @@ function getLeadPriority(lead: GoogleAdsLead, fields: Record<string, string>): {
 }
 
 export function GoogleAdsLeadsTab() {
+  const { user, role } = useAuth();
+  const canManage = role === 'admin' || role === 'sales_manager';
   const [leads, setLeads] = useState<GoogleAdsLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<GoogleAdsLead | null>(null);
@@ -143,11 +146,15 @@ export function GoogleAdsLeadsTab() {
 
   const fetchLeads = async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("google_ads_leads")
       .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name, product_category, quantity, urgency, requested_timeline, email, phone, city, disposition, disposition_reason_code, disposition_reason_note, disposition_at, disposition_by_name")
       .order("created_at", { ascending: false })
       .limit(200);
+    if (!canManage && user?.id) {
+      query = query.or(`assigned_to.eq.${user.id},sales_person_id.eq.${user.id}`);
+    }
+    const { data } = await query;
 
     if (data) setLeads(data as GoogleAdsLead[]);
     setLoading(false);
@@ -155,7 +162,7 @@ export function GoogleAdsLeadsTab() {
 
   useEffect(() => {
     fetchLeads();
-  }, []);
+  }, [canManage, user?.id]);
 
   // Sort: high-intent + recent first
   const sortedLeads = useMemo(() => {
