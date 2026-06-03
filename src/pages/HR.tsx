@@ -17,8 +17,9 @@ import { HRLeaveApplyDialog } from "@/components/hr/HRLeaveApplyDialog";
 
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
+import { ProcessDocumentsPanel } from "@/components/hr/ProcessDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
-import { Plus, Calendar, CalendarDays, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX, UserPlus, BookOpen, Briefcase, Share2 } from "lucide-react";
+import { Plus, Calendar, CalendarDays, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX, UserPlus, BookOpen, Briefcase, Share2, BookMarked } from "lucide-react";
 import { EmployeeTrainingPanel } from "@/components/trainings/EmployeeTrainingPanel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
