@@ -127,7 +127,7 @@ export function HRPendingApprovalsWidget() {
 
           <button
             type="button"
-            onClick={() => navigate("/hr?tab=team_attendance")}
+            onClick={() => navigate("/hr?tab=team_attendance&subtab=reports_alerts")}
             className="flex items-center justify-between rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/60"
           >
             <div className="flex items-center gap-3">
