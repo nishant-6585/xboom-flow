@@ -289,6 +289,9 @@ export function ElevenLabsLeadsPanel() {
     else if (assigneeFilter === "mine" && user) q = q.eq("assigned_to", user.id);
     else if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
 
+    // Server-side scoping: sales reps can only see leads assigned to them.
+    if (!canManage && user) q = q.eq("assigned_to", user.id);
+
     const { data, error } = await q;
     if (!error && data) setLeads(data as any as ElevenLead[]);
     const ids = (data ?? []).map((d: any) => d.id);
