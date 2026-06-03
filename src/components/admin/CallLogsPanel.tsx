@@ -25,6 +25,7 @@ import type { Prospect } from "@/hooks/useProspects";
 import { useSalesUsers } from "@/hooks/useSalesUsers";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
@@ -286,6 +287,8 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
 }
 
 export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), attentionSourceIds = new Set(), onLogsLoaded, dateRange, defaultDepartment }: CallLogsPanelProps) {
+  const { user, role } = useAuth();
+  const canManage = role === 'admin' || role === 'sales_manager';
   const { data: engagedCallIds } = useEngagedLeadIds('myoperator');
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
