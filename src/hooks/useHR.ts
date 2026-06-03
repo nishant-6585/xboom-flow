@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 export type WorkLocation = 'Office' | 'Remote' | 'Field';
 export type ShiftType = 'Fixed' | 'Flexible';
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'weekend' | 'holiday';
-export type LeaveType = 'casual' | 'sick' | 'paid' | 'EL' | 'unpaid' | 'half_day' | 'half_day_casual' | 'half_day_sick' | 'half_day_paid' | 'half_day_EL' | 'half_day_unpaid' | 'wfh';
+export type LeaveType = 'casual' | 'sick' | 'paid' | 'EL' | 'unpaid' | 'half_day' | 'half_day_casual' | 'half_day_sick' | 'half_day_paid' | 'half_day_EL' | 'half_day_unpaid' | 'wfh' | 'compoff';
 // Note: 'casual', 'half_day_casual', 'paid', 'half_day_paid' kept in type for historical data but removed from UI selection
 export type LeaveStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | 'cancelled';
 
