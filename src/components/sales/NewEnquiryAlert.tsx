@@ -72,31 +72,27 @@ export function NewEnquiryAlert() {
     });
   }, []);
 
-  // Initial fetch: enquiries created in last 7 days, still pending response, not yet acked
+  // Only alert for brand-new enquiries created after this session started.
+  // Older pending enquiries are visible in the Enquiries tab; we don't want
+  // to spam supply chain with backlog popups on every page load.
   useEffect(() => {
     if (!user || !isSupplyChain) return;
     let cancelled = false;
     (async () => {
-      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      // Pre-ack any existing enquiries so they never pop up later.
       const { data, error } = await supabase
         .from("enquiries")
-        .select(
-          "id, product_name, product_category, customer_name, customer_company, quantity, urgency, notes, status, sales_person_id, sales_person_name, requested_timeline, created_at"
-        )
-        .is("responded_at", null)
-        .gte("created_at", since)
-        .order("created_at", { ascending: true });
+        .select("id")
+        .is("responded_at", null);
       if (cancelled || error || !data) return;
       const acks = loadAcks();
-      const unseen = (data as NewEnquiry[]).filter(
-        (e) => !acks[e.id] && e.sales_person_id !== user.id
-      );
-      enqueue(unseen);
+      for (const row of data as { id: string }[]) acks[row.id] = true;
+      saveAcks(acks);
     })();
     return () => {
       cancelled = true;
     };
-  }, [user, isSupplyChain, enqueue]);
+  }, [user, isSupplyChain]);
 
   // Realtime: listen for new enquiry inserts
   useEffect(() => {
@@ -110,6 +106,12 @@ export function NewEnquiryAlert() {
           const row = payload.new as NewEnquiry;
           if (!row?.id) return;
           if (row.sales_person_id === user.id) return; // ignore self
+          // Only alert for enquiries created in the last 2 minutes — guards
+          // against replayed/buffered realtime events for older rows.
+          const ageMs = Date.now() - new Date(row.created_at).getTime();
+          if (ageMs > 2 * 60 * 1000) return;
+          const acks = loadAcks();
+          if (acks[row.id]) return;
           enqueue([row]);
         }
       )
