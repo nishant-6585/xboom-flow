@@ -45,6 +45,8 @@ export default function Sales() {
   const [searchParams] = useSearchParams();
   const isManager = role === 'admin' || role === 'supply_chain';
   const canAccessEnquiries = role === 'admin' || role === 'sales_manager';
+  const canSeeAnalytics = role === 'admin' || role === 'sales_manager';
+  const isSalesRep = role === 'sales';
   const canManageAvailability =
     (roles ?? []).some((r) => r === 'admin' || r === 'sales_manager') ||
     role === 'admin' ||
@@ -61,7 +63,9 @@ export default function Sales() {
   const urlTab = searchParams.get("tab");
   const urlLeadId = searchParams.get("leadId");
   const urlSearch = searchParams.get("search");
-  const [activeTab, setActiveTab] = useState(urlTab || "manager");
+  const [activeTab, setActiveTab] = useState(
+    urlTab || (role === 'sales' ? 'my_leads' : 'manager'),
+  );
 
   // Handle URL params for tab navigation — react to every change
   useEffect(() => {
@@ -69,6 +73,12 @@ export default function Sales() {
       setActiveTab(urlTab);
     }
   }, [urlTab, urlLeadId]);
+
+  // If role resolves after first render, redirect sales reps off restricted default
+  useEffect(() => {
+    if (urlTab) return;
+    if (role === 'sales' && activeTab === 'manager') setActiveTab('my_leads');
+  }, [role, urlTab, activeTab]);
 
   const triggerBase = "gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-muted/80 data-[state=active]:shadow-md";
   const triggerPrimary = `${triggerBase} data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`;
@@ -103,10 +113,12 @@ export default function Sales() {
                   <Contact className="w-4 h-4" />
                   My Leads
                 </TabsTrigger>
-                <TabsTrigger value="manager" className={triggerPrimary}>
-                  <BarChart3 className="w-4 h-4" />
-                  Dashboard
-                </TabsTrigger>
+                {canSeeAnalytics && (
+                  <TabsTrigger value="manager" className={triggerPrimary}>
+                    <BarChart3 className="w-4 h-4" />
+                    Dashboard
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="leads" className={triggerPrimary}>
                   <Users className="w-4 h-4" />
                   Leads
@@ -171,10 +183,12 @@ export default function Sales() {
                   <ListTodo className="w-4 h-4" />
                   Tasks
                 </TabsTrigger>
-                <TabsTrigger value="source_performance" className={`${triggerBase} data-[state=active]:bg-indigo-600 data-[state=active]:text-white`}>
-                  <BarChart3 className="w-4 h-4" />
-                  Source Tracker
-                </TabsTrigger>
+                {canSeeAnalytics && (
+                  <TabsTrigger value="source_performance" className={`${triggerBase} data-[state=active]:bg-indigo-600 data-[state=active]:text-white`}>
+                    <BarChart3 className="w-4 h-4" />
+                    Source Tracker
+                  </TabsTrigger>
+                )}
                 {canManageAvailability && (
                   <TabsTrigger value="availability" className={`${triggerBase} data-[state=active]:bg-amber-600 data-[state=active]:text-white`}>
                     <CalendarOff className="w-4 h-4" />
@@ -210,14 +224,18 @@ export default function Sales() {
                   <Target className="w-3.5 h-3.5" />
                   Targets
                 </TabsTrigger>
-                <TabsTrigger value="analytics" className={triggerSecondaryPrimary}>
-                  <PieChart className="w-3.5 h-3.5" />
-                  Analytics
-                </TabsTrigger>
-                <TabsTrigger value="category_funnel" className={`${triggerSecondary} data-[state=active]:bg-emerald-600 data-[state=active]:text-white`}>
-                  <GitBranch className="w-3.5 h-3.5" />
-                  Category Funnel
-                </TabsTrigger>
+                {canSeeAnalytics && (
+                  <TabsTrigger value="analytics" className={triggerSecondaryPrimary}>
+                    <PieChart className="w-3.5 h-3.5" />
+                    Analytics
+                  </TabsTrigger>
+                )}
+                {canSeeAnalytics && (
+                  <TabsTrigger value="category_funnel" className={`${triggerSecondary} data-[state=active]:bg-emerald-600 data-[state=active]:text-white`}>
+                    <GitBranch className="w-3.5 h-3.5" />
+                    Category Funnel
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="faq" className={triggerSecondaryPrimary}>
                   <HelpCircle className="w-3.5 h-3.5" />
                   FAQ
@@ -238,20 +256,24 @@ export default function Sales() {
             <TasksPanel />
           </TabsContent>
 
-          <TabsContent value="source_performance" className="space-y-6">
-            <LeadSourcePerformanceDashboard />
-            <QFormsElevenLabsConversionAnalytics />
-          </TabsContent>
+          {canSeeAnalytics && (
+            <TabsContent value="source_performance" className="space-y-6">
+              <LeadSourcePerformanceDashboard />
+              <QFormsElevenLabsConversionAnalytics />
+            </TabsContent>
+          )}
 
           <TabsContent value="my_leads" className="space-y-6">
             <MyLeadsPanel />
           </TabsContent>
 
-          <TabsContent value="manager" className="space-y-6">
-            <UntouchedLoginAlert />
-            <SalesCommandCenter onDateRangeChange={handleDateRangeChange} />
-            <ManagerDashboard startDate={dashboardDateRange.start} endDate={dashboardDateRange.end} />
-          </TabsContent>
+          {canSeeAnalytics && (
+            <TabsContent value="manager" className="space-y-6">
+              <UntouchedLoginAlert />
+              <SalesCommandCenter onDateRangeChange={handleDateRangeChange} />
+              <ManagerDashboard startDate={dashboardDateRange.start} endDate={dashboardDateRange.end} />
+            </TabsContent>
+          )}
 
           <TabsContent value="untouched" className="space-y-6">
             <UntouchedLeadsPanel />
@@ -349,13 +371,17 @@ export default function Sales() {
             <SalesFAQPanel />
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-6">
-            <SalesAnalyticsDashboard />
-          </TabsContent>
+          {canSeeAnalytics && (
+            <TabsContent value="analytics" className="space-y-6">
+              <SalesAnalyticsDashboard />
+            </TabsContent>
+          )}
 
-          <TabsContent value="category_funnel" className="space-y-6">
-            <CategoryFunnelDashboard />
-          </TabsContent>
+          {canSeeAnalytics && (
+            <TabsContent value="category_funnel" className="space-y-6">
+              <CategoryFunnelDashboard />
+            </TabsContent>
+          )}
 
           {canManageAvailability && (
             <TabsContent value="availability" className="space-y-6">
