@@ -110,6 +110,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [productNameReasonOpen, setProductNameReasonOpen] = useState(false);
   const [productNameReason, setProductNameReason] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [titleReasonOpen, setTitleReasonOpen] = useState(false);
+  const [titleReason, setTitleReason] = useState('');
 
   const [status, setStatus] = useState<OrderStatus>('po_received');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -750,6 +754,54 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     }
   };
 
+  const commitTitleEdit = async (reason: string) => {
+    if (!order) return;
+    const newName = titleDraft.trim();
+    if (!newName || newName === order.product_name) {
+      setTitleReasonOpen(false);
+      setEditingTitle(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const oldName = order.product_name;
+      const { error } = await supabase
+        .from('orders')
+        .update({ product_name: newName })
+        .eq('id', order.id);
+      if (error) throw error;
+
+      // Mirror to any order_items that match the old header name
+      const matchingItems = orderItems.filter(i => i.product_name === oldName);
+      for (const item of matchingItems) {
+        await supabase
+          .from('order_items')
+          .update({ product_name: newName })
+          .eq('id', item.id);
+      }
+
+      if (user && profile) {
+        await recordChanges('orders', order.id, {
+          product_name: { old: oldName, new: newName },
+          product_name_change_reason: { old: null, new: reason },
+        }, profile.name || 'Unknown');
+      }
+
+      await onUpdate(order.id, { product_name: newName } as Partial<Order>);
+      const refreshedItems = await fetchOrderItems(order.id);
+      setOrderItems(refreshedItems);
+      toast.success('Order title updated');
+    } catch (e: any) {
+      console.error('Failed to update order title', e);
+      toast.error(e?.message || 'Failed to update order title');
+    } finally {
+      setLoading(false);
+      setTitleReasonOpen(false);
+      setTitleReason('');
+      setEditingTitle(false);
+    }
+  };
+
   const paymentConfig = paymentStatusConfig[order.payment_status];
 
   return (
@@ -761,8 +813,71 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               <div>
                 <DialogTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  {order.product_name}
-                  <OrderNumberBadge orderNumber={order.order_number} size="md" />
+                  {editingTitle && canEditOrder ? (
+                    <>
+                      <Input
+                        autoFocus
+                        value={titleDraft}
+                        onChange={(e) => setTitleDraft(e.target.value)}
+                        className="h-8 text-base font-semibold w-[320px]"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (titleDraft.trim() && titleDraft.trim() !== order.product_name) {
+                              setTitleReasonOpen(true);
+                            } else {
+                              setEditingTitle(false);
+                            }
+                          } else if (e.key === 'Escape') {
+                            setEditingTitle(false);
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => {
+                          if (titleDraft.trim() && titleDraft.trim() !== order.product_name) {
+                            setTitleReasonOpen(true);
+                          } else {
+                            setEditingTitle(false);
+                          }
+                        }}
+                        title="Save"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setEditingTitle(false)}
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {order.product_name}
+                      {canEditOrder && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            setTitleDraft(order.product_name || '');
+                            setEditingTitle(true);
+                          }}
+                          title="Edit title"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <OrderNumberBadge orderNumber={order.order_number} size="md" />
+                    </>
+                  )}
                 </DialogTitle>
                 <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}
@@ -2580,6 +2695,46 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         name={invoiceViewer.name}
         fileType={invoiceViewer.fileType}
       />
+
+      <Dialog open={titleReasonOpen} onOpenChange={(o) => { if (!loading) setTitleReasonOpen(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reason for Title Change</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for changing the order title. This will be logged in the order's edit history.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="title-change-reason">Reason</Label>
+            <Textarea
+              id="title-change-reason"
+              value={titleReason}
+              onChange={(e) => setTitleReason(e.target.value)}
+              placeholder="e.g. Customer requested variant change, corrected product name, etc."
+              rows={3}
+              disabled={loading}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setTitleReasonOpen(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!titleReason.trim()) {
+                  toast.error('Please enter a reason');
+                  return;
+                }
+                void commitTitleEdit(titleReason.trim());
+              }}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
