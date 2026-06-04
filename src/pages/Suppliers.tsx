@@ -480,6 +480,13 @@ export default function Suppliers() {
           open={!!ledgerSupplier}
           onOpenChange={(open) => !open && setLedgerSupplier(null)}
         />
+
+        {/* Courier Partners Dialog */}
+        <CourierPartnersDialog
+          open={courierDialogOpen}
+          onOpenChange={setCourierDialogOpen}
+          canManage={canManage}
+        />
       </main>
     </div>
   );
