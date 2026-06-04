@@ -754,6 +754,54 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     }
   };
 
+  const commitTitleEdit = async (reason: string) => {
+    if (!order) return;
+    const newName = titleDraft.trim();
+    if (!newName || newName === order.product_name) {
+      setTitleReasonOpen(false);
+      setEditingTitle(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const oldName = order.product_name;
+      const { error } = await supabase
+        .from('orders')
+        .update({ product_name: newName })
+        .eq('id', order.id);
+      if (error) throw error;
+
+      // Mirror to any order_items that match the old header name
+      const matchingItems = orderItems.filter(i => i.product_name === oldName);
+      for (const item of matchingItems) {
+        await supabase
+          .from('order_items')
+          .update({ product_name: newName })
+          .eq('id', item.id);
+      }
+
+      if (user && profile) {
+        await recordChanges('orders', order.id, {
+          product_name: { old: oldName, new: newName },
+          product_name_change_reason: { old: null, new: reason },
+        }, profile.name || 'Unknown');
+      }
+
+      await onUpdate(order.id, { product_name: newName } as Partial<Order>);
+      const refreshedItems = await fetchOrderItems(order.id);
+      setOrderItems(refreshedItems);
+      toast.success('Order title updated');
+    } catch (e: any) {
+      console.error('Failed to update order title', e);
+      toast.error(e?.message || 'Failed to update order title');
+    } finally {
+      setLoading(false);
+      setTitleReasonOpen(false);
+      setTitleReason('');
+      setEditingTitle(false);
+    }
+  };
+
   const paymentConfig = paymentStatusConfig[order.payment_status];
 
   return (
