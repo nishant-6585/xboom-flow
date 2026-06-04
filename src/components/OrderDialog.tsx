@@ -813,8 +813,71 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               <div>
                 <DialogTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  {order.product_name}
-                  <OrderNumberBadge orderNumber={order.order_number} size="md" />
+                  {editingTitle && canEditOrder ? (
+                    <>
+                      <Input
+                        autoFocus
+                        value={titleDraft}
+                        onChange={(e) => setTitleDraft(e.target.value)}
+                        className="h-8 text-base font-semibold w-[320px]"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (titleDraft.trim() && titleDraft.trim() !== order.product_name) {
+                              setTitleReasonOpen(true);
+                            } else {
+                              setEditingTitle(false);
+                            }
+                          } else if (e.key === 'Escape') {
+                            setEditingTitle(false);
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => {
+                          if (titleDraft.trim() && titleDraft.trim() !== order.product_name) {
+                            setTitleReasonOpen(true);
+                          } else {
+                            setEditingTitle(false);
+                          }
+                        }}
+                        title="Save"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setEditingTitle(false)}
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {order.product_name}
+                      {canEditOrder && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            setTitleDraft(order.product_name || '');
+                            setEditingTitle(true);
+                          }}
+                          title="Edit title"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <OrderNumberBadge orderNumber={order.order_number} size="md" />
+                    </>
+                  )}
                 </DialogTitle>
                 <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}
