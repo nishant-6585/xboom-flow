@@ -2695,6 +2695,46 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         name={invoiceViewer.name}
         fileType={invoiceViewer.fileType}
       />
+
+      <Dialog open={titleReasonOpen} onOpenChange={(o) => { if (!loading) setTitleReasonOpen(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reason for Title Change</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for changing the order title. This will be logged in the order's edit history.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="title-change-reason">Reason</Label>
+            <Textarea
+              id="title-change-reason"
+              value={titleReason}
+              onChange={(e) => setTitleReason(e.target.value)}
+              placeholder="e.g. Customer requested variant change, corrected product name, etc."
+              rows={3}
+              disabled={loading}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setTitleReasonOpen(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!titleReason.trim()) {
+                  toast.error('Please enter a reason');
+                  return;
+                }
+                void commitTitleEdit(titleReason.trim());
+              }}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
