@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { COURIER_NAMES } from '@/lib/courierTracking';
+import { useCourierPartners } from '@/hooks/useCourierPartners';
 
 interface Props {
   value: string;
@@ -26,13 +26,15 @@ export function CourierCombobox({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const { partners } = useCourierPartners();
+  const courierNames = partners.filter((p) => p.is_active).map((p) => p.name);
 
-  const filtered = COURIER_NAMES.filter((o) =>
+  const filtered = courierNames.filter((o) =>
     o.toLowerCase().includes(search.toLowerCase()),
   );
   const showAddCustom =
     search.trim().length > 0 &&
-    !COURIER_NAMES.some((o) => o.toLowerCase() === search.trim().toLowerCase());
+    !courierNames.some((o) => o.toLowerCase() === search.trim().toLowerCase());
 
   return (
     <Popover

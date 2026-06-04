@@ -16,7 +16,15 @@ export interface CourierOption {
   trackingPage: string;
 }
 
-export const COURIER_PARTNERS: CourierOption[] = [
+/**
+ * In-memory cache of courier partners. Seeded with the same list that
+ * lives in the `public.courier_partners` table so that lookups work
+ * before the DB has been hydrated. Once `useCourierPartners` (or any
+ * caller) fetches the live list, it calls `setCourierPartners()` to
+ * replace this cache so newly-added couriers from the Suppliers tab
+ * become available everywhere (combobox, tracking link generator).
+ */
+let COURIER_PARTNERS: CourierOption[] = [
   { name: 'Shree Tirupati Courier', trackingPage: 'http://www.shreetirupaticourier.net/' },
   { name: 'DTDC', trackingPage: 'https://www.dtdc.com/track-your-shipment/' },
   { name: 'Bluedart', trackingPage: 'https://www.bluedart.com/tracking' },
@@ -36,6 +44,21 @@ export const COURIER_PARTNERS: CourierOption[] = [
   { name: 'Office Delivery', trackingPage: '' },
   { name: 'Bus', trackingPage: '' },
 ];
+
+export function getCourierPartners(): CourierOption[] {
+  return COURIER_PARTNERS;
+}
+
+export function getCourierNames(): string[] {
+  return COURIER_PARTNERS.map((c) => c.name);
+}
+
+/** Replace the in-memory cache with the live list from the DB. */
+export function setCourierPartners(list: CourierOption[]) {
+  if (Array.isArray(list) && list.length > 0) {
+    COURIER_PARTNERS = list;
+  }
+}
 
 const norm = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -65,4 +88,25 @@ export function buildTrackingUrl(
   return courier.trackingPage;
 }
 
-export const COURIER_NAMES = COURIER_PARTNERS.map((c) => c.name);
+/**
+ * @deprecated Use `getCourierNames()` so newly-added couriers from the
+ * Suppliers tab are reflected. Kept as a Proxy-backed live view so
+ * existing imports (`COURIER_NAMES.filter(...)`, `.some(...)`, `.map(...)`)
+ * keep working without immediate refactors.
+ */
+export const COURIER_NAMES: string[] = new Proxy([] as string[], {
+  get(_t, prop, receiver) {
+    const live = COURIER_PARTNERS.map((c) => c.name);
+    const value = Reflect.get(live, prop, receiver);
+    return typeof value === 'function' ? value.bind(live) : value;
+  },
+  has(_t, prop) {
+    return prop in COURIER_PARTNERS.map((c) => c.name);
+  },
+  ownKeys() {
+    return Reflect.ownKeys(COURIER_PARTNERS.map((c) => c.name));
+  },
+  getOwnPropertyDescriptor(_t, prop) {
+    return Object.getOwnPropertyDescriptor(COURIER_PARTNERS.map((c) => c.name), prop);
+  },
+}) as string[];

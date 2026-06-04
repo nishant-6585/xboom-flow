@@ -2566,6 +2566,36 @@ export type Database = {
           },
         ]
       }
+      courier_partners: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          tracking_url: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          tracking_url?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          tracking_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       credit_cards: {
         Row: {
           bank_name: string

@@ -12,9 +12,10 @@ import { SupplierTable } from '@/components/SupplierTable';
 import { SupplierForm } from '@/components/SupplierForm';
 import { SupplierLedgerDialog } from '@/components/SupplierLedgerDialog';
 import { SupplierAnalytics } from '@/components/SupplierAnalytics';
-import { Plus, Search, Loader2, Building2, Filter, Upload, FileSpreadsheet, Download, X, BarChart3, LayoutGrid, TableIcon } from 'lucide-react';
+import { Plus, Search, Loader2, Building2, Filter, Upload, FileSpreadsheet, Download, X, BarChart3, LayoutGrid, TableIcon, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { CourierPartnersDialog } from '@/components/CourierPartnersDialog';
 
 export default function Suppliers() {
   const { role } = useAuth();
@@ -32,6 +33,7 @@ export default function Suppliers() {
   
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [courierDialogOpen, setCourierDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [ledgerSupplier, setLedgerSupplier] = useState<Supplier | null>(null);
   const [formLoading, setFormLoading] = useState(false);
@@ -219,6 +221,12 @@ export default function Suppliers() {
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
             </Button>
+            {canView && (
+              <Button variant="outline" size="sm" onClick={() => setCourierDialogOpen(true)}>
+                <Truck className="h-4 w-4 mr-2" />
+                Courier Partners
+              </Button>
+            )}
             {canManage && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
@@ -471,6 +479,13 @@ export default function Suppliers() {
           supplier={ledgerSupplier}
           open={!!ledgerSupplier}
           onOpenChange={(open) => !open && setLedgerSupplier(null)}
+        />
+
+        {/* Courier Partners Dialog */}
+        <CourierPartnersDialog
+          open={courierDialogOpen}
+          onOpenChange={setCourierDialogOpen}
+          canManage={canManage}
         />
       </main>
     </div>
