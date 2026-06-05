@@ -1154,6 +1154,22 @@ const Admin = () => {
                             <span className="ml-1 hidden sm:inline">Reset</span>
                           </Button>
 
+                          {/* Reset MFA */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResetMFA(user.user_id, user.name)}
+                            disabled={mfaResetLoading === user.user_id}
+                            title="Remove all MFA factors for this user"
+                          >
+                            {mfaResetLoading === user.user_id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <ShieldOff className="w-4 h-4" />
+                            )}
+                            <span className="ml-1 hidden sm:inline">Reset MFA</span>
+                          </Button>
+
                           {/* Delete User */}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
