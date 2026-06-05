@@ -143,3 +143,6 @@ verify_jwt = false
 
 [functions.portal-invite-customer]
 verify_jwt = false
+
+[functions.admin-reset-mfa]
+verify_jwt = false

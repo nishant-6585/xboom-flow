@@ -19,7 +19,7 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History, Briefcase, FileQuestion, Package } from "lucide-react";
+import { Check, X, Users, ShieldCheck, ShieldOff, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History, Briefcase, FileQuestion, Package } from "lucide-react";
 import { UserApprovalHistoryDialog } from "@/components/admin/UserApprovalHistoryDialog";
 import { ActionWithCommentDialog } from "@/components/admin/ActionWithCommentDialog";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
@@ -107,6 +107,7 @@ const Admin = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [mfaResetLoading, setMfaResetLoading] = useState<string | null>(null);
   const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
   const [managerChangeLoading, setManagerChangeLoading] = useState<string | null>(null);
   const [deptChangeLoading, setDeptChangeLoading] = useState<string | null>(null);
@@ -462,6 +463,45 @@ const Admin = () => {
           toast({ title: "Error", description: "Failed to delete user", variant: "destructive" });
         } finally {
           setDeleteLoading(null);
+        }
+      },
+    });
+  };
+
+  const handleResetMFA = async (userId: string, userName: string) => {
+    requireReAuth({
+      title: "Reset MFA",
+      description: `You are about to remove all MFA factors for ${userName}. They will need to enroll a new authenticator on next login. Continue?`,
+      onConfirmed: async () => {
+        setMfaResetLoading(userId);
+        try {
+          const { data, error } = await supabase.functions.invoke("admin-reset-mfa", {
+            body: { target_user_id: userId },
+          });
+          if (error) throw error;
+          if ((data as any)?.error) throw new Error((data as any).error);
+
+          if (user && profile) {
+            recordAuditLog(user.id, profile.name, {
+              action: "admin_reset_mfa",
+              targetUserId: userId,
+              details: { user_name: userName, factors_removed: (data as any)?.factors_removed ?? 0 },
+            });
+          }
+
+          toast({
+            title: "MFA Reset",
+            description: `Removed ${(data as any)?.factors_removed ?? 0} MFA factor(s) for ${userName}. They will be required to re-enroll on next login.`,
+          });
+        } catch (error: any) {
+          console.error("Error resetting MFA:", error);
+          toast({
+            title: "Error",
+            description: error.message || "Failed to reset MFA",
+            variant: "destructive",
+          });
+        } finally {
+          setMfaResetLoading(null);
         }
       },
     });
@@ -1112,6 +1152,22 @@ const Admin = () => {
                               <KeyRound className="w-4 h-4" />
                             )}
                             <span className="ml-1 hidden sm:inline">Reset</span>
+                          </Button>
+
+                          {/* Reset MFA */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResetMFA(user.user_id, user.name)}
+                            disabled={mfaResetLoading === user.user_id}
+                            title="Remove all MFA factors for this user"
+                          >
+                            {mfaResetLoading === user.user_id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <ShieldOff className="w-4 h-4" />
+                            )}
+                            <span className="ml-1 hidden sm:inline">Reset MFA</span>
                           </Button>
 
                           {/* Delete User */}
