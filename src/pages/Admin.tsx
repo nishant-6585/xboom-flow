@@ -468,6 +468,45 @@ const Admin = () => {
     });
   };
 
+  const handleResetMFA = async (userId: string, userName: string) => {
+    requireReAuth({
+      title: "Reset MFA",
+      description: `You are about to remove all MFA factors for ${userName}. They will need to enroll a new authenticator on next login. Continue?`,
+      onConfirmed: async () => {
+        setMfaResetLoading(userId);
+        try {
+          const { data, error } = await supabase.functions.invoke("admin-reset-mfa", {
+            body: { target_user_id: userId },
+          });
+          if (error) throw error;
+          if ((data as any)?.error) throw new Error((data as any).error);
+
+          if (user && profile) {
+            recordAuditLog(user.id, profile.name, {
+              action: "admin_reset_mfa",
+              targetUserId: userId,
+              details: { user_name: userName, factors_removed: (data as any)?.factors_removed ?? 0 },
+            });
+          }
+
+          toast({
+            title: "MFA Reset",
+            description: `Removed ${(data as any)?.factors_removed ?? 0} MFA factor(s) for ${userName}. They will be required to re-enroll on next login.`,
+          });
+        } catch (error: any) {
+          console.error("Error resetting MFA:", error);
+          toast({
+            title: "Error",
+            description: error.message || "Failed to reset MFA",
+            variant: "destructive",
+          });
+        } finally {
+          setMfaResetLoading(null);
+        }
+      },
+    });
+  };
+
   const handleToggleRole = async (userId: string, role: string, currentRoles: string[], userName: string) => {
     requireReAuth({
       title: "Change User Role",
