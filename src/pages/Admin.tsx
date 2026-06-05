@@ -1156,6 +1156,7 @@ const Admin = () => {
 
                           {/* Delete User */}
                           <AlertDialog>
+                          {/* Reset MFA */}
                             <AlertDialogTrigger asChild>
                               <Button
                                 size="sm"
