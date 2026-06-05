@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, CheckCircle, ShieldCheck, Calendar, Clock } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import logoIcon from "@/assets/logo-icon.jpeg";
 import XboomLoginBackground from "@/components/auth/XboomLoginBackground";
@@ -49,6 +51,7 @@ const Auth = () => {
   const [team, setTeam] = useState<AppRole>("sales");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; confirmPassword?: string; mfa?: string }>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const { signIn, signUp, user, loading: authLoading, mfaStatus } = useAuth();
@@ -273,11 +276,13 @@ const Auth = () => {
     if (!validateForm()) return;
 
     setLoading(true);
+    setSubmitError(null);
 
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
+          setSubmitError(error.message || "Unable to sign in. Please check your credentials and try again.");
           toast({
             title: "Login failed",
             description: error.message,
@@ -310,6 +315,7 @@ const Auth = () => {
           if (error.message.includes("already registered")) {
             errorMessage = "This email is already registered. Please login instead.";
           }
+          setSubmitError(errorMessage);
           toast({
             title: "Registration failed",
             description: errorMessage,
@@ -323,6 +329,9 @@ const Auth = () => {
           navigate("/");
         }
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setSubmitError(msg);
     } finally {
       setLoading(false);
     }
@@ -543,6 +552,12 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {submitError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{submitError}</AlertDescription>
+              </Alert>
+            )}
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
