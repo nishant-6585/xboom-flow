@@ -34,8 +34,8 @@ const MFAVerify = () => {
 
   return (
     <MFAVerification
-      onVerified={() => {
-        refreshMfaStatus();
+      onVerified={async () => {
+        await refreshMfaStatus();
         navigate("/", { replace: true });
       }}
       onCancel={signOut}
