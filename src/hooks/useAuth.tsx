@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback,
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { recordSession } from "@/lib/sessionTracking";
-import { checkDeviceTrustV2, clearLocalDeviceTrust, registerTrustedDevice, DeviceTrustResult } from "@/lib/deviceTrust";
+import { checkDeviceTrustV2, clearLocalDeviceTrust, DeviceTrustResult } from "@/lib/deviceTrust";
 
 type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr" | "sales_manager";
 
@@ -23,6 +23,39 @@ const MFA_BYPASS_EMAIL_HASHES = new Set<string>([
 
 const LOGIN_RATE_LIMIT_TIMEOUT_MS = 2500;
 
+const AUTH_TOKEN_KEY_PATTERN = /^sb-.*-auth-token$/;
+
+const getStoredSessionExpiryMs = (value: any): number | null => {
+  const rawExpiry = value?.expires_at ?? value?.expiresAt ?? value?.currentSession?.expires_at ?? value?.currentSession?.expiresAt;
+  if (typeof rawExpiry !== "number") return null;
+  return rawExpiry > 1_000_000_000_000 ? rawExpiry : rawExpiry * 1000;
+};
+
+const purgeExpiredAuthSessions = () => {
+  if (typeof window === "undefined") return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !AUTH_TOKEN_KEY_PATTERN.test(key)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const expiryMs = getStoredSessionExpiryMs(JSON.parse(raw));
+        if (expiryMs !== null && expiryMs <= Date.now()) keysToRemove.push(key);
+      } catch {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  } catch (e) {
+    console.warn("[auth] Expired session cleanup skipped:", e);
+  }
+};
+
+const isSessionExpired = (session: Session | null | undefined): boolean =>
+  !!session?.expires_at && session.expires_at * 1000 <= Date.now();
+
 // One-time cleanup: detect and purge corrupted/malformed Supabase auth tokens
 // from localStorage. A malformed refresh_token (e.g. non-JWT short string)
 // causes the SDK to enter an infinite failing refresh loop that blocks login.
@@ -42,7 +75,7 @@ const LOGIN_RATE_LIMIT_TIMEOUT_MS = 2500;
       const key = localStorage.key(i);
       if (!key) continue;
       // Supabase v2 stores session under keys like "sb-<ref>-auth-token"
-      if (!/^sb-.*-auth-token$/.test(key)) continue;
+      if (!AUTH_TOKEN_KEY_PATTERN.test(key)) continue;
       const raw = localStorage.getItem(key);
       if (!raw) {
         toRemove.push(key);
@@ -52,10 +85,11 @@ const LOGIN_RATE_LIMIT_TIMEOUT_MS = 2500;
         const parsed = JSON.parse(raw);
         const access = parsed?.access_token ?? parsed?.currentSession?.access_token;
         const refresh = parsed?.refresh_token ?? parsed?.currentSession?.refresh_token;
+        const expiryMs = getStoredSessionExpiryMs(parsed);
         // A valid Supabase session must have a JWT access_token AND a refresh_token string.
         // Refresh tokens are opaque, but legitimate ones are >20 chars; "fabpcaaupcg5"-style
         // 12-char garbage is a clear corruption marker.
-        if (!isLikelyJwt(access) || typeof refresh !== "string" || refresh.length < 20) {
+        if (!isLikelyJwt(access) || typeof refresh !== "string" || refresh.length < 20 || (expiryMs !== null && expiryMs <= Date.now())) {
           toRemove.push(key);
         }
       } catch {
