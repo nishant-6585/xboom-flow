@@ -599,7 +599,7 @@ const Auth = () => {
                   <button
                     type="button"
                     onClick={() => { setIsForgotPassword(true); setErrors({}); }}
-                    
+                    onClick={() => { setIsForgotPassword(true); setErrors({}); setSubmitError(null); }}
                     className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
                   >
                     Forgot password?
@@ -658,7 +658,7 @@ const Auth = () => {
           <div className="mt-6 text-center">
             <button
               type="button"
-              onClick={() => { setIsLogin(!isLogin); setErrors({}); }}
+              onClick={() => { setIsLogin(!isLogin); setErrors({}); setSubmitError(null); }}
               className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium"
             >
               {isLogin
