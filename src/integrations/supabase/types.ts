@@ -9113,6 +9113,75 @@ export type Database = {
           },
         ]
       }
+      payment_records_deletion_log: {
+        Row: {
+          amount: number | null
+          deleted_at: string
+          deleted_by: string
+          deleted_by_name: string | null
+          id: string
+          notes: string | null
+          order_id: string | null
+          original_created_at: string | null
+          payment_date: string | null
+          payment_mode: string | null
+          payment_record_id: string
+          record_snapshot: Json
+          reference_number: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          screenshot_url: string | null
+          status: string | null
+          submitted_at: string | null
+          submitted_by: string | null
+        }
+        Insert: {
+          amount?: number | null
+          deleted_at?: string
+          deleted_by: string
+          deleted_by_name?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          original_created_at?: string | null
+          payment_date?: string | null
+          payment_mode?: string | null
+          payment_record_id: string
+          record_snapshot: Json
+          reference_number?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          screenshot_url?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+        }
+        Update: {
+          amount?: number | null
+          deleted_at?: string
+          deleted_by?: string
+          deleted_by_name?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          original_created_at?: string | null
+          payment_date?: string | null
+          payment_mode?: string | null
+          payment_record_id?: string
+          record_snapshot?: Json
+          reference_number?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          screenshot_url?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+        }
+        Relationships: []
+      }
       payment_risk_accuracy_log: {
         Row: {
           actual_days_to_pay: number
