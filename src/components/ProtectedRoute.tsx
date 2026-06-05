@@ -119,8 +119,8 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
   if (mfaStatus === "enrollment_required") {
     return (
       <MFAEnrollment
-        onComplete={() => {
-          refreshMfaStatus();
+        onComplete={async () => {
+          await refreshMfaStatus();
         }}
       />
     );
@@ -129,8 +129,8 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
   if (mfaStatus === "verification_required") {
     return (
       <MFAVerification
-        onVerified={() => {
-          refreshMfaStatus();
+        onVerified={async () => {
+          await refreshMfaStatus();
         }}
         onCancel={signOut}
       />
