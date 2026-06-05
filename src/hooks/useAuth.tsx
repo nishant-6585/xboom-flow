@@ -420,12 +420,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
         // Phase 7: Check session expiry before applying
-        if (session?.expires_at) {
-          const expiresAtMs = session.expires_at * 1000;
-          if (expiresAtMs < Date.now()) {
-            console.warn("[Auth] Received expired session, ignoring:", { expiresAt: session.expires_at });
-            return;
-          }
+        if (isSessionExpired(session)) {
+          console.warn("[Auth] Received expired session, clearing stale local auth state:", { expiresAt: session?.expires_at });
+          purgeExpiredAuthSessions();
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          profileRef.current = null;
+          setRole(null);
+          setRoles([]);
+          setAuthState({ mfaStatus: "not_required", deviceTrust: null, stepUpRequired: false });
+          lastHydratedUserIdRef.current = null;
+          isFreshLoginRef.current = false;
+          isBootstrappedRef.current = true;
+          setLoading(false);
+          return;
         }
 
         setSession(session);
@@ -506,6 +515,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           userId: session?.user?.id,
           expiresAt: session?.expires_at,
         });
+      }
+
+      if (isSessionExpired(session)) {
+        console.warn("[Auth] Initial session expired, clearing stale local auth state:", { expiresAt: session?.expires_at });
+        purgeExpiredAuthSessions();
+        setSession(null);
+        setUser(null);
+        isBootstrappedRef.current = true;
+        setLoading(false);
+        return;
       }
 
       setSession(session);
@@ -711,8 +730,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (data.user) {
         recordSession(data.user.id).catch(() => {});
-        // Rotate device fingerprint on fresh login
-        registerTrustedDevice(data.user.id).catch(() => {});
       }
     }
 
