@@ -289,14 +289,21 @@ const Auth = () => {
             variant: "destructive",
           });
         } else {
-          // Check if MFA verification is pending before navigating
-          const { data: aalData, error: aalError } = await withTimeout(
-            supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-            POST_LOGIN_MFA_CHECK_TIMEOUT_MS
-          );
-          const hasMfaPending =
-            !!aalError || (aalData?.currentLevel !== "aal2" && aalData?.nextLevel === "aal2");
-          
+          // Check if MFA verification is pending before navigating. If this
+          // security check times out/fails, fail safely into MFA instead of
+          // leaving the user stranded on the login page after a successful password login.
+          let hasMfaPending = true;
+          try {
+            const { data: aalData, error: aalError } = await withTimeout(
+              supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+              POST_LOGIN_MFA_CHECK_TIMEOUT_MS
+            );
+            hasMfaPending =
+              !!aalError || (aalData?.currentLevel !== "aal2" && aalData?.nextLevel === "aal2");
+          } catch (securityCheckError) {
+            console.warn("[Auth] Post-login MFA check failed; routing to MFA verification", securityCheckError);
+          }
+
           if (hasMfaPending) {
             // Never navigate through dashboard while second factor is still pending
             navigate("/mfa-verify", { replace: true });
