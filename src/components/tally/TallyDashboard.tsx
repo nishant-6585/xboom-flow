@@ -111,6 +111,7 @@ interface TallyPrimaryMode {
 
 interface TallySupplier {
   id: string;
+  name: string | null;
   brand_name: string | null;
   contact_name: string | null;
 }
@@ -300,7 +301,7 @@ export function TallyDashboard() {
             .not("order_id", "is", null),
           supabase
             .from("suppliers")
-            .select("id, brand_name, contact_name"),
+            .select("id, name, brand_name, contact_name"),
           supabase
             .from("order_procurement_links")
             .select("id, order_id, inventory_procurement_id, quantity_used"),
@@ -536,7 +537,11 @@ export function TallyDashboard() {
 
       // Supplier name(s): from order_items supplier_id → suppliers table, or from procurements
       const itemSupplierNames = items
-        .map(item => item.supplier_id ? suppliersMap.get(item.supplier_id)?.brand_name : null)
+        .map(item => {
+          if (!item.supplier_id) return null;
+          const s = suppliersMap.get(item.supplier_id);
+          return s?.name || s?.brand_name || null;
+        })
         .filter(Boolean);
       const procSupplierNames = procs.map(p => p.supplier_name).filter(Boolean);
       const allSuppliers = [...new Set([...itemSupplierNames, ...procSupplierNames])];
