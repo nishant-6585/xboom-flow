@@ -598,7 +598,6 @@ const Auth = () => {
                 {isLogin && (
                   <button
                     type="button"
-                    onClick={() => { setIsForgotPassword(true); setErrors({}); }}
                     onClick={() => { setIsForgotPassword(true); setErrors({}); setSubmitError(null); }}
                     className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
                   >
