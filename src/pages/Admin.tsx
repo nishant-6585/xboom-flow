@@ -57,6 +57,7 @@ import OrgSettingsPanel from "@/components/admin/OrgSettingsPanel";
 import { AttendancePolicySettings } from "@/components/admin/AttendancePolicySettings";
 import { HolidayManagementPanel } from "@/components/admin/HolidayManagementPanel";
 import AdminEmployeeActivity from "@/components/admin/AdminEmployeeActivity";
+import { TopSellingProducts } from "@/components/admin/TopSellingProducts";
 
 interface PendingUser {
   id: string;
