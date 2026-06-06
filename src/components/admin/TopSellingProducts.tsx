@@ -24,7 +24,14 @@ interface TopSellingProductsProps {
   onClear?: () => void;
 }
 
-export function TopSellingProducts({ className }: TopSellingProductsProps) {
+export function TopSellingProducts({
+  className,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  onClear,
+}: TopSellingProductsProps) {
   const [products, setProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,15 +39,24 @@ export function TopSellingProducts({ className }: TopSellingProductsProps) {
     const fetchTopProducts = async () => {
       try {
         setLoading(true);
-        const since = new Date();
-        since.setDate(since.getDate() - 180);
 
-        // Fetch order_items aggregated by product_name
-        const { data: orderData, error: orderError } = await supabase
+        let query = supabase
           .from('order_items')
-          .select('product_name, quantity, unit_price')
-          .gte('created_at', since.toISOString())
+          .select('product_name, quantity, unit_price, created_at')
           .not('product_name', 'is', null);
+
+        if (startDate) {
+          const s = new Date(startDate);
+          s.setHours(0, 0, 0, 0);
+          query = query.gte('created_at', s.toISOString());
+        }
+        if (endDate) {
+          const e = new Date(endDate);
+          e.setHours(23, 59, 59, 999);
+          query = query.lte('created_at', e.toISOString());
+        }
+
+        const { data: orderData, error: orderError } = await query;
 
         if (orderError) throw orderError;
 
@@ -100,7 +116,7 @@ export function TopSellingProducts({ className }: TopSellingProductsProps) {
     };
 
     fetchTopProducts();
-  }, []);
+  }, [startDate, endDate]);
 
   if (loading) {
     return (
