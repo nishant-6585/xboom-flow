@@ -57,7 +57,6 @@ import OrgSettingsPanel from "@/components/admin/OrgSettingsPanel";
 import { AttendancePolicySettings } from "@/components/admin/AttendancePolicySettings";
 import { HolidayManagementPanel } from "@/components/admin/HolidayManagementPanel";
 import AdminEmployeeActivity from "@/components/admin/AdminEmployeeActivity";
-import { TopSellingProducts } from "@/components/admin/TopSellingProducts";
 
 interface PendingUser {
   id: string;
@@ -779,14 +778,7 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="analytics">
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-              <div className="xl:col-span-3">
-                <EnquiryAnalytics enquiries={enquiries} onValueFilterClick={handleValueFilterClick} />
-              </div>
-              <div className="xl:col-span-1">
-                <TopSellingProducts />
-              </div>
-            </div>
+            <EnquiryAnalytics enquiries={enquiries} onValueFilterClick={handleValueFilterClick} />
           </TabsContent>
 
           <TabsContent value="payments">

@@ -15,6 +15,7 @@ import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { HotLeadsWidget } from "@/components/HotLeadsWidget";
 import { LeadTemperatureAnalytics } from "@/components/LeadTemperatureAnalytics";
 import { DashboardNoticesWidget } from "@/components/notices/DashboardNoticesWidget";
+import { TopSellingProducts } from "@/components/admin/TopSellingProducts";
 import { NoticePopup } from "@/components/notices/NoticePopup";
 import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { MonthlyPulsePopup } from "@/components/dashboard/MonthlyPulsePopup";
@@ -437,6 +438,7 @@ const Index = () => {
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
                 <KeyMetricsDashboard />
                 <KeyMetricsTrendChart />
+                {isAdmin && <TopSellingProducts />}
                 {/* Category and Date Filters */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <div className="flex items-center gap-3">
