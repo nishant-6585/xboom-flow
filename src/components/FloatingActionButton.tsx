@@ -285,7 +285,7 @@ export function FloatingActionButton() {
 
       {/* Order Dialog */}
       <Dialog open={activeDialog === "order"} onOpenChange={(open) => !open && setActiveDialog(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-[min(1200px,95vw)] w-[95vw] max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5 text-primary" />
@@ -293,14 +293,15 @@ export function FloatingActionButton() {
             </DialogTitle>
             <DialogDescription>Add a new customer order</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="max-h-[75vh] pr-4">
-            <OrderForm 
+          <div className="max-h-[75vh] overflow-y-auto overflow-x-hidden pr-2 -mr-2">
+            <OrderForm
               onSubmit={handleOrderSubmit}
               suppliers={suppliers}
               showProcurementRate={false}
               userRole={role as "sales" | "supply_chain" | "admin"}
+              embedded
             />
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
