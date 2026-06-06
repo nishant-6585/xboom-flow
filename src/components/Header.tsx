@@ -3,7 +3,8 @@ import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import logoFull from "@/assets/logo-full.jpeg";
+import logoAsset from "@/assets/xboom-logo.png.asset.json";
+const logoFull = logoAsset.url;
 import { NotificationPanel } from "@/components/NotificationPanel";
 
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
