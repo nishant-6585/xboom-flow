@@ -98,6 +98,12 @@ const Index = () => {
   const [valueFilter, setValueFilter] = useState<string>("all");
   const [valueFilterDate, setValueFilterDate] = useState<Date | null>(null);
   const [leadFilter, setLeadFilter] = useState<"all" | LeadTemperature | "mega">("all");
+  const [topStartDate, setTopStartDate] = useState<Date | undefined>(undefined);
+  const [topEndDate, setTopEndDate] = useState<Date | undefined>(undefined);
+  const clearTopDateFilter = () => {
+    setTopStartDate(undefined);
+    setTopEndDate(undefined);
+  };
 
   // Handle URL params for value filter from Admin analytics
   useEffect(() => {
