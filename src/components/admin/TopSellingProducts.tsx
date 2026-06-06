@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Package, TrendingUp, Loader2 } from 'lucide-react';
+import { Package, TrendingUp, Loader2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 interface TopProduct {
   product_name: string;
@@ -16,9 +17,21 @@ interface TopProduct {
 
 interface TopSellingProductsProps {
   className?: string;
+  startDate?: Date;
+  endDate?: Date;
+  onStartDateChange?: (date: Date | undefined) => void;
+  onEndDateChange?: (date: Date | undefined) => void;
+  onClear?: () => void;
 }
 
-export function TopSellingProducts({ className }: TopSellingProductsProps) {
+export function TopSellingProducts({
+  className,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  onClear,
+}: TopSellingProductsProps) {
   const [products, setProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,15 +39,24 @@ export function TopSellingProducts({ className }: TopSellingProductsProps) {
     const fetchTopProducts = async () => {
       try {
         setLoading(true);
-        const since = new Date();
-        since.setDate(since.getDate() - 180);
 
-        // Fetch order_items aggregated by product_name
-        const { data: orderData, error: orderError } = await supabase
+        let query = supabase
           .from('order_items')
-          .select('product_name, quantity, unit_price')
-          .gte('created_at', since.toISOString())
+          .select('product_name, quantity, unit_price, created_at')
           .not('product_name', 'is', null);
+
+        if (startDate) {
+          const s = new Date(startDate);
+          s.setHours(0, 0, 0, 0);
+          query = query.gte('created_at', s.toISOString());
+        }
+        if (endDate) {
+          const e = new Date(endDate);
+          e.setHours(23, 59, 59, 999);
+          query = query.lte('created_at', e.toISOString());
+        }
+
+        const { data: orderData, error: orderError } = await query;
 
         if (orderError) throw orderError;
 
@@ -94,17 +116,32 @@ export function TopSellingProducts({ className }: TopSellingProductsProps) {
     };
 
     fetchTopProducts();
-  }, []);
+  }, [startDate, endDate]);
+
+  const dateFilterActive = !!(startDate || endDate);
+
+  const headerContent = (
+    <div className="flex flex-col gap-3">
+      <CardTitle className="flex items-center gap-2 text-base">
+        <TrendingUp className="w-5 h-5 text-primary" />
+        Top Selling Products
+      </CardTitle>
+      {onStartDateChange && onEndDateChange && onClear && (
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={onStartDateChange}
+          onEndDateChange={onEndDateChange}
+          onClear={onClear}
+        />
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
       <Card className={cn("glass", className)}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Top Selling Products
-          </CardTitle>
-        </CardHeader>
+        <CardHeader>{headerContent}</CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -117,15 +154,12 @@ export function TopSellingProducts({ className }: TopSellingProductsProps) {
   if (products.length === 0) {
     return (
       <Card className={cn("glass", className)}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Top Selling Products
-          </CardTitle>
-        </CardHeader>
+        <CardHeader>{headerContent}</CardHeader>
         <CardContent>
           <div className="text-center py-6 text-sm text-muted-foreground">
-            No sales data available for the last 180 days.
+            {dateFilterActive
+              ? "No sales data available for the selected date range."
+              : "No sales data available."}
           </div>
         </CardContent>
       </Card>
@@ -134,12 +168,7 @@ export function TopSellingProducts({ className }: TopSellingProductsProps) {
 
   return (
     <Card className={cn("glass", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <TrendingUp className="w-5 h-5 text-primary" />
-          Top Selling Products
-        </CardTitle>
-      </CardHeader>
+      <CardHeader>{headerContent}</CardHeader>
       <CardContent className="space-y-4">
         {products.map((product, index) => (
           <div
