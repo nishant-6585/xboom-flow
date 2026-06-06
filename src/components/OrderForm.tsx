@@ -587,9 +587,9 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     <form onSubmit={handleSubmit}>
       <StepIndicator />
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Main Form Area */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="xl:col-span-2 space-y-6">
               {/* Step 1: Products */}
               {currentStep === 1 && (
                 <div className="space-y-6 animate-fade-in">
