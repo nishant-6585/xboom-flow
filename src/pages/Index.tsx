@@ -438,6 +438,7 @@ const Index = () => {
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
                 <KeyMetricsDashboard />
                 <KeyMetricsTrendChart />
+                {isAdmin && <TopSellingProducts />}
                 {/* Category and Date Filters */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <div className="flex items-center gap-3">
