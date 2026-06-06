@@ -1174,8 +1174,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
             </div>
 
             {/* Sidebar - Order Summary */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-4 space-y-4">
+            <div className="xl:col-span-1">
+              <div className="xl:sticky xl:top-4 space-y-4">
                 <OrderSummary />
                 
                 {/* Navigation Buttons */}
