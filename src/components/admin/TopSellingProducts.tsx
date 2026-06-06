@@ -118,15 +118,30 @@ export function TopSellingProducts({
     fetchTopProducts();
   }, [startDate, endDate]);
 
+  const dateFilterActive = !!(startDate || endDate);
+
+  const headerContent = (
+    <div className="flex flex-col gap-3">
+      <CardTitle className="flex items-center gap-2 text-base">
+        <TrendingUp className="w-5 h-5 text-primary" />
+        Top Selling Products
+      </CardTitle>
+      {onStartDateChange && onEndDateChange && onClear && (
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={onStartDateChange}
+          onEndDateChange={onEndDateChange}
+          onClear={onClear}
+        />
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
       <Card className={cn("glass", className)}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Top Selling Products
-          </CardTitle>
-        </CardHeader>
+        <CardHeader>{headerContent}</CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -139,15 +154,12 @@ export function TopSellingProducts({
   if (products.length === 0) {
     return (
       <Card className={cn("glass", className)}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Top Selling Products
-          </CardTitle>
-        </CardHeader>
+        <CardHeader>{headerContent}</CardHeader>
         <CardContent>
           <div className="text-center py-6 text-sm text-muted-foreground">
-            No sales data available for the last 180 days.
+            {dateFilterActive
+              ? "No sales data available for the selected date range."
+              : "No sales data available."}
           </div>
         </CardContent>
       </Card>
