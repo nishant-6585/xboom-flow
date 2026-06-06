@@ -347,7 +347,69 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Internal Reference</label>
-                <Input value={editRef} onChange={e => setEditRef(e.target.value)} placeholder="Order #, Invoice #, etc." className="mt-1" />
+                <Input
+                  value={editRef}
+                  onChange={e => { setEditRef(e.target.value); setConfirmedOrder(null); }}
+                  placeholder="Search Order # (e.g. ORD2600297)"
+                  className="mt-1"
+                />
+                {confirmedOrder && (
+                  <Card className="mt-2 border-emerald-500/40 bg-emerald-500/5">
+                    <CardContent className="p-2.5 flex items-start justify-between gap-2">
+                      <div className="text-xs">
+                        <div className="flex items-center gap-1.5 font-medium">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          {confirmedOrder.order_number} — {confirmedOrder.customer_name || '—'}
+                        </div>
+                        <div className="text-muted-foreground mt-0.5">
+                          {confirmedOrder.customer_company || ''}
+                          {confirmedOrder.total_sales_amount != null && (
+                            <> · Outstanding: {fmt((confirmedOrder.total_sales_amount || 0) - (confirmedOrder.amount_paid || 0))}</>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">Will reconcile on Save</div>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setConfirmedOrder(null)} title="Clear">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+                {!confirmedOrder && editRef.trim().length >= 3 && (
+                  <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto">
+                    {orderSearchLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Searching orders…
+                      </div>
+                    ) : orderHits.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">No matching orders found</p>
+                    ) : (
+                      orderHits.map(o => {
+                        const outstanding = (o.total_sales_amount || 0) - (o.amount_paid || 0);
+                        return (
+                          <Card key={o.id} className="hover:border-primary/50 transition-colors">
+                            <CardContent className="p-2.5 flex items-start justify-between gap-2">
+                              <div className="text-xs min-w-0">
+                                <div className="font-medium truncate">{o.order_number} — {o.customer_name || '—'}</div>
+                                <div className="text-muted-foreground truncate">
+                                  {o.customer_company || ''} · Outstanding: {fmt(outstanding)} · {o.payment_status || ''}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs shrink-0"
+                                onClick={() => { setConfirmedOrder(o); setEditRef(o.order_number); }}
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Confirm
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Notes</label>
