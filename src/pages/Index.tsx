@@ -15,6 +15,7 @@ import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { HotLeadsWidget } from "@/components/HotLeadsWidget";
 import { LeadTemperatureAnalytics } from "@/components/LeadTemperatureAnalytics";
 import { DashboardNoticesWidget } from "@/components/notices/DashboardNoticesWidget";
+import { TopSellingProducts } from "@/components/admin/TopSellingProducts";
 import { NoticePopup } from "@/components/notices/NoticePopup";
 import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { MonthlyPulsePopup } from "@/components/dashboard/MonthlyPulsePopup";
