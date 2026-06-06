@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,14 @@ export function ProductSelect({
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { items, loading } = usePricelist();
-  const { rankMap } = usePopularProducts();
+  const { rankMap, refetch } = usePopularProducts();
+
+  // Refresh popular product data every time the dropdown opens
+  useEffect(() => {
+    if (open && refetch) {
+      refetch();
+    }
+  }, [open, refetch]);
 
   const sortedItems = useMemo(() => {
     if (rankMap.size === 0) return items;
