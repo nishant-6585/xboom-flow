@@ -5189,26 +5189,20 @@ export type Database = {
         Row: {
           form_id: string
           id: string
-          ip_address: string | null
           submission_data: Json
           submitted_at: string
-          user_agent: string | null
         }
         Insert: {
           form_id: string
           id?: string
-          ip_address?: string | null
           submission_data: Json
           submitted_at?: string
-          user_agent?: string | null
         }
         Update: {
           form_id?: string
           id?: string
-          ip_address?: string | null
           submission_data?: Json
           submitted_at?: string
-          user_agent?: string | null
         }
         Relationships: [
           {
