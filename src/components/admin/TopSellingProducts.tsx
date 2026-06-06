@@ -17,6 +17,11 @@ interface TopProduct {
 
 interface TopSellingProductsProps {
   className?: string;
+  startDate?: Date;
+  endDate?: Date;
+  onStartDateChange?: (date: Date | undefined) => void;
+  onEndDateChange?: (date: Date | undefined) => void;
+  onClear?: () => void;
 }
 
 export function TopSellingProducts({ className }: TopSellingProductsProps) {
