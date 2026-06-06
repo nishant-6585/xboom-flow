@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -10,8 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Search, Download, ChevronLeft, ChevronRight, StickyNote, Link2, CalendarIcon, X } from 'lucide-react';
+import { Search, Download, ChevronLeft, ChevronRight, StickyNote, Link2, CalendarIcon, X, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { toast } from 'sonner';
 import { type BankTransaction, type ReconciliationAccount, type ReconciliationSubaccount, TRANSACTION_STATUSES, type TransactionStatus } from '@/hooks/useBankReconciliation';
 
 interface Props {
@@ -26,6 +29,16 @@ interface Props {
 const fmt = (n: number) => n ? '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '-';
 const PAGE_SIZE = 50;
 
+interface OrderHit {
+  id: string;
+  order_number: string;
+  customer_name: string | null;
+  customer_company: string | null;
+  total_sales_amount: number | null;
+  amount_paid: number | null;
+  payment_status: string | null;
+}
+
 export function TransactionTable({ transactions, accounts, subaccounts, onUpdate, onBulkUpdate, onOpenMatch }: Props) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -38,6 +51,9 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
   const [detailTx, setDetailTx] = useState<BankTransaction | null>(null);
   const [editNotes, setEditNotes] = useState('');
   const [editRef, setEditRef] = useState('');
+  const [orderHits, setOrderHits] = useState<OrderHit[]>([]);
+  const [orderSearchLoading, setOrderSearchLoading] = useState(false);
+  const [confirmedOrder, setConfirmedOrder] = useState<OrderHit | null>(null);
 
   const filtered = useMemo(() => {
     return transactions.filter(t => {
@@ -95,13 +111,50 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
     setDetailTx(tx);
     setEditNotes(tx.notes || '');
     setEditRef(tx.internal_reference || '');
+    setOrderHits([]);
+    setConfirmedOrder(null);
   };
 
   const saveDetail = () => {
     if (!detailTx) return;
-    onUpdate(detailTx.id, { notes: editNotes, internal_reference: editRef });
+    const updates: Partial<BankTransaction> = {
+      notes: editNotes,
+      internal_reference: editRef,
+    };
+    if (confirmedOrder) {
+      (updates as any).matched_entity_type = 'order';
+      (updates as any).matched_entity_id = confirmedOrder.id;
+      (updates as any).match_confidence = 100;
+      (updates as any).status = 'reconciled';
+      (updates as any).matched_at = new Date().toISOString();
+    }
+    onUpdate(detailTx.id, updates);
+    if (confirmedOrder) toast.success('Linked to order and marked as reconciled');
     setDetailTx(null);
   };
+
+  // Live search orders by order_number when user types in Internal Reference
+  useEffect(() => {
+    if (!detailTx) return;
+    const q = editRef.trim();
+    if (!q || q.length < 3) { setOrderHits([]); return; }
+    if (confirmedOrder && confirmedOrder.order_number === q) return;
+    let cancelled = false;
+    setOrderSearchLoading(true);
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('id, order_number, customer_name, customer_company, total_sales_amount, amount_paid, payment_status')
+        .ilike('order_number', `%${q}%`)
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (!cancelled) {
+        setOrderHits((data as OrderHit[]) || []);
+        setOrderSearchLoading(false);
+      }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [editRef, detailTx, confirmedOrder]);
 
   const clearDates = () => { setDateFrom(undefined); setDateTo(undefined); };
   const hasDateFilter = dateFrom || dateTo;
@@ -294,7 +347,69 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Internal Reference</label>
-                <Input value={editRef} onChange={e => setEditRef(e.target.value)} placeholder="Order #, Invoice #, etc." className="mt-1" />
+                <Input
+                  value={editRef}
+                  onChange={e => { setEditRef(e.target.value); setConfirmedOrder(null); }}
+                  placeholder="Search Order # (e.g. ORD2600297)"
+                  className="mt-1"
+                />
+                {confirmedOrder && (
+                  <Card className="mt-2 border-emerald-500/40 bg-emerald-500/5">
+                    <CardContent className="p-2.5 flex items-start justify-between gap-2">
+                      <div className="text-xs">
+                        <div className="flex items-center gap-1.5 font-medium">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          {confirmedOrder.order_number} — {confirmedOrder.customer_name || '—'}
+                        </div>
+                        <div className="text-muted-foreground mt-0.5">
+                          {confirmedOrder.customer_company || ''}
+                          {confirmedOrder.total_sales_amount != null && (
+                            <> · Outstanding: {fmt((confirmedOrder.total_sales_amount || 0) - (confirmedOrder.amount_paid || 0))}</>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">Will reconcile on Save</div>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setConfirmedOrder(null)} title="Clear">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+                {!confirmedOrder && editRef.trim().length >= 3 && (
+                  <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto">
+                    {orderSearchLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Searching orders…
+                      </div>
+                    ) : orderHits.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">No matching orders found</p>
+                    ) : (
+                      orderHits.map(o => {
+                        const outstanding = (o.total_sales_amount || 0) - (o.amount_paid || 0);
+                        return (
+                          <Card key={o.id} className="hover:border-primary/50 transition-colors">
+                            <CardContent className="p-2.5 flex items-start justify-between gap-2">
+                              <div className="text-xs min-w-0">
+                                <div className="font-medium truncate">{o.order_number} — {o.customer_name || '—'}</div>
+                                <div className="text-muted-foreground truncate">
+                                  {o.customer_company || ''} · Outstanding: {fmt(outstanding)} · {o.payment_status || ''}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs shrink-0"
+                                onClick={() => { setConfirmedOrder(o); setEditRef(o.order_number); }}
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Confirm
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Notes</label>
