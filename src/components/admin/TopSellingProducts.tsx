@@ -168,12 +168,7 @@ export function TopSellingProducts({
 
   return (
     <Card className={cn("glass", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <TrendingUp className="w-5 h-5 text-primary" />
-          Top Selling Products
-        </CardTitle>
-      </CardHeader>
+      <CardHeader>{headerContent}</CardHeader>
       <CardContent className="space-y-4">
         {products.map((product, index) => (
           <div
