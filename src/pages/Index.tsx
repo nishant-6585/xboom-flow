@@ -444,7 +444,15 @@ const Index = () => {
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
                 <KeyMetricsDashboard />
                 <KeyMetricsTrendChart />
-                {isAdmin && <TopSellingProducts />}
+                {isAdmin && (
+                  <TopSellingProducts
+                    startDate={topStartDate}
+                    endDate={topEndDate}
+                    onStartDateChange={setTopStartDate}
+                    onEndDateChange={setTopEndDate}
+                    onClear={clearTopDateFilter}
+                  />
+                )}
                 {/* Category and Date Filters */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <div className="flex items-center gap-3">
