@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-const DEFAULT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_INTERVAL_MS = 3.5 * 24 * 60 * 60 * 1000; // ~twice per week (every 84 hours)
 
 // Returns a map of product_name (lowercased) -> rank (lower = more popular)
 // based on total quantity sold in order_items over the last 180 days.
