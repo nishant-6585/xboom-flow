@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { usePricelist, PricelistItem } from '@/hooks/usePricelist';
+import { usePopularProducts } from '@/hooks/usePopularProducts';
 
 interface ProductSelectProps {
   value: string;
@@ -35,18 +36,30 @@ export function ProductSelect({
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { items, loading } = usePricelist();
+  const { rankMap } = usePopularProducts();
+
+  const sortedItems = useMemo(() => {
+    if (rankMap.size === 0) return items;
+    const getRank = (name: string) => rankMap.get(name.toLowerCase()) ?? Number.MAX_SAFE_INTEGER;
+    return [...items].sort((a, b) => {
+      const ra = getRank(a.product_name);
+      const rb = getRank(b.product_name);
+      if (ra !== rb) return ra - rb;
+      return a.product_name.localeCompare(b.product_name);
+    });
+  }, [items, rankMap]);
 
   const filteredProducts = useMemo(() => {
-    if (!searchQuery) return items.slice(0, 100); // Show first 100 when no search
+    if (!searchQuery) return sortedItems.slice(0, 100); // Popular first when no search
     
     const query = searchQuery.toLowerCase();
-    return items
+    return sortedItems
       .filter(item => 
         item.product_name.toLowerCase().includes(query) ||
         (item.brand?.toLowerCase().includes(query) ?? false)
       )
       .slice(0, 100);
-  }, [items, searchQuery]);
+  }, [sortedItems, searchQuery]);
 
   const selectedProduct = items.find(p => p.product_name === value);
 
@@ -113,7 +126,7 @@ export function ProductSelect({
                     )}
                   </div>
                 </CommandEmpty>
-                <CommandGroup heading={`Products (${filteredProducts.length}${items.length > 100 ? '+' : ''})`}>
+                <CommandGroup heading={searchQuery ? `Products (${filteredProducts.length}${items.length > 100 ? '+' : ''})` : `Popular Products (${filteredProducts.length}${items.length > 100 ? '+' : ''})`}>
                   {filteredProducts.map((product) => (
                     <CommandItem
                       key={product.id}
