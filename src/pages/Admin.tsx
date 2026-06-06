@@ -779,7 +779,14 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="analytics">
-            <EnquiryAnalytics enquiries={enquiries} onValueFilterClick={handleValueFilterClick} />
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+              <div className="xl:col-span-3">
+                <EnquiryAnalytics enquiries={enquiries} onValueFilterClick={handleValueFilterClick} />
+              </div>
+              <div className="xl:col-span-1">
+                <TopSellingProducts />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="payments">
