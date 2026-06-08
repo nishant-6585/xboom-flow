@@ -325,7 +325,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       return;
     }
     internalId = ins.id;
-    // New website order created — notify Slack channel #all-xboom-2025.
+    // New website order created — notify Slack channel #sales-order-confirmations.
     // Skip pending-payment orders: most get cancelled, so the noise isn't useful.
     if (wooStatus !== "pending") {
       await notifySlackWebsiteOrder(orderRow, orderId);
