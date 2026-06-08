@@ -104,7 +104,7 @@ export const SlackSettingsPanel = () => {
     }
   }, [
     isEnabled, notifyNewOrders, notifyHotLeads, notifyPaymentReminders, notifyStatusChanges,
-    channelOrders, channelEnquiries, channelProcurements, channelSuppliers, channelPipeline,
+    channelOrders, channelOrderStatus, channelEnquiries, channelProcurements, channelSuppliers, channelPipeline,
     channelTickets, notifyNewEnquiries, notifyNewProcurements, notifyNewSuppliers, notifyNewPipeline,
     notifyTicketAssigned, notifyTicketStatusChange,
     channelSalesReport, enableDailyReport, enableWeeklyReport, enableAIInsights, enableInteractiveActions,
