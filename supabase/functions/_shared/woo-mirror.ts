@@ -88,7 +88,7 @@ export const WINDOW_START_ISO = "2026-04-27";
 const SYSTEM_USER_ID = "a8050cc3-7d17-44ac-a083-d8023d505331";
 const SYSTEM_USER_NAME = "Website (Auto)";
 
-// Send a Slack notification to the #all-xboom-2025 channel when a new
+// Send a Slack notification to the #sales-order-confirmations channel when a new
 // website order lands. Failures are swallowed — Slack must never block
 // order ingestion.
 async function notifySlackWebsiteOrder(orderRow: Record<string, unknown>, orderId: string) {
@@ -98,7 +98,7 @@ async function notifySlackWebsiteOrder(orderRow: Record<string, unknown>, orderI
       console.warn("[woo-mirror] SLACK_BOT_TOKEN not set, skipping Slack notify");
       return;
     }
-    const channel = "all-xboom-2025";
+    const channel = "sales-order-confirmations";
     const formatINR = (n: number) => `₹${(n || 0).toLocaleString("en-IN")}`;
     const message = {
       channel,
@@ -325,7 +325,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       return;
     }
     internalId = ins.id;
-    // New website order created — notify Slack channel #all-xboom-2025.
+    // New website order created — notify Slack channel #sales-order-confirmations.
     // Skip pending-payment orders: most get cancelled, so the noise isn't useful.
     if (wooStatus !== "pending") {
       await notifySlackWebsiteOrder(orderRow, orderId);
