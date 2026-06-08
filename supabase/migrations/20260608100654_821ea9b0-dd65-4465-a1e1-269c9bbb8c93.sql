@@ -1,0 +1,1 @@
+ALTER TABLE public.slack_settings ADD COLUMN IF NOT EXISTS channel_order_status TEXT;
