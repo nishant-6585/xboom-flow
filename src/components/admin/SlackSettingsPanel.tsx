@@ -20,6 +20,7 @@ export const SlackSettingsPanel = () => {
   
   // Multi-channel mode
   const [channelOrders, setChannelOrders] = useState('');
+  const [channelOrderStatus, setChannelOrderStatus] = useState('');
   const [channelEnquiries, setChannelEnquiries] = useState('');
   const [channelProcurements, setChannelProcurements] = useState('');
   const [channelSuppliers, setChannelSuppliers] = useState('');
@@ -53,6 +54,7 @@ export const SlackSettingsPanel = () => {
       setNotifyPaymentReminders(settings.notify_payment_reminders);
       setNotifyStatusChanges(settings.notify_status_changes);
       setChannelOrders(settings.channel_orders || '');
+      setChannelOrderStatus(settings.channel_order_status || '');
       setChannelEnquiries(settings.channel_enquiries || '');
       setChannelProcurements(settings.channel_procurements || '');
       setChannelSuppliers(settings.channel_suppliers || '');
@@ -81,6 +83,7 @@ export const SlackSettingsPanel = () => {
         notifyPaymentReminders !== settings.notify_payment_reminders ||
         notifyStatusChanges !== settings.notify_status_changes ||
         channelOrders !== (settings.channel_orders || '') ||
+        channelOrderStatus !== ((settings as any).channel_order_status || '') ||
         channelEnquiries !== (settings.channel_enquiries || '') ||
         channelProcurements !== (settings.channel_procurements || '') ||
         channelSuppliers !== (settings.channel_suppliers || '') ||
