@@ -125,6 +125,7 @@ export const SlackSettingsPanel = () => {
         notify_new_suppliers: notifyNewSuppliers,
         notify_new_pipeline: notifyNewPipeline,
         channel_orders: channelOrders || null,
+        channel_order_status: channelOrderStatus || null,
         channel_enquiries: channelEnquiries || null,
         channel_procurements: channelProcurements || null,
         channel_suppliers: channelSuppliers || null,
