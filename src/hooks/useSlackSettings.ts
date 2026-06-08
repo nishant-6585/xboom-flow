@@ -20,6 +20,7 @@ export interface SlackSettings {
   notify_ticket_status_change: boolean;
   // Channel IDs for each event type
   channel_orders: string | null;
+  channel_order_status: string | null;
   channel_enquiries: string | null;
   channel_procurements: string | null;
   channel_suppliers: string | null;

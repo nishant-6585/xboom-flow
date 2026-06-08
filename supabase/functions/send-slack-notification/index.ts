@@ -781,7 +781,7 @@ serve(async (req) => {
     // Determine which channel to use and check if notification type is enabled
     const channelMap: Record<string, { channelKey: string; settingKey: string }> = {
       'new_order': { channelKey: 'channel_orders', settingKey: 'notify_new_orders' },
-      'status_change': { channelKey: 'channel_orders', settingKey: 'notify_status_changes' },
+      'status_change': { channelKey: 'channel_order_status', settingKey: 'notify_status_changes' },
       'new_enquiry': { channelKey: 'channel_enquiries', settingKey: 'notify_new_enquiries' },
       'hot_lead': { channelKey: 'channel_enquiries', settingKey: 'notify_hot_leads' },
       'new_pipeline': { channelKey: 'channel_pipeline', settingKey: 'notify_new_pipeline' },
