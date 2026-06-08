@@ -12219,6 +12219,7 @@ export type Database = {
       slack_settings: {
         Row: {
           channel_enquiries: string | null
+          channel_order_status: string | null
           channel_orders: string | null
           channel_pipeline: string | null
           channel_procurements: string | null
@@ -12246,6 +12247,7 @@ export type Database = {
         }
         Insert: {
           channel_enquiries?: string | null
+          channel_order_status?: string | null
           channel_orders?: string | null
           channel_pipeline?: string | null
           channel_procurements?: string | null
@@ -12273,6 +12275,7 @@ export type Database = {
         }
         Update: {
           channel_enquiries?: string | null
+          channel_order_status?: string | null
           channel_orders?: string | null
           channel_pipeline?: string | null
           channel_procurements?: string | null

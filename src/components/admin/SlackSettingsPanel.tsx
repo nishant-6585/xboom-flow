@@ -20,6 +20,7 @@ export const SlackSettingsPanel = () => {
   
   // Multi-channel mode
   const [channelOrders, setChannelOrders] = useState('');
+  const [channelOrderStatus, setChannelOrderStatus] = useState('');
   const [channelEnquiries, setChannelEnquiries] = useState('');
   const [channelProcurements, setChannelProcurements] = useState('');
   const [channelSuppliers, setChannelSuppliers] = useState('');
@@ -53,6 +54,7 @@ export const SlackSettingsPanel = () => {
       setNotifyPaymentReminders(settings.notify_payment_reminders);
       setNotifyStatusChanges(settings.notify_status_changes);
       setChannelOrders(settings.channel_orders || '');
+      setChannelOrderStatus(settings.channel_order_status || '');
       setChannelEnquiries(settings.channel_enquiries || '');
       setChannelProcurements(settings.channel_procurements || '');
       setChannelSuppliers(settings.channel_suppliers || '');
@@ -81,6 +83,7 @@ export const SlackSettingsPanel = () => {
         notifyPaymentReminders !== settings.notify_payment_reminders ||
         notifyStatusChanges !== settings.notify_status_changes ||
         channelOrders !== (settings.channel_orders || '') ||
+        channelOrderStatus !== ((settings as any).channel_order_status || '') ||
         channelEnquiries !== (settings.channel_enquiries || '') ||
         channelProcurements !== (settings.channel_procurements || '') ||
         channelSuppliers !== (settings.channel_suppliers || '') ||
@@ -101,7 +104,7 @@ export const SlackSettingsPanel = () => {
     }
   }, [
     isEnabled, notifyNewOrders, notifyHotLeads, notifyPaymentReminders, notifyStatusChanges,
-    channelOrders, channelEnquiries, channelProcurements, channelSuppliers, channelPipeline,
+    channelOrders, channelOrderStatus, channelEnquiries, channelProcurements, channelSuppliers, channelPipeline,
     channelTickets, notifyNewEnquiries, notifyNewProcurements, notifyNewSuppliers, notifyNewPipeline,
     notifyTicketAssigned, notifyTicketStatusChange,
     channelSalesReport, enableDailyReport, enableWeeklyReport, enableAIInsights, enableInteractiveActions,
@@ -122,6 +125,7 @@ export const SlackSettingsPanel = () => {
         notify_new_suppliers: notifyNewSuppliers,
         notify_new_pipeline: notifyNewPipeline,
         channel_orders: channelOrders || null,
+        channel_order_status: channelOrderStatus || null,
         channel_enquiries: channelEnquiries || null,
         channel_procurements: channelProcurements || null,
         channel_suppliers: channelSuppliers || null,
@@ -271,7 +275,43 @@ export const SlackSettingsPanel = () => {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">New orders and order status changes</p>
+              <p className="text-xs text-muted-foreground">New orders</p>
+            </div>
+
+            {/* Order Status Channel */}
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4 text-muted-foreground" />
+                  <Label className="font-medium">Order Status Channel</Label>
+                </div>
+                <Switch
+                  checked={notifyStatusChanges}
+                  onCheckedChange={setNotifyStatusChanges}
+                  disabled={!isEnabled}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="sales-order-confirmations or C04XXXXXX"
+                  value={channelOrderStatus}
+                  onChange={(e) => setChannelOrderStatus(e.target.value)}
+                  disabled={!isEnabled || !notifyStatusChanges}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTestChannel('order-status', channelOrderStatus)}
+                  disabled={!channelOrderStatus || testingChannel === 'order-status'}
+                >
+                  {testingChannel === 'order-status' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Order status updates (shipped, delivered, cancelled)</p>
             </div>
 
             {/* Enquiries Channel */}
