@@ -135,10 +135,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [interaktDateFilter, setInteraktDateFilter] = useState('all');
   const [interaktDateStart, setInteraktDateStart] = useState<Date | undefined>();
   const [interaktDateEnd, setInteraktDateEnd] = useState<Date | undefined>();
-  const [interaktSalesPersonFilter, setInteraktSalesPersonFilter] = useState('all');
   const [interaktIncludeDispositioned, setInteraktIncludeDispositioned] = useState(false);
-
-  const interaktSalesPersons = Array.from(new Set(interaktLeads.map(l => l.sales_person_name).filter(Boolean))).sort() as string[];
   const [editingInteraktLead, setEditingInteraktLead] = useState<InteraktLead | null>(null);
   const [interaktEditOpen, setInteraktEditOpen] = useState(false);
   const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
@@ -177,13 +174,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
       if (interaktDateEnd && d > endOfDay(interaktDateEnd)) matchesDate = false;
     }
 
-    const matchesSalesPerson = interaktSalesPersonFilter === 'all' || lead.sales_person_name === interaktSalesPersonFilter;
-
-    // Sales reps: only see their own leads (server already scopes, but enforce on client too)
-    const canSeeAll = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
-    const matchesScope = canSeeAll || lead.sales_person_id === user?.id;
-
-    return matchesSearch && matchesStatus && matchesDate && matchesSalesPerson && matchesScope;
+    // Interakt leads are visible to every user; no per-rep scoping or salesperson filter.
+    return matchesSearch && matchesStatus && matchesDate;
   });
   const filteredInteraktLeads = applyDispositionFilter(
     filteredInteraktLeadsBase,
@@ -874,17 +866,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     <SelectItem value="last_month">Last Month</SelectItem>
                   </SelectContent>
                 </Select>
-                {canSeeAllLeads && (
-                  <Select value={interaktSalesPersonFilter} onValueChange={setInteraktSalesPersonFilter}>
-                    <SelectTrigger className="w-[160px]">
-                      <SelectValue placeholder="Sales Person" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Sales Persons</SelectItem>
-                      {interaktSalesPersons.map(sp => <SelectItem key={sp} value={sp}>{sp}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                )}
                 <DateRangeFilter
                   startDate={interaktDateStart}
                   endDate={interaktDateEnd}
@@ -892,8 +873,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                   onEndDateChange={(d) => { setInteraktDateEnd(d); setInteraktDateFilter('all'); }}
                   onClear={() => { setInteraktDateStart(undefined); setInteraktDateEnd(undefined); }}
                 />
-                {(interaktSearch || interaktStatusFilter !== 'all' || interaktDateFilter !== 'all' || interaktDateStart || interaktDateEnd || interaktSalesPersonFilter !== 'all') && (
-                  <Button variant="ghost" size="sm" onClick={() => { setInteraktSearch(''); setInteraktStatusFilter('all'); setInteraktDateFilter('all'); setInteraktDateStart(undefined); setInteraktDateEnd(undefined); setInteraktSalesPersonFilter('all'); }}>
+                {(interaktSearch || interaktStatusFilter !== 'all' || interaktDateFilter !== 'all' || interaktDateStart || interaktDateEnd) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setInteraktSearch(''); setInteraktStatusFilter('all'); setInteraktDateFilter('all'); setInteraktDateStart(undefined); setInteraktDateEnd(undefined); }}>
                     Clear filters
                   </Button>
                 )}
