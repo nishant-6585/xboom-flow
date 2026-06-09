@@ -894,7 +894,15 @@ serve(async (req) => {
     }
 
     // Try multi-channel bot first, fallback to webhook
-    const channel = settings[mapping.channelKey];
+    let channel = settings[mapping.channelKey];
+
+    // Hard route: new orders and order status updates must ALWAYS go to
+    // #sales-order-confirmations, regardless of what is configured in the
+    // slack_settings row. This prevents accidental routing to broad
+    // channels like #all-xboom-2025.
+    if (type === 'new_order' || type === 'status_change') {
+      channel = 'sales-order-confirmations';
+    }
 
     if (envBotToken && channel) {
       // Use Slack Bot API for multi-channel
@@ -907,7 +915,17 @@ serve(async (req) => {
         );
       } catch (error) {
         console.error('Slack bot error, falling back to webhook:', error);
-        // Fall through to webhook
+        // For order events, do NOT fall back to the generic webhook —
+        // it usually points at #all-xboom-2025 and would leak order
+        // notifications into the wrong channel.
+        if (type === 'new_order' || type === 'status_change') {
+          const errMsg = error instanceof Error ? error.message : 'Unknown error';
+          return new Response(
+            JSON.stringify({ success: false, error: 'Slack bot post failed', details: errMsg }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          );
+        }
+        // Fall through to webhook for other event types
       }
     }
 
