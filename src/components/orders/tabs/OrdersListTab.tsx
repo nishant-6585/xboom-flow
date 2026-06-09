@@ -311,11 +311,12 @@ export default function OrdersListTab(props: OrdersListTabProps) {
         onSalesPersonFilterChange={setDashSalesPersonFilter}
       />
 
-      {manualTotalPages > 1 && !loading && filteredOrders.length > 0 && (
+      {!loading && filteredOrders.length > 0 && (
         <div className="flex items-center justify-between flex-wrap gap-3">
           <p className="text-sm text-muted-foreground">
             Showing <span className="font-semibold text-foreground">{((manualPage - 1) * MANUAL_PAGE_SIZE) + 1}–{Math.min(manualPage * MANUAL_PAGE_SIZE, filteredOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredOrders.length}</span> orders
           </p>
+          {manualTotalPages > 1 && (
           <div className="flex items-center gap-1.5">
             <Button variant="outline" size="sm" onClick={() => setManualPage(1)} disabled={manualPage === 1} className="h-8 px-3 rounded-lg text-xs">«</Button>
             <Button variant="outline" size="sm" onClick={() => setManualPage((p) => Math.max(1, p - 1))} disabled={manualPage === 1} className="h-8 px-3 rounded-lg text-xs">‹ Prev</Button>
@@ -332,6 +333,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
             <Button variant="outline" size="sm" onClick={() => setManualPage((p) => Math.min(manualTotalPages, p + 1))} disabled={manualPage === manualTotalPages} className="h-8 px-3 rounded-lg text-xs">Next ›</Button>
             <Button variant="outline" size="sm" onClick={() => setManualPage(manualTotalPages)} disabled={manualPage === manualTotalPages} className="h-8 px-3 rounded-lg text-xs">»</Button>
           </div>
+          )}
         </div>
       )}
 
@@ -403,11 +405,12 @@ export default function OrdersListTab(props: OrdersListTabProps) {
         </div>
       )}
 
-      {unifiedTotalPages > 1 && (
+      {!loading && unifiedRows.length > 0 && (
         <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
           <p className="text-sm text-muted-foreground">
             Showing <span className="font-semibold text-foreground">{((manualPage - 1) * MANUAL_PAGE_SIZE) + 1}–{Math.min(manualPage * MANUAL_PAGE_SIZE, unifiedRows.length)}</span> of <span className="font-semibold text-foreground">{unifiedRows.length}</span> orders
           </p>
+          {unifiedTotalPages > 1 && (
           <div className="flex items-center gap-1.5">
             <Button variant="outline" size="sm" onClick={() => setManualPage(1)} disabled={manualPage === 1} className="h-8 px-3 rounded-lg text-xs">«</Button>
             <Button variant="outline" size="sm" onClick={() => setManualPage((p) => Math.max(1, p - 1))} disabled={manualPage === 1} className="h-8 px-3 rounded-lg text-xs">‹ Prev</Button>
@@ -424,6 +427,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
             <Button variant="outline" size="sm" onClick={() => setManualPage((p) => Math.min(unifiedTotalPages, p + 1))} disabled={manualPage === unifiedTotalPages} className="h-8 px-3 rounded-lg text-xs">Next ›</Button>
             <Button variant="outline" size="sm" onClick={() => setManualPage(unifiedTotalPages)} disabled={manualPage === unifiedTotalPages} className="h-8 px-3 rounded-lg text-xs">»</Button>
           </div>
+          )}
         </div>
       )}
 
