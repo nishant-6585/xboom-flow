@@ -141,6 +141,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
   const [logCallLead, setLogCallLead] = useState<InteraktLead | null>(null);
 
+  // Pagination for Interakt leads table
+  const [interaktPage, setInteraktPage] = useState(1);
+  const [interaktPageSize, setInteraktPageSize] = useState(50);
+
   // Check edit permission for Interakt leads
   const canEditInteraktLeads = role === 'admin' || role === 'sales' || role === 'sales_manager';
 
