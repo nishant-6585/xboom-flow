@@ -186,6 +186,19 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     interaktIncludeDispositioned,
   );
 
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setInteraktPage(1);
+  }, [interaktSearch, interaktStatusFilter, interaktDateFilter, interaktDateStart, interaktDateEnd, interaktIncludeDispositioned, interaktPageSize]);
+
+  const interaktTotalPages = Math.max(1, Math.ceil(filteredInteraktLeads.length / interaktPageSize));
+  const interaktPageSafe = Math.min(interaktPage, interaktTotalPages);
+  const interaktPageStart = (interaktPageSafe - 1) * interaktPageSize;
+  const paginatedInteraktLeads = filteredInteraktLeads.slice(
+    interaktPageStart,
+    interaktPageStart + interaktPageSize,
+  );
+
   // Check if user can see all leads (admin, supply_chain, or sales_manager)
   const canSeeAllLeads = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
 
