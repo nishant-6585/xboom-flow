@@ -135,10 +135,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [interaktDateFilter, setInteraktDateFilter] = useState('all');
   const [interaktDateStart, setInteraktDateStart] = useState<Date | undefined>();
   const [interaktDateEnd, setInteraktDateEnd] = useState<Date | undefined>();
-  const [interaktSalesPersonFilter, setInteraktSalesPersonFilter] = useState('all');
   const [interaktIncludeDispositioned, setInteraktIncludeDispositioned] = useState(false);
-
-  const interaktSalesPersons = Array.from(new Set(interaktLeads.map(l => l.sales_person_name).filter(Boolean))).sort() as string[];
   const [editingInteraktLead, setEditingInteraktLead] = useState<InteraktLead | null>(null);
   const [interaktEditOpen, setInteraktEditOpen] = useState(false);
   const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
