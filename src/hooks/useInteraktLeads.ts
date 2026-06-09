@@ -43,13 +43,9 @@ export interface InteraktLead {
 
 export function useInteraktLeads() {
   const queryClient = useQueryClient();
-  const { user, role } = useAuth();
-  const isSalesRep = role === 'sales';
-  const scopedUserId = isSalesRep ? user?.id ?? null : null;
 
   const { data: leads = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ['interakt-leads', scopedUserId ?? 'all'],
-    enabled: !isSalesRep || !!scopedUserId,
+    queryKey: ['interakt-leads', 'all'],
     queryFn: async () => {
       // Supabase caps a single .select() at 1000 rows by default, which
       // was causing the Interakt tab and analytics to permanently show
@@ -64,15 +60,12 @@ export function useInteraktLeads() {
       // unexpectedly large; bump if needed.
       const MAX_ROWS = 100000;
       while (from < MAX_ROWS) {
-        let query = supabase
+        const query = supabase
           .from('interakt_leads')
           .select('*')
           .order('interakt_created_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .range(from, from + PAGE - 1);
-        if (scopedUserId) {
-          query = query.eq('sales_person_id', scopedUserId);
-        }
         const { data, error } = await query;
 
         if (error) throw error;
