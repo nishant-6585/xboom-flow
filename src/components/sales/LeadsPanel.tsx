@@ -141,6 +141,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
   const [logCallLead, setLogCallLead] = useState<InteraktLead | null>(null);
 
+  // Pagination for Interakt leads table
+  const [interaktPage, setInteraktPage] = useState(1);
+  const [interaktPageSize, setInteraktPageSize] = useState(50);
+
   // Check edit permission for Interakt leads
   const canEditInteraktLeads = role === 'admin' || role === 'sales' || role === 'sales_manager';
 
@@ -180,6 +184,19 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const filteredInteraktLeads = applyDispositionFilter(
     filteredInteraktLeadsBase,
     interaktIncludeDispositioned,
+  );
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setInteraktPage(1);
+  }, [interaktSearch, interaktStatusFilter, interaktDateFilter, interaktDateStart, interaktDateEnd, interaktIncludeDispositioned, interaktPageSize]);
+
+  const interaktTotalPages = Math.max(1, Math.ceil(filteredInteraktLeads.length / interaktPageSize));
+  const interaktPageSafe = Math.min(interaktPage, interaktTotalPages);
+  const interaktPageStart = (interaktPageSafe - 1) * interaktPageSize;
+  const paginatedInteraktLeads = filteredInteraktLeads.slice(
+    interaktPageStart,
+    interaktPageStart + interaktPageSize,
   );
 
   // Check if user can see all leads (admin, supply_chain, or sales_manager)
@@ -937,7 +954,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredInteraktLeads.map((lead) => (
+                        {paginatedInteraktLeads.map((lead) => (
                           <TableRow key={lead.id} className={touchedRowCn(isRowTouched('interakt', lead, engagedInteraktIds), "cursor-pointer")} onClick={() => setInteraktDrawerLead(lead)}>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <LeadActionsCell
@@ -1049,6 +1066,35 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                </div>
+              )}
+              {!interaktLoading && filteredInteraktLeads.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {interaktPageStart + 1}–{Math.min(interaktPageStart + interaktPageSize, filteredInteraktLeads.length)} of {filteredInteraktLeads.length}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select value={String(interaktPageSize)} onValueChange={(v) => setInteraktPageSize(Number(v))}>
+                      <SelectTrigger className="w-[110px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="25">25 / page</SelectItem>
+                        <SelectItem value="50">50 / page</SelectItem>
+                        <SelectItem value="100">100 / page</SelectItem>
+                        <SelectItem value="200">200 / page</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button variant="outline" size="sm" disabled={interaktPageSafe <= 1} onClick={() => setInteraktPage(interaktPageSafe - 1)}>
+                      Previous
+                    </Button>
+                    <span className="text-sm whitespace-nowrap">
+                      Page {interaktPageSafe} of {interaktTotalPages}
+                    </span>
+                    <Button variant="outline" size="sm" disabled={interaktPageSafe >= interaktTotalPages} onClick={() => setInteraktPage(interaktPageSafe + 1)}>
+                      Next
+                    </Button>
                   </div>
                 </div>
               )}
