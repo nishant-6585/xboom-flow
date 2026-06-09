@@ -954,7 +954,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredInteraktLeads.map((lead) => (
+                        {paginatedInteraktLeads.map((lead) => (
                           <TableRow key={lead.id} className={touchedRowCn(isRowTouched('interakt', lead, engagedInteraktIds), "cursor-pointer")} onClick={() => setInteraktDrawerLead(lead)}>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <LeadActionsCell
