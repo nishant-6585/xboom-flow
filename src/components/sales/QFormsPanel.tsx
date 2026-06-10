@@ -819,6 +819,18 @@ export default function QFormsPanel() {
           toast({ title: "Lead updated" });
         }}
       />
+
+      <LogCallDialog
+        open={!!logCallLead}
+        onOpenChange={(open) => { if (!open) setLogCallLead(null); }}
+        leadSource="q_form"
+        leadId={String(logCallLead?.id ?? "")}
+        leadName={logCallLead?.name ?? ""}
+        leadPhone={logCallLead?.phone ?? ""}
+        leadCompany={logCallLead?.company ?? undefined}
+        leadCreatedAt={logCallLead?.submitted_at ?? logCallLead?.created_at ?? null}
+        onCallLogged={() => markContacted(logCallLead!)}
+      />
     </div>
   );
 }
