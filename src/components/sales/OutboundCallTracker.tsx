@@ -167,6 +167,7 @@ export function OutboundCallTracker() {
   const pipelineCount = filteredLogs.filter(l => l.lead_source === 'pipeline').length;
   const myoperatorCount = filteredLogs.filter(l => l.lead_source === 'myoperator').length;
   const interaktCount = filteredLogs.filter(l => l.lead_source === 'interakt').length;
+  const qformCount = filteredLogs.filter(l => l.lead_source === 'q_form').length;
 
   const COLORS = [
     'hsl(var(--chart-1))',
