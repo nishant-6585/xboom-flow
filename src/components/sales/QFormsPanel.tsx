@@ -773,6 +773,17 @@ export default function QFormsPanel() {
                       </Button>
                     )}
                     {r.phone && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-primary hover:text-primary"
+                        title="Log Outbound Call"
+                        onClick={(e) => { e.stopPropagation(); setLogCallLead(r); }}
+                      >
+                        <PhoneOutgoing className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {r.phone && (
                       <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
                         <a href={`https://wa.me/${r.phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer" onClick={() => markContacted(r)}>
                           <MessageCircle className="h-3.5 w-3.5 text-green-600" />
