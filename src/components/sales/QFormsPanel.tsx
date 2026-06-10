@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format, startOfDay, subDays, isToday, isYesterday } from "date-fns";
 import {
-  ChevronDown, ChevronRight, Search, X, Phone, Mail, MessageCircle,
+  ChevronDown, ChevronRight, Search, X, Phone, PhoneOutgoing, Mail, MessageCircle,
   UserCheck, Inbox, CheckCircle2, Flame, FileText, LayoutGrid, Table as TableIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,7 @@ import { AttentionButton } from "./AttentionButton";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { LeadActionsCell } from "./LeadActionsCell";
+import { LogCallDialog } from "./LogCallDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
@@ -122,6 +123,7 @@ export default function QFormsPanel() {
 
   // Drawer
   const [drawerLead, setDrawerLead] = useState<Lead | null>(null);
+  const [logCallLead, setLogCallLead] = useState<Lead | null>(null);
 
   // Filters
   const [formType, setFormType] = useState<string>("all");
