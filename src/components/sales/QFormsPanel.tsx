@@ -588,7 +588,18 @@ export default function QFormsPanel() {
                       {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <LeadActionsCell
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-primary hover:text-primary"
+                          title="Log Outbound Call"
+                          onClick={(e) => { e.stopPropagation(); setLogCallLead(r); }}
+                          disabled={!r.phone}
+                        >
+                          <PhoneOutgoing className="h-3.5 w-3.5" />
+                        </Button>
+                        <LeadActionsCell
                         sourceType="lead"
                         sourceId={String(r.id)}
                         customerName={r.name ?? "Unknown"}
@@ -608,7 +619,8 @@ export default function QFormsPanel() {
                         dispositionAt={r.disposition_at}
                         dispositionByName={r.disposition_by_name}
                         onDispositionChanged={() => load()}
-                      />
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{submittedFmt}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{r.form_type ?? "—"}</Badge></TableCell>
