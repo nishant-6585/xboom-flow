@@ -592,7 +592,7 @@ export default function QFormsPanel() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 w-7 p-0 text-primary hover:text-primary"
+                          className="h-7 w-7 p-0 text-primary hover:text-primary hover:bg-primary/10"
                           title="Log Outbound Call"
                           onClick={(e) => { e.stopPropagation(); setLogCallLead(r); }}
                           disabled={!r.phone}
@@ -776,7 +776,7 @@ export default function QFormsPanel() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0 text-primary hover:text-primary"
+                        className="h-7 w-7 p-0 text-primary hover:text-primary hover:bg-primary/10"
                         title="Log Outbound Call"
                         onClick={(e) => { e.stopPropagation(); setLogCallLead(r); }}
                       >
