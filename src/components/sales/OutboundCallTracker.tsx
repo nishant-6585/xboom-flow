@@ -350,11 +350,13 @@ export function OutboundCallTracker() {
                           log.lead_source === 'myoperator' ? 'border-blue-500/40 text-blue-500' 
                           : log.lead_source === 'interakt' ? 'border-emerald-500/40 text-emerald-500'
                           : log.lead_source === 'prospect' ? 'border-amber-500/40 text-amber-500'
+                          : log.lead_source === 'q_form' ? 'border-cyan-500/40 text-cyan-500'
                           : 'border-purple-500/40 text-purple-500'
                         }`}>
                           {log.lead_source === 'myoperator' ? 'MyOperator' 
                            : log.lead_source === 'interakt' ? 'Interakt'
                            : log.lead_source === 'prospect' ? 'Prospect'
+                           : log.lead_source === 'q_form' ? 'Q-Form'
                            : 'Pipeline'}
                         </Badge>
                       </TableCell>
