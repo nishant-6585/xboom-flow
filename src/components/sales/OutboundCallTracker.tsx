@@ -92,7 +92,7 @@ function formatResponseTime(log: OutboundLog): { text: string; color: string } |
 export function OutboundCallTracker() {
   const [logs, setLogs] = useState<OutboundLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'myoperator' | 'interakt' | 'prospect' | 'pipeline'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'myoperator' | 'interakt' | 'prospect' | 'pipeline' | 'q_form'>('all');
   const [periodFilter, setPeriodFilter] = useState<'all' | 'day' | 'week' | 'month'>('all');
 
   const fetchLogs = async () => {
