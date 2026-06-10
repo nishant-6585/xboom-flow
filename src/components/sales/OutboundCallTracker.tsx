@@ -57,7 +57,7 @@ function formatResponseTime(log: OutboundLog): { text: string; color: string } |
   if ((log.lead_source === 'prospect' || log.lead_source === 'pipeline') && log.scheduled_followup_at) {
     refTime = new Date(log.scheduled_followup_at);
     label = 'from follow-up';
-  } else if ((log.lead_source === 'myoperator' || log.lead_source === 'interakt') && log.lead_created_at) {
+  } else if ((log.lead_source === 'myoperator' || log.lead_source === 'interakt' || log.lead_source === 'q_form') && log.lead_created_at) {
     refTime = new Date(log.lead_created_at);
     label = 'from lead';
   }
@@ -92,7 +92,7 @@ function formatResponseTime(log: OutboundLog): { text: string; color: string } |
 export function OutboundCallTracker() {
   const [logs, setLogs] = useState<OutboundLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'myoperator' | 'interakt' | 'prospect' | 'pipeline'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'myoperator' | 'interakt' | 'prospect' | 'pipeline' | 'q_form'>('all');
   const [periodFilter, setPeriodFilter] = useState<'all' | 'day' | 'week' | 'month'>('all');
 
   const fetchLogs = async () => {
@@ -167,6 +167,7 @@ export function OutboundCallTracker() {
   const pipelineCount = filteredLogs.filter(l => l.lead_source === 'pipeline').length;
   const myoperatorCount = filteredLogs.filter(l => l.lead_source === 'myoperator').length;
   const interaktCount = filteredLogs.filter(l => l.lead_source === 'interakt').length;
+  const qformCount = filteredLogs.filter(l => l.lead_source === 'q_form').length;
 
   const COLORS = [
     'hsl(var(--chart-1))',
@@ -247,7 +248,8 @@ export function OutboundCallTracker() {
             <Button variant={sourceFilter === 'myoperator' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('myoperator')} className="rounded-none border-x text-xs px-2">MO</Button>
             <Button variant={sourceFilter === 'interakt' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('interakt')} className="rounded-none border-r text-xs px-2">IK</Button>
             <Button variant={sourceFilter === 'prospect' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('prospect')} className="rounded-none border-r text-xs px-2">Prospect</Button>
-            <Button variant={sourceFilter === 'pipeline' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('pipeline')} className="rounded-l-none text-xs px-2">Pipeline</Button>
+            <Button variant={sourceFilter === 'pipeline' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('pipeline')} className="rounded-none border-r text-xs px-2">Pipeline</Button>
+            <Button variant={sourceFilter === 'q_form' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('q_form')} className="rounded-l-none text-xs px-2">Q-Form</Button>
           </div>
           <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
@@ -348,11 +350,13 @@ export function OutboundCallTracker() {
                           log.lead_source === 'myoperator' ? 'border-blue-500/40 text-blue-500' 
                           : log.lead_source === 'interakt' ? 'border-emerald-500/40 text-emerald-500'
                           : log.lead_source === 'prospect' ? 'border-amber-500/40 text-amber-500'
+                          : log.lead_source === 'q_form' ? 'border-cyan-500/40 text-cyan-500'
                           : 'border-purple-500/40 text-purple-500'
                         }`}>
                           {log.lead_source === 'myoperator' ? 'MyOperator' 
                            : log.lead_source === 'interakt' ? 'Interakt'
                            : log.lead_source === 'prospect' ? 'Prospect'
+                           : log.lead_source === 'q_form' ? 'Q-Form'
                            : 'Pipeline'}
                         </Badge>
                       </TableCell>

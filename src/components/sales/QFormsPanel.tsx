@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format, startOfDay, subDays, isToday, isYesterday } from "date-fns";
 import {
-  ChevronDown, ChevronRight, Search, X, Phone, Mail, MessageCircle,
+  ChevronDown, ChevronRight, Search, X, Phone, PhoneOutgoing, Mail, MessageCircle,
   UserCheck, Inbox, CheckCircle2, Flame, FileText, LayoutGrid, Table as TableIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,7 @@ import { AttentionButton } from "./AttentionButton";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { LeadActionsCell } from "./LeadActionsCell";
+import { LogCallDialog } from "./LogCallDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
@@ -122,6 +123,7 @@ export default function QFormsPanel() {
 
   // Drawer
   const [drawerLead, setDrawerLead] = useState<Lead | null>(null);
+  const [logCallLead, setLogCallLead] = useState<Lead | null>(null);
 
   // Filters
   const [formType, setFormType] = useState<string>("all");
@@ -586,7 +588,18 @@ export default function QFormsPanel() {
                       {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <LeadActionsCell
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-primary hover:text-primary"
+                          title="Log Outbound Call"
+                          onClick={(e) => { e.stopPropagation(); setLogCallLead(r); }}
+                          disabled={!r.phone}
+                        >
+                          <PhoneOutgoing className="h-3.5 w-3.5" />
+                        </Button>
+                        <LeadActionsCell
                         sourceType="lead"
                         sourceId={String(r.id)}
                         customerName={r.name ?? "Unknown"}
@@ -606,7 +619,8 @@ export default function QFormsPanel() {
                         dispositionAt={r.disposition_at}
                         dispositionByName={r.disposition_by_name}
                         onDispositionChanged={() => load()}
-                      />
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{submittedFmt}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{r.form_type ?? "—"}</Badge></TableCell>
@@ -759,6 +773,17 @@ export default function QFormsPanel() {
                       </Button>
                     )}
                     {r.phone && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-primary hover:text-primary"
+                        title="Log Outbound Call"
+                        onClick={(e) => { e.stopPropagation(); setLogCallLead(r); }}
+                      >
+                        <PhoneOutgoing className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {r.phone && (
                       <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
                         <a href={`https://wa.me/${r.phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer" onClick={() => markContacted(r)}>
                           <MessageCircle className="h-3.5 w-3.5 text-green-600" />
@@ -793,6 +818,18 @@ export default function QFormsPanel() {
           });
           toast({ title: "Lead updated" });
         }}
+      />
+
+      <LogCallDialog
+        open={!!logCallLead}
+        onOpenChange={(open) => { if (!open) setLogCallLead(null); }}
+        leadSource="q_form"
+        leadId={String(logCallLead?.id ?? "")}
+        leadName={logCallLead?.name ?? ""}
+        leadPhone={logCallLead?.phone ?? ""}
+        leadCompany={logCallLead?.company ?? undefined}
+        leadCreatedAt={logCallLead?.submitted_at ?? logCallLead?.created_at ?? null}
+        onCallLogged={() => markContacted(logCallLead!)}
       />
     </div>
   );
