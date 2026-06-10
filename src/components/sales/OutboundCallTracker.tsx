@@ -57,7 +57,7 @@ function formatResponseTime(log: OutboundLog): { text: string; color: string } |
   if ((log.lead_source === 'prospect' || log.lead_source === 'pipeline') && log.scheduled_followup_at) {
     refTime = new Date(log.scheduled_followup_at);
     label = 'from follow-up';
-  } else if ((log.lead_source === 'myoperator' || log.lead_source === 'interakt') && log.lead_created_at) {
+  } else if ((log.lead_source === 'myoperator' || log.lead_source === 'interakt' || log.lead_source === 'q_form') && log.lead_created_at) {
     refTime = new Date(log.lead_created_at);
     label = 'from lead';
   }
