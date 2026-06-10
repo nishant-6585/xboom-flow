@@ -248,7 +248,8 @@ export function OutboundCallTracker() {
             <Button variant={sourceFilter === 'myoperator' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('myoperator')} className="rounded-none border-x text-xs px-2">MO</Button>
             <Button variant={sourceFilter === 'interakt' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('interakt')} className="rounded-none border-r text-xs px-2">IK</Button>
             <Button variant={sourceFilter === 'prospect' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('prospect')} className="rounded-none border-r text-xs px-2">Prospect</Button>
-            <Button variant={sourceFilter === 'pipeline' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('pipeline')} className="rounded-l-none text-xs px-2">Pipeline</Button>
+            <Button variant={sourceFilter === 'pipeline' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('pipeline')} className="rounded-none border-r text-xs px-2">Pipeline</Button>
+            <Button variant={sourceFilter === 'q_form' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('q_form')} className="rounded-l-none text-xs px-2">Q-Form</Button>
           </div>
           <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
