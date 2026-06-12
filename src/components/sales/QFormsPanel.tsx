@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { format, startOfDay, subDays, isToday, isYesterday } from "date-fns";
 import {
   ChevronDown, ChevronRight, Search, X, Phone, PhoneOutgoing, Mail, MessageCircle,
-  UserCheck, Inbox, CheckCircle2, Flame, FileText, LayoutGrid, Table as TableIcon,
+  UserCheck, Inbox, CheckCircle2, Flame, FileText, LayoutGrid, Table as TableIcon, Layers,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
+import { groupDuplicates } from "@/lib/leadDeduplication";
 
 const FORM_TYPES = [
   "contact", "quote", "demo", "dealer", "newsletter", "popup",
@@ -135,6 +136,8 @@ export default function QFormsPanel() {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
+  const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
 
   const canManage = role === "admin" || role === "sales" || role === "sales_manager";
 
@@ -212,6 +215,31 @@ export default function QFormsPanel() {
         );
     return applyDispositionFilter(searched, includeDispositioned);
   }, [rows, search, includeDispositioned]);
+
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return filtered.map((r) => ({ primary: r, duplicates: [] as Lead[], count: 1, key: `single:${r.id}` }));
+    }
+    return groupDuplicates<Lead>(
+      filtered,
+      (r) => ({ phone: r.phone, email: r.email, name: r.name, company: r.company }),
+      (r) => r.submitted_at || r.created_at,
+      (r) => String(r.id),
+    );
+  }, [filtered, mergeDuplicates]);
+
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+  };
+
+  const mergedHiddenCount = useMemo(
+    () => dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0),
+    [dedupGroups],
+  );
 
   // Stats (computed on full rows ignoring search but respecting filters)
   const stats = useMemo(() => {
@@ -357,7 +385,21 @@ export default function QFormsPanel() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">{filtered.length} leads</Badge>
+          <Badge variant="secondary">
+            {mergeDuplicates
+              ? `${dedupGroups.length} unique · ${mergedHiddenCount} merged · ${filtered.length} total`
+              : `${filtered.length} leads`}
+          </Badge>
+          <Button
+            size="sm"
+            variant={mergeDuplicates ? "secondary" : "ghost"}
+            className="h-7 px-2 gap-1"
+            onClick={() => setMergeDuplicates((v) => !v)}
+            title="Merge duplicate leads (same phone / email / company+name)"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            {mergeDuplicates ? "Merge Duplicates ✓" : "Merge Duplicates"}
+          </Button>
           <div className="inline-flex rounded-md border border-border/50 bg-muted/40 p-0.5">
             <Button
               size="sm"
@@ -572,16 +614,23 @@ export default function QFormsPanel() {
             {!loading && filtered.length === 0 && (
               <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No leads match the current filters.</TableCell></TableRow>
             )}
-            {!loading && filtered.map(r => {
+            {!loading && dedupGroups.map(group => {
+              const r = group.primary;
+              const dupCount = group.count;
+              const isMerged = dupCount > 1;
+              const dupeOpen = expandedDupes.has(group.key);
               const isOpen = expanded.has(r.id);
               const submitted = r.submitted_at || r.created_at;
               const submittedFmt = submitted ? format(new Date(submitted), "dd MMM, HH:mm") : "—";
               const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
               return (
-                <>
+                <React.Fragment key={`g-${group.key}`}>
                   <TableRow
                     key={r.id}
-                    className={touchedRowCn(isRowTouched('qforms', r, engagedIds), "cursor-pointer")}
+                    className={touchedRowCn(
+                      isRowTouched('qforms', r, engagedIds),
+                      `cursor-pointer ${isMerged ? "border-l-2 border-l-amber-500/70 bg-amber-500/5" : ""}`,
+                    )}
                     onClick={() => setDrawerLead(r)}
                   >
                     <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
@@ -624,7 +673,22 @@ export default function QFormsPanel() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{submittedFmt}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{r.form_type ?? "—"}</Badge></TableCell>
-                    <TableCell className="font-medium">{r.name ?? "—"}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <span>{r.name ?? "—"}</span>
+                        {isMerged && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
+                            className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                            title={`${dupCount} entries merged — click to ${dupeOpen ? "hide" : "show"} history`}
+                          >
+                            <Layers className="h-3 w-3" />
+                            ×{dupCount} {dupeOpen ? "hide" : "show history"}
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()} className="text-xs space-y-0.5">
                       {r.email && <a className="text-primary hover:underline block" href={`mailto:${r.email}`}>{r.email}</a>}
                       {r.phone && <a className="text-primary hover:underline block" href={`tel:${r.phone}`}>{r.phone}</a>}
@@ -690,7 +754,39 @@ export default function QFormsPanel() {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                  {isMerged && dupeOpen && group.duplicates.map((d) => {
+                    const dSubmitted = d.submitted_at || d.created_at;
+                    const dSubmittedFmt = dSubmitted ? format(new Date(dSubmitted), "dd MMM, HH:mm") : "—";
+                    return (
+                      <TableRow
+                        key={`${group.key}-dup-${d.id}`}
+                        className="bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer text-xs"
+                        onClick={() => setDrawerLead(d)}
+                      >
+                        <TableCell className="w-8 px-2" />
+                        <TableCell className="text-[11px] text-muted-foreground">
+                          <Badge variant="outline" className="text-[10px]">duplicate</Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{dSubmittedFmt}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-[10px]">{d.form_type ?? "—"}</Badge></TableCell>
+                        <TableCell className="font-medium">{d.name ?? "—"}</TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="space-y-0.5">
+                          {d.email && <a className="text-primary hover:underline block" href={`mailto:${d.email}`}>{d.email}</a>}
+                          {d.phone && <a className="text-primary hover:underline block" href={`tel:${d.phone}`}>{d.phone}</a>}
+                          {!d.email && !d.phone && "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div>{d.company ?? "—"}</div>
+                          <div className="text-muted-foreground">{d.location ?? ""}</div>
+                        </TableCell>
+                        <TableCell><Badge variant="outline" className={`text-[10px] ${TEMP_COLORS[d.lead_temperature] ?? ""}`}>{d.lead_temperature}</Badge></TableCell>
+                        <TableCell>{d.assigned_to_name ?? "—"}</TableCell>
+                        <TableCell className="text-muted-foreground whitespace-nowrap">{relativeTime(d.last_contacted_at)}</TableCell>
+                        <TableCell><Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[d.status] ?? ""}`}>{d.status}</Badge></TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
           </TableBody>
