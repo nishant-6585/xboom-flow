@@ -138,6 +138,8 @@ export function GoogleAdsLeadsTab() {
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<GoogleAdsLead | null>(null);
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
+  const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
@@ -186,6 +188,26 @@ export function GoogleAdsLeadsTab() {
   const agingCount = leads.filter((l) => !l.is_converted && differenceInHours(new Date(), new Date(l.created_at)) > 24).length;
 
   const isAging = (lead: GoogleAdsLead) => !lead.is_converted && differenceInHours(new Date(), new Date(lead.created_at)) > 24;
+
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return sortedLeads.map((l) => ({ primary: l, duplicates: [] as GoogleAdsLead[], count: 1, key: `single:${l.id}` }));
+    }
+    return groupDuplicates<GoogleAdsLead>(
+      sortedLeads,
+      (l) => ({ phone: getPhone(l), email: getEmail(l), name: l.customer_name, company: l.customer_company }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+  }, [sortedLeads, mergeDuplicates]);
+  const mergedHiddenCount = dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0);
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+  };
 
   const handleConvertToOrder = (lead: GoogleAdsLead) => {
     navigate(`/orders?tab=new&preSelectEnquiry=${lead.id}`);
