@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { Fragment, useState, useRef, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,8 @@ import { TouchedDashboard } from './TouchedDashboard';
 import { UnifiedLeadInbox } from './UnifiedLeadInbox';
 import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
 import { Inbox } from 'lucide-react';
+import { groupDuplicates } from '@/lib/leadDeduplication';
+import { DuplicateCountBadge, DuplicateHistoryRow } from './DuplicateHistoryRow';
 
 function InboxNewBadge() {
   const { data } = useUnifiedLeadCounts();
@@ -141,6 +143,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
   const [logCallLead, setLogCallLead] = useState<InteraktLead | null>(null);
 
+  // Group duplicate leads (same phone / email / company+name) into a single row
+  // with an expandable history. Default ON so counts reflect unique contacts.
+  const [groupDupes, setGroupDupes] = useState(true);
+
   // Pagination for Interakt leads table
   const [interaktPage, setInteraktPage] = useState(1);
   const [interaktPageSize, setInteraktPageSize] = useState(50);
@@ -198,6 +204,29 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     interaktPageStart,
     interaktPageStart + interaktPageSize,
   );
+
+  // Interakt groups (over the currently paginated slice).
+  const interaktGroups = useMemo(() => {
+    if (!groupDupes) {
+      return paginatedInteraktLeads.map((l) => ({
+        primary: l,
+        duplicates: [] as typeof paginatedInteraktLeads,
+        count: 1,
+        key: l.id,
+      }));
+    }
+    return groupDuplicates(
+      paginatedInteraktLeads,
+      (l) => ({
+        phone: l.phone_number,
+        email: l.email,
+        name: l.customer_name,
+        company: l.company,
+      }),
+      (l) => l.interakt_created_at || l.created_at,
+      (l) => l.id,
+    );
+  }, [paginatedInteraktLeads, groupDupes]);
 
   // Check if user can see all leads (admin, supply_chain, or sales_manager)
   const canSeeAllLeads = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
@@ -377,6 +406,26 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const respondedLeads = leads.filter(l => l.status === 'responded').length;
   const convertedLeads = leads.filter(l => l.status === 'order_won' || l.status === 'moved_to_pipeline').length;
 
+  // Enquiries (All Leads tab) duplicate groups.
+  const leadGroups = useMemo(() => {
+    if (!groupDupes) {
+      return leads.map((l) => ({ primary: l, duplicates: [] as typeof leads, count: 1, key: l.id }));
+    }
+    return groupDuplicates(
+      leads,
+      (l) => ({
+        phone: (l as any).customer_phone,
+        email: (l as any).customer_email,
+        name: l.customer_name,
+        company: l.customer_company,
+      }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+  }, [leads, groupDupes]);
+  const uniqueLeadCount = leadGroups.length;
+  const mergedLeadCount = totalLeads - uniqueLeadCount;
+
   return (
     <Tabs defaultValue="all-inbox" className="space-y-6">
       <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start">
@@ -442,8 +491,15 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                 <Users className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{totalLeads}</p>
-                <p className="text-xs text-muted-foreground">Total Leads</p>
+                <p className="text-2xl font-bold">{groupDupes ? uniqueLeadCount : totalLeads}</p>
+                <p className="text-xs text-muted-foreground">
+                  {groupDupes ? 'Unique Leads' : 'Total Leads'}
+                </p>
+                {groupDupes && mergedLeadCount > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {mergedLeadCount} duplicate{mergedLeadCount === 1 ? '' : 's'} merged
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -559,6 +615,20 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
               </Button>
             </div>
           </div>
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+            <Switch
+              id="group-duplicates-all-leads"
+              checked={groupDupes}
+              onCheckedChange={setGroupDupes}
+            />
+            <Label htmlFor="group-duplicates-all-leads" className="text-xs cursor-pointer">
+              Group duplicates {groupDupes && mergedLeadCount > 0 && (
+                <span className="text-muted-foreground">
+                  ({mergedLeadCount} merged on this view)
+                </span>
+              )}
+            </Label>
+          </div>
         </CardContent>
       </Card>
 
@@ -616,8 +686,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leads.map((lead) => (
-                      <TableRow key={lead.id} className={touchedRowCn(isRowTouched('enquiries', lead, engagedEnquiryIds))}>
+                    {leadGroups.map((group) => {
+                      const lead = group.primary;
+                      return (
+                      <Fragment key={group.key}>
+                      <TableRow className={touchedRowCn(isRowTouched('enquiries', lead, engagedEnquiryIds))}>
                         <TableCell>
                           <div className="flex gap-1">
                             <ProspectButton
@@ -657,7 +730,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{lead.customer_name}</p>
+                            <p className="font-medium flex items-center">
+                              <span>{lead.customer_name}</span>
+                              <DuplicateCountBadge count={group.count} />
+                            </p>
                             <p className="text-xs text-muted-foreground">{lead.customer_company}</p>
                           </div>
                         </TableCell>
@@ -712,7 +788,21 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      <DuplicateHistoryRow
+                        count={group.count}
+                        colSpan={11}
+                        entries={group.duplicates.map((d) => ({
+                          id: d.id,
+                          source: extractLeadSource(d.notes),
+                          status: d.status?.replace(/_/g, ' '),
+                          assignedTo: d.sales_person_name,
+                          createdAt: d.created_at,
+                          note: `${d.product_name}${d.quantity ? ` × ${d.quantity}` : ''}`,
+                        }))}
+                      />
+                      </Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -904,6 +994,15 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                   <Label htmlFor="interakt-show-all-dispositions" className="text-xs cursor-pointer">
                     Show all dispositions
                   </Label>
+                  <span className="mx-2 h-4 w-px bg-border" />
+                  <Switch
+                    id="interakt-group-duplicates"
+                    checked={groupDupes}
+                    onCheckedChange={setGroupDupes}
+                  />
+                  <Label htmlFor="interakt-group-duplicates" className="text-xs cursor-pointer">
+                    Group duplicates
+                  </Label>
                 </div>
               </div>
 
@@ -954,8 +1053,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedInteraktLeads.map((lead) => (
-                          <TableRow key={lead.id} className={touchedRowCn(isRowTouched('interakt', lead, engagedInteraktIds), "cursor-pointer")} onClick={() => setInteraktDrawerLead(lead)}>
+                        {interaktGroups.map((group) => {
+                          const lead = group.primary;
+                          return (
+                          <Fragment key={group.key}>
+                          <TableRow className={touchedRowCn(isRowTouched('interakt', lead, engagedInteraktIds), "cursor-pointer")} onClick={() => setInteraktDrawerLead(lead)}>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <LeadActionsCell
                                 sourceType="interakt"
@@ -986,7 +1088,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                               />
                             </TableCell>
                             <TableCell>
-                              <p className="font-medium">{lead.customer_name}</p>
+                              <p className="font-medium flex items-center">
+                                <span>{lead.customer_name}</span>
+                                <DuplicateCountBadge count={group.count} />
+                              </p>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1.5">
@@ -1063,7 +1168,22 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          <DuplicateHistoryRow
+                            count={group.count}
+                            colSpan={12}
+                            entries={group.duplicates.map((d) => ({
+                              id: d.id,
+                              source: 'Interakt',
+                              sourceChipClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+                              status: d.status,
+                              assignedTo: d.sales_person_name,
+                              createdAt: d.interakt_created_at || d.created_at,
+                              note: d.product_name || d.notes,
+                            }))}
+                          />
+                          </Fragment>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
