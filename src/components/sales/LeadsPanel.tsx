@@ -615,6 +615,20 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
               </Button>
             </div>
           </div>
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+            <Switch
+              id="group-duplicates-all-leads"
+              checked={groupDupes}
+              onCheckedChange={setGroupDupes}
+            />
+            <Label htmlFor="group-duplicates-all-leads" className="text-xs cursor-pointer">
+              Group duplicates {groupDupes && mergedLeadCount > 0 && (
+                <span className="text-muted-foreground">
+                  ({mergedLeadCount} merged on this view)
+                </span>
+              )}
+            </Label>
+          </div>
         </CardContent>
       </Card>
 
