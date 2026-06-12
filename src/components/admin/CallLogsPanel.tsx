@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, MessageSquare } from "lucide-react";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, MessageSquare, ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
 import { CallLogEditDialog } from './CallLogEditDialog';
@@ -300,7 +300,8 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [agentFilter, setAgentFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState(defaultDepartment || "all");
   const [missedOnly, setMissedOnly] = useState(false);
-  const [uniqueOnly, setUniqueOnly] = useState(false);
+  const [uniqueOnly, setUniqueOnly] = useState(true);
+  const [expandedPhones, setExpandedPhones] = useState<Set<string>>(new Set());
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
@@ -401,20 +402,52 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         return info.finalAgent === agentFilter || info.agentDisplay.includes(agentFilter);
       });
     }
-    // Dedupe by unique caller number (keep most recent per number)
-    if (uniqueOnly) {
-      const seen = new Set<string>();
-      result = result.filter(log => {
-        const num = (log.caller_number || '').replace(/\D/g, '').slice(-10);
-        if (!num || seen.has(num)) return false;
-        seen.add(num);
-        return true;
-      });
-    }
     // Hide qualified/not_qualified rows from the default view.
     result = applyDispositionFilter(result, includeDispositioned);
     return result;
   }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned, canManage, user?.id]);
+
+  // When merge is ON, group rows by normalized phone (last 10 digits).
+  // The newest call becomes the primary row; older calls are kept as
+  // "history" rendered in an expandable sub-row beneath it.
+  const { displayLogs, historyByPhone } = React.useMemo(() => {
+    const history = new Map<string, CallLog[]>();
+    if (!uniqueOnly) {
+      return { displayLogs: filteredLogs, historyByPhone: history };
+    }
+    const seen = new Map<string, CallLog>();
+    const orderedKeys: string[] = [];
+    filteredLogs.forEach(log => {
+      const num = (log.caller_number || '').replace(/\D/g, '').slice(-10);
+      if (!num) {
+        // Untrackable rows fall back to id-keyed singletons
+        const k = `id:${log.id}`;
+        seen.set(k, log);
+        orderedKeys.push(k);
+        history.set(k, []);
+        return;
+      }
+      if (!seen.has(num)) {
+        seen.set(num, log);
+        orderedKeys.push(num);
+        history.set(num, []);
+      } else {
+        history.get(num)!.push(log);
+      }
+    });
+    return {
+      displayLogs: orderedKeys.map(k => seen.get(k)!),
+      historyByPhone: history,
+    };
+  }, [filteredLogs, uniqueOnly]);
+
+  const togglePhoneExpanded = (key: string) => {
+    setExpandedPhones(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
@@ -583,7 +616,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               MyOperator Call Logs
             </CardTitle>
             <CardDescription>
-              Real-time call logs via webhook + API sync ({filteredLogs.length}{filteredLogs.length !== logs.length ? ` of ${logs.length}` : ''} calls)
+              Real-time call logs via webhook + API sync ({displayLogs.length}{uniqueOnly && displayLogs.length !== filteredLogs.length ? ` unique · ${filteredLogs.length - displayLogs.length} merged` : ''}{filteredLogs.length !== logs.length ? ` · ${logs.length} total` : ''})
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -680,7 +713,8 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             onClick={() => setUniqueOnly(!uniqueOnly)}
             className={`shrink-0 text-xs ${uniqueOnly ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30' : ''}`}
           >
-            {uniqueOnly ? '✓ Unique Numbers' : 'Unique Numbers'}
+            <Layers className="w-3 h-3 mr-1" />
+            {uniqueOnly ? '✓ Merge Duplicates' : 'Merge Duplicates'}
           </Button>
           <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 cursor-pointer">
             <Switch
@@ -695,7 +729,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : filteredLogs.length === 0 ? (
+        ) : displayLogs.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Phone className="w-12 h-12 mx-auto mb-3 opacity-40" />
             <p className="font-medium">No call logs received yet.</p>
@@ -718,14 +752,18 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLogs.map((log) => {
+                {displayLogs.map((log) => {
                   const info = deriveCallInfo(log);
                   const logKey = log.call_id || log.id;
+                  const phoneKey = (log.caller_number || '').replace(/\D/g, '').slice(-10) || `id:${log.id}`;
+                  const history = historyByPhone.get(phoneKey) || [];
+                  const duplicateCount = history.length;
+                  const isExpanded = expandedPhones.has(phoneKey);
                   return (
                     <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
-                        className={touchedRowCn(isRowTouched('myoperator', log, engagedCallIds), `cursor-pointer ${newIds.has(log.id) ? "ring-2 ring-primary animate-pulse" : ''}`)}
+                        className={touchedRowCn(isRowTouched('myoperator', log, engagedCallIds), `cursor-pointer ${newIds.has(log.id) ? "ring-2 ring-primary animate-pulse" : ''} ${duplicateCount > 0 ? 'border-l-2 border-l-amber-500/70 bg-amber-500/5' : ''}`)}
                         onClick={() => setEditingLog(log)}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
@@ -780,6 +818,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             <div className={`font-mono text-xs ${info.status === 'missed' ? 'text-destructive/80' : 'text-primary'}`}>
                               {log.full_number || log.caller_number}
                             </div>
+                            {duplicateCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); togglePhoneExpanded(phoneKey); }}
+                                className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors"
+                                title={`${duplicateCount} earlier call${duplicateCount === 1 ? '' : 's'} from this number`}
+                              >
+                                {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                ×{duplicateCount + 1} calls · {isExpanded ? 'hide' : 'show'} history
+                              </button>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-sm">
