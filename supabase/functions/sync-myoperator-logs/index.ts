@@ -371,6 +371,17 @@ Deno.serve(async (req) => {
               salesPersonName = matchedProfile.name;
             }
           }
+
+          // 2c. Validate receiver is in the sales pool. If not (e.g. an
+          // admin / support agent picked up the call) OR if no resolution
+          // was found at all, randomly assign to one of the sales reps so
+          // the lead always belongs to sales.
+          const salesPoolIds = new Set(missedCallAssignees.map((a) => a.user_id));
+          if (!salesPersonId || !salesPoolIds.has(salesPersonId)) {
+            const pick = missedCallAssignees[Math.floor(Math.random() * missedCallAssignees.length)];
+            salesPersonId = pick.user_id;
+            salesPersonName = pick.name;
+          }
         } else if (callStatus === 'missed') {
           // 3. Round-robin only for brand new missed callers
           const assignee = missedCallAssignees[missedRoundRobinIndex % missedCallAssignees.length];
