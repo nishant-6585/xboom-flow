@@ -205,26 +205,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     interaktPageStart + interaktPageSize,
   );
 
-  // Enquiries (All Leads tab) groups.
-  const leadGroups = useMemo(() => {
-    if (!groupDupes) {
-      return leads.map((l) => ({ primary: l, duplicates: [] as typeof leads, count: 1, key: l.id }));
-    }
-    return groupDuplicates(
-      leads,
-      (l) => ({
-        phone: (l as any).customer_phone,
-        email: (l as any).customer_email,
-        name: l.customer_name,
-        company: l.customer_company,
-      }),
-      (l) => l.created_at,
-      (l) => l.id,
-    );
-  }, [leads, groupDupes]);
-  const uniqueLeadCount = leadGroups.length;
-  const mergedLeadCount = leads.length - uniqueLeadCount;
-
   // Interakt groups (over the currently paginated slice).
   const interaktGroups = useMemo(() => {
     if (!groupDupes) {
@@ -425,6 +405,26 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const pendingLeads = leads.filter(l => l.status === 'pending').length;
   const respondedLeads = leads.filter(l => l.status === 'responded').length;
   const convertedLeads = leads.filter(l => l.status === 'order_won' || l.status === 'moved_to_pipeline').length;
+
+  // Enquiries (All Leads tab) duplicate groups.
+  const leadGroups = useMemo(() => {
+    if (!groupDupes) {
+      return leads.map((l) => ({ primary: l, duplicates: [] as typeof leads, count: 1, key: l.id }));
+    }
+    return groupDuplicates(
+      leads,
+      (l) => ({
+        phone: (l as any).customer_phone,
+        email: (l as any).customer_email,
+        name: l.customer_name,
+        company: l.customer_company,
+      }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+  }, [leads, groupDupes]);
+  const uniqueLeadCount = leadGroups.length;
+  const mergedLeadCount = totalLeads - uniqueLeadCount;
 
   return (
     <Tabs defaultValue="all-inbox" className="space-y-6">
