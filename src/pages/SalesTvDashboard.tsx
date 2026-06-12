@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import {
   Trophy, Users, Award, DollarSign, Target, TrendingUp,
-  Phone, Mail, FileText, MessageSquare, Send, Pause, Play, Maximize,
+  Phone, Mail, FileText, MessageSquare, Send, Pause, Play, Maximize, X,
 } from "lucide-react";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { useLeadDistribution } from "@/hooks/useLeadDistribution";
@@ -21,6 +22,7 @@ const SCREEN_COUNT = 4;
 type Scope = "today" | "mtd";
 
 export default function SalesTvDashboard() {
+  const navigate = useNavigate();
   const [scope, setScope] = useState<Scope>("mtd");
   const [screen, setScreen] = useState(0); // 0..3
   const [paused, setPaused] = useState(false);
@@ -102,11 +104,13 @@ export default function SalesTvDashboard() {
         setPaused((p) => !p);
       } else if (e.key === "f" || e.key === "F") {
         toggleFullscreen();
+      } else if (e.key === "Escape") {
+        if (!document.fullscreenElement) navigate('/sales');
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [navigate]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
@@ -122,6 +126,18 @@ export default function SalesTvDashboard() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
+      {/* Exit button — always visible top-right */}
+      <button
+        onClick={() => {
+          if (document.fullscreenElement) document.exitFullscreen?.();
+          navigate('/sales');
+        }}
+        className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur px-4 py-2 text-sm font-semibold text-white/80 hover:text-white transition border border-white/10"
+        title="Exit TV View (Esc)"
+      >
+        <X className="w-4 h-4" /> Exit TV View
+      </button>
+
       <div className="h-screen w-screen flex flex-col p-6 gap-4">
         {/* Header */}
         <header className="flex items-center justify-between shrink-0">

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Users, Target, Award, DollarSign, Download, Loader2, Tv } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) 
   const { pipelineOrders } = usePipelineOrders();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const navigate = useNavigate();
 
   const totalLeads = leaderboard?.reduce((sum, e) => sum + e.leads_handled, 0) || 0;
   const totalOrders = leaderboard?.reduce((sum, e) => sum + e.orders_won, 0) || 0;
@@ -99,7 +101,7 @@ export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) 
         <div className="flex items-center gap-2">
           <IncludeWebsiteToggle />
           <Button
-            onClick={() => window.open('/sales/tv', '_blank', 'noopener,noreferrer')}
+            onClick={() => navigate('/sales/tv')}
             size="sm"
             variant="outline"
             className="gap-2"
