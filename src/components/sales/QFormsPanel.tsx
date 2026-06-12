@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format, startOfDay, subDays, isToday, isYesterday } from "date-fns";
 import {
   ChevronDown, ChevronRight, Search, X, Phone, PhoneOutgoing, Mail, MessageCircle,
-  UserCheck, Inbox, CheckCircle2, Flame, FileText, LayoutGrid, Table as TableIcon,
+  UserCheck, Inbox, CheckCircle2, Flame, FileText, LayoutGrid, Table as TableIcon, Layers,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
+import { groupDuplicates } from "@/lib/leadDeduplication";
 
 const FORM_TYPES = [
   "contact", "quote", "demo", "dealer", "newsletter", "popup",
@@ -135,6 +136,8 @@ export default function QFormsPanel() {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
+  const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
 
   const canManage = role === "admin" || role === "sales" || role === "sales_manager";
 
@@ -212,6 +215,31 @@ export default function QFormsPanel() {
         );
     return applyDispositionFilter(searched, includeDispositioned);
   }, [rows, search, includeDispositioned]);
+
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return filtered.map((r) => ({ primary: r, duplicates: [] as Lead[], count: 1, key: `single:${r.id}` }));
+    }
+    return groupDuplicates<Lead>(
+      filtered,
+      (r) => ({ phone: r.phone, email: r.email, name: r.name, company: r.company }),
+      (r) => r.submitted_at || r.created_at,
+      (r) => String(r.id),
+    );
+  }, [filtered, mergeDuplicates]);
+
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+  };
+
+  const mergedHiddenCount = useMemo(
+    () => dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0),
+    [dedupGroups],
+  );
 
   // Stats (computed on full rows ignoring search but respecting filters)
   const stats = useMemo(() => {
