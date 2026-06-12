@@ -491,8 +491,15 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                 <Users className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{totalLeads}</p>
-                <p className="text-xs text-muted-foreground">Total Leads</p>
+                <p className="text-2xl font-bold">{groupDupes ? uniqueLeadCount : totalLeads}</p>
+                <p className="text-xs text-muted-foreground">
+                  {groupDupes ? 'Unique Leads' : 'Total Leads'}
+                </p>
+                {groupDupes && mergedLeadCount > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {mergedLeadCount} duplicate{mergedLeadCount === 1 ? '' : 's'} merged
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
