@@ -39,6 +39,7 @@ import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 import { groupDuplicates } from "@/lib/leadDeduplication";
+import { DuplicateLeadsHistoryRow } from "./DuplicateLeadsHistoryRow";
 
 const FORM_TYPES = [
   "contact", "quote", "demo", "dealer", "newsletter", "popup",
@@ -754,38 +755,30 @@ export default function QFormsPanel() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {isMerged && dupeOpen && group.duplicates.map((d) => {
-                    const dSubmitted = d.submitted_at || d.created_at;
-                    const dSubmittedFmt = dSubmitted ? format(new Date(dSubmitted), "dd MMM, HH:mm") : "—";
-                    return (
-                      <TableRow
-                        key={`${group.key}-dup-${d.id}`}
-                        className="bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer text-xs"
-                        onClick={() => setDrawerLead(d)}
-                      >
-                        <TableCell className="w-8 px-2" />
-                        <TableCell className="text-[11px] text-muted-foreground">
-                          <Badge variant="outline" className="text-[10px]">duplicate</Badge>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">{dSubmittedFmt}</TableCell>
-                        <TableCell><Badge variant="outline" className="text-[10px]">{d.form_type ?? "—"}</Badge></TableCell>
-                        <TableCell className="font-medium">{d.name ?? "—"}</TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()} className="space-y-0.5">
-                          {d.email && <a className="text-primary hover:underline block" href={`mailto:${d.email}`}>{d.email}</a>}
-                          {d.phone && <a className="text-primary hover:underline block" href={`tel:${d.phone}`}>{d.phone}</a>}
-                          {!d.email && !d.phone && "—"}
-                        </TableCell>
-                        <TableCell>
-                          <div>{d.company ?? "—"}</div>
-                          <div className="text-muted-foreground">{d.location ?? ""}</div>
-                        </TableCell>
-                        <TableCell><Badge variant="outline" className={`text-[10px] ${TEMP_COLORS[d.lead_temperature] ?? ""}`}>{d.lead_temperature}</Badge></TableCell>
-                        <TableCell>{d.assigned_to_name ?? "—"}</TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">{relativeTime(d.last_contacted_at)}</TableCell>
-                        <TableCell><Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[d.status] ?? ""}`}>{d.status}</Badge></TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {isMerged && dupeOpen && (
+                    <DuplicateLeadsHistoryRow
+                      colSpan={11}
+                      headerLabel={r.phone || r.email || r.name || "this contact"}
+                      count={group.duplicates.length}
+                      entries={group.duplicates.map((d) => ({
+                        id: String(d.id),
+                        createdAt: d.submitted_at || d.created_at,
+                        name: d.name,
+                        phone: d.phone,
+                        email: d.email,
+                        company: d.company,
+                        city: d.location,
+                        product: d.subject || d.form_type,
+                        source: d.form_type,
+                        status: d.status,
+                        assignedTo: d.assigned_to_name,
+                      }))}
+                      onSelect={(e) => {
+                        const dup = group.duplicates.find((x) => String(x.id) === e.id);
+                        if (dup) setDrawerLead(dup);
+                      }}
+                    />
+                  )}
                 </React.Fragment>
               );
             })}
