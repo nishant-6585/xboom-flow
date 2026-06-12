@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { Fragment, useState, useRef, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,8 @@ import { TouchedDashboard } from './TouchedDashboard';
 import { UnifiedLeadInbox } from './UnifiedLeadInbox';
 import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
 import { Inbox } from 'lucide-react';
+import { groupDuplicates } from '@/lib/leadDeduplication';
+import { DuplicateCountBadge, DuplicateHistoryRow } from './DuplicateHistoryRow';
 
 function InboxNewBadge() {
   const { data } = useUnifiedLeadCounts();
@@ -141,6 +143,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
   const [logCallLead, setLogCallLead] = useState<InteraktLead | null>(null);
 
+  // Group duplicate leads (same phone / email / company+name) into a single row
+  // with an expandable history. Default ON so counts reflect unique contacts.
+  const [groupDupes, setGroupDupes] = useState(true);
+
   // Pagination for Interakt leads table
   const [interaktPage, setInteraktPage] = useState(1);
   const [interaktPageSize, setInteraktPageSize] = useState(50);
@@ -198,6 +204,49 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     interaktPageStart,
     interaktPageStart + interaktPageSize,
   );
+
+  // Enquiries (All Leads tab) groups.
+  const leadGroups = useMemo(() => {
+    if (!groupDupes) {
+      return leads.map((l) => ({ primary: l, duplicates: [] as typeof leads, count: 1, key: l.id }));
+    }
+    return groupDuplicates(
+      leads,
+      (l) => ({
+        phone: (l as any).customer_phone,
+        email: (l as any).customer_email,
+        name: l.customer_name,
+        company: l.customer_company,
+      }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+  }, [leads, groupDupes]);
+  const uniqueLeadCount = leadGroups.length;
+  const mergedLeadCount = leads.length - uniqueLeadCount;
+
+  // Interakt groups (over the currently paginated slice).
+  const interaktGroups = useMemo(() => {
+    if (!groupDupes) {
+      return paginatedInteraktLeads.map((l) => ({
+        primary: l,
+        duplicates: [] as typeof paginatedInteraktLeads,
+        count: 1,
+        key: l.id,
+      }));
+    }
+    return groupDuplicates(
+      paginatedInteraktLeads,
+      (l) => ({
+        phone: l.phone_number,
+        email: l.email,
+        name: l.customer_name,
+        company: l.company,
+      }),
+      (l) => l.interakt_created_at || l.created_at,
+      (l) => l.id,
+    );
+  }, [paginatedInteraktLeads, groupDupes]);
 
   // Check if user can see all leads (admin, supply_chain, or sales_manager)
   const canSeeAllLeads = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
