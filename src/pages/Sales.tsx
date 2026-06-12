@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,6 +43,7 @@ import { CalendarOff } from "lucide-react";
 export default function Sales() {
   const { role, roles } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isManager = role === 'admin' || role === 'supply_chain';
   const canAccessEnquiries = role === 'admin' || role === 'sales_manager';
   const canSeeAnalytics = role === 'admin' || role === 'sales_manager';
@@ -103,10 +104,10 @@ export default function Sales() {
             </div>
           </div>
           <Button
-            onClick={() => window.open('/sales/tv', '_blank', 'noopener,noreferrer')}
+            onClick={() => navigate('/sales/tv')}
             size="lg"
             className="gap-2 bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500 hover:opacity-90 text-white shadow-lg shadow-orange-500/30"
-            title="Open full-screen auto-rotating sales scoreboard in a new tab"
+            title="Open full-screen auto-rotating sales scoreboard"
           >
             <Tv className="w-5 h-5" />
             TV View
