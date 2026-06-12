@@ -17,7 +17,7 @@ import { useLeadDistribution } from "@/hooks/useLeadDistribution";
 
 const ROTATE_MS = 30_000;
 const REFRESH_MS = 5 * 60_000;
-const SCREEN_COUNT = 4;
+const SCREEN_COUNT = 8;
 
 type Scope = "today" | "mtd";
 
@@ -172,6 +172,10 @@ export default function SalesTvDashboard() {
             {screen === 1 && <LeaderboardScreen board={board} />}
             {screen === 2 && <LeadSourcesScreen dist={dist} />}
             {screen === 3 && <LeadDistributionScreen dist={dist} total={distData?.total ?? 0} />}
+            {screen === 4 && <FunnelScreen board={board} dist={dist} total={distData?.total ?? 0} />}
+            {screen === 5 && <RevenueRaceScreen board={board} />}
+            {screen === 6 && <PipelineRaceScreen board={board} />}
+            {screen === 7 && <SourceMixScreen dist={dist} />}
           </div>
         </main>
 
@@ -216,7 +220,16 @@ export default function SalesTvDashboard() {
   );
 }
 
-const SCREEN_LABELS = ["KPIs", "Top Performers", "Lead Sources", "Lead Distribution"];
+const SCREEN_LABELS = [
+  "KPIs",
+  "Top Performers",
+  "Lead Sources",
+  "Lead Distribution",
+  "Conversion Funnel",
+  "Revenue Race",
+  "Pipeline Race",
+  "Source Mix by Rep",
+];
 
 /* -------------------- helpers -------------------- */
 const fmtCr = (n: number) => `₹${(n / 10000000).toFixed(2)} Cr`;
