@@ -994,6 +994,15 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                   <Label htmlFor="interakt-show-all-dispositions" className="text-xs cursor-pointer">
                     Show all dispositions
                   </Label>
+                  <span className="mx-2 h-4 w-px bg-border" />
+                  <Switch
+                    id="interakt-group-duplicates"
+                    checked={groupDupes}
+                    onCheckedChange={setGroupDupes}
+                  />
+                  <Label htmlFor="interakt-group-duplicates" className="text-xs cursor-pointer">
+                    Group duplicates
+                  </Label>
                 </div>
               </div>
 
