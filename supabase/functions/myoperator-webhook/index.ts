@@ -151,12 +151,32 @@ Deno.serve(async (req) => {
         console.error('[myoperator-webhook] resolve_agent_user failed:', e);
       }
 
+      // Load active sales-team pool (role='sales', approved profiles). The
+      // receiving agent must belong to this pool — if not, we discard the
+      // resolution and randomly assign to one of the sales reps so the lead
+      // never ends up owned by a non-sales user.
+      const salesPool = await loadSalesPool(supabase);
+      let salesPersonNameOverride: string | null = null;
+      let assignmentReason: 'receiver_in_sales' | 'random_fallback' | 'unresolved' = 'unresolved';
+
+      if (resolvedSalesPersonId && salesPool.byId.has(resolvedSalesPersonId)) {
+        salesPersonNameOverride = salesPool.byId.get(resolvedSalesPersonId)!;
+        assignmentReason = 'receiver_in_sales';
+      } else if (salesPool.list.length > 0) {
+        // Either receiver not in sales team, or no resolution at all → random pick.
+        const pick = salesPool.list[Math.floor(Math.random() * salesPool.list.length)];
+        resolvedSalesPersonId = pick.user_id;
+        salesPersonNameOverride = pick.name;
+        assignmentReason = 'random_fallback';
+      }
+
       console.log('[myoperator-webhook] assignment debug', {
         agent_id: assignedAgentId,
         agent_phone: assignedAgentPhone,
         agent_name: assignedAgentName,
         resolved_user_id: resolvedSalesPersonId,
         fallback_used: resolverFallback,
+        assignment_reason: assignmentReason,
       });
 
       if (!resolvedSalesPersonId && (assignedAgentId || assignedAgentPhone)) {
@@ -220,6 +240,7 @@ Deno.serve(async (req) => {
             assigned_agent_name: agentDisplay,
             assigned_agent_phone: assignedAgentPhone,
             ...(resolvedSalesPersonId ? { sales_person_id: resolvedSalesPersonId } : {}),
+            ...(salesPersonNameOverride ? { sales_person_name: salesPersonNameOverride } : {}),
             department,
             start_time: startTime,
             end_time: endTime,
@@ -254,6 +275,7 @@ Deno.serve(async (req) => {
           assigned_agent_name: agentDisplay,
           assigned_agent_phone: assignedAgentPhone,
           sales_person_id: resolvedSalesPersonId,
+          sales_person_name: salesPersonNameOverride,
           call_status: callStatus,
           call_duration: duration,
           call_type: callType,
@@ -304,7 +326,7 @@ Deno.serve(async (req) => {
               product_category: 'General',
               quantity: 1,
               urgency: 'normal',
-              sales_person_name: agentDisplay || 'Unassigned',
+              sales_person_name: salesPersonNameOverride || agentDisplay || 'Unassigned',
               sales_person_id: resolvedSalesPersonId,
               status: 'new',
               notes: [
