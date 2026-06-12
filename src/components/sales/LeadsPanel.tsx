@@ -1030,8 +1030,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedInteraktLeads.map((lead) => (
-                          <TableRow key={lead.id} className={touchedRowCn(isRowTouched('interakt', lead, engagedInteraktIds), "cursor-pointer")} onClick={() => setInteraktDrawerLead(lead)}>
+                        {interaktGroups.map((group) => {
+                          const lead = group.primary;
+                          return (
+                          <Fragment key={group.key}>
+                          <TableRow className={touchedRowCn(isRowTouched('interakt', lead, engagedInteraktIds), "cursor-pointer")} onClick={() => setInteraktDrawerLead(lead)}>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <LeadActionsCell
                                 sourceType="interakt"
@@ -1062,7 +1065,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                               />
                             </TableCell>
                             <TableCell>
-                              <p className="font-medium">{lead.customer_name}</p>
+                              <p className="font-medium flex items-center">
+                                <span>{lead.customer_name}</span>
+                                <DuplicateCountBadge count={group.count} />
+                              </p>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1.5">
@@ -1139,7 +1145,22 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          <DuplicateHistoryRow
+                            count={group.count}
+                            colSpan={12}
+                            entries={group.duplicates.map((d) => ({
+                              id: d.id,
+                              source: 'Interakt',
+                              sourceChipClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+                              status: d.status,
+                              assignedTo: d.sales_person_name,
+                              createdAt: d.interakt_created_at || d.created_at,
+                              note: d.product_name || d.notes,
+                            }))}
+                          />
+                          </Fragment>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
