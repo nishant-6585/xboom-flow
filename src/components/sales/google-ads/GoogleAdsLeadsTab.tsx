@@ -319,7 +319,11 @@ export function GoogleAdsLeadsTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedLeads.map((lead) => {
+                  {dedupGroups.map((group) => {
+                    const lead = group.primary;
+                    const dupCount = group.count;
+                    const isMerged = dupCount > 1;
+                    const dupeOpen = expandedDupes.has(group.key);
                     const phone = getPhone(lead);
                     const email = getEmail(lead);
                     const city = getCity(lead);
@@ -327,9 +331,9 @@ export function GoogleAdsLeadsTab() {
                     const priority = getLeadPriority(lead, subFields);
 
                     return (
+                      <React.Fragment key={`g-${group.key}`}>
                       <TableRow
-                        key={lead.id}
-                        className={`cursor-pointer transition-colors ${lead.is_converted ? "bg-emerald-500/5" : isAging(lead) ? "bg-amber-500/5" : ""}`}
+                        className={`cursor-pointer transition-colors ${lead.is_converted ? "bg-emerald-500/5" : isAging(lead) ? "bg-amber-500/5" : ""} ${isMerged ? "border-l-2 border-l-amber-500/70" : ""}`}
                         onClick={() => setSelectedLead(lead)}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -364,9 +368,19 @@ export function GoogleAdsLeadsTab() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-0.5">
-                            <div className="font-medium flex items-center gap-1.5">
+                            <div className="font-medium flex items-center gap-1.5 flex-wrap">
                               <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                               {lead.customer_name !== "Unknown" ? lead.customer_name : "Not provided"}
+                              {isMerged && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
+                                  className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                                  title={`${dupCount} entries merged`}
+                                >
+                                  <Layers className="h-3 w-3" />×{dupCount} {dupeOpen ? "hide" : "history"}
+                                </button>
+                              )}
                             </div>
                             {lead.customer_company !== "Unknown" && (
                               <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -456,6 +470,35 @@ export function GoogleAdsLeadsTab() {
                           </div>
                         </TableCell>
                       </TableRow>
+                      {isMerged && dupeOpen && group.duplicates.map((d) => {
+                        const dPhone = getPhone(d);
+                        const dEmail = getEmail(d);
+                        const dCity = getCity(d);
+                        return (
+                          <TableRow
+                            key={`${group.key}-dup-${d.id}`}
+                            className="bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer text-xs"
+                            onClick={() => setSelectedLead(d)}
+                          >
+                            <TableCell><Badge variant="outline" className="text-[10px]">duplicate</Badge></TableCell>
+                            <TableCell className="font-medium">{d.customer_name}</TableCell>
+                            <TableCell>
+                              {dPhone && <div className="flex items-center gap-1 text-muted-foreground"><Phone className="w-3 h-3" />{dPhone}</div>}
+                              {dEmail && <div className="flex items-center gap-1 text-muted-foreground truncate max-w-[140px]"><Mail className="w-3 h-3" />{dEmail}</div>}
+                            </TableCell>
+                            <TableCell>{dCity || "—"}</TableCell>
+                            <TableCell>{d.product_name}</TableCell>
+                            <TableCell className="truncate max-w-[120px]">{d.campaign_name || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground">{d.sales_person_name || "—"}</TableCell>
+                            <TableCell />
+                            <TableCell>{d.is_converted ? "✓ Converted" : "Not Converted"}</TableCell>
+                            <TableCell className="text-right">{d.conversion_value > 0 ? `₹${d.conversion_value.toLocaleString("en-IN")}` : "—"}</TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">{format(new Date(d.created_at), "dd MMM yyyy")}</TableCell>
+                            <TableCell />
+                          </TableRow>
+                        );
+                      })}
+                      </React.Fragment>
                     );
                   })}
                 </TableBody>
