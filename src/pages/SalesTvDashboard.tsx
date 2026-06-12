@@ -1,48 +1,335 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { Trophy, Users, Award, DollarSign, Target, TrendingUp, Phone, Mail, FileText, MessageSquare, Send } from "lucide-react";
+import {
+  Trophy, Users, Award, DollarSign, Target, TrendingUp,
+  Phone, Mail, FileText, MessageSquare, Send, Pause, Play, Maximize,
+} from "lucide-react";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { useLeadDistribution } from "@/hooks/useLeadDistribution";
 
-/**
- * Concise Sales Dashboard, optimized for a 55" TV (1920x1080).
- * Dark, high-contrast, auto-refreshing every 60s. No nav chrome.
- */
+/* ============================================================
+   TV View — Auto-rotating Sales Scoreboard
+   - 4 screens, 30s each
+   - Alternates Today ↔ MTD each cycle
+   - Dark stadium look, optimized for 55" TV (1920x1080)
+   ============================================================ */
+
+const ROTATE_MS = 30_000;
+const REFRESH_MS = 5 * 60_000;
+const SCREEN_COUNT = 4;
+
+type Scope = "today" | "mtd";
+
 export default function SalesTvDashboard() {
-  const now = new Date();
-  const start = format(startOfMonth(now), "yyyy-MM-dd");
-  const end = format(endOfMonth(now), "yyyy-MM-dd");
+  const [scope, setScope] = useState<Scope>("mtd");
+  const [screen, setScreen] = useState(0); // 0..3
+  const [paused, setPaused] = useState(false);
+  const [tick, setTick] = useState(0); // forces refetch every REFRESH_MS
+  const [clock, setClock] = useState(new Date());
+  const [progress, setProgress] = useState(0); // 0..1 within current screen
+  const startRef = useRef<number>(Date.now());
+
+  // Date range per scope
+  const { start, end } = useMemo(() => {
+    const now = new Date();
+    if (scope === "today") {
+      const d = format(now, "yyyy-MM-dd");
+      return { start: d, end: d };
+    }
+    return {
+      start: format(startOfMonth(now), "yyyy-MM-dd"),
+      end: format(endOfMonth(now), "yyyy-MM-dd"),
+    };
+  }, [scope, tick]);
 
   const { leaderboard } = useSalesLeaderboard(start, end);
   const { data: distData } = useLeadDistribution(start, end);
 
-  const [clock, setClock] = useState(new Date());
+  // Clock
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Auto refresh entire page every 5 minutes to keep data fresh
+  // Data refresh
   useEffect(() => {
-    const t = setInterval(() => window.location.reload(), 5 * 60 * 1000);
+    const t = setInterval(() => setTick((n) => n + 1), REFRESH_MS);
     return () => clearInterval(t);
   }, []);
 
+  // Rotation + progress
+  useEffect(() => {
+    if (paused) return;
+    startRef.current = Date.now();
+    setProgress(0);
+    const progT = setInterval(() => {
+      const elapsed = Date.now() - startRef.current;
+      setProgress(Math.min(1, elapsed / ROTATE_MS));
+    }, 200);
+    const rotT = setTimeout(() => {
+      advance(1);
+    }, ROTATE_MS);
+    return () => {
+      clearInterval(progT);
+      clearTimeout(rotT);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, scope, paused]);
+
+  const advance = (dir: 1 | -1) => {
+    setScreen((s) => {
+      const next = s + dir;
+      if (next >= SCREEN_COUNT) {
+        // finished cycle — flip scope
+        setScope((sc) => (sc === "today" ? "mtd" : "today"));
+        return 0;
+      }
+      if (next < 0) {
+        setScope((sc) => (sc === "today" ? "mtd" : "today"));
+        return SCREEN_COUNT - 1;
+      }
+      return next;
+    });
+  };
+
+  // Keyboard
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") advance(1);
+      else if (e.key === "ArrowLeft") advance(-1);
+      else if (e.code === "Space") {
+        e.preventDefault();
+        setPaused((p) => !p);
+      } else if (e.key === "f" || e.key === "F") {
+        toggleFullscreen();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  };
+
   const board = leaderboard ?? [];
-  const totalLeads = board.reduce((s, e) => s + e.leads_handled, 0);
-  const totalOrders = board.reduce((s, e) => s + e.orders_won, 0);
-  const totalPipeline = board.reduce((s, e) => s + Number(e.total_pipeline_value), 0);
-  const totalPoints = board.reduce((s, e) => s + e.total_points, 0);
-  const totalOrderValue = board.reduce((s, e) => s + Number(e.total_order_value || 0), 0);
-  const conversionRate = totalLeads > 0 ? Math.round((totalOrders / totalLeads) * 100) : 0;
+  const dist = distData?.data ?? [];
 
-  const top5 = [...board].sort((a, b) => b.total_points - a.total_points).slice(0, 5);
-  const distribution = (distData?.data ?? []).slice(0, 6);
-  const grandLeads = distData?.total ?? 0;
+  return (
+    <div
+      className="min-h-screen w-screen bg-[#05060a] text-white overflow-hidden select-none"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="h-screen w-screen flex flex-col p-6 gap-4">
+        {/* Header */}
+        <header className="flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 shadow-lg shadow-orange-500/30">
+              <Trophy className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-amber-300 via-orange-400 to-pink-400 bg-clip-text text-transparent">
+                XBoom Sales Arena
+              </h1>
+              <p className="text-sm text-white/60 mt-1 uppercase tracking-[3px]">
+                Live Scoreboard
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <ScopeChip scope={scope} start={start} end={end} />
+            <div className="text-right">
+              <div className="text-4xl font-bold font-mono tabular-nums">
+                {format(clock, "HH:mm:ss")}
+              </div>
+              <div className="text-xs text-white/50 mt-1">{format(clock, "EEEE, dd MMM yyyy")}</div>
+            </div>
+          </div>
+        </header>
 
-  // Aggregated source totals
-  const sourceTotals = (distData?.data ?? []).reduce(
-    (acc, e) => {
+        {/* Current Screen */}
+        <main className="flex-1 min-h-0 relative">
+          <div key={`${scope}-${screen}`} className="absolute inset-0 animate-fade-in">
+            {screen === 0 && <KpiScreen board={board} />}
+            {screen === 1 && <LeaderboardScreen board={board} />}
+            {screen === 2 && <LeadSourcesScreen dist={dist} />}
+            {screen === 3 && <LeadDistributionScreen dist={dist} total={distData?.total ?? 0} />}
+          </div>
+        </main>
+
+        {/* Footer strip */}
+        <footer className="shrink-0 flex items-center justify-between gap-6 px-2">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[3px] text-white/40">
+            {paused ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            {paused ? "Paused" : "Auto-rotating · 30s"}
+            <span className="text-white/20">·</span>
+            <button onClick={toggleFullscreen} className="flex items-center gap-1 hover:text-white/80 transition">
+              <Maximize className="w-3.5 h-3.5" /> Fullscreen (F)
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 flex-1 max-w-2xl">
+            <div className="flex items-center gap-2">
+              {Array.from({ length: SCREEN_COUNT }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-2 rounded-full transition-all ${
+                    i === screen
+                      ? "w-8 bg-gradient-to-r from-amber-300 to-pink-400 shadow-[0_0_10px_rgba(251,191,36,0.6)]"
+                      : "w-2 bg-white/15"
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="flex-1 h-1 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-300 to-pink-500 transition-[width] duration-200 ease-linear"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="text-xs uppercase tracking-[3px] text-white/40">
+            {SCREEN_LABELS[screen]} · {scope === "today" ? "TODAY" : "MTD"}
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+const SCREEN_LABELS = ["KPIs", "Top Performers", "Lead Sources", "Lead Distribution"];
+
+/* -------------------- helpers -------------------- */
+const fmtCr = (n: number) => `₹${(n / 10000000).toFixed(2)} Cr`;
+const fmtL = (n: number) => `₹${(n / 100000).toFixed(1)} L`;
+
+function ScopeChip({ scope, start, end }: { scope: Scope; start: string; end: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-full bg-white/[0.06] border border-white/10 px-4 py-2">
+      <span className={`h-2.5 w-2.5 rounded-full ${scope === "today" ? "bg-emerald-400 animate-pulse" : "bg-cyan-400"}`} />
+      <span className="text-xs uppercase tracking-[3px] font-semibold">
+        {scope === "today" ? "Today" : "Month-to-Date"}
+      </span>
+      <span className="text-xs text-white/40 ml-1">
+        {scope === "today"
+          ? format(new Date(start), "dd MMM")
+          : `${format(new Date(start), "dd MMM")} – ${format(new Date(end), "dd MMM")}`}
+      </span>
+    </div>
+  );
+}
+
+/* ============================================================
+   Screen 1 — Headline KPIs
+   ============================================================ */
+function KpiScreen({ board }: { board: ReturnType<typeof useSalesLeaderboard>["leaderboard"] }) {
+  const list = board ?? [];
+  const totalLeads = list.reduce((s, e) => s + e.leads_handled, 0);
+  const totalOrders = list.reduce((s, e) => s + e.orders_won, 0);
+  const totalPipeline = list.reduce((s, e) => s + Number(e.total_pipeline_value), 0);
+  const totalPoints = list.reduce((s, e) => s + e.total_points, 0);
+  const totalOrderValue = list.reduce((s, e) => s + Number(e.total_order_value || 0), 0);
+  const conv = totalLeads > 0 ? Math.round((totalOrders / totalLeads) * 100) : 0;
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90">Headline Metrics</h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">The numbers that matter, right now</p>
+      </div>
+      <div className="flex-1 grid grid-cols-5 gap-5">
+        <BigKpi icon={Users} label="Team Leads" value={totalLeads.toLocaleString()} from="from-blue-500" to="to-cyan-500" />
+        <BigKpi icon={Award} label="Orders Won" value={totalOrders.toLocaleString()} from="from-emerald-500" to="to-green-600" sub={`${conv}% conversion`} />
+        <BigKpi icon={DollarSign} label="Order Value" value={fmtCr(totalOrderValue)} from="from-purple-500" to="to-fuchsia-600" />
+        <BigKpi icon={TrendingUp} label="Pipeline" value={fmtCr(totalPipeline)} from="from-pink-500" to="to-rose-600" />
+        <BigKpi icon={Target} label="Team Points" value={totalPoints.toLocaleString()} from="from-amber-500" to="to-orange-600" />
+      </div>
+    </div>
+  );
+}
+
+function BigKpi({
+  icon: Icon, label, value, from, to, sub,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string; value: string; from: string; to: string; sub?: string;
+}) {
+  return (
+    <div className={`relative overflow-hidden rounded-3xl p-8 bg-gradient-to-br ${from} ${to} shadow-2xl flex flex-col justify-between`}>
+      <div className="absolute -right-8 -top-8 opacity-20">
+        <Icon className="w-44 h-44" />
+      </div>
+      <div className="flex items-center gap-2 text-white/90">
+        <Icon className="w-6 h-6" />
+        <span className="text-sm uppercase tracking-[3px] font-bold">{label}</span>
+      </div>
+      <div>
+        <div className="text-6xl xl:text-7xl font-black tabular-nums leading-none">{value}</div>
+        {sub && <div className="text-sm text-white/80 mt-3 font-semibold">{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Screen 2 — Leaderboard
+   ============================================================ */
+function LeaderboardScreen({ board }: { board: ReturnType<typeof useSalesLeaderboard>["leaderboard"] }) {
+  const top5 = [...(board ?? [])].sort((a, b) => b.total_points - a.total_points).slice(0, 5);
+  const accents = [
+    "from-amber-300 to-yellow-600 text-black",
+    "from-slate-200 to-slate-400 text-black",
+    "from-orange-400 to-amber-700 text-white",
+    "from-white/10 to-white/5 text-white",
+    "from-white/10 to-white/5 text-white",
+  ];
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <Trophy className="w-8 h-8 text-amber-400" /> Top Performers
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">Ranked by sales points</p>
+      </div>
+      <div className="flex-1 grid grid-rows-5 gap-3 min-h-0">
+        {top5.length === 0 && (
+          <div className="flex items-center justify-center text-white/40 text-2xl">No activity yet</div>
+        )}
+        {top5.map((e, i) => (
+          <div
+            key={e.user_id}
+            className="flex items-center gap-6 rounded-2xl bg-white/[0.04] border border-white/10 px-6 py-3"
+          >
+            <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${accents[i]} flex items-center justify-center font-black text-5xl shadow-xl`}>
+              {i + 1}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-3xl font-bold truncate">{e.user_name || "Unknown"}</div>
+              <div className="text-sm text-white/50 mt-1">
+                {e.leads_handled} leads handled · {e.orders_won} orders won · {fmtL(Number(e.total_order_value || 0))} revenue
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-5xl font-black text-amber-300 tabular-nums">{e.total_points.toLocaleString()}</div>
+              <div className="text-[10px] uppercase tracking-[3px] text-white/40">points</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Screen 3 — Lead Sources
+   ============================================================ */
+function LeadSourcesScreen({ dist }: { dist: ReturnType<typeof useLeadDistribution>["data"] extends infer T ? any : any }) {
+  const totals = (dist ?? []).reduce(
+    (acc: any, e: any) => {
       acc.enquiry += e.sources.enquiry;
       acc.call += e.sources.call;
       acc.form += e.sources.form;
@@ -52,197 +339,109 @@ export default function SalesTvDashboard() {
     },
     { enquiry: 0, call: 0, form: 0, email: 0, interakt: 0 },
   );
+  const grand = totals.enquiry + totals.call + totals.form + totals.email + totals.interakt;
 
-  const fmtCr = (n: number) => `₹${(n / 10000000).toFixed(2)} Cr`;
-  const fmtL = (n: number) => `₹${(n / 100000).toFixed(1)} L`;
+  const cards = [
+    { key: "enquiry", label: "Enquiries", icon: MessageSquare, value: totals.enquiry, from: "from-cyan-500", to: "to-blue-600" },
+    { key: "call", label: "Calls", icon: Phone, value: totals.call, from: "from-emerald-500", to: "to-teal-600" },
+    { key: "form", label: "Forms", icon: FileText, value: totals.form, from: "from-purple-500", to: "to-violet-600" },
+    { key: "email", label: "Email", icon: Mail, value: totals.email, from: "from-pink-500", to: "to-rose-600" },
+    { key: "interakt", label: "WhatsApp", icon: Send, value: totals.interakt, from: "from-amber-500", to: "to-orange-600" },
+  ];
 
   return (
-    <div className="min-h-screen w-screen bg-[#05060a] text-white overflow-hidden">
-      <div className="h-screen w-screen flex flex-col p-6 gap-5">
-        {/* Header */}
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 shadow-lg shadow-orange-500/30">
-              <Trophy className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-amber-300 via-orange-400 to-pink-400 bg-clip-text text-transparent">
-                XBoom Sales Arena
-              </h1>
-              <p className="text-base text-white/60 mt-1 uppercase tracking-[3px]">
-                Live Dashboard · {format(now, "MMMM yyyy")}
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-5xl font-bold font-mono tabular-nums">
-              {format(clock, "HH:mm:ss")}
-            </div>
-            <div className="text-sm text-white/50 mt-1">{format(clock, "EEEE, dd MMM yyyy")}</div>
-          </div>
-        </header>
-
-        {/* KPI strip */}
-        <div className="grid grid-cols-5 gap-4">
-          <KpiTile icon={Users} label="Team Leads" value={totalLeads.toLocaleString()} from="from-blue-500" to="to-cyan-500" />
-          <KpiTile icon={Award} label="Orders Won" value={totalOrders.toLocaleString()} from="from-emerald-500" to="to-green-600" sub={`${conversionRate}% conv.`} />
-          <KpiTile icon={DollarSign} label="Order Value" value={fmtCr(totalOrderValue)} from="from-purple-500" to="to-fuchsia-600" />
-          <KpiTile icon={TrendingUp} label="Pipeline" value={fmtCr(totalPipeline)} from="from-pink-500" to="to-rose-600" />
-          <KpiTile icon={Target} label="Team Points" value={totalPoints.toLocaleString()} from="from-amber-500" to="to-orange-600" />
-        </div>
-
-        {/* Body grid */}
-        <div className="grid grid-cols-3 gap-5 flex-1 min-h-0">
-          {/* Leaderboard */}
-          <section className="col-span-2 bg-white/[0.04] border border-white/10 rounded-2xl p-5 flex flex-col min-h-0">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Trophy className="w-6 h-6 text-amber-400" />
-                Top Performers
-              </h2>
-              <span className="text-xs uppercase tracking-widest text-white/50">
-                {board.length} reps · {format(new Date(start), "dd MMM")} - {format(new Date(end), "dd MMM")}
-              </span>
-            </div>
-            <div className="flex-1 grid grid-rows-5 gap-2 min-h-0">
-              {top5.length === 0 && (
-                <div className="flex items-center justify-center text-white/40 text-lg">No activity yet this month</div>
-              )}
-              {top5.map((e, i) => {
-                const accents = [
-                  "from-amber-400 to-yellow-600 text-black",
-                  "from-slate-300 to-slate-500 text-black",
-                  "from-orange-400 to-amber-700 text-white",
-                  "from-white/10 to-white/5 text-white",
-                  "from-white/10 to-white/5 text-white",
-                ];
-                return (
-                  <div
-                    key={e.user_id}
-                    className="flex items-center gap-4 rounded-xl bg-white/[0.03] border border-white/5 px-4 py-2"
-                  >
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${accents[i]} flex items-center justify-center font-black text-2xl shadow-lg`}>
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xl font-semibold truncate">{e.user_name || "Unknown"}</div>
-                      <div className="text-xs text-white/50 mt-0.5">
-                        {e.leads_handled} leads · {e.orders_won} won · {fmtL(Number(e.total_order_value || 0))} orders
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-black text-amber-300 tabular-nums">{e.total_points.toLocaleString()}</div>
-                      <div className="text-[10px] uppercase tracking-widest text-white/40">points</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Right column */}
-          <section className="flex flex-col gap-5 min-h-0">
-            {/* Lead sources */}
-            <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-5">
-              <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-                <Send className="w-5 h-5 text-cyan-400" />
-                Lead Sources ({grandLeads})
-              </h2>
-              <div className="grid grid-cols-5 gap-2">
-                <SourcePill icon={MessageSquare} label="Enquiry" value={sourceTotals.enquiry} color="text-cyan-300" />
-                <SourcePill icon={Phone} label="Calls" value={sourceTotals.call} color="text-emerald-300" />
-                <SourcePill icon={FileText} label="Forms" value={sourceTotals.form} color="text-purple-300" />
-                <SourcePill icon={Mail} label="Email" value={sourceTotals.email} color="text-pink-300" />
-                <SourcePill icon={MessageSquare} label="Interakt" value={sourceTotals.interakt} color="text-amber-300" />
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <Send className="w-7 h-7 text-cyan-400" /> Lead Sources
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">
+          {grand.toLocaleString()} total leads · channel breakdown
+        </p>
+      </div>
+      <div className="flex-1 grid grid-cols-5 gap-5">
+        {cards.map((c) => {
+          const pct = grand > 0 ? Math.round((c.value / grand) * 100) : 0;
+          const Icon = c.icon;
+          return (
+            <div
+              key={c.key}
+              className={`relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br ${c.from} ${c.to} shadow-2xl flex flex-col justify-between`}
+            >
+              <div className="absolute -right-6 -top-6 opacity-15">
+                <Icon className="w-36 h-36" />
+              </div>
+              <div className="flex items-center gap-2 text-white/90">
+                <Icon className="w-5 h-5" />
+                <span className="text-xs uppercase tracking-[3px] font-bold">{c.label}</span>
+              </div>
+              <div>
+                <div className="text-7xl font-black tabular-nums leading-none">{c.value.toLocaleString()}</div>
+                <div className="text-sm text-white/80 mt-3 font-semibold">{pct}% of total</div>
+                <div className="mt-2 h-1.5 rounded-full bg-black/30 overflow-hidden">
+                  <div className="h-full bg-white/80 rounded-full" style={{ width: `${pct}%` }} />
+                </div>
               </div>
             </div>
-
-            {/* Distribution by salesperson */}
-            <div className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl p-5 flex flex-col min-h-0">
-              <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-400" />
-                Lead Distribution
-              </h2>
-              <div className="flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
-                {distribution.length === 0 && (
-                  <div className="flex items-center justify-center text-white/40 text-sm flex-1">No leads yet</div>
-                )}
-                {distribution.map((d) => {
-                  const pct = grandLeads > 0 ? Math.round((d.leads / grandLeads) * 100) : 0;
-                  return (
-                    <div key={d.key}>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="font-medium truncate">{d.name}</span>
-                        <span className="text-white/60 tabular-nums">{d.leads} · {pct}%</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <footer className="text-center text-xs text-white/30 uppercase tracking-[4px]">
-          Auto-refresh every 5 min · XBoom Workflow
-        </footer>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function KpiTile({
-  icon: Icon,
-  label,
-  value,
-  from,
-  to,
-  sub,
+/* ============================================================
+   Screen 4 — Lead Distribution by Rep
+   ============================================================ */
+function LeadDistributionScreen({
+  dist, total,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  from: string;
-  to: string;
-  sub?: string;
+  dist: any[]; total: number;
 }) {
-  return (
-    <div className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${from} ${to} shadow-xl`}>
-      <div className="absolute -right-6 -top-6 opacity-20">
-        <Icon className="w-24 h-24" />
-      </div>
-      <div className="flex items-center gap-2 mb-2 text-white/90">
-        <Icon className="w-5 h-5" />
-        <span className="text-xs uppercase tracking-[2px] font-semibold">{label}</span>
-      </div>
-      <div className="text-4xl font-black tabular-nums">{value}</div>
-      {sub && <div className="text-xs text-white/80 mt-1">{sub}</div>}
-    </div>
-  );
-}
+  const top = (dist ?? []).slice(0, 6);
 
-function SourcePill({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  color: string;
-}) {
   return (
-    <div className="rounded-xl bg-white/[0.04] border border-white/10 p-3 text-center">
-      <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
-      <div className="text-xl font-bold tabular-nums">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">{label}</div>
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <Users className="w-7 h-7 text-blue-400" /> Lead Distribution
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">
+          {total.toLocaleString()} leads · share by sales person
+        </p>
+      </div>
+      <div className="flex-1 grid gap-3 min-h-0" style={{ gridTemplateRows: `repeat(${Math.max(top.length, 1)}, minmax(0, 1fr))` }}>
+        {top.length === 0 && (
+          <div className="flex items-center justify-center text-white/40 text-2xl">No leads yet</div>
+        )}
+        {top.map((d) => {
+          const pct = total > 0 ? Math.round((d.leads / total) * 100) : 0;
+          return (
+            <div key={d.key} className="rounded-2xl bg-white/[0.04] border border-white/10 px-6 py-4 flex flex-col justify-center gap-2">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold truncate">{d.name}</div>
+                <div className="flex items-baseline gap-3">
+                  <div className="text-4xl font-black tabular-nums">{d.leads}</div>
+                  <div className="text-lg text-white/50 tabular-nums">{pct}%</div>
+                </div>
+              </div>
+              <div className="h-3 rounded-full bg-white/5 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 rounded-full transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/40">
+                {d.sources.enquiry > 0 && <span>Enq {d.sources.enquiry}</span>}
+                {d.sources.call > 0 && <span>· Calls {d.sources.call}</span>}
+                {d.sources.form > 0 && <span>· Forms {d.sources.form}</span>}
+                {d.sources.email > 0 && <span>· Email {d.sources.email}</span>}
+                {d.sources.interakt > 0 && <span>· WA {d.sources.interakt}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

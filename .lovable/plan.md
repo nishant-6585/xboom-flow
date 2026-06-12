@@ -1,69 +1,54 @@
-# Implementation Process Section — HR Portal
+## TV View — Auto-Rotating Sales Scoreboard
 
-Add a new "Process Docs" tab under the HR portal where HR/Admin can upload, organize, and share internal process documents (SOPs, policies, manuals, etc.) for company-wide reference.
+A full-screen, kiosk-style dashboard that cycles through 4 metric screens automatically (30s each), styled like a sports stadium scoreboard. Opens in a new browser tab from a button on the Sales dashboard.
 
-## Scope
+### Entry point
+- Rename the existing `TV Dashboard` button in `ManagerDashboard.tsx` (top header, next to Download PDF) to **TV View** with a `Tv` icon.
+- Click opens `/sales/tv` in a new tab (`window.open(..., '_blank')`).
+- The new tab is chrome-free (no app header, no sidebar) — pure scoreboard.
 
-- New tab `Process Docs` in `src/pages/HR.tsx` (visible to all employees; upload/edit/delete restricted to HR/Admin).
-- Dedicated panel listing process documents with search, category filter, preview, and download.
-- Private storage bucket with signed URLs (no public access).
-- Activity logged to existing audit/domain events.
+### Route
+- New route `/sales/tv` in `App.tsx`, wrapped in `ProtectedRoute` (auth required).
+- Page component replaces the current static `SalesTvDashboard.tsx` with a rotating carousel.
 
-## Data Model
+### Screens (4, rotating every 30 s)
+Each screen fills 1920×1080, optimized for a 55" TV. Bottom strip shows screen indicator dots, date-scope label (TODAY / MTD), live clock, and a thin animated progress bar showing time-until-next-screen.
 
-New table `public.hr_process_documents`:
-- `title` (text, required)
-- `description` (text, optional)
-- `category` (text — e.g. Onboarding, Payroll, IT, Sales, Finance, General)
-- `file_path` (text — storage key in `hr-process-docs` bucket)
-- `file_name`, `file_size`, `mime_type`
-- `version` (int, default 1) + `is_active` (bool, default true) to support new versions while keeping history
-- `uploaded_by` (uuid → profiles), standard `created_at` / `updated_at`
+1. **Headline KPIs** — five hero tiles in one row: Team Leads, Orders Won (+conv %), Order Value (₹ Cr), Pipeline (₹ Cr), Team Points. Big numbers, neon gradients per tile.
+2. **Top Performers Leaderboard** — top 5 reps with podium-style rank badges (gold/silver/bronze), name, points, orders won, order value.
+3. **Lead Sources** — five large pill cards (Enquiry, Calls, Forms, Email, Interakt) with counts + share-of-total bar.
+4. **Lead Distribution by Rep** — horizontal bar chart of top 6 reps with leads count, % share, and source breakdown chips.
 
-RLS:
-- SELECT: all authenticated employees (`is_active = true` rows only for non-HR/Admin; HR/Admin see all)
-- INSERT / UPDATE / DELETE: only `has_role(auth.uid(), 'admin')` or `has_role(auth.uid(), 'hr')`
-- GRANTs to `authenticated` and `service_role`
+### Date scope toggle (Today ↔ MTD)
+- The full 4-screen cycle runs once for **Today**, then once for **MTD**, then repeats.
+- Current scope is shown prominently in the header chip and in the bottom strip.
+- Uses existing `useSalesLeaderboard(startDate, endDate)` and `useLeadDistribution(startDate, endDate)` — both already accept date ranges; we just re-key them per scope.
 
-## Storage
+### Style — Dark stadium
+- Pure black background (`#05060a`), neon gradient tiles (cyan/emerald/purple/pink/amber), monospaced tabular numbers.
+- Cross-fade transition between screens (`animate-fade-in` / `animate-fade-out`, 600ms).
+- Subtle pulsing accents on KPI tiles.
+- Screen indicator dots at the bottom; active dot glows.
 
-- New private bucket `hr-process-docs` (created via storage tool)
-- RLS on `storage.objects`:
-  - SELECT: authenticated users (read via signed URLs only)
-  - INSERT / UPDATE / DELETE: HR/Admin only
-- Reuse `validateFile` with new `documents` context (already permits PDF/Word/Excel/PowerPoint/images, 20 MB cap)
+### Auto behavior
+- Rotates every **30 seconds**.
+- Full data refresh every **5 minutes** (re-queries hooks, no page reload).
+- Live clock ticks every second.
+- Pauses rotation on hover (so someone walking up can study a screen); resumes on mouse leave.
+- Keyboard: `←` / `→` to manually step, `Space` to pause/resume, `F` to toggle browser fullscreen.
 
-## UI
+### Files
+- **Edit** `src/components/sales/ManagerDashboard.tsx` — rename button to "TV View".
+- **Rewrite** `src/pages/SalesTvDashboard.tsx` — carousel orchestrator: scope toggle, timer, key handlers, screen renderer.
+- **New** `src/pages/sales-tv/` directory with one component per screen:
+  - `KpiScreen.tsx`
+  - `LeaderboardScreen.tsx`
+  - `LeadSourcesScreen.tsx`
+  - `LeadDistributionScreen.tsx`
+  - `TvFooter.tsx` (dots, clock, progress, scope chip)
+- **No** changes to App.tsx routes (existing `/sales/tv` route is kept).
+- **No** backend / DB changes — reuses existing hooks.
 
-New file `src/components/hr/ProcessDocumentsPanel.tsx`:
-- Header with search box + category filter dropdown + "Upload Document" button (HR/Admin only)
-- Card grid: title, category badge, description, uploaded-by + date, version, file size
-- Actions per card: Preview (opens signed URL in new tab), Download, Replace/New Version (HR/Admin), Edit metadata (HR/Admin), Delete (HR/Admin, soft via `is_active=false`)
-- Upload dialog: title, category (select with predefined + custom), description, file picker (validated via `validateFile`)
-- Empty state with friendly illustration/text
-
-New hook `src/hooks/useProcessDocuments.ts`:
-- `listDocuments({ search, category })`
-- `uploadDocument({ title, category, description, file })` — uploads to bucket, inserts row
-- `replaceDocument(id, file)` — bumps version, keeps history
-- `updateMetadata(id, patch)`
-- `softDelete(id)`
-- `getSignedUrl(path)` — 5-min TTL
-
-Wire into `src/pages/HR.tsx`:
-- New `TabsTrigger value="process_docs"` with `FolderOpen`/`BookOpen` icon (visible to everyone)
-- New `TabsContent value="process_docs"><ProcessDocumentsPanel /></TabsContent>`
-
-## Security
-
-- Bucket is private; access strictly via short-lived signed URLs
-- Server-side RLS enforces HR/Admin gate for writes (no client-side trust)
-- File type + size validated client-side and bucket policies as defense-in-depth
-- Filename sanitized; storage path: `{category}/{uuid}-{safeName}`
-- Domain event written on upload/replace/delete for audit trail
-
-## Out of scope (can follow later if needed)
-
-- Per-department visibility (start with company-wide read)
-- In-browser PDF/Office viewer (use new-tab preview via signed URL initially)
-- Comments / acknowledgements ("I have read this") workflow
+### Out of scope
+- No PDF export, no editing, no filters on the TV page — it's purely a display surface.
+- No new analytics queries; if a metric isn't in existing hooks, it isn't on the TV.

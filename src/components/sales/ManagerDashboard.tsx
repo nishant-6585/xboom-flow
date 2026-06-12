@@ -103,10 +103,10 @@ export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) 
             size="sm"
             variant="outline"
             className="gap-2"
-            title="Open concise dashboard for big-screen TV display"
+            title="Open auto-rotating sales scoreboard for big-screen TV display"
           >
             <Tv className="w-4 h-4" />
-            TV Dashboard
+            TV View
           </Button>
           <Button onClick={handleDownloadPDF} disabled={downloading} size="sm" className="gap-2">
             {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
