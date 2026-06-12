@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil, BarChart3, ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { format } from "date-fns";
 import { ProspectButton, ACategoryButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
@@ -28,6 +28,7 @@ import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
+import { groupDuplicates } from "@/lib/leadDeduplication";
 import type { LeadDisposition } from "@/lib/leadDispositions";
 
 interface FormLead {
@@ -84,6 +85,8 @@ export function FormsLeadsPanel() {
   const [drawerLead, setDrawerLead] = useState<FormLead | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
   const PAGE_SIZE = 20;
 
   const { data: leads = [], isLoading, refetch } = useQuery({
@@ -195,7 +198,30 @@ export function FormsLeadsPanel() {
 
   // Reset page when filters change
   const totalPages = Math.ceil(visible.length / PAGE_SIZE);
-  const paginatedLeads = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return visible.map((l) => ({ primary: l, duplicates: [] as FormLead[], count: 1, key: `single:${l.id}` }));
+    }
+    return groupDuplicates<FormLead>(
+      visible,
+      (l) => ({ phone: l.phone, email: l.email, name: l.customer_name, company: l.company }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+  }, [visible, mergeDuplicates]);
+
+  const totalGroupPages = Math.ceil(dedupGroups.length / PAGE_SIZE);
+  const paginatedGroups = dedupGroups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const mergedHiddenCount = dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0);
+
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+  };
 
   // Reset to page 1 when search/filter changes
   useEffect(() => { setCurrentPage(1); }, [search, statusFilter, formSourceFilter, includeDispositioned]);
