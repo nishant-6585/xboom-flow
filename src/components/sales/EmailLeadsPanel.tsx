@@ -618,14 +618,18 @@ export function EmailLeadsPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLeads.map((lead) => {
+                  {dedupGroups.map((group) => {
+                    const lead = group.primary;
+                    const dupCount = group.count;
+                    const isMerged = dupCount > 1;
+                    const dupeOpen = expandedDupes.has(group.key);
                     const isExpanded = expandedRows.has(lead.id);
                     const isSelected = selectedLeads.has(lead.id);
                     return (
-                      <>
+                      <React.Fragment key={`g-${group.key}`}>
                         <TableRow 
                           key={lead.id} 
-                          className={touchedRowCn(isRowTouched('emails', lead, engagedIds), `cursor-pointer transition-colors ${lead.processing_status === 'needs_review' ? 'ring-1 ring-orange-500/30' : ''} ${isSelected ? 'ring-1 ring-primary/40' : ''}`)}
+                          className={touchedRowCn(isRowTouched('emails', lead, engagedIds), `cursor-pointer transition-colors ${lead.processing_status === 'needs_review' ? 'ring-1 ring-orange-500/30' : ''} ${isSelected ? 'ring-1 ring-primary/40' : ''} ${isMerged ? 'border-l-2 border-l-amber-500/70 bg-amber-500/5' : ''}`)}
                           onClick={(e) => {
                             // Don't open drawer when clicking checkboxes, buttons, or expand toggles
                             const target = e.target as HTMLElement;
@@ -677,7 +681,19 @@ export function EmailLeadsPanel() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="font-medium cursor-default">{lead.customer_name}</span>
+                                  <span className="font-medium cursor-default inline-flex items-center gap-1.5">
+                                    {lead.customer_name}
+                                    {isMerged && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
+                                        className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                                        title={`${dupCount} entries merged — click to ${dupeOpen ? 'hide' : 'show'} history`}
+                                      >
+                                        <Layers className="h-3 w-3" />×{dupCount} {dupeOpen ? 'hide' : 'history'}
+                                      </button>
+                                    )}
+                                  </span>
                                 </TooltipTrigger>
                                 <TooltipContent side="right" className="max-w-xs">
                                   <div className="space-y-1 text-xs">
@@ -838,7 +854,43 @@ export function EmailLeadsPanel() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                        {isMerged && dupeOpen && group.duplicates.map((d) => (
+                          <TableRow
+                            key={`${group.key}-dup-${d.id}`}
+                            className="bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer text-xs"
+                            onClick={() => setDetailLead(d)}
+                          >
+                            <TableCell />
+                            <TableCell />
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px]">duplicate</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{d.customer_name}</TableCell>
+                            <TableCell>{d.customer_company || '-'}</TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{d.email || '-'}</TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">{getCleanPhone(d.phone_number) || '-'}</TableCell>
+                            <TableCell className="text-muted-foreground max-w-[220px] truncate">{(d as any).subject || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-[10px] ${mailBadgeColor(d.mail_source)}`}>
+                                {d.mail_source?.startsWith('gmail:') ? '📧 Gmail' : d.mail_source}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{d.product_name || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-[10px] gap-1 ${processingStatusColor(d.processing_status)}`}>
+                                {d.processing_status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{confidenceBar(d.ai_confidence)}</TableCell>
+                            <TableCell>{(d as any).customer_type || '—'}</TableCell>
+                            <TableCell>{d.sales_person_name || '—'}</TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                              {format(new Date(d.created_at), 'dd MMM yyyy')}
+                            </TableCell>
+                            <TableCell />
+                          </TableRow>
+                        ))}
+                      </React.Fragment>
                     );
                   })}
                 </TableBody>
