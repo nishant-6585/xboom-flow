@@ -29,6 +29,7 @@ import Procurement from "./pages/Procurement";
 import Inventory from "./pages/Inventory";
 import Pricelist from "./pages/Pricelist";
 import Sales from "./pages/Sales";
+import SalesTvDashboard from "./pages/SalesTvDashboard";
 import Finance from "./pages/Finance";
 import Tasks from "./pages/Tasks";
 import Meetings from "./pages/Meetings";
@@ -113,6 +114,7 @@ function AppInner() {
         <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="/pricelist" element={<ProtectedRoute><Pricelist /></ProtectedRoute>} />
         <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+        <Route path="/sales/tv" element={<ProtectedRoute><SalesTvDashboard /></ProtectedRoute>} />
         <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
         <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
         <Route path="/hr" element={<ProtectedRoute><HR /></ProtectedRoute>} />
