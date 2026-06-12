@@ -31,6 +31,8 @@ import {
 } from "@/hooks/useUnifiedLeadFeed";
 import { cn } from "@/lib/utils";
 import { useTeamAvailability } from "@/hooks/useTeamAvailability";
+import { groupDuplicates } from "@/lib/leadDeduplication";
+import { DuplicateCountBadge, DuplicateHistoryRow } from "./DuplicateHistoryRow";
 
 const PAGE_SIZES = [50, 100, 250] as const;
 
@@ -62,6 +64,7 @@ export function UnifiedLeadInbox() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
+  const [groupDupes, setGroupDupes] = useState(true);
 
   // last-seen for "new since last visit" indicators
   const [lastSeen, setLastSeen] = useState<string | null>(() => {
@@ -105,6 +108,27 @@ export function UnifiedLeadInbox() {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  // Group duplicate leads on the current page so a contact reaching us
+  // across multiple sources collapses into one row with history.
+  const grouped = useMemo(() => {
+    if (!groupDupes) {
+      return rows.map((r) => ({
+        primary: r,
+        duplicates: [],
+        count: 1,
+        key: `${r.source}:${r.source_row_id}`,
+      }));
+    }
+    return groupDuplicates(
+      rows,
+      (r) => ({ phone: r.phone, email: r.email, name: r.name, company: r.company }),
+      (r) => r.created_at,
+      (r) => `${r.source}:${r.source_row_id}`,
+    );
+  }, [rows, groupDupes]);
+  const uniqueTotal = grouped.length;
+  const mergedAway = rows.length - uniqueTotal;
+
   const resetFilters = () => {
     setSelectedSources([]);
     setSearch("");
@@ -142,7 +166,11 @@ export function UnifiedLeadInbox() {
             <div>
               <h2 className="text-lg font-semibold">All Leads</h2>
               <p className="text-xs text-muted-foreground">
-                {isLoading ? "Loading…" : `${total.toLocaleString()} total`}
+                {isLoading
+                  ? "Loading…"
+                  : groupDupes
+                  ? `${uniqueTotal.toLocaleString()} unique${mergedAway > 0 ? ` · ${mergedAway} duplicate${mergedAway === 1 ? "" : "s"} merged` : ""} · ${total.toLocaleString()} total`
+                  : `${total.toLocaleString()} total`}
                 {counts.data && counts.data.totalNew > 0 && (
                   <> · <span className="text-primary font-medium">{counts.data.totalNew} new</span></>
                 )}
@@ -175,6 +203,16 @@ export function UnifiedLeadInbox() {
               />
               <Label htmlFor="show-all-dispositions" className="text-xs cursor-pointer">
                 Show all dispositions
+              </Label>
+            </div>
+            <div className="flex items-center gap-2 pl-2 border-l">
+              <Switch
+                id="group-duplicates"
+                checked={groupDupes}
+                onCheckedChange={setGroupDupes}
+              />
+              <Label htmlFor="group-duplicates" className="text-xs cursor-pointer">
+                Group duplicates
               </Label>
             </div>
           </div>
@@ -273,9 +311,11 @@ export function UnifiedLeadInbox() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((lead) => {
+              {grouped.map((group) => {
+                const lead = group.primary;
                 const meta = SOURCE_META[lead.source];
                 return (
+                  <>
                   <TableRow key={`${lead.source}:${lead.source_row_id}`}>
                     <TableCell>
                       <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
@@ -283,7 +323,10 @@ export function UnifiedLeadInbox() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-sm">{lead.name || "—"}</div>
+                      <div className="font-medium text-sm flex items-center">
+                        <span>{lead.name || "—"}</span>
+                        <DuplicateCountBadge count={group.count} />
+                      </div>
                       {lead.company && (
                         <div className="text-xs text-muted-foreground">{lead.company}</div>
                       )}
@@ -355,6 +398,21 @@ export function UnifiedLeadInbox() {
                       />
                     </TableCell>
                   </TableRow>
+                  <DuplicateHistoryRow
+                    key={`hist:${lead.source}:${lead.source_row_id}`}
+                    count={group.count}
+                    colSpan={8}
+                    entries={group.duplicates.map((d) => ({
+                      id: `${d.source}:${d.source_row_id}`,
+                      source: SOURCE_META[d.source]?.label ?? d.source,
+                      sourceChipClass: SOURCE_META[d.source]?.chipClass,
+                      status: d.status,
+                      assignedTo: d.sales_person_name,
+                      createdAt: d.created_at,
+                      note: d.subject_or_message,
+                    }))}
+                  />
+                  </>
                 );
               })}
             </TableBody>
