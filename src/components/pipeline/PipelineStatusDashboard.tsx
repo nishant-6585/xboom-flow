@@ -8,6 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { PipelineOrder, PIPELINE_LOST_REASONS } from '@/hooks/usePipelineOrders';
 import { format, startOfDay, startOfWeek, startOfMonth, endOfDay, endOfWeek, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import { TrendingUp, TrendingDown, CalendarDays, Users, Package, IndianRupee } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PipelineStatusDashboardProps {
   orders: PipelineOrder[];
@@ -52,7 +54,45 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
   const [detailView, setDetailView] = useState<DetailView | null>(null);
   const isWon = status === 'won';
 
+  // For 'Won' summary, source data from the actual `orders` table (excluding
+  // website orders, per analytics scope policy) so the numbers match the real
+  // order book. For 'Lost' we keep using pipeline_orders since lost deals only
+  // live there.
+  const range = getRange(period);
+  const wonOrdersQuery = useQuery({
+    queryKey: ['pipeline-status-dashboard-won-orders', range.start.toISOString(), range.end.toISOString()],
+    enabled: isWon,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, customer_name, customer_company, product_name, product_category, quantity, total_sales_amount, selling_price, sales_person_id, sales_person_name, order_date, created_at, updated_at, source')
+        .gte('order_date', range.start.toISOString().slice(0, 10))
+        .lte('order_date', range.end.toISOString().slice(0, 10))
+        .or('source.is.null,source.neq.website');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const filtered = useMemo(() => {
+    if (isWon) {
+      const rows = wonOrdersQuery.data ?? [];
+      return rows.map((o: any) => ({
+        id: o.id,
+        customer_name: o.customer_name,
+        customer_company: o.customer_company,
+        product_name: o.product_name,
+        product_category: o.product_category,
+        quantity: o.quantity ?? 1,
+        expected_price: Number(o.total_sales_amount ?? o.selling_price ?? 0),
+        sales_person_id: o.sales_person_id ?? 'unassigned',
+        sales_person_name: o.sales_person_name || 'Unassigned',
+        status: 'won',
+        created_at: o.created_at,
+        updated_at: o.order_date || o.updated_at || o.created_at,
+      })) as unknown as PipelineOrder[];
+    }
     const range = getRange(period);
     return orders.filter(o => {
       if (o.status !== status) return false;
@@ -64,7 +104,7 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
         return false;
       }
     });
-  }, [orders, status, period]);
+  }, [orders, status, period, isWon, wonOrdersQuery.data]);
 
   const totalValue = filtered.reduce((s, o) => s + (o.expected_price || 0), 0);
   const totalDeals = filtered.length;
