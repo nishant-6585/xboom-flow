@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInHours } from "date-fns";
-import { ArrowRight, CheckCircle2, Flame, Phone, MessageSquare, MapPin, Briefcase, Mail, User, Zap, AlertTriangle, TrendingUp, ChevronRight } from "lucide-react";
+import { ArrowRight, CheckCircle2, Flame, Phone, MessageSquare, MapPin, Briefcase, Mail, User, Zap, AlertTriangle, TrendingUp, ChevronRight, Layers } from "lucide-react";
 import { Json } from "@/integrations/supabase/types";
 import { ProspectButton, ACategoryButton } from "../ProspectButton";
 import { AttentionButton } from "../AttentionButton";
@@ -15,6 +15,7 @@ import { LeadActionsCell } from "../LeadActionsCell";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
+import { groupDuplicates } from "@/lib/leadDeduplication";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { LeadContactDrawer, LeadContactData } from "../LeadContactDrawer";
@@ -137,6 +138,8 @@ export function GoogleAdsLeadsTab() {
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<GoogleAdsLead | null>(null);
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
+  const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
@@ -222,12 +225,50 @@ export function GoogleAdsLeadsTab() {
     cold: "text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-500/10",
   };
 
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return sortedLeads.map((l) => ({ primary: l, duplicates: [] as GoogleAdsLead[], count: 1, key: `single:${l.id}` }));
+    }
+    return groupDuplicates<GoogleAdsLead>(
+      sortedLeads,
+      (l) => ({ phone: getPhone(l), email: getEmail(l), name: l.customer_name, company: l.customer_company }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedLeads, mergeDuplicates]);
+  const mergedHiddenCount = dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0);
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+  };
+
   return (
     <>
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Google Ads Leads ({sortedLeads.length})</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              Google Ads Leads
+              <Badge variant="secondary" className="text-xs">
+                {mergeDuplicates
+                  ? `${dedupGroups.length} unique · ${mergedHiddenCount} merged · ${sortedLeads.length}`
+                  : sortedLeads.length}
+              </Badge>
+              <Button
+                size="sm"
+                variant={mergeDuplicates ? "secondary" : "ghost"}
+                className="h-7 px-2 gap-1"
+                onClick={() => setMergeDuplicates((v) => !v)}
+                title="Merge duplicate leads"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                {mergeDuplicates ? "Merged ✓" : "Merge"}
+              </Button>
+            </CardTitle>
             <div className="flex gap-2 text-xs">
               <div className="flex items-center gap-2 mr-2">
                 <Switch
@@ -278,7 +319,11 @@ export function GoogleAdsLeadsTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedLeads.map((lead) => {
+                  {dedupGroups.map((group) => {
+                    const lead = group.primary;
+                    const dupCount = group.count;
+                    const isMerged = dupCount > 1;
+                    const dupeOpen = expandedDupes.has(group.key);
                     const phone = getPhone(lead);
                     const email = getEmail(lead);
                     const city = getCity(lead);
@@ -286,9 +331,9 @@ export function GoogleAdsLeadsTab() {
                     const priority = getLeadPriority(lead, subFields);
 
                     return (
+                      <React.Fragment key={`g-${group.key}`}>
                       <TableRow
-                        key={lead.id}
-                        className={`cursor-pointer transition-colors ${lead.is_converted ? "bg-emerald-500/5" : isAging(lead) ? "bg-amber-500/5" : ""}`}
+                        className={`cursor-pointer transition-colors ${lead.is_converted ? "bg-emerald-500/5" : isAging(lead) ? "bg-amber-500/5" : ""} ${isMerged ? "border-l-2 border-l-amber-500/70" : ""}`}
                         onClick={() => setSelectedLead(lead)}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -323,9 +368,19 @@ export function GoogleAdsLeadsTab() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-0.5">
-                            <div className="font-medium flex items-center gap-1.5">
+                            <div className="font-medium flex items-center gap-1.5 flex-wrap">
                               <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                               {lead.customer_name !== "Unknown" ? lead.customer_name : "Not provided"}
+                              {isMerged && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
+                                  className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                                  title={`${dupCount} entries merged`}
+                                >
+                                  <Layers className="h-3 w-3" />×{dupCount} {dupeOpen ? "hide" : "history"}
+                                </button>
+                              )}
                             </div>
                             {lead.customer_company !== "Unknown" && (
                               <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -415,6 +470,35 @@ export function GoogleAdsLeadsTab() {
                           </div>
                         </TableCell>
                       </TableRow>
+                      {isMerged && dupeOpen && group.duplicates.map((d) => {
+                        const dPhone = getPhone(d);
+                        const dEmail = getEmail(d);
+                        const dCity = getCity(d);
+                        return (
+                          <TableRow
+                            key={`${group.key}-dup-${d.id}`}
+                            className="bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer text-xs"
+                            onClick={() => setSelectedLead(d)}
+                          >
+                            <TableCell><Badge variant="outline" className="text-[10px]">duplicate</Badge></TableCell>
+                            <TableCell className="font-medium">{d.customer_name}</TableCell>
+                            <TableCell>
+                              {dPhone && <div className="flex items-center gap-1 text-muted-foreground"><Phone className="w-3 h-3" />{dPhone}</div>}
+                              {dEmail && <div className="flex items-center gap-1 text-muted-foreground truncate max-w-[140px]"><Mail className="w-3 h-3" />{dEmail}</div>}
+                            </TableCell>
+                            <TableCell>{dCity || "—"}</TableCell>
+                            <TableCell>{d.product_name}</TableCell>
+                            <TableCell className="truncate max-w-[120px]">{d.campaign_name || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground">{d.sales_person_name || "—"}</TableCell>
+                            <TableCell />
+                            <TableCell>{d.is_converted ? "✓ Converted" : "Not Converted"}</TableCell>
+                            <TableCell className="text-right">{d.conversion_value > 0 ? `₹${d.conversion_value.toLocaleString("en-IN")}` : "—"}</TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">{format(new Date(d.created_at), "dd MMM yyyy")}</TableCell>
+                            <TableCell />
+                          </TableRow>
+                        );
+                      })}
+                      </React.Fragment>
                     );
                   })}
                 </TableBody>

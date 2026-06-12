@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil, BarChart3, ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { format } from "date-fns";
 import { ProspectButton, ACategoryButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
@@ -28,6 +28,7 @@ import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
+import { groupDuplicates } from "@/lib/leadDeduplication";
 import type { LeadDisposition } from "@/lib/leadDispositions";
 
 interface FormLead {
@@ -84,6 +85,8 @@ export function FormsLeadsPanel() {
   const [drawerLead, setDrawerLead] = useState<FormLead | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
   const PAGE_SIZE = 20;
 
   const { data: leads = [], isLoading, refetch } = useQuery({
@@ -195,7 +198,30 @@ export function FormsLeadsPanel() {
 
   // Reset page when filters change
   const totalPages = Math.ceil(visible.length / PAGE_SIZE);
-  const paginatedLeads = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return visible.map((l) => ({ primary: l, duplicates: [] as FormLead[], count: 1, key: `single:${l.id}` }));
+    }
+    return groupDuplicates<FormLead>(
+      visible,
+      (l) => ({ phone: l.phone, email: l.email, name: l.customer_name, company: l.company }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+  }, [visible, mergeDuplicates]);
+
+  const totalGroupPages = Math.ceil(dedupGroups.length / PAGE_SIZE);
+  const paginatedGroups = dedupGroups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const mergedHiddenCount = dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0);
+
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+  };
 
   // Reset to page 1 when search/filter changes
   useEffect(() => { setCurrentPage(1); }, [search, statusFilter, formSourceFilter, includeDispositioned]);
@@ -213,7 +239,21 @@ export function FormsLeadsPanel() {
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
               Forms Leads
-              <Badge variant="secondary">{visible.length}</Badge>
+              <Badge variant="secondary">
+                {mergeDuplicates
+                  ? `${dedupGroups.length} unique · ${mergedHiddenCount} merged · ${visible.length}`
+                  : visible.length}
+              </Badge>
+              <Button
+                size="sm"
+                variant={mergeDuplicates ? "secondary" : "ghost"}
+                className="h-7 px-2 gap-1"
+                onClick={() => setMergeDuplicates((v) => !v)}
+                title="Merge duplicate leads (same phone / email / company+name)"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                {mergeDuplicates ? "Merged ✓" : "Merge"}
+              </Button>
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button
@@ -307,8 +347,14 @@ export function FormsLeadsPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedLeads.map((lead) => (
-                    <tr key={lead.id} className={touchedRowCn(isRowTouched('form-leads', lead, engagedIds), "border-b transition-colors cursor-pointer")} onClick={() => setDrawerLead(lead)}>
+                  {paginatedGroups.map((group) => {
+                    const lead = group.primary;
+                    const dupCount = group.count;
+                    const isMerged = dupCount > 1;
+                    const dupeOpen = expandedDupes.has(group.key);
+                    return (
+                    <React.Fragment key={`g-${group.key}`}>
+                    <tr className={touchedRowCn(isRowTouched('form-leads', lead, engagedIds), `border-b transition-colors cursor-pointer ${isMerged ? "border-l-2 border-l-amber-500/70 bg-amber-500/5" : ""}`)} onClick={() => setDrawerLead(lead)}>
                       <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <LeadActionsCell
                           sourceType="form_lead"
@@ -332,7 +378,21 @@ export function FormsLeadsPanel() {
                           onDispositionChanged={() => refetch()}
                         />
                       </td>
-                      <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>
+                      <td className="py-2.5 px-3 font-medium">
+                        <div className="flex items-center gap-1.5">
+                          <span>{lead.customer_name}</span>
+                          {isMerged && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
+                              className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                              title={`${dupCount} entries merged`}
+                            >
+                              <Layers className="h-3 w-3" />×{dupCount} {dupeOpen ? "hide" : "history"}
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-2.5 px-3">
                         <div className="space-y-0.5">
                           {lead.email && <div className="flex items-center gap-1 text-xs"><Mail className="w-3 h-3" />{lead.email}</div>}
@@ -405,23 +465,45 @@ export function FormsLeadsPanel() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    {isMerged && dupeOpen && group.duplicates.map((d) => (
+                      <tr key={`${group.key}-dup-${d.id}`} className="border-b bg-amber-500/5 hover:bg-amber-500/10 text-xs cursor-pointer" onClick={() => setDrawerLead(d)}>
+                        <td className="py-2 px-3"><Badge variant="outline" className="text-[10px]">duplicate</Badge></td>
+                        <td className="py-2 px-3 font-medium">{d.customer_name}</td>
+                        <td className="py-2 px-3">
+                          <div className="space-y-0.5">
+                            {d.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3" />{d.email}</div>}
+                            {d.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3" />{d.phone}</div>}
+                          </div>
+                        </td>
+                        <td className="py-2 px-3 text-muted-foreground">{d.company || "-"}</td>
+                        <td className="py-2 px-3"><Badge variant="outline" className="text-[10px]">{d.form_name}</Badge></td>
+                        <td className="py-2 px-3 text-muted-foreground">{d.product_name || "-"}</td>
+                        <td className="py-2 px-3">{d.customer_type || "-"}</td>
+                        <td className="py-2 px-3">{d.status}</td>
+                        <td className="py-2 px-3 text-muted-foreground">{d.assigned_to_name || "—"}</td>
+                        <td className="py-2 px-3 text-muted-foreground">{format(new Date(d.created_at), "MMM d, yyyy")}</td>
+                        <td className="py-2 px-3" />
+                      </tr>
+                    ))}
+                    </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
           {/* Pagination */}
-          {totalPages > 1 && (
+          {totalGroupPages > 1 && (
             <div className="flex items-center justify-between mt-4 pt-3 border-t">
               <span className="text-sm text-muted-foreground">
-                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, dedupGroups.length)} of {dedupGroups.length}
               </span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
                   <ChevronLeft className="w-4 h-4 mr-1" /> Previous
                 </Button>
-                <span className="text-sm font-medium">Page {currentPage} of {totalPages}</span>
-                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                <span className="text-sm font-medium">Page {currentPage} of {totalGroupPages}</span>
+                <Button variant="outline" size="sm" disabled={currentPage === totalGroupPages} onClick={() => setCurrentPage(p => p + 1)}>
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
