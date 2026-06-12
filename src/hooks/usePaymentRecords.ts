@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import type { PaymentMode } from '@/lib/paymentModes';
+import { useQueryClient } from '@tanstack/react-query';
 
 export type PaymentRecordStatus = 'pending' | 'approved' | 'rejected';
 
@@ -43,6 +44,29 @@ export function usePaymentRecords(orderId?: string) {
   const [records, setRecords] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Invalidate every cache that derives from order payment data so
+  // received/pending/aging/finance views stay in sync after any change.
+  const invalidatePaymentDerivedCaches = useCallback(() => {
+    const keys = [
+      ['orders'],
+      ['invoices'],
+      ['invoice-payments'],
+      ['ar-aging'],
+      ['ap-aging'],
+      ['expected-payments'],
+      ['payment-reminders'],
+      ['pending-payment-approvals'],
+      ['companies'],
+      ['company-engagement'],
+      ['order-profits'],
+      ['tally'],
+      ['finance'],
+      ['cashflow'],
+    ];
+    keys.forEach((k) => queryClient.invalidateQueries({ queryKey: k }));
+  }, [queryClient]);
 
   const fetchRecords = useCallback(async () => {
     if (!user) {
@@ -123,6 +147,31 @@ export function usePaymentRecords(orderId?: string) {
     fetchRecords();
   }, [fetchRecords]);
 
+  // Realtime: any payment_records change anywhere (this order or others)
+  // refreshes the local list AND invalidates downstream caches.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`payment-records-${orderId ?? 'all'}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'payment_records',
+          ...(orderId ? { filter: `order_id=eq.${orderId}` } : {}),
+        },
+        () => {
+          fetchRecords();
+          invalidatePaymentDerivedCaches();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, orderId, fetchRecords, invalidatePaymentDerivedCaches]);
+
   const uploadScreenshot = async (file: File): Promise<string | null> => {
     try {
       const { validateFile } = await import('@/lib/fileValidation');
@@ -181,6 +230,7 @@ export function usePaymentRecords(orderId?: string) {
 
       toast.success('Payment submitted for approval');
       await fetchRecords();
+      invalidatePaymentDerivedCaches();
       return true;
     } catch (error: any) {
       console.error('Error submitting payment:', error);
@@ -206,6 +256,7 @@ export function usePaymentRecords(orderId?: string) {
 
       toast.success('Payment approved');
       await fetchRecords();
+      invalidatePaymentDerivedCaches();
       return true;
     } catch (error: any) {
       console.error('Error approving payment:', error);
@@ -232,6 +283,7 @@ export function usePaymentRecords(orderId?: string) {
 
       toast.success('Payment rejected');
       await fetchRecords();
+      invalidatePaymentDerivedCaches();
       return true;
     } catch (error: any) {
       console.error('Error rejecting payment:', error);
@@ -258,6 +310,7 @@ export function usePaymentRecords(orderId?: string) {
 
       toast.success('Payment moved back to pending');
       await fetchRecords();
+      invalidatePaymentDerivedCaches();
       return true;
     } catch (error: any) {
       console.error('Error disapproving payment:', error);
@@ -297,6 +350,7 @@ export function usePaymentRecords(orderId?: string) {
 
       toast.success('Payment record deleted');
       await fetchRecords();
+      invalidatePaymentDerivedCaches();
       return true;
     } catch (error: any) {
       console.error('Error deleting payment record:', error);
@@ -343,6 +397,7 @@ export function usePaymentRecords(orderId?: string) {
 
       toast.success('Payment resubmitted for approval');
       await fetchRecords();
+      invalidatePaymentDerivedCaches();
       return true;
     } catch (error: any) {
       console.error('Error updating payment record:', error);
