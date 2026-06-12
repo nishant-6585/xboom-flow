@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import DOMPurify from 'dompurify';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import { useEmailLeads, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
 import { useProspects } from '@/hooks/useProspects';
 import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
-import { Search, Plus, Mail, Loader2, Filter, RefreshCw, Brain, CheckCircle, XCircle, AlertTriangle, Clock, TrendingUp, BarChart3, ChevronDown, ChevronRight, Eye, ArrowUpDown, Zap, Target, Inbox, ShieldCheck, Users } from 'lucide-react';
+import { Search, Plus, Mail, Loader2, Filter, RefreshCw, Brain, CheckCircle, XCircle, AlertTriangle, Clock, TrendingUp, BarChart3, ChevronDown, ChevronRight, Eye, ArrowUpDown, Zap, Target, Inbox, ShieldCheck, Users, Layers } from 'lucide-react';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { format } from 'date-fns';
 import { ProspectButton, ACategoryButton } from './ProspectButton';
@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
 import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
 import { applyDispositionFilter } from '@/lib/dispositionFilter';
+import { groupDuplicates } from '@/lib/leadDeduplication';
 
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
 type SortDir = 'asc' | 'desc';
@@ -61,6 +62,8 @@ export function EmailLeadsPanel() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [detailLead, setDetailLead] = useState<EmailLead | null>(null);
   const [salespeople, setSalespeople] = useState<{ id: string; name: string }[]>([]);
+  const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
   const { updateLead } = useEmailLeads();
 
   useEffect(() => {
