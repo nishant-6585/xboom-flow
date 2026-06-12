@@ -282,6 +282,31 @@ export function EmailLeadsPanel() {
 
   const needsReviewCount = metrics?.needsReview ?? 0;
 
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return filteredLeads.map((l) => ({ primary: l, duplicates: [] as EmailLead[], count: 1, key: `single:${l.id}` }));
+    }
+    return groupDuplicates<EmailLead>(
+      filteredLeads,
+      (l) => ({ phone: l.phone_number, email: l.email, name: l.customer_name, company: l.customer_company }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+  }, [filteredLeads, mergeDuplicates]);
+
+  const mergedHiddenCount = useMemo(
+    () => dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0),
+    [dedupGroups],
+  );
+
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+  };
+
   return (
     <div className="space-y-6">
       <GmailIntegrationCard />
