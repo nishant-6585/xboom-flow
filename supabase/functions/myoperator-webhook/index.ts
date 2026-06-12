@@ -470,3 +470,40 @@ async function insertDebugLog(
   const { error } = await supabase.from('webhook_debug_logs').insert(entry);
   if (error) console.error('Failed to insert debug log:', error.message);
 }
+
+/**
+ * Fetch the active sales-team pool (role='sales', approved profiles).
+ * Returns both a Set keyed by user_id (for membership checks) and a flat
+ * list (for random fallback assignment).
+ */
+async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise<{
+  byId: Map<string, string>;
+  list: Array<{ user_id: string; name: string }>;
+}> {
+  try {
+    const { data: roleRows } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'sales');
+    const ids = (roleRows ?? []).map((r: { user_id: string }) => r.user_id);
+    if (ids.length === 0) return { byId: new Map(), list: [] };
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, name, is_approved')
+      .in('user_id', ids);
+
+    const byId = new Map<string, string>();
+    const list: Array<{ user_id: string; name: string }> = [];
+    for (const p of (profiles ?? []) as Array<{ user_id: string; name: string; is_approved: boolean }>) {
+      if (p.is_approved === false) continue;
+      const name = p.name || 'Sales';
+      byId.set(p.user_id, name);
+      list.push({ user_id: p.user_id, name });
+    }
+    return { byId, list };
+  } catch (e) {
+    console.error('[myoperator-webhook] loadSalesPool failed:', e);
+    return { byId: new Map(), list: [] };
+  }
+}
