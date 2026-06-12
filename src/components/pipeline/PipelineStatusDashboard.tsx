@@ -59,16 +59,18 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
   // order book. For 'Lost' we keep using pipeline_orders since lost deals only
   // live there.
   const range = getRange(period);
+  const startDateStr = format(range.start, 'yyyy-MM-dd');
+  const endDateStr = format(range.end, 'yyyy-MM-dd');
   const wonOrdersQuery = useQuery({
-    queryKey: ['pipeline-status-dashboard-won-orders', range.start.toISOString(), range.end.toISOString()],
+    queryKey: ['pipeline-status-dashboard-won-orders', startDateStr, endDateStr],
     enabled: isWon,
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
         .select('id, customer_name, customer_company, product_name, product_category, quantity, total_sales_amount, selling_price, sales_person_id, sales_person_name, order_date, created_at, updated_at, source')
-        .gte('order_date', range.start.toISOString().slice(0, 10))
-        .lte('order_date', range.end.toISOString().slice(0, 10))
+        .gte('order_date', startDateStr)
+        .lte('order_date', endDateStr)
         .or('source.is.null,source.neq.website');
       if (error) throw error;
       return data ?? [];
