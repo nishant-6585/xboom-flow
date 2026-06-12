@@ -36,6 +36,7 @@ import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
 import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
 import { applyDispositionFilter } from '@/lib/dispositionFilter';
 import { groupDuplicates } from '@/lib/leadDeduplication';
+import { DuplicateLeadsHistoryRow } from './DuplicateLeadsHistoryRow';
 
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
 type SortDir = 'asc' | 'desc';
@@ -854,42 +855,29 @@ export function EmailLeadsPanel() {
                             </TableCell>
                           </TableRow>
                         )}
-                        {isMerged && dupeOpen && group.duplicates.map((d) => (
-                          <TableRow
-                            key={`${group.key}-dup-${d.id}`}
-                            className="bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer text-xs"
-                            onClick={() => setDetailLead(d)}
-                          >
-                            <TableCell />
-                            <TableCell />
-                            <TableCell>
-                              <Badge variant="outline" className="text-[10px]">duplicate</Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{d.customer_name}</TableCell>
-                            <TableCell>{d.customer_company || '-'}</TableCell>
-                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{d.email || '-'}</TableCell>
-                            <TableCell className="text-muted-foreground whitespace-nowrap">{getCleanPhone(d.phone_number) || '-'}</TableCell>
-                            <TableCell className="text-muted-foreground max-w-[220px] truncate">{(d as any).subject || '-'}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={`text-[10px] ${mailBadgeColor(d.mail_source)}`}>
-                                {d.mail_source?.startsWith('gmail:') ? '📧 Gmail' : d.mail_source}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{d.product_name || '-'}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={`text-[10px] gap-1 ${processingStatusColor(d.processing_status)}`}>
-                                {d.processing_status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{confidenceBar(d.ai_confidence)}</TableCell>
-                            <TableCell>{(d as any).customer_type || '—'}</TableCell>
-                            <TableCell>{d.sales_person_name || '—'}</TableCell>
-                            <TableCell className="text-muted-foreground whitespace-nowrap">
-                              {format(new Date(d.created_at), 'dd MMM yyyy')}
-                            </TableCell>
-                            <TableCell />
-                          </TableRow>
-                        ))}
+                        {isMerged && dupeOpen && (
+                          <DuplicateLeadsHistoryRow
+                            colSpan={16}
+                            headerLabel={lead.email || getCleanPhone(lead.phone_number) || lead.customer_name || 'this contact'}
+                            count={group.duplicates.length}
+                            entries={group.duplicates.map((d) => ({
+                              id: d.id,
+                              createdAt: d.created_at,
+                              name: d.customer_name,
+                              phone: getCleanPhone(d.phone_number),
+                              email: d.email,
+                              company: d.customer_company,
+                              product: d.product_name || (d as any).subject,
+                              source: d.mail_source?.startsWith('gmail:') ? 'Gmail' : d.mail_source,
+                              status: d.processing_status,
+                              assignedTo: d.sales_person_name,
+                            }))}
+                            onSelect={(e) => {
+                              const dup = group.duplicates.find((x) => x.id === e.id);
+                              if (dup) setDetailLead(dup);
+                            }}
+                          />
+                        )}
                       </React.Fragment>
                     );
                   })}

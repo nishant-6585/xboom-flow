@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { groupDuplicates } from "@/lib/leadDeduplication";
+import { DuplicateLeadsHistoryRow } from "../DuplicateLeadsHistoryRow";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { LeadContactDrawer, LeadContactData } from "../LeadContactDrawer";
@@ -470,34 +471,30 @@ export function GoogleAdsLeadsTab() {
                           </div>
                         </TableCell>
                       </TableRow>
-                      {isMerged && dupeOpen && group.duplicates.map((d) => {
-                        const dPhone = getPhone(d);
-                        const dEmail = getEmail(d);
-                        const dCity = getCity(d);
-                        return (
-                          <TableRow
-                            key={`${group.key}-dup-${d.id}`}
-                            className="bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer text-xs"
-                            onClick={() => setSelectedLead(d)}
-                          >
-                            <TableCell><Badge variant="outline" className="text-[10px]">duplicate</Badge></TableCell>
-                            <TableCell className="font-medium">{d.customer_name}</TableCell>
-                            <TableCell>
-                              {dPhone && <div className="flex items-center gap-1 text-muted-foreground"><Phone className="w-3 h-3" />{dPhone}</div>}
-                              {dEmail && <div className="flex items-center gap-1 text-muted-foreground truncate max-w-[140px]"><Mail className="w-3 h-3" />{dEmail}</div>}
-                            </TableCell>
-                            <TableCell>{dCity || "—"}</TableCell>
-                            <TableCell>{d.product_name}</TableCell>
-                            <TableCell className="truncate max-w-[120px]">{d.campaign_name || "—"}</TableCell>
-                            <TableCell className="text-muted-foreground">{d.sales_person_name || "—"}</TableCell>
-                            <TableCell />
-                            <TableCell>{d.is_converted ? "✓ Converted" : "Not Converted"}</TableCell>
-                            <TableCell className="text-right">{d.conversion_value > 0 ? `₹${d.conversion_value.toLocaleString("en-IN")}` : "—"}</TableCell>
-                            <TableCell className="text-muted-foreground whitespace-nowrap">{format(new Date(d.created_at), "dd MMM yyyy")}</TableCell>
-                            <TableCell />
-                          </TableRow>
-                        );
-                      })}
+                      {isMerged && dupeOpen && (
+                        <DuplicateLeadsHistoryRow
+                          colSpan={12}
+                          headerLabel={phone || email || lead.customer_name || "this contact"}
+                          count={group.duplicates.length}
+                          entries={group.duplicates.map((d) => ({
+                            id: d.id,
+                            createdAt: d.created_at,
+                            name: d.customer_name,
+                            phone: getPhone(d),
+                            email: getEmail(d),
+                            company: d.customer_company !== "Unknown" ? d.customer_company : undefined,
+                            city: getCity(d),
+                            product: d.product_name,
+                            source: d.campaign_name,
+                            status: d.is_converted ? "Converted" : "Not Converted",
+                            assignedTo: d.sales_person_name,
+                          }))}
+                          onSelect={(e) => {
+                            const dup = group.duplicates.find((x) => x.id === e.id);
+                            if (dup) setSelectedLead(dup);
+                          }}
+                        />
+                      )}
                       </React.Fragment>
                     );
                   })}

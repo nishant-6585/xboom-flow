@@ -29,6 +29,7 @@ import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { groupDuplicates } from "@/lib/leadDeduplication";
+import { DuplicateLeadsHistoryRow } from "./DuplicateLeadsHistoryRow";
 import type { LeadDisposition } from "@/lib/leadDispositions";
 
 interface FormLead {
@@ -465,26 +466,30 @@ export function FormsLeadsPanel() {
                         </div>
                       </td>
                     </tr>
-                    {isMerged && dupeOpen && group.duplicates.map((d) => (
-                      <tr key={`${group.key}-dup-${d.id}`} className="border-b bg-amber-500/5 hover:bg-amber-500/10 text-xs cursor-pointer" onClick={() => setDrawerLead(d)}>
-                        <td className="py-2 px-3"><Badge variant="outline" className="text-[10px]">duplicate</Badge></td>
-                        <td className="py-2 px-3 font-medium">{d.customer_name}</td>
-                        <td className="py-2 px-3">
-                          <div className="space-y-0.5">
-                            {d.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3" />{d.email}</div>}
-                            {d.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3" />{d.phone}</div>}
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 text-muted-foreground">{d.company || "-"}</td>
-                        <td className="py-2 px-3"><Badge variant="outline" className="text-[10px]">{d.form_name}</Badge></td>
-                        <td className="py-2 px-3 text-muted-foreground">{d.product_name || "-"}</td>
-                        <td className="py-2 px-3">{d.customer_type || "-"}</td>
-                        <td className="py-2 px-3">{d.status}</td>
-                        <td className="py-2 px-3 text-muted-foreground">{d.assigned_to_name || "—"}</td>
-                        <td className="py-2 px-3 text-muted-foreground">{format(new Date(d.created_at), "MMM d, yyyy")}</td>
-                        <td className="py-2 px-3" />
-                      </tr>
-                    ))}
+                    {isMerged && dupeOpen && (
+                      <DuplicateLeadsHistoryRow
+                        colSpan={11}
+                        headerLabel={lead.phone || lead.email || lead.customer_name || "this contact"}
+                        count={group.duplicates.length}
+                        entries={group.duplicates.map((d) => ({
+                          id: d.id,
+                          createdAt: d.created_at,
+                          name: d.customer_name,
+                          phone: d.phone,
+                          email: d.email,
+                          company: d.company,
+                          city: d.city,
+                          product: d.product_name,
+                          source: d.form_name,
+                          status: d.status,
+                          assignedTo: d.assigned_to_name,
+                        }))}
+                        onSelect={(e) => {
+                          const dup = group.duplicates.find((x) => x.id === e.id);
+                          if (dup) setDrawerLead(dup);
+                        }}
+                      />
+                    )}
                     </React.Fragment>
                     );
                   })}
