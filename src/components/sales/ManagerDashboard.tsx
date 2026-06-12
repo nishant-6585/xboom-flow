@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Users, Target, Award, DollarSign, Download, Loader2 } from "lucide-react";
+import { Users, Target, Award, DollarSign, Download, Loader2, Tv } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LeadDistributionChart } from "./LeadDistributionChart";
@@ -98,6 +98,16 @@ export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) 
         <h2 className="text-lg font-semibold text-foreground">Dashboard Overview</h2>
         <div className="flex items-center gap-2">
           <IncludeWebsiteToggle />
+          <Button
+            onClick={() => window.open('/sales/tv', '_blank', 'noopener,noreferrer')}
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            title="Open concise dashboard for big-screen TV display"
+          >
+            <Tv className="w-4 h-4" />
+            TV Dashboard
+          </Button>
           <Button onClick={handleDownloadPDF} disabled={downloading} size="sm" className="gap-2">
             {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {downloading ? "Generating..." : "Download PDF Report"}
