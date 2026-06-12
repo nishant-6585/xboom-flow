@@ -220,6 +220,229 @@ export default function SalesTvDashboard() {
   );
 }
 
+/* ============================================================
+   Screen 5 — Conversion Funnel
+   ============================================================ */
+function FunnelScreen({
+  board, dist, total,
+}: {
+  board: ReturnType<typeof useSalesLeaderboard>["leaderboard"];
+  dist: any[]; total: number;
+}) {
+  const list = board ?? [];
+  const leads = total || list.reduce((s, e) => s + e.leads_handled, 0);
+  const pipelineCount = (dist ?? []).reduce((s: number, d: any) => s + (d.pipeline || 0), 0);
+  const prospectsCount = (dist ?? []).reduce((s: number, d: any) => s + (d.prospects || 0), 0);
+  const ordersWon = list.reduce((s, e) => s + e.orders_won, 0);
+  const orderValue = list.reduce((s, e) => s + Number(e.total_order_value || 0), 0);
+
+  const stages = [
+    { label: "Leads", value: leads, from: "from-blue-500", to: "to-cyan-500" },
+    { label: "Prospects", value: prospectsCount, from: "from-indigo-500", to: "to-violet-500" },
+    { label: "Pipeline", value: pipelineCount, from: "from-purple-500", to: "to-fuchsia-500" },
+    { label: "Orders Won", value: ordersWon, from: "from-emerald-500", to: "to-green-600" },
+  ];
+  const max = Math.max(...stages.map((s) => s.value), 1);
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <Target className="w-7 h-7 text-emerald-400" /> Conversion Funnel
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">
+          From first touch to closed-won · {fmtCr(orderValue)} revenue
+        </p>
+      </div>
+      <div className="flex-1 grid grid-cols-4 gap-5 items-end">
+        {stages.map((s, i) => {
+          const heightPct = Math.max(15, Math.round((s.value / max) * 100));
+          const prev = i > 0 ? stages[i - 1].value : leads;
+          const dropPct = prev > 0 ? Math.round((s.value / prev) * 100) : 0;
+          return (
+            <div key={s.label} className="h-full flex flex-col justify-end gap-3">
+              <div
+                className={`rounded-3xl bg-gradient-to-b ${s.from} ${s.to} shadow-2xl p-6 flex flex-col justify-end`}
+                style={{ height: `${heightPct}%` }}
+              >
+                <div className="text-6xl font-black tabular-nums leading-none">{s.value.toLocaleString()}</div>
+                <div className="text-sm uppercase tracking-[3px] font-bold mt-3 text-white/90">{s.label}</div>
+                {i > 0 && (
+                  <div className="text-xs text-white/70 mt-1">{dropPct}% from prev</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Screen 6 — Revenue Race
+   ============================================================ */
+function RevenueRaceScreen({ board }: { board: ReturnType<typeof useSalesLeaderboard>["leaderboard"] }) {
+  const rows = [...(board ?? [])]
+    .map((e) => ({ name: e.user_name || "Unknown", value: Number(e.total_order_value || 0), orders: e.orders_won }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+  const max = Math.max(...rows.map((r) => r.value), 1);
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <DollarSign className="w-7 h-7 text-purple-400" /> Revenue Race
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">Order value closed by rep</p>
+      </div>
+      <div className="flex-1 grid gap-3 min-h-0" style={{ gridTemplateRows: `repeat(${Math.max(rows.length, 1)}, minmax(0, 1fr))` }}>
+        {rows.length === 0 && (
+          <div className="flex items-center justify-center text-white/40 text-2xl">No revenue yet</div>
+        )}
+        {rows.map((r) => {
+          const pct = Math.round((r.value / max) * 100);
+          return (
+            <div key={r.name} className="rounded-2xl bg-white/[0.04] border border-white/10 px-6 py-4 flex flex-col justify-center gap-2">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold truncate">{r.name}</div>
+                <div className="flex items-baseline gap-3">
+                  <div className="text-4xl font-black tabular-nums text-purple-300">{fmtL(r.value)}</div>
+                  <div className="text-sm text-white/50">· {r.orders} won</div>
+                </div>
+              </div>
+              <div className="h-3 rounded-full bg-white/5 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-purple-400 via-fuchsia-400 to-pink-400 rounded-full"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Screen 7 — Pipeline Race
+   ============================================================ */
+function PipelineRaceScreen({ board }: { board: ReturnType<typeof useSalesLeaderboard>["leaderboard"] }) {
+  const rows = [...(board ?? [])]
+    .map((e) => ({ name: e.user_name || "Unknown", value: Number(e.total_pipeline_value || 0), leads: e.leads_handled }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+  const max = Math.max(...rows.map((r) => r.value), 1);
+  const grand = rows.reduce((s, r) => s + r.value, 0);
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <TrendingUp className="w-7 h-7 text-pink-400" /> Pipeline Race
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">
+          {fmtCr(grand)} open pipeline · top 6 reps
+        </p>
+      </div>
+      <div className="flex-1 grid gap-3 min-h-0" style={{ gridTemplateRows: `repeat(${Math.max(rows.length, 1)}, minmax(0, 1fr))` }}>
+        {rows.length === 0 && (
+          <div className="flex items-center justify-center text-white/40 text-2xl">No pipeline yet</div>
+        )}
+        {rows.map((r) => {
+          const pct = Math.round((r.value / max) * 100);
+          return (
+            <div key={r.name} className="rounded-2xl bg-white/[0.04] border border-white/10 px-6 py-4 flex flex-col justify-center gap-2">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold truncate">{r.name}</div>
+                <div className="flex items-baseline gap-3">
+                  <div className="text-4xl font-black tabular-nums text-pink-300">{fmtL(r.value)}</div>
+                  <div className="text-sm text-white/50">· {r.leads} leads</div>
+                </div>
+              </div>
+              <div className="h-3 rounded-full bg-white/5 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-pink-400 via-rose-400 to-amber-400 rounded-full"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Screen 8 — Source Mix by Rep
+   ============================================================ */
+function SourceMixScreen({ dist }: { dist: any[] }) {
+  const rows = [...(dist ?? [])].sort((a, b) => b.leads - a.leads).slice(0, 6);
+  const colors: Record<string, string> = {
+    enquiry: "bg-cyan-400",
+    call: "bg-emerald-400",
+    form: "bg-violet-400",
+    email: "bg-pink-400",
+    interakt: "bg-amber-400",
+  };
+  const labels: Record<string, string> = {
+    enquiry: "Enquiry", call: "Calls", form: "Forms", email: "Email", interakt: "WhatsApp",
+  };
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <MessageSquare className="w-7 h-7 text-cyan-400" /> Source Mix by Rep
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">Where each rep's leads come from</p>
+      </div>
+      <div className="flex items-center justify-center gap-5 text-xs uppercase tracking-[2px] text-white/60">
+        {Object.keys(labels).map((k) => (
+          <div key={k} className="flex items-center gap-2">
+            <span className={`w-3 h-3 rounded-sm ${colors[k]}`} />
+            {labels[k]}
+          </div>
+        ))}
+      </div>
+      <div className="flex-1 grid gap-3 min-h-0" style={{ gridTemplateRows: `repeat(${Math.max(rows.length, 1)}, minmax(0, 1fr))` }}>
+        {rows.length === 0 && (
+          <div className="flex items-center justify-center text-white/40 text-2xl">No lead activity</div>
+        )}
+        {rows.map((d) => {
+          const parts = ["enquiry", "call", "form", "email", "interakt"] as const;
+          const total = parts.reduce((s, k) => s + (d.sources[k] || 0), 0) || 1;
+          return (
+            <div key={d.key} className="rounded-2xl bg-white/[0.04] border border-white/10 px-6 py-4 flex flex-col justify-center gap-2">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold truncate">{d.name}</div>
+                <div className="text-3xl font-black tabular-nums text-white/90">{d.leads}</div>
+              </div>
+              <div className="h-5 rounded-full overflow-hidden flex bg-white/5">
+                {parts.map((k) => {
+                  const v = d.sources[k] || 0;
+                  if (v === 0) return null;
+                  return (
+                    <div
+                      key={k}
+                      className={`${colors[k]} h-full`}
+                      style={{ width: `${(v / total) * 100}%` }}
+                      title={`${labels[k]}: ${v}`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const SCREEN_LABELS = [
   "KPIs",
   "Top Performers",
