@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -315,8 +315,8 @@ export function UnifiedLeadInbox() {
                 const lead = group.primary;
                 const meta = SOURCE_META[lead.source];
                 return (
-                  <>
-                  <TableRow key={`${lead.source}:${lead.source_row_id}`}>
+                  <Fragment key={group.key}>
+                  <TableRow>
                     <TableCell>
                       <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
                         {meta.label}
@@ -399,7 +399,6 @@ export function UnifiedLeadInbox() {
                     </TableCell>
                   </TableRow>
                   <DuplicateHistoryRow
-                    key={`hist:${lead.source}:${lead.source_row_id}`}
                     count={group.count}
                     colSpan={8}
                     entries={group.duplicates.map((d) => ({
@@ -412,7 +411,7 @@ export function UnifiedLeadInbox() {
                       note: d.subject_or_message,
                     }))}
                   />
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
