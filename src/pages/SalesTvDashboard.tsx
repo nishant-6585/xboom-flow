@@ -104,11 +104,13 @@ export default function SalesTvDashboard() {
         setPaused((p) => !p);
       } else if (e.key === "f" || e.key === "F") {
         toggleFullscreen();
+      } else if (e.key === "Escape") {
+        if (!document.fullscreenElement) navigate('/sales');
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [navigate]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
