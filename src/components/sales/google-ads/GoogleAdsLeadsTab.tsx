@@ -189,26 +189,6 @@ export function GoogleAdsLeadsTab() {
 
   const isAging = (lead: GoogleAdsLead) => !lead.is_converted && differenceInHours(new Date(), new Date(lead.created_at)) > 24;
 
-  const dedupGroups = useMemo(() => {
-    if (!mergeDuplicates) {
-      return sortedLeads.map((l) => ({ primary: l, duplicates: [] as GoogleAdsLead[], count: 1, key: `single:${l.id}` }));
-    }
-    return groupDuplicates<GoogleAdsLead>(
-      sortedLeads,
-      (l) => ({ phone: getPhone(l), email: getEmail(l), name: l.customer_name, company: l.customer_company }),
-      (l) => l.created_at,
-      (l) => l.id,
-    );
-  }, [sortedLeads, mergeDuplicates]);
-  const mergedHiddenCount = dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0);
-  const toggleDupeGroup = (key: string) => {
-    setExpandedDupes((prev) => {
-      const n = new Set(prev);
-      n.has(key) ? n.delete(key) : n.add(key);
-      return n;
-    });
-  };
-
   const handleConvertToOrder = (lead: GoogleAdsLead) => {
     navigate(`/orders?tab=new&preSelectEnquiry=${lead.id}`);
   };
@@ -243,6 +223,27 @@ export function GoogleAdsLeadsTab() {
     hot: "text-destructive border-destructive/20 bg-destructive/5",
     warm: "text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-500/10",
     cold: "text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-500/10",
+  };
+
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return sortedLeads.map((l) => ({ primary: l, duplicates: [] as GoogleAdsLead[], count: 1, key: `single:${l.id}` }));
+    }
+    return groupDuplicates<GoogleAdsLead>(
+      sortedLeads,
+      (l) => ({ phone: getPhone(l), email: getEmail(l), name: l.customer_name, company: l.customer_company }),
+      (l) => l.created_at,
+      (l) => l.id,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedLeads, mergeDuplicates]);
+  const mergedHiddenCount = dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0);
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
   };
 
   return (
