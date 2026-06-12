@@ -13,7 +13,7 @@ export type RefundStatus = 'pending' | 'approved' | 'done';
 export type OrderOutcome = 'pending' | 'won' | 'lost';
 export type LostReason = 'price' | 'timeline' | 'competitor' | 'no_response' | 'requirements_changed' | 'other';
 
-export type LeadSource = 'call' | 'chat' | 'email' | 'event' | 'walk-in' | 'referral' | 'repeated' | 'abandon_cart' | 'myoperator' | 'interakt' | 'google_ads' | 'indiamart' | 'website_form' | 'exhibition' | 'social_media';
+export type LeadSource = 'call' | 'chat' | 'email' | 'event' | 'walk-in' | 'referral' | 'repeated' | 'abandon_cart' | 'myoperator' | 'interakt' | 'google_ads' | 'indiamart' | 'website_form' | 'exhibition' | 'social_media' | 'q_form';
 
 export interface Order {
   id: string;
@@ -178,6 +178,7 @@ export const LEAD_SOURCES: { value: LeadSource; label: string }[] = [
   { value: 'indiamart', label: 'IndiaMART' },
   { value: 'interakt', label: 'Interakt' },
   { value: 'myoperator', label: 'MyOperator' },
+  { value: 'q_form', label: 'Q-Form' },
   { value: 'referral', label: 'Referral' },
   { value: 'repeated', label: 'Repeated Customer' },
   { value: 'social_media', label: 'Social Media' },
