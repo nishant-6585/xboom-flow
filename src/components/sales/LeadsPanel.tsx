@@ -672,8 +672,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leads.map((lead) => (
-                      <TableRow key={lead.id} className={touchedRowCn(isRowTouched('enquiries', lead, engagedEnquiryIds))}>
+                    {leadGroups.map((group) => {
+                      const lead = group.primary;
+                      return (
+                      <Fragment key={group.key}>
+                      <TableRow className={touchedRowCn(isRowTouched('enquiries', lead, engagedEnquiryIds))}>
                         <TableCell>
                           <div className="flex gap-1">
                             <ProspectButton
@@ -713,7 +716,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{lead.customer_name}</p>
+                            <p className="font-medium flex items-center">
+                              <span>{lead.customer_name}</span>
+                              <DuplicateCountBadge count={group.count} />
+                            </p>
                             <p className="text-xs text-muted-foreground">{lead.customer_company}</p>
                           </div>
                         </TableCell>
@@ -768,7 +774,21 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      <DuplicateHistoryRow
+                        count={group.count}
+                        colSpan={11}
+                        entries={group.duplicates.map((d) => ({
+                          id: d.id,
+                          source: extractLeadSource(d.notes),
+                          status: d.status?.replace(/_/g, ' '),
+                          assignedTo: d.sales_person_name,
+                          createdAt: d.created_at,
+                          note: `${d.product_name}${d.quantity ? ` × ${d.quantity}` : ''}`,
+                        }))}
+                      />
+                      </Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
