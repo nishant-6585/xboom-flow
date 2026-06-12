@@ -177,14 +177,26 @@ export function UntouchedLeadsPanel() {
 
   const salespersons = useMemo(() => {
     if (!leads) return [];
-    const set = new Set(leads.map((l) => l.sales_person_name || "Unassigned"));
-    return Array.from(set).sort();
+    // De-dup case-insensitively + trim whitespace so variants like
+    // "Narasimha" and "narasimha " collapse to a single entry.
+    const map = new Map<string, string>();
+    leads.forEach((l) => {
+      const raw = (l.sales_person_name || "Unassigned").trim();
+      const key = raw.toLowerCase();
+      if (!map.has(key)) map.set(key, raw);
+    });
+    return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
   }, [leads]);
 
   const filteredLeads = useMemo(() => {
     if (!leads) return [];
     return leads.filter((l) => {
-      if (filterSP !== "all" && (l.sales_person_name || "Unassigned") !== filterSP) return false;
+      if (
+        filterSP !== "all" &&
+        (l.sales_person_name || "Unassigned").trim().toLowerCase() !==
+          filterSP.trim().toLowerCase()
+      )
+        return false;
       if (filterBucket !== "all" && l.bucket !== filterBucket) return false;
       if (filterSource !== "all" && l.source !== filterSource) return false;
       return true;
