@@ -614,16 +614,23 @@ export default function QFormsPanel() {
             {!loading && filtered.length === 0 && (
               <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No leads match the current filters.</TableCell></TableRow>
             )}
-            {!loading && filtered.map(r => {
+            {!loading && dedupGroups.map(group => {
+              const r = group.primary;
+              const dupCount = group.count;
+              const isMerged = dupCount > 1;
+              const dupeOpen = expandedDupes.has(group.key);
               const isOpen = expanded.has(r.id);
               const submitted = r.submitted_at || r.created_at;
               const submittedFmt = submitted ? format(new Date(submitted), "dd MMM, HH:mm") : "—";
               const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
               return (
-                <>
+                <React.Fragment key={`g-${group.key}`}>
                   <TableRow
                     key={r.id}
-                    className={touchedRowCn(isRowTouched('qforms', r, engagedIds), "cursor-pointer")}
+                    className={touchedRowCn(
+                      isRowTouched('qforms', r, engagedIds),
+                      `cursor-pointer ${isMerged ? "border-l-2 border-l-amber-500/70 bg-amber-500/5" : ""}`,
+                    )}
                     onClick={() => setDrawerLead(r)}
                   >
                     <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
@@ -666,7 +673,22 @@ export default function QFormsPanel() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{submittedFmt}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{r.form_type ?? "—"}</Badge></TableCell>
-                    <TableCell className="font-medium">{r.name ?? "—"}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <span>{r.name ?? "—"}</span>
+                        {isMerged && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
+                            className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                            title={`${dupCount} entries merged — click to ${dupeOpen ? "hide" : "show"} history`}
+                          >
+                            <Layers className="h-3 w-3" />
+                            ×{dupCount} {dupeOpen ? "hide" : "show history"}
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()} className="text-xs space-y-0.5">
                       {r.email && <a className="text-primary hover:underline block" href={`mailto:${r.email}`}>{r.email}</a>}
                       {r.phone && <a className="text-primary hover:underline block" href={`tel:${r.phone}`}>{r.phone}</a>}
@@ -732,7 +754,39 @@ export default function QFormsPanel() {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                  {isMerged && dupeOpen && group.duplicates.map((d) => {
+                    const dSubmitted = d.submitted_at || d.created_at;
+                    const dSubmittedFmt = dSubmitted ? format(new Date(dSubmitted), "dd MMM, HH:mm") : "—";
+                    return (
+                      <TableRow
+                        key={`${group.key}-dup-${d.id}`}
+                        className="bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer text-xs"
+                        onClick={() => setDrawerLead(d)}
+                      >
+                        <TableCell className="w-8 px-2" />
+                        <TableCell className="text-[11px] text-muted-foreground">
+                          <Badge variant="outline" className="text-[10px]">duplicate</Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{dSubmittedFmt}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-[10px]">{d.form_type ?? "—"}</Badge></TableCell>
+                        <TableCell className="font-medium">{d.name ?? "—"}</TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="space-y-0.5">
+                          {d.email && <a className="text-primary hover:underline block" href={`mailto:${d.email}`}>{d.email}</a>}
+                          {d.phone && <a className="text-primary hover:underline block" href={`tel:${d.phone}`}>{d.phone}</a>}
+                          {!d.email && !d.phone && "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div>{d.company ?? "—"}</div>
+                          <div className="text-muted-foreground">{d.location ?? ""}</div>
+                        </TableCell>
+                        <TableCell><Badge variant="outline" className={`text-[10px] ${TEMP_COLORS[d.lead_temperature] ?? ""}`}>{d.lead_temperature}</Badge></TableCell>
+                        <TableCell>{d.assigned_to_name ?? "—"}</TableCell>
+                        <TableCell className="text-muted-foreground whitespace-nowrap">{relativeTime(d.last_contacted_at)}</TableCell>
+                        <TableCell><Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[d.status] ?? ""}`}>{d.status}</Badge></TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
           </TableBody>
