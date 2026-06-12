@@ -385,7 +385,21 @@ export default function QFormsPanel() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">{filtered.length} leads</Badge>
+          <Badge variant="secondary">
+            {mergeDuplicates
+              ? `${dedupGroups.length} unique · ${mergedHiddenCount} merged · ${filtered.length} total`
+              : `${filtered.length} leads`}
+          </Badge>
+          <Button
+            size="sm"
+            variant={mergeDuplicates ? "secondary" : "ghost"}
+            className="h-7 px-2 gap-1"
+            onClick={() => setMergeDuplicates((v) => !v)}
+            title="Merge duplicate leads (same phone / email / company+name)"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            {mergeDuplicates ? "Merge Duplicates ✓" : "Merge Duplicates"}
+          </Button>
           <div className="inline-flex rounded-md border border-border/50 bg-muted/40 p-0.5">
             <Button
               size="sm"
