@@ -946,6 +946,45 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                           </TableCell>
                         </TableRow>
                       )}
+                      {isExpanded && duplicateCount > 0 && (
+                        <TableRow key={`${log.id}-history`} className="bg-amber-500/5 hover:bg-amber-500/5">
+                          <TableCell colSpan={9} className="py-2 px-4">
+                            <div className="text-[11px] uppercase tracking-wide text-amber-300/80 font-medium mb-2 flex items-center gap-1">
+                              <Layers className="w-3 h-3" />
+                              Earlier calls from {log.full_number || log.caller_number} ({duplicateCount})
+                            </div>
+                            <div className="space-y-1">
+                              {history.map((h) => {
+                                const hInfo = deriveCallInfo(h);
+                                return (
+                                  <div
+                                    key={h.id}
+                                    className="flex items-center gap-3 text-xs px-2 py-1.5 rounded-md border border-amber-500/15 bg-background/40 hover:bg-background/70 cursor-pointer"
+                                    onClick={() => setSelectedLog(h)}
+                                  >
+                                    <span className="shrink-0">{statusIcon(hInfo.status)}</span>
+                                    <span className={`shrink-0 font-medium ${hInfo.status === 'missed' ? 'text-red-400' : 'text-emerald-400'}`}>
+                                      {hInfo.status === 'missed' ? 'Missed' : hInfo.status === 'answered' ? 'Received' : hInfo.status}
+                                    </span>
+                                    <span className="text-muted-foreground shrink-0 min-w-[120px]">
+                                      {formatCallDate(hInfo.startTime, h.created_at)} · {formatCallTime(hInfo.startTime, h.created_at)}
+                                    </span>
+                                    <span className="text-muted-foreground shrink-0 min-w-[60px]">
+                                      {hInfo.duration ? formatDuration(hInfo.duration) : '—'}
+                                    </span>
+                                    <span className="text-foreground/80 truncate flex-1">
+                                      {hInfo.finalAgent ? `Agent: ${hInfo.finalAgent}` : hInfo.whatText}
+                                    </span>
+                                    {h.sales_person_name && (
+                                      <span className="text-muted-foreground shrink-0">→ {h.sales_person_name}</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </React.Fragment>
                   );
                 })}
