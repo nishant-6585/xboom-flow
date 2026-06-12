@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2 } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -90,7 +90,7 @@ export default function Sales() {
       <Header />
       
       <main className="container mx-auto px-4 py-6">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/20">
               <Zap className="w-6 h-6 text-primary-foreground" />
@@ -102,6 +102,15 @@ export default function Sales() {
               <p className="text-muted-foreground text-sm">Track, compete, and conquer your sales goals</p>
             </div>
           </div>
+          <Button
+            onClick={() => window.open('/sales/tv', '_blank', 'noopener,noreferrer')}
+            size="lg"
+            className="gap-2 bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500 hover:opacity-90 text-white shadow-lg shadow-orange-500/30"
+            title="Open full-screen auto-rotating sales scoreboard in a new tab"
+          >
+            <Tv className="w-5 h-5" />
+            TV View
+          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
