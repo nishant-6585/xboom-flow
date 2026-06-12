@@ -251,7 +251,24 @@ export function GoogleAdsLeadsTab() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Google Ads Leads ({sortedLeads.length})</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              Google Ads Leads
+              <Badge variant="secondary" className="text-xs">
+                {mergeDuplicates
+                  ? `${dedupGroups.length} unique · ${mergedHiddenCount} merged · ${sortedLeads.length}`
+                  : sortedLeads.length}
+              </Badge>
+              <Button
+                size="sm"
+                variant={mergeDuplicates ? "secondary" : "ghost"}
+                className="h-7 px-2 gap-1"
+                onClick={() => setMergeDuplicates((v) => !v)}
+                title="Merge duplicate leads"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                {mergeDuplicates ? "Merged ✓" : "Merge"}
+              </Button>
+            </CardTitle>
             <div className="flex gap-2 text-xs">
               <div className="flex items-center gap-2 mr-2">
                 <Switch
