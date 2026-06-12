@@ -411,7 +411,7 @@ export default function Orders() {
         </Tabs>
 
         <OrderDialog
-          order={selectedOrder}
+          order={(selectedOrder ? (orders.find(o => o.id === selectedOrder.id) ?? selectedOrder) : null)}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           onUpdate={updateOrder}
