@@ -439,7 +439,21 @@ export function EmailLeadsPanel() {
             <CardTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5 text-primary" />
               Email Leads
-              <Badge variant="secondary" className="ml-2">{filteredLeads.length}</Badge>
+              <Badge variant="secondary" className="ml-2">
+                {mergeDuplicates
+                  ? `${dedupGroups.length} unique · ${mergedHiddenCount} merged · ${filteredLeads.length}`
+                  : filteredLeads.length}
+              </Badge>
+              <Button
+                size="sm"
+                variant={mergeDuplicates ? "secondary" : "ghost"}
+                className="h-7 px-2 gap-1 ml-1"
+                onClick={() => setMergeDuplicates((v) => !v)}
+                title="Merge duplicate leads (same phone / email / company+name)"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                {mergeDuplicates ? "Merged ✓" : "Merge Duplicates"}
+              </Button>
               {needsReviewCount > 0 && (
                 <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 animate-pulse">
                   {needsReviewCount} needs review
