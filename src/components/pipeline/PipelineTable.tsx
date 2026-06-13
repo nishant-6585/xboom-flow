@@ -235,12 +235,17 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     // Closure date range filter
     let matchesClosureDate = true;
     if (closureDateStart || closureDateEnd) {
-      if (!order.expected_closure_date) {
+      // For Won/Lost deals filter by the date the deal was settled (updated_at).
+      // For active pipeline stages, fall back to expected_closure_date.
+      const useSettledDate = order.status === 'won' || order.status === 'lost';
+      const refDate = useSettledDate
+        ? (order.updated_at ? format(new Date(order.updated_at), 'yyyy-MM-dd') : '')
+        : (order.expected_closure_date || '');
+      if (!refDate) {
         matchesClosureDate = false;
       } else {
-        const closureDate = order.expected_closure_date;
-        if (closureDateStart && closureDate < format(closureDateStart, 'yyyy-MM-dd')) matchesClosureDate = false;
-        if (closureDateEnd && closureDate > format(closureDateEnd, 'yyyy-MM-dd')) matchesClosureDate = false;
+        if (closureDateStart && refDate < format(closureDateStart, 'yyyy-MM-dd')) matchesClosureDate = false;
+        if (closureDateEnd && refDate > format(closureDateEnd, 'yyyy-MM-dd')) matchesClosureDate = false;
       }
     }
     
