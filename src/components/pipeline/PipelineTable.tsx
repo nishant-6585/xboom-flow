@@ -437,9 +437,15 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { label: 'Today', value: 'today' },
+                    { label: 'Yesterday', value: 'yesterday' },
+                    { label: 'Last 7 Days', value: 'last_7' },
+                    { label: 'Last 30 Days', value: 'last_30' },
                     { label: 'This Week', value: 'this_week' },
                     { label: 'This Month', value: 'this_month' },
                     { label: 'Last Month', value: 'last_month' },
+                    { label: 'This Quarter', value: 'this_quarter' },
+                    { label: 'This Year', value: 'this_year' },
+                    { label: 'Last Year', value: 'last_year' },
                     { label: 'Next 30 Days', value: 'next_30' },
                   ].map((preset) => (
                     <Button
