@@ -229,6 +229,24 @@ export function XboomWebsiteLeadsPanel() {
     [rows, selectedId],
   );
 
+  type WooLead = (typeof rows)[number];
+  const dedupGroups = useMemo(() => {
+    if (!mergeDuplicates) {
+      return paged.map((r) => ({ primary: r, duplicates: [] as WooLead[], count: 1, key: `single:${r.id}` }));
+    }
+    return groupDuplicates<WooLead>(
+      paged,
+      (r) => ({ phone: r.customer_phone, email: r.customer_email, name: r.customer_name, company: r.customer_company }),
+      (r) => r.woo_created_at || r.created_at,
+      (r) => String(r.id),
+    );
+  }, [paged, mergeDuplicates]);
+
+  const mergedHiddenCount = useMemo(
+    () => dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0),
+    [dedupGroups],
+  );
+
   // Reset draft whenever the drawer's selected lead changes
   const selectedStatus = (selected?.order_status || "").toLowerCase();
   useEffect(() => {
