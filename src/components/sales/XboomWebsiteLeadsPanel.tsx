@@ -165,6 +165,15 @@ export function XboomWebsiteLeadsPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statusDraft, setStatusDraft] = useState<string>("");
   const [savingStatus, setSavingStatus] = useState(false);
+  const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
+  const toggleDupeGroup = (key: string) => {
+    setExpandedDupes((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+  };
 
   // Persisted "last opened" map: lead id -> ISO timestamp
   const LAST_OPENED_KEY = "xboomWebsiteLeads.lastOpened";
