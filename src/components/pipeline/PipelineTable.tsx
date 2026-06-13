@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays, subDays, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subYears } from 'date-fns';
 import { CallButton } from '@/components/calls/CallButton';
 import { cn } from '@/lib/utils';
 import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus, LeadTemperature, PIPELINE_LOST_REASONS } from '@/hooks/usePipelineOrders';
@@ -156,6 +156,22 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
         setClosureDateStart(today);
         setClosureDateEnd(today);
         break;
+      case 'yesterday': {
+        const y = subDays(today, 1);
+        setClosureDateStart(y);
+        setClosureDateEnd(y);
+        break;
+      }
+      case 'last_7': {
+        setClosureDateStart(subDays(today, 6));
+        setClosureDateEnd(today);
+        break;
+      }
+      case 'last_30': {
+        setClosureDateStart(subDays(today, 29));
+        setClosureDateEnd(today);
+        break;
+      }
       case 'this_week':
         setClosureDateStart(startOfWeek(today, { weekStartsOn: 1 }));
         setClosureDateEnd(endOfWeek(today, { weekStartsOn: 1 }));
@@ -168,6 +184,22 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
         const lastMonth = subMonths(today, 1);
         setClosureDateStart(startOfMonth(lastMonth));
         setClosureDateEnd(endOfMonth(lastMonth));
+        break;
+      }
+      case 'this_quarter': {
+        setClosureDateStart(startOfQuarter(today));
+        setClosureDateEnd(endOfQuarter(today));
+        break;
+      }
+      case 'this_year': {
+        setClosureDateStart(startOfYear(today));
+        setClosureDateEnd(endOfYear(today));
+        break;
+      }
+      case 'last_year': {
+        const ly = subYears(today, 1);
+        setClosureDateStart(startOfYear(ly));
+        setClosureDateEnd(endOfYear(ly));
         break;
       }
       case 'next_30':
