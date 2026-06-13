@@ -320,6 +320,21 @@ export function XboomWebsiteLeadsPanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="hidden sm:inline-flex">
+            {mergeDuplicates
+              ? `${dedupGroups.length} unique · ${mergedHiddenCount} merged`
+              : `${paged.length} rows`}
+          </Badge>
+          <Button
+            size="sm"
+            variant={mergeDuplicates ? "secondary" : "ghost"}
+            className="h-7 px-2 gap-1"
+            onClick={() => setMergeDuplicates((v) => !v)}
+            title="Merge duplicate leads on this page (same phone / email / company+name)"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            {mergeDuplicates ? "Merge Duplicates ✓" : "Merge Duplicates"}
+          </Button>
           <div className="inline-flex rounded-md border border-border/50 bg-muted/40 p-0.5">
             <Button size="sm" variant={viewMode === "table" ? "secondary" : "ghost"} className="h-7 px-2" onClick={() => setViewMode("table")} title="Table view">
               <TableIcon className="h-3.5 w-3.5" />
