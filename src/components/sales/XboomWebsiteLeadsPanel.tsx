@@ -3,7 +3,7 @@ import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Globe, Search, Phone, MessageCircle, Mail, RefreshCw,
   LayoutGrid, Table as TableIcon, ChevronDown, ChevronRight,
-  Package, ShoppingCart, ExternalLink, Loader2, Save, Clock,
+  Package, ShoppingCart, ExternalLink, Loader2, Save, Clock, Layers,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,8 @@ import { AttentionButton } from "./AttentionButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { LeadActionsCell } from "./LeadActionsCell";
+import { groupDuplicates } from "@/lib/leadDeduplication";
+import { DuplicateLeadsHistoryRow } from "./DuplicateLeadsHistoryRow";
 
 /**
  * Abandoned Cart Leads
