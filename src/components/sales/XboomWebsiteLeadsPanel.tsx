@@ -525,13 +525,20 @@ export function XboomWebsiteLeadsPanel() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paged.map((l) => {
+                {dedupGroups.map((group) => {
+                  const l = group.primary;
                   const status = (l.order_status || "").toLowerCase();
                   const isOpen = expanded.has(l.id);
+                  const dupCount = group.count;
+                  const isMerged = dupCount > 1;
+                  const dupeOpen = expandedDupes.has(group.key);
                   return (
-                    <Fragment key={l.id}>
+                    <Fragment key={`g-${group.key}`}>
                        <TableRow
-                         className={touchedRowCn(isRowTouched('xboom-website', l, engagedIds), `cursor-pointer ${lastFocusedId === l.id ? "ring-1 ring-inset ring-primary/30" : ""}`)}
+                         className={touchedRowCn(
+                           isRowTouched('xboom-website', l, engagedIds),
+                           `cursor-pointer ${lastFocusedId === l.id ? "ring-1 ring-inset ring-primary/30" : ""} ${isMerged ? "border-l-2 border-l-amber-500/70 bg-amber-500/5" : ""}`,
+                         )}
                          onClick={() => toggleRow(l.id)}
                          ref={(el) => {
                            if (el) rowRefs.current.set(l.id, el);
@@ -556,7 +563,20 @@ export function XboomWebsiteLeadsPanel() {
                           />
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{l.customer_name || "—"}</div>
+                          <div className="font-medium flex items-center gap-1.5">
+                            <span>{l.customer_name || "—"}</span>
+                            {isMerged && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
+                                className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                                title={`${dupCount} entries merged — click to ${dupeOpen ? "hide" : "show"} history`}
+                              >
+                                <Layers className="h-3 w-3" />
+                                ×{dupCount} {dupeOpen ? "hide" : "show history"}
+                              </button>
+                            )}
+                          </div>
                           {l.customer_email && (
                             <div className="text-xs text-muted-foreground truncate max-w-[200px]">{l.customer_email}</div>
                           )}
@@ -633,6 +653,29 @@ export function XboomWebsiteLeadsPanel() {
                             </div>
                           </TableCell>
                         </TableRow>
+                      )}
+                      {isMerged && dupeOpen && (
+                        <DuplicateLeadsHistoryRow
+                          colSpan={9}
+                          headerLabel={l.customer_phone || l.customer_email || l.customer_name || "this contact"}
+                          count={group.duplicates.length}
+                          entries={group.duplicates.map((d) => ({
+                            id: String(d.id),
+                            createdAt: d.woo_created_at || d.created_at,
+                            name: d.customer_name,
+                            phone: d.customer_phone,
+                            email: d.customer_email,
+                            company: d.customer_company,
+                            product: d.product_name,
+                            source: (d.order_status || "").toLowerCase(),
+                            status: d.payment_status,
+                            assignedTo: d.assigned_to_name,
+                          }))}
+                          onSelect={(e) => {
+                            const dup = group.duplicates.find((x) => String(x.id) === e.id);
+                            if (dup) setSelectedId(dup.id);
+                          }}
+                        />
                       )}
                     </Fragment>
                   );
