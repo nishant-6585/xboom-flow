@@ -284,9 +284,15 @@ export function useOutboundActivities() {
   return { activities, isLoading, upsertActivity };
 }
 
-export function useSalesLeaderboard(startDate?: string, endDate?: string) {
+export function useSalesLeaderboard(
+  startDate?: string,
+  endDate?: string,
+  forceIncludeWebsite?: boolean,
+) {
   const { user } = useAuth();
-  const { includeWebsite } = useAnalyticsScope();
+  const { includeWebsite: scopeIncludeWebsite } = useAnalyticsScope();
+  const includeWebsite =
+    typeof forceIncludeWebsite === 'boolean' ? forceIncludeWebsite : scopeIncludeWebsite;
 
   const { data: leaderboard, isLoading } = useQuery({
     queryKey: ['sales-leaderboard', startDate, endDate, includeWebsite],
