@@ -92,8 +92,8 @@ export function useLeadDistribution(startDate: string, endDate: string) {
           .gte("created_at", startDate)
           .lte("created_at", endDateTime),
         supabase
-          .from("form_leads")
-          .select("sales_person_id, sales_person_name, created_at")
+          .from("leads" as any)
+          .select("assigned_to, assigned_to_name, created_at")
           .eq("is_enquiry_converted", false)
           .gte("created_at", startDate)
           .lte("created_at", endDateTime),
@@ -140,7 +140,7 @@ export function useLeadDistribution(startDate: string, endDate: string) {
       });
 
       formsRes.data?.forEach((row) => {
-        const entry = ensure(row.sales_person_id, row.sales_person_name);
+        const entry = ensure((row as any).assigned_to, (row as any).assigned_to_name);
         if (!entry) return;
         entry.leads += 1;
         entry.sources.form += 1;
