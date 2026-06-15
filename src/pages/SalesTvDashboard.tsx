@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import {
+  format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
+  subDays, subMonths, subWeeks,
+} from "date-fns";
 import {
   Trophy, Users, Award, DollarSign, Target, TrendingUp,
-  Phone, Mail, FileText, MessageSquare, Send, Pause, Play, Maximize, X,
+  Phone, Mail, FileText, MessageSquare, Send, Pause, Play, Maximize, X, Calendar,
 } from "lucide-react";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { useLeadDistribution } from "@/hooks/useLeadDistribution";
@@ -17,34 +20,72 @@ import { useLeadDistribution } from "@/hooks/useLeadDistribution";
 
 const ROTATE_MS = 30_000;
 const REFRESH_MS = 5 * 60_000;
-const SCREEN_COUNT = 8;
+const SCREEN_COUNT = 7;
 
-type Scope = "today" | "mtd";
+type RangePreset =
+  | "today" | "yesterday"
+  | "this_week" | "last_week"
+  | "this_month" | "last_month";
+
+const RANGE_OPTIONS: { value: RangePreset; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "this_week", label: "This Week" },
+  { value: "last_week", label: "Last Week" },
+  { value: "this_month", label: "This Month" },
+  { value: "last_month", label: "Last Month" },
+];
+
+function computeRange(preset: RangePreset): { start: string; end: string; label: string } {
+  const now = new Date();
+  const fmt = (d: Date) => format(d, "yyyy-MM-dd");
+  switch (preset) {
+    case "today":
+      return { start: fmt(now), end: fmt(now), label: "Today" };
+    case "yesterday": {
+      const y = subDays(now, 1);
+      return { start: fmt(y), end: fmt(y), label: "Yesterday" };
+    }
+    case "this_week": {
+      const s = startOfWeek(now, { weekStartsOn: 1 });
+      const e = endOfWeek(now, { weekStartsOn: 1 });
+      return { start: fmt(s), end: fmt(e), label: "This Week" };
+    }
+    case "last_week": {
+      const lw = subWeeks(now, 1);
+      const s = startOfWeek(lw, { weekStartsOn: 1 });
+      const e = endOfWeek(lw, { weekStartsOn: 1 });
+      return { start: fmt(s), end: fmt(e), label: "Last Week" };
+    }
+    case "this_month":
+      return { start: fmt(startOfMonth(now)), end: fmt(endOfMonth(now)), label: "This Month" };
+    case "last_month": {
+      const lm = subMonths(now, 1);
+      return { start: fmt(startOfMonth(lm)), end: fmt(endOfMonth(lm)), label: "Last Month" };
+    }
+  }
+}
 
 export default function SalesTvDashboard() {
   const navigate = useNavigate();
-  const [scope, setScope] = useState<Scope>("mtd");
-  const [screen, setScreen] = useState(0); // 0..3
+  const [rangePreset, setRangePreset] = useState<RangePreset>("this_month");
+  const [screen, setScreen] = useState(0);
   const [paused, setPaused] = useState(false);
   const [tick, setTick] = useState(0); // forces refetch every REFRESH_MS
   const [clock, setClock] = useState(new Date());
   const [progress, setProgress] = useState(0); // 0..1 within current screen
   const startRef = useRef<number>(Date.now());
 
-  // Date range per scope
-  const { start, end } = useMemo(() => {
-    const now = new Date();
-    if (scope === "today") {
-      const d = format(now, "yyyy-MM-dd");
-      return { start: d, end: d };
-    }
-    return {
-      start: format(startOfMonth(now), "yyyy-MM-dd"),
-      end: format(endOfMonth(now), "yyyy-MM-dd"),
-    };
-  }, [scope, tick]);
+  // Date range from explicit preset
+  const { start, end, label: rangeLabel } = useMemo(
+    () => computeRange(rangePreset),
+    // include tick so RPCs refresh on REFRESH_MS even if preset didn't change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rangePreset, tick],
+  );
 
-  const { leaderboard } = useSalesLeaderboard(start, end);
+  // Force include website-sourced data so TV totals match the Sales Arena dashboard
+  const { leaderboard } = useSalesLeaderboard(start, end, true);
   const { data: distData } = useLeadDistribution(start, end);
 
   // Clock
@@ -76,20 +117,13 @@ export default function SalesTvDashboard() {
       clearTimeout(rotT);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, scope, paused]);
+  }, [screen, rangePreset, paused]);
 
   const advance = (dir: 1 | -1) => {
     setScreen((s) => {
       const next = s + dir;
-      if (next >= SCREEN_COUNT) {
-        // finished cycle — flip scope
-        setScope((sc) => (sc === "today" ? "mtd" : "today"));
-        return 0;
-      }
-      if (next < 0) {
-        setScope((sc) => (sc === "today" ? "mtd" : "today"));
-        return SCREEN_COUNT - 1;
-      }
+      if (next >= SCREEN_COUNT) return 0;
+      if (next < 0) return SCREEN_COUNT - 1;
       return next;
     });
   };
@@ -155,7 +189,13 @@ export default function SalesTvDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <ScopeChip scope={scope} start={start} end={end} />
+            <RangeSelector
+              value={rangePreset}
+              onChange={setRangePreset}
+              label={rangeLabel}
+              start={start}
+              end={end}
+            />
             <div className="text-right">
               <div className="text-4xl font-bold font-mono tabular-nums">
                 {format(clock, "HH:mm:ss")}
@@ -167,7 +207,7 @@ export default function SalesTvDashboard() {
 
         {/* Current Screen */}
         <main className="flex-1 min-h-0 relative">
-          <div key={`${scope}-${screen}`} className="absolute inset-0 animate-fade-in">
+          <div key={`${rangePreset}-${screen}`} className="absolute inset-0 animate-fade-in">
             {screen === 0 && <KpiScreen board={board} />}
             {screen === 1 && <LeaderboardScreen board={board} />}
             {screen === 2 && <LeadSourcesScreen dist={dist} />}
@@ -175,7 +215,6 @@ export default function SalesTvDashboard() {
             {screen === 4 && <FunnelScreen board={board} dist={dist} total={distData?.total ?? 0} />}
             {screen === 5 && <RevenueRaceScreen board={board} />}
             {screen === 6 && <PipelineRaceScreen board={board} />}
-            {screen === 7 && <SourceMixScreen dist={dist} />}
           </div>
         </main>
 
@@ -212,7 +251,7 @@ export default function SalesTvDashboard() {
           </div>
 
           <div className="text-xs uppercase tracking-[3px] text-white/40">
-            {SCREEN_LABELS[screen]} · {scope === "today" ? "TODAY" : "MTD"}
+            {SCREEN_LABELS[screen]} · {rangeLabel.toUpperCase()}
           </div>
         </footer>
       </div>
@@ -451,25 +490,42 @@ const SCREEN_LABELS = [
   "Conversion Funnel",
   "Revenue Race",
   "Pipeline Race",
-  "Source Mix by Rep",
 ];
 
 /* -------------------- helpers -------------------- */
 const fmtCr = (n: number) => `₹${(n / 10000000).toFixed(2)} Cr`;
 const fmtL = (n: number) => `₹${(n / 100000).toFixed(1)} L`;
 
-function ScopeChip({ scope, start, end }: { scope: Scope; start: string; end: string }) {
+function RangeSelector({
+  value, onChange, label, start, end,
+}: {
+  value: RangePreset;
+  onChange: (v: RangePreset) => void;
+  label: string;
+  start: string;
+  end: string;
+}) {
   return (
-    <div className="flex items-center gap-2 rounded-full bg-white/[0.06] border border-white/10 px-4 py-2">
-      <span className={`h-2.5 w-2.5 rounded-full ${scope === "today" ? "bg-emerald-400 animate-pulse" : "bg-cyan-400"}`} />
-      <span className="text-xs uppercase tracking-[3px] font-semibold">
-        {scope === "today" ? "Today" : "Month-to-Date"}
-      </span>
-      <span className="text-xs text-white/40 ml-1">
-        {scope === "today"
+    <div className="flex items-center gap-2 rounded-full bg-white/[0.06] border border-white/10 pl-4 pr-2 py-1.5">
+      <Calendar className="w-4 h-4 text-cyan-300" />
+      <span className="text-xs uppercase tracking-[3px] font-semibold">{label}</span>
+      <span className="text-[11px] text-white/40 ml-1">
+        {start === end
           ? format(new Date(start), "dd MMM")
           : `${format(new Date(start), "dd MMM")} – ${format(new Date(end), "dd MMM")}`}
       </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as RangePreset)}
+        className="ml-2 rounded-full bg-white/10 hover:bg-white/20 transition text-xs font-semibold px-3 py-1.5 outline-none border border-white/10 text-white cursor-pointer"
+        title="Change date range"
+      >
+        {RANGE_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value} className="bg-[#0b0d14] text-white">
+            {o.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
