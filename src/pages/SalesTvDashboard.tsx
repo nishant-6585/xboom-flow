@@ -20,7 +20,7 @@ import { useLeadDistribution } from "@/hooks/useLeadDistribution";
 
 const ROTATE_MS = 30_000;
 const REFRESH_MS = 5 * 60_000;
-const SCREEN_COUNT = 7;
+const SCREEN_COUNT = 8;
 
 type RangePreset =
   | "today" | "yesterday"
@@ -215,6 +215,7 @@ export default function SalesTvDashboard() {
             {screen === 4 && <FunnelScreen board={board} dist={dist} total={distData?.total ?? 0} />}
             {screen === 5 && <RevenueRaceScreen board={board} />}
             {screen === 6 && <PipelineRaceScreen board={board} />}
+            {screen === 7 && <SourceMixScreen dist={dist} />}
           </div>
         </main>
 
