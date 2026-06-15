@@ -491,6 +491,7 @@ const SCREEN_LABELS = [
   "Conversion Funnel",
   "Revenue Race",
   "Pipeline Race",
+  "Source Mix by Rep",
 ];
 
 /* -------------------- helpers -------------------- */
