@@ -122,8 +122,23 @@ export default function SalesTvDashboard() {
   const advance = (dir: 1 | -1) => {
     setScreen((s) => {
       const next = s + dir;
-      if (next >= SCREEN_COUNT) return 0;
-      if (next < 0) return SCREEN_COUNT - 1;
+      if (next >= SCREEN_COUNT) {
+        // Completed all screens for this date range → advance to next range
+        setRangePreset((rp) => {
+          const idx = RANGE_OPTIONS.findIndex((o) => o.value === rp);
+          const nextIdx = (idx + 1) % RANGE_OPTIONS.length;
+          return RANGE_OPTIONS[nextIdx].value;
+        });
+        return 0;
+      }
+      if (next < 0) {
+        setRangePreset((rp) => {
+          const idx = RANGE_OPTIONS.findIndex((o) => o.value === rp);
+          const prevIdx = (idx - 1 + RANGE_OPTIONS.length) % RANGE_OPTIONS.length;
+          return RANGE_OPTIONS[prevIdx].value;
+        });
+        return SCREEN_COUNT - 1;
+      }
       return next;
     });
   };
