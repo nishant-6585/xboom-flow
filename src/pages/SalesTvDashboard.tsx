@@ -744,7 +744,7 @@ function LeadDistributionScreen({
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/40">
                 {d.sources.enquiry > 0 && <span>Enq {d.sources.enquiry}</span>}
                 {d.sources.call > 0 && <span>· Calls {d.sources.call}</span>}
-                {d.sources.form > 0 && <span>· Forms {d.sources.form}</span>}
+                {d.sources.form > 0 && <span>· QForms {d.sources.form}</span>}
                 {d.sources.email > 0 && <span>· Email {d.sources.email}</span>}
                 {d.sources.interakt > 0 && <span>· WA {d.sources.interakt}</span>}
               </div>
