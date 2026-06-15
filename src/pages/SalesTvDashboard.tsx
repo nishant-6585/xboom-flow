@@ -654,7 +654,7 @@ function LeadSourcesScreen({ dist }: { dist: ReturnType<typeof useLeadDistributi
   const cards = [
     { key: "enquiry", label: "Enquiries", icon: MessageSquare, value: totals.enquiry, from: "from-cyan-500", to: "to-blue-600" },
     { key: "call", label: "Calls", icon: Phone, value: totals.call, from: "from-emerald-500", to: "to-teal-600" },
-    { key: "form", label: "Forms", icon: FileText, value: totals.form, from: "from-purple-500", to: "to-violet-600" },
+    { key: "form", label: "QForms", icon: FileText, value: totals.form, from: "from-purple-500", to: "to-violet-600" },
     { key: "email", label: "Email", icon: Mail, value: totals.email, from: "from-pink-500", to: "to-rose-600" },
     { key: "interakt", label: "WhatsApp", icon: Send, value: totals.interakt, from: "from-amber-500", to: "to-orange-600" },
   ];
