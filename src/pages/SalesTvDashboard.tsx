@@ -429,7 +429,7 @@ function SourceMixScreen({ dist }: { dist: any[] }) {
     interakt: "bg-amber-400",
   };
   const labels: Record<string, string> = {
-    enquiry: "Enquiry", call: "Calls", form: "Forms", email: "Email", interakt: "WhatsApp",
+    enquiry: "Enquiry", call: "Calls", form: "QForms", email: "Email", interakt: "WhatsApp",
   };
 
   return (
