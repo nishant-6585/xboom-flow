@@ -429,7 +429,7 @@ function SourceMixScreen({ dist }: { dist: any[] }) {
     interakt: "bg-amber-400",
   };
   const labels: Record<string, string> = {
-    enquiry: "Enquiry", call: "Calls", form: "Forms", email: "Email", interakt: "WhatsApp",
+    enquiry: "Enquiry", call: "Calls", form: "QForms", email: "Email", interakt: "WhatsApp",
   };
 
   return (
@@ -654,7 +654,7 @@ function LeadSourcesScreen({ dist }: { dist: ReturnType<typeof useLeadDistributi
   const cards = [
     { key: "enquiry", label: "Enquiries", icon: MessageSquare, value: totals.enquiry, from: "from-cyan-500", to: "to-blue-600" },
     { key: "call", label: "Calls", icon: Phone, value: totals.call, from: "from-emerald-500", to: "to-teal-600" },
-    { key: "form", label: "Forms", icon: FileText, value: totals.form, from: "from-purple-500", to: "to-violet-600" },
+    { key: "form", label: "QForms", icon: FileText, value: totals.form, from: "from-purple-500", to: "to-violet-600" },
     { key: "email", label: "Email", icon: Mail, value: totals.email, from: "from-pink-500", to: "to-rose-600" },
     { key: "interakt", label: "WhatsApp", icon: Send, value: totals.interakt, from: "from-amber-500", to: "to-orange-600" },
   ];
@@ -744,7 +744,7 @@ function LeadDistributionScreen({
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/40">
                 {d.sources.enquiry > 0 && <span>Enq {d.sources.enquiry}</span>}
                 {d.sources.call > 0 && <span>· Calls {d.sources.call}</span>}
-                {d.sources.form > 0 && <span>· Forms {d.sources.form}</span>}
+                {d.sources.form > 0 && <span>· QForms {d.sources.form}</span>}
                 {d.sources.email > 0 && <span>· Email {d.sources.email}</span>}
                 {d.sources.interakt > 0 && <span>· WA {d.sources.interakt}</span>}
               </div>
