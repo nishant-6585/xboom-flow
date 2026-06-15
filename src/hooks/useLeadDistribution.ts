@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface LeadSourceCounts {
   enquiry: number;
   call: number;
-  qform: number;
+  form: number;
   email: number;
   interakt: number;
 }
