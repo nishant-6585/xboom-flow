@@ -158,6 +158,22 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
   const email = (order.customer_email || "").trim().toLowerCase();
   if (!email) return json({ skipped: true, reason: "no_customer_email" });
 
+  // Only send onboarding/KYC email for drone orders, not for pure
+  // Drone Components orders. If every line item on the order is in the
+  // "Drone Components" category, skip the email entirely.
+  const { data: items } = await admin
+    .from("order_items")
+    .select("product_category")
+    .eq("order_id", order.id);
+  if (items && items.length > 0) {
+    const allComponents = items.every(
+      (it: any) => (it.product_category || "").trim().toLowerCase() === "drone components",
+    );
+    if (allComponents) {
+      return json({ skipped: true, reason: "drone_components_only" });
+    }
+  }
+
   // Skip if customer already has a portal account
   const { data: existingContact } = await admin
     .from("portal_contacts")
