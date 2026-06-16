@@ -896,12 +896,15 @@ serve(async (req) => {
     // Try multi-channel bot first, fallback to webhook
     let channel = settings[mapping.channelKey];
 
-    // Hard route: new orders and order status updates must ALWAYS go to
-    // #sales-order-confirmations, regardless of what is configured in the
-    // slack_settings row. This prevents accidental routing to broad
-    // channels like #all-xboom-2025.
-    if (type === 'new_order' || type === 'status_change') {
+    // Hard route order notifications to dedicated channels, regardless of
+    // what is configured in the slack_settings row. This prevents
+    // accidental routing to broad channels like #all-xboom-2025.
+    //  - New orders               -> #sales-order-confirmations
+    //  - Order status updates     -> #orders-update
+    if (type === 'new_order') {
       channel = 'sales-order-confirmations';
+    } else if (type === 'status_change') {
+      channel = 'orders-update';
     }
 
     if (envBotToken && channel) {
