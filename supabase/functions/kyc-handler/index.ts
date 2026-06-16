@@ -304,7 +304,7 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
      <p style="margin:0;font-size:12px;color:#94a3b8;">Order processing may require KYC approval. If you have questions, just reply to this email.</p>`,
   );
 
-  const sendRes = await sendEmail(email, "Welcome to XBOOM — set up your portal & complete KYC", html);
+  const sendRes = await sendCustomerEmail(email, "Welcome to XBOOM — set up your portal & complete KYC", html);
 
   await admin.from("kyc_audit_log").insert({
     account_id: acct.id,
@@ -574,7 +574,7 @@ async function emailCustomerStatus(
            <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.55;">Please re-upload your Aadhaar card from the portal so we can review again.</p>
            <p style="margin:0;">${btn(portalLink, "Re-upload KYC")}</p>`,
         );
-  await sendEmail(
+  await sendCustomerEmail(
     c.email,
     decision === "approved" ? "Your KYC has been approved" : "Action needed: KYC was rejected",
     html,
