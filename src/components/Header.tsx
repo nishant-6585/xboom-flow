@@ -86,6 +86,7 @@ export function Header() {
     { path: "/rent", label: "Rent", icon: Plane, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
     { path: "/daily-flow", label: "Daily Flow", icon: CalendarClock, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/drone-operations", label: "Demo & Trainings", icon: Cpu, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/kyc", label: "KYC", icon: Shield, roles: ["sales", "sales_manager", "admin", "finance"] },
   ];
 
   const hasNavAccess = (itemRoles: string[]) => itemRoles.some((itemRole) => itemRole === role || roles.includes(itemRole as any));

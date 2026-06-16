@@ -638,6 +638,14 @@ export function useOrders() {
       }
 
       toast.success('Order created successfully');
+      // Fire KYC onboarding (server-side: invite to portal + send KYC email if new customer)
+      try {
+        if (orderData?.id && formData.customer_email) {
+          supabase.functions.invoke('kyc-handler', {
+            body: { action: 'onboard_order', order_id: orderData.id },
+          }).catch((e) => console.error('kyc onboarding failed:', e));
+        }
+      } catch (e) { console.error('kyc onboarding invoke error:', e); }
       return true;
     } catch (error: any) {
       console.error('Error creating order:', error);

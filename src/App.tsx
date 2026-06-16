@@ -68,6 +68,7 @@ import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
 import CompanyCleanup from "./pages/CompanyCleanup";
 import PortalCustomers from "./pages/PortalCustomers";
+import KycVerification from "./pages/KycVerification";
 import PortalRfqQueue from "./pages/admin/PortalRfqQueue";
 import PortalOrdersAdmin from "./pages/admin/PortalOrdersAdmin";
 import PortalOrderCreate from "./pages/admin/PortalOrderCreate";
@@ -86,6 +87,7 @@ import PortalRfqs from "@/portal/pages/PortalRfqs";
 import PortalTickets from "@/portal/pages/PortalTickets";
 import PortalTicketDetail from "@/portal/pages/PortalTicketDetail";
 import PortalSettings from "@/portal/pages/PortalSettings";
+import PortalKyc from "@/portal/pages/PortalKyc";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -157,6 +159,7 @@ function AppInner() {
         <Route path="/drone-operations" element={<ProtectedRoute><DroneOperations /></ProtectedRoute>} />
         <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
         <Route path="/spare-parts" element={<ProtectedRoute><SpareParts /></ProtectedRoute>} />
+        <Route path="/kyc" element={<ProtectedRoute><KycVerification /></ProtectedRoute>} />
 
         {/* ===== B2B Customer Portal ===== */}
         <Route
@@ -227,6 +230,14 @@ function AppInner() {
                   element={
                     <PortalProtectedRoute>
                       <PortalSettings />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="kyc"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalKyc />
                     </PortalProtectedRoute>
                   }
                 />
