@@ -12,6 +12,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// Kill switch for customer-facing KYC emails while the feature is being
+// tested internally. Internal staff notifications (e.g. salesperson review
+// alert) are NOT affected by this flag. Set to "true" to re-enable.
+const CUSTOMER_EMAILS_ENABLED =
+  (Deno.env.get("KYC_CUSTOMER_EMAILS_ENABLED") ?? "false").toLowerCase() === "true";
+
+async function sendCustomerEmail(to: string, subject: string, html: string) {
+  if (!CUSTOMER_EMAILS_ENABLED) {
+    console.log("[kyc-handler] customer email suppressed (kill switch)", { to, subject });
+    return { ok: true, skipped: true as const };
+  }
+  return await sendEmail(to, subject, html);
+}
 const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE = "https://xboomflow.com";
 
@@ -291,7 +304,7 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
      <p style="margin:0;font-size:12px;color:#94a3b8;">Order processing may require KYC approval. If you have questions, just reply to this email.</p>`,
   );
 
-  const sendRes = await sendEmail(email, "Welcome to XBOOM — set up your portal & complete KYC", html);
+  const sendRes = await sendCustomerEmail(email, "Welcome to XBOOM — set up your portal & complete KYC", html);
 
   await admin.from("kyc_audit_log").insert({
     account_id: acct.id,
@@ -561,7 +574,7 @@ async function emailCustomerStatus(
            <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.55;">Please re-upload your Aadhaar card from the portal so we can review again.</p>
            <p style="margin:0;">${btn(portalLink, "Re-upload KYC")}</p>`,
         );
-  await sendEmail(
+  await sendCustomerEmail(
     c.email,
     decision === "approved" ? "Your KYC has been approved" : "Action needed: KYC was rejected",
     html,
