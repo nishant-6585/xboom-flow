@@ -6958,6 +6958,167 @@ export type Database = {
           },
         ]
       }
+      kyc_audit_log: {
+        Row: {
+          account_id: string
+          action: string
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string
+          document_id: string | null
+          id: string
+          metadata: Json
+          notes: string | null
+        }
+        Insert: {
+          account_id: string
+          action: string
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          metadata?: Json
+          notes?: string | null
+        }
+        Update: {
+          account_id?: string
+          action?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          metadata?: Json
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_audit_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_audit_log_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kyc_documents: {
+        Row: {
+          account_id: string
+          created_at: string
+          doc_type: Database["public"]["Enums"]["kyc_doc_type"]
+          file_name: string
+          file_path: string
+          file_size_bytes: number
+          id: string
+          is_current: boolean
+          metadata: Json
+          mime_type: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["kyc_status"]
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string | null
+          version: number
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["kyc_doc_type"]
+          file_name: string
+          file_path: string
+          file_size_bytes: number
+          id?: string
+          is_current?: boolean
+          metadata?: Json
+          mime_type?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["kyc_status"]
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["kyc_doc_type"]
+          file_name?: string
+          file_path?: string
+          file_size_bytes?: number
+          id?: string
+          is_current?: boolean
+          metadata?: Json
+          mime_type?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["kyc_status"]
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_documents_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kyc_sensitive_data: {
+        Row: {
+          aadhaar_full: string
+          account_id: string
+          created_at: string
+          document_id: string | null
+          id: string
+        }
+        Insert: {
+          aadhaar_full: string
+          account_id: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+        }
+        Update: {
+          aadhaar_full?: string
+          account_id?: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_sensitive_data_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_sensitive_data_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_assignment_counter: {
         Row: {
           counter: number
@@ -9617,6 +9778,7 @@ export type Database = {
       }
       portal_accounts: {
         Row: {
+          aadhaar_last4: string | null
           assigned_rep_id: string | null
           billing_address: string | null
           company_name: string
@@ -9624,12 +9786,18 @@ export type Database = {
           gstin: string | null
           id: string
           industry: string | null
+          kyc_rejection_reason: string | null
+          kyc_reviewed_at: string | null
+          kyc_reviewed_by: string | null
+          kyc_status: Database["public"]["Enums"]["kyc_status"]
+          kyc_submitted_at: string | null
           primary_contact_name: string | null
           shipping_address: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          aadhaar_last4?: string | null
           assigned_rep_id?: string | null
           billing_address?: string | null
           company_name: string
@@ -9637,12 +9805,18 @@ export type Database = {
           gstin?: string | null
           id?: string
           industry?: string | null
+          kyc_rejection_reason?: string | null
+          kyc_reviewed_at?: string | null
+          kyc_reviewed_by?: string | null
+          kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          kyc_submitted_at?: string | null
           primary_contact_name?: string | null
           shipping_address?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          aadhaar_last4?: string | null
           assigned_rep_id?: string | null
           billing_address?: string | null
           company_name?: string
@@ -9650,6 +9824,11 @@ export type Database = {
           gstin?: string | null
           id?: string
           industry?: string | null
+          kyc_rejection_reason?: string | null
+          kyc_reviewed_at?: string | null
+          kyc_reviewed_by?: string | null
+          kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          kyc_submitted_at?: string | null
           primary_contact_name?: string | null
           shipping_address?: string | null
           status?: string
@@ -15161,6 +15340,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_kyc_aadhaar_full: { Args: { _account_id: string }; Returns: string }
       get_low_stock_items: {
         Args: never
         Returns: {
@@ -15332,6 +15512,7 @@ export type Database = {
       infer_industry_from_name: { Args: { p_name: string }; Returns: string }
       invoke_send_order_sms_msg91: { Args: never; Returns: number }
       is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_kyc_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_reporting_manager: {
         Args: { _employee_id: string; _manager_id: string }
         Returns: boolean
@@ -15858,6 +16039,18 @@ export type Database = {
       kpi_rag_status: "green" | "amber" | "red" | "not_started"
       kpi_source: "hr" | "employee"
       kpi_workflow_status: "draft" | "active" | "completed" | "reviewed"
+      kyc_doc_type:
+        | "aadhaar"
+        | "pan"
+        | "gst"
+        | "business_registration"
+        | "address_proof"
+      kyc_status:
+        | "not_submitted"
+        | "pending_verification"
+        | "approved"
+        | "rejected"
+        | "resubmission_required"
       lead_disposition: "untouched" | "prospect" | "qualified" | "not_qualified"
       notice_visibility:
         | "all"
@@ -16203,6 +16396,20 @@ export const Constants = {
       kpi_rag_status: ["green", "amber", "red", "not_started"],
       kpi_source: ["hr", "employee"],
       kpi_workflow_status: ["draft", "active", "completed", "reviewed"],
+      kyc_doc_type: [
+        "aadhaar",
+        "pan",
+        "gst",
+        "business_registration",
+        "address_proof",
+      ],
+      kyc_status: [
+        "not_submitted",
+        "pending_verification",
+        "approved",
+        "rejected",
+        "resubmission_required",
+      ],
       lead_disposition: ["untouched", "prospect", "qualified", "not_qualified"],
       notice_visibility: [
         "all",
