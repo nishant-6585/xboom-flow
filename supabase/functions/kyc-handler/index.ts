@@ -12,6 +12,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// Kill switch for customer-facing KYC emails while the feature is being
+// tested internally. Internal staff notifications (e.g. salesperson review
+// alert) are NOT affected by this flag. Set to "true" to re-enable.
+const CUSTOMER_EMAILS_ENABLED =
+  (Deno.env.get("KYC_CUSTOMER_EMAILS_ENABLED") ?? "false").toLowerCase() === "true";
+
+async function sendCustomerEmail(to: string, subject: string, html: string) {
+  if (!CUSTOMER_EMAILS_ENABLED) {
+    console.log("[kyc-handler] customer email suppressed (kill switch)", { to, subject });
+    return { ok: true, skipped: true as const };
+  }
+  return await sendEmail(to, subject, html);
+}
 const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE = "https://xboomflow.com";
 
