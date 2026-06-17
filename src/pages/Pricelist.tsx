@@ -48,6 +48,7 @@ import {
   List,
   Bot,
   ExternalLink,
+  Globe,
 } from "lucide-react";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { toast } from "sonner";
@@ -68,7 +69,7 @@ const AVAILABILITY_OPTIONS = ["In Stock", "Limited Stock", "Out of Stock", "Pre-
 
 export default function Pricelist() {
   const { user, profile, role, loading: authLoading } = useAuth();
-  const { items, loading, createItem, updateItem, deleteItem, clearAndReplace } = usePricelist();
+  const { items, loading, createItem, updateItem, deleteItem, clearAndReplace, syncFromWebsite } = usePricelist();
   const { createEnquiry } = useEnquiries();
   
   const [search, setSearch] = useState("");
@@ -88,7 +89,8 @@ export default function Pricelist() {
   const [enquiryQuantity, setEnquiryQuantity] = useState(1);
   const [enquiryNotes, setEnquiryNotes] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
-  
+  const [syncing, setSyncing] = useState(false);
+
   
   const [formData, setFormData] = useState<PricelistFormData>({
     product_name: "",
@@ -217,6 +219,15 @@ export default function Pricelist() {
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSyncFromWebsite = async () => {
+    setSyncing(true);
+    try {
+      await syncFromWebsite();
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -370,6 +381,10 @@ export default function Pricelist() {
           </div>
           {canManage && (
             <div className="flex gap-2">
+              <Button variant="outline" onClick={handleSyncFromWebsite} disabled={syncing}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Syncing..." : "Sync from Website"}
+              </Button>
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Product
@@ -505,7 +520,23 @@ export default function Pricelist() {
                             <TableRow key={item.id}>
                               <TableCell>
                                 <div>
-                                  <p className="font-medium">{item.product_name}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium">{item.product_name}</p>
+                                    {item.woo_product_id && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1"
+                                        title={
+                                          item.website_synced_at
+                                            ? `Synced from xboom.in on ${new Date(item.website_synced_at).toLocaleString()}`
+                                            : "Synced from xboom.in"
+                                        }
+                                      >
+                                        <Globe className="w-3 h-3" />
+                                        Website
+                                      </Badge>
+                                    )}
+                                  </div>
                                   {item.description && (
                                     <p className="text-xs text-muted-foreground line-clamp-1">
                                       {item.description}
