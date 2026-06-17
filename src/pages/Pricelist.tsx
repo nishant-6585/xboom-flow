@@ -111,6 +111,7 @@ export default function Pricelist() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canManage = role === "admin" || role === "supply_chain";
+  const canSync = canManage || role === "sales";
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -379,20 +380,26 @@ export default function Pricelist() {
               View products, pricing and raise enquiries for confirmation
             </p>
           </div>
-          {canManage && (
+          {(canSync || canManage) && (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleSyncFromWebsite} disabled={syncing}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Syncing..." : "Sync from Website"}
-              </Button>
-              <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Product
-              </Button>
-              <Button onClick={() => setUploadDialogOpen(true)}>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Excel
-              </Button>
+              {canSync && (
+                <Button variant="outline" onClick={handleSyncFromWebsite} disabled={syncing}>
+                  <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+                  {syncing ? "Syncing..." : "Sync from Website"}
+                </Button>
+              )}
+              {canManage && (
+                <>
+                  <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Product
+                  </Button>
+                  <Button onClick={() => setUploadDialogOpen(true)}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Excel
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </div>
