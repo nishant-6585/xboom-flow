@@ -498,6 +498,7 @@ export default function Pricelist() {
                           <TableHead>Product</TableHead>
                           <TableHead>Category</TableHead>
                           <TableHead>Brand</TableHead>
+                          <TableHead>Price</TableHead>
                           <TableHead>Website Price</TableHead>
                           <TableHead>Dealer Price</TableHead>
                           {canManage && <TableHead>Cost Price</TableHead>}
