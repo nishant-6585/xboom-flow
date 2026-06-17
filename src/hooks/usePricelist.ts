@@ -21,6 +21,7 @@ export interface PricelistItem {
   marketing_collateral_name: string | null;
   woo_product_id: number | null;
   woo_sku: string | null;
+  woo_stock_status: string | null;
   sync_source: string | null;
   website_synced_at: string | null;
   created_at: string;

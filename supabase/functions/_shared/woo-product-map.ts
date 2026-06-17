@@ -72,7 +72,8 @@ function mapAvailability(woo: Woo): string {
     case "onbackorder":
       return "Pre-Order";
     default:
-      return "In Stock";
+      // Unknown / missing stock_status -> don't masquerade as in-stock.
+      return "On Request";
   }
 }
 
@@ -136,6 +137,7 @@ export async function upsertWooProduct(
     description: stripHtml(woo?.short_description || woo?.description) || null,
     website_price: mapPrice(woo),
     availability: mapAvailability(woo),
+    woo_stock_status: woo?.stock_status ? String(woo.stock_status).toLowerCase() : null,
     woo_sku: woo?.sku ? String(woo.sku) : null,
     sync_source: source,
     website_synced_at: new Date().toISOString(),
