@@ -10619,6 +10619,7 @@ export type Database = {
           website_synced_at: string | null
           woo_product_id: number | null
           woo_sku: string | null
+          woo_stock_status: string | null
         }
         Insert: {
           availability?: string | null
@@ -10645,6 +10646,7 @@ export type Database = {
           website_synced_at?: string | null
           woo_product_id?: number | null
           woo_sku?: string | null
+          woo_stock_status?: string | null
         }
         Update: {
           availability?: string | null
@@ -10671,6 +10673,7 @@ export type Database = {
           website_synced_at?: string | null
           woo_product_id?: number | null
           woo_sku?: string | null
+          woo_stock_status?: string | null
         }
         Relationships: []
       }

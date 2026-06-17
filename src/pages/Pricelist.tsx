@@ -505,6 +505,8 @@ export default function Pricelist() {
                           {canManage && <TableHead>Margin</TableHead>}
                           <TableHead>Lead Time</TableHead>
                           <TableHead>Availability</TableHead>
+                          <TableHead>Source</TableHead>
+                          {canManage && <TableHead>Woo Stock</TableHead>}
                           <TableHead>Collateral</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -512,7 +514,7 @@ export default function Pricelist() {
                       <TableBody>
                         {paginatedItems.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={canManage ? 13 : 11} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={canManage ? 15 : 12} className="text-center py-8 text-muted-foreground">
                               No products found
                             </TableCell>
                           </TableRow>
@@ -611,6 +613,41 @@ export default function Pricelist() {
                                   {item.availability}
                                 </Badge>
                               </TableCell>
+                              <TableCell>
+                                {item.woo_product_id || item.sync_source === 'woocommerce' ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1"
+                                    title={
+                                      item.website_synced_at
+                                        ? `Last synced ${new Date(item.website_synced_at).toLocaleString()}`
+                                        : 'Synced from xboom.in'
+                                    }
+                                  >
+                                    <Globe className="w-3 h-3" />
+                                    Synced
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                    title="Availability was set manually (Excel import or Add Product). Not verified against the website."
+                                  >
+                                    Manual
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              {canManage && (
+                                <TableCell>
+                                  {item.woo_stock_status ? (
+                                    <code className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                      {item.woo_stock_status}
+                                    </code>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">-</span>
+                                  )}
+                                </TableCell>
+                              )}
                               <TableCell>
                                 {item.marketing_collateral_url ? (
                                   <a
