@@ -538,11 +538,6 @@ export default function Pricelist() {
                                       </Badge>
                                     )}
                                   </div>
-                                  {item.description && (
-                                    <p className="text-xs text-muted-foreground line-clamp-1">
-                                      {item.description}
-                                    </p>
-                                  )}
                                 </div>
                               </TableCell>
                               <TableCell>{item.product_category}</TableCell>
