@@ -111,6 +111,7 @@ export default function Pricelist() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canManage = role === "admin" || role === "supply_chain";
+  const canSync = canManage || role === "sales";
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
