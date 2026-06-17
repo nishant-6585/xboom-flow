@@ -138,6 +138,12 @@ verify_jwt = false
 [functions.woocommerce-webhook]
 verify_jwt = false
 
+[functions.woocommerce-product-webhook]
+verify_jwt = false
+
+[functions.woocommerce-products-backfill]
+verify_jwt = false
+
 [functions.send-website-order-email]
 verify_jwt = false
 

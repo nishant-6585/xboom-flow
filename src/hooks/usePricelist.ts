@@ -19,6 +19,10 @@ export interface PricelistItem {
   notes: string | null;
   marketing_collateral_url: string | null;
   marketing_collateral_name: string | null;
+  woo_product_id: number | null;
+  woo_sku: string | null;
+  sync_source: string | null;
+  website_synced_at: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -232,6 +236,25 @@ export function usePricelist() {
     }
   };
 
+  const syncFromWebsite = async (): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('woocommerce-products-backfill');
+      if (error) throw error;
+
+      const { created = 0, updated = 0, linked = 0, skipped = 0, failed = 0 } = data || {};
+      toast.success(
+        `Website sync complete — ${created} added, ${updated + linked} updated, ${skipped} skipped` +
+          (failed ? `, ${failed} failed` : ''),
+      );
+      await fetchItems();
+      return true;
+    } catch (error: any) {
+      console.error('Error syncing products from website:', error);
+      toast.error(error.message || 'Failed to sync products from website');
+      return false;
+    }
+  };
+
   return {
     items,
     loading,
@@ -241,5 +264,6 @@ export function usePricelist() {
     deleteItem,
     bulkInsert,
     clearAndReplace,
+    syncFromWebsite,
   };
 }
