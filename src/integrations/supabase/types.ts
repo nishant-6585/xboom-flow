@@ -10611,10 +10611,14 @@ export type Database = {
           notes: string | null
           product_category: string
           product_name: string
+          sync_source: string | null
           unit_price: number | null
           updated_at: string
           updated_by: string | null
           website_price: number | null
+          website_synced_at: string | null
+          woo_product_id: number | null
+          woo_sku: string | null
         }
         Insert: {
           availability?: string | null
@@ -10633,10 +10637,14 @@ export type Database = {
           notes?: string | null
           product_category?: string
           product_name: string
+          sync_source?: string | null
           unit_price?: number | null
           updated_at?: string
           updated_by?: string | null
           website_price?: number | null
+          website_synced_at?: string | null
+          woo_product_id?: number | null
+          woo_sku?: string | null
         }
         Update: {
           availability?: string | null
@@ -10655,10 +10663,14 @@ export type Database = {
           notes?: string | null
           product_category?: string
           product_name?: string
+          sync_source?: string | null
           unit_price?: number | null
           updated_at?: string
           updated_by?: string | null
           website_price?: number | null
+          website_synced_at?: string | null
+          woo_product_id?: number | null
+          woo_sku?: string | null
         }
         Relationships: []
       }
@@ -14796,10 +14808,14 @@ export type Database = {
           notes: string | null
           product_category: string | null
           product_name: string | null
+          sync_source: string | null
           unit_price: number | null
           updated_at: string | null
           updated_by: string | null
           website_price: number | null
+          website_synced_at: string | null
+          woo_product_id: number | null
+          woo_sku: string | null
         }
         Insert: {
           availability?: string | null
@@ -14817,10 +14833,14 @@ export type Database = {
           notes?: string | null
           product_category?: string | null
           product_name?: string | null
+          sync_source?: string | null
           unit_price?: number | null
           updated_at?: string | null
           updated_by?: string | null
           website_price?: number | null
+          website_synced_at?: string | null
+          woo_product_id?: number | null
+          woo_sku?: string | null
         }
         Update: {
           availability?: string | null
@@ -14838,10 +14858,14 @@ export type Database = {
           notes?: string | null
           product_category?: string | null
           product_name?: string | null
+          sync_source?: string | null
           unit_price?: number | null
           updated_at?: string | null
           updated_by?: string | null
           website_price?: number | null
+          website_synced_at?: string | null
+          woo_product_id?: number | null
+          woo_sku?: string | null
         }
         Relationships: []
       }
@@ -15511,6 +15535,7 @@ export type Database = {
       }
       infer_industry_from_name: { Args: { p_name: string }; Returns: string }
       invoke_send_order_sms_msg91: { Args: never; Returns: number }
+      invoke_woocommerce_products_backfill: { Args: never; Returns: number }
       is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_kyc_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_reporting_manager: {
