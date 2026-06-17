@@ -93,22 +93,34 @@ Deno.serve(async (req) => {
       const products = await resp.json();
       if (!Array.isArray(products) || products.length === 0) break;
 
-      for (const p of products) {
-        try {
-          const result = await upsertWooProduct(supabase, p, "woocommerce_backfill");
-          if (result.action === "created") created++;
-          else if (result.action === "updated") updated++;
-          else if (result.action === "linked") linked++;
-          else skipped++;
-        } catch (e) {
-          failed++;
-          await supabase.from("woo_sync_logs").insert({
-            event_type: "product_backfill",
-            direction: "in",
-            status: "failed",
-            error_message: e instanceof Error ? e.message : "unknown",
-            payload: { woo_product_id: p?.id, name: p?.name },
-          });
+      // Process page in parallel batches to stay well under the 150s edge timeout.
+      // Sequential was ~150ms/product × 1500 = >3 min; batched is ~10–20× faster.
+      const BATCH = 20;
+      for (let i = 0; i < products.length; i += BATCH) {
+        const slice = products.slice(i, i + BATCH);
+        const results = await Promise.allSettled(
+          slice.map((p: unknown) => upsertWooProduct(supabase, p, "woocommerce_backfill")),
+        );
+        for (let j = 0; j < results.length; j++) {
+          const r = results[j];
+          if (r.status === "fulfilled") {
+            const a = r.value.action;
+            if (a === "created") created++;
+            else if (a === "updated") updated++;
+            else if (a === "linked") linked++;
+            else skipped++;
+          } else {
+            failed++;
+            // deno-lint-ignore no-explicit-any
+            const p: any = slice[j];
+            await supabase.from("woo_sync_logs").insert({
+              event_type: "product_backfill",
+              direction: "in",
+              status: "failed",
+              error_message: r.reason instanceof Error ? r.reason.message : String(r.reason),
+              payload: { woo_product_id: p?.id, name: p?.name },
+            });
+          }
         }
       }
 
