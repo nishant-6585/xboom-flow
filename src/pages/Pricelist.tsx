@@ -498,6 +498,7 @@ export default function Pricelist() {
                           <TableHead>Product</TableHead>
                           <TableHead>Category</TableHead>
                           <TableHead>Brand</TableHead>
+                          <TableHead>Price</TableHead>
                           <TableHead>Website Price</TableHead>
                           <TableHead>Dealer Price</TableHead>
                           {canManage && <TableHead>Cost Price</TableHead>}
@@ -511,7 +512,7 @@ export default function Pricelist() {
                       <TableBody>
                         {paginatedItems.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={canManage ? 12 : 10} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={canManage ? 13 : 11} className="text-center py-8 text-muted-foreground">
                               No products found
                             </TableCell>
                           </TableRow>
@@ -546,6 +547,20 @@ export default function Pricelist() {
                               </TableCell>
                               <TableCell>{item.product_category}</TableCell>
                               <TableCell>{item.brand || "-"}</TableCell>
+                              <TableCell>
+                                {(() => {
+                                  const price = item.unit_price ?? item.website_price ?? item.dealer_price;
+                                  if (!price) {
+                                    return <span className="text-muted-foreground">On Request</span>;
+                                  }
+                                  return (
+                                    <span className="font-semibold">
+                                      {item.currency === "USD" ? "$" : "₹"}
+                                      {price.toLocaleString()}
+                                    </span>
+                                  );
+                                })()}
+                              </TableCell>
                               <TableCell>
                                 {item.website_price ? (
                                   <span className="font-medium">
