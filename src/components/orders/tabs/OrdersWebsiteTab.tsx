@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,9 @@ import {
   Loader2, Globe, Search, X, ChevronDown, LayoutGrid, Table, RefreshCw,
 } from 'lucide-react';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface WooStats {
   totalOrders: number;
@@ -82,6 +86,31 @@ export default function OrdersWebsiteTab(props: OrdersWebsiteTabProps) {
     formatINR, timeAgo,
   } = props;
 
+  const { role } = useAuth();
+  const canReconcile = role === 'admin' || role === 'finance' || role === 'supply_chain';
+  const [reconciling, setReconciling] = useState(false);
+  const handleReconcile = async () => {
+    setReconciling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('woocommerce-orders-reconcile', {
+        body: { days: 7 },
+      });
+      if (error) throw error;
+      const { processed = 0, failed = 0, mirror_failed = 0 } = data || {};
+      toast({
+        title: 'Website sync complete',
+        description: `Refreshed ${processed} orders${failed ? `, ${failed} failed` : ''}${mirror_failed ? `, ${mirror_failed} mirror failures` : ''}.`,
+      });
+      refetchWooOrders();
+      refetchWooSync();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to refresh from website';
+      toast({ title: 'Sync failed', description: msg, variant: 'destructive' });
+    } finally {
+      setReconciling(false);
+    }
+  };
+
   return (
     <TabsContent value="website" className="space-y-6 mt-0">
       <div className="flex items-center justify-between mb-2">
@@ -98,6 +127,19 @@ export default function OrdersWebsiteTab(props: OrdersWebsiteTabProps) {
           <span className="text-[11px] text-muted-foreground hidden sm:inline">
             Last synced: <span className="font-medium text-foreground">{timeAgo(wooStats.lastSyncedAt)}</span>
           </span>
+          {canReconcile && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReconcile}
+              disabled={reconciling || wooLoading}
+              className="h-9 gap-2 rounded-lg"
+              title="Pull the last 7 days of orders from WooCommerce (includes shipment tracking from AST)."
+            >
+              <RefreshCw className={`h-4 w-4 ${reconciling ? 'animate-spin' : ''}`} />
+              {reconciling ? 'Refreshing…' : 'Sync from Website'}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleWooManualSync} disabled={wooSyncing || wooLoading} className="h-9 gap-2 rounded-lg">
             <RefreshCw className={`h-4 w-4 ${wooSyncing ? 'animate-spin' : ''}`} />
             {wooSyncing ? 'Syncing…' : 'Sync Now'}
@@ -239,10 +281,10 @@ export default function OrdersWebsiteTab(props: OrdersWebsiteTabProps) {
               <SelectTrigger className="w-[200px] h-9 rounded-lg"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">
-                  Processing + Pending + Shipped ({((wooStats.statusCounts['processing'] || 0) + (wooStats.statusCounts['pending'] || 0) + (wooStats.statusCounts['shipped'] || 0)).toLocaleString()})
+                  Processing + Pending + Shipped + Delivered ({((wooStats.statusCounts['processing'] || 0) + (wooStats.statusCounts['pending'] || 0) + (wooStats.statusCounts['shipped'] || 0) + (wooStats.statusCounts['delivered'] || 0)).toLocaleString()})
                 </SelectItem>
                 {WOO_STATUS_OPTIONS
-                  .filter((s) => s.value === 'processing' || s.value === 'pending' || s.value === 'shipped')
+                  .filter((s) => s.value === 'processing' || s.value === 'pending' || s.value === 'shipped' || s.value === 'delivered' || s.value === 'completed')
                   .map((s) => {
                     const count = wooStats.statusCounts[s.value] || 0;
                     return (<SelectItem key={s.value} value={s.value}>{s.label} ({count.toLocaleString()})</SelectItem>);
@@ -347,7 +389,9 @@ export default function OrdersWebsiteTab(props: OrdersWebsiteTabProps) {
                         <td className="p-3 font-semibold">₹{(order.total_sales_amount || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3">
                           <Badge variant="outline" className={`text-xs capitalize ${
+                            order.order_status === 'delivered' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' :
                             order.order_status === 'completed' ? 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400' :
+                            order.order_status === 'shipped' ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400' :
                             order.order_status === 'processing' ? 'border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400' :
                             order.order_status === 'failed' || order.order_status === 'cancelled' ? 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400' :
                             order.order_status === 'refunded' ? 'border-muted-foreground/40 bg-muted/30 text-muted-foreground' :

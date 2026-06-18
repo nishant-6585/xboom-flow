@@ -44,17 +44,61 @@ export function extractTrackingFromWoo(payload: any): {
   let date_shipped: string | null = null;
   let trackingMetaSeen = false;
 
+  // ---- AST (Advanced Shipment Tracking for WooCommerce) ---------------------
+  // Newer AST versions expose tracking as a top-level REST field on the order:
+  //   payload.wc_shipment_tracking_items: [...]
+  //   payload.shipment_tracking:          [...]            (alt name)
+  //   payload.ast_tracking_items / payload.tracking_items   (alt names)
+  // Each item looks like:
+  //   { tracking_number, tracking_provider, formatted_tracking_provider,
+  //     tracking_link, custom_tracking_link, date_shipped, ast_tracking_link, ... }
+  // deno-lint-ignore no-explicit-any
+  const topLevelArrays: any[] = [
+    payload?.wc_shipment_tracking_items,
+    payload?.shipment_tracking_items,
+    payload?.shipment_tracking,
+    payload?.ast_tracking_items,
+    payload?.tracking_items,
+  ].filter(Array.isArray);
+  if (topLevelArrays.length > 0) {
+    trackingMetaSeen = true;
+    const first = topLevelArrays[0][0];
+    if (first && typeof first === "object") {
+      number = number || first.tracking_number || null;
+      url = url ||
+        first.ast_tracking_link || first.tracking_link || first.tracking_url ||
+        first.custom_tracking_link || null;
+      provider = provider ||
+        first.formatted_tracking_provider || first.tracking_provider ||
+        first.custom_tracking_provider || null;
+      if (!date_shipped && first.date_shipped) {
+        const ds = first.date_shipped;
+        if (typeof ds === "number" || /^\d+$/.test(String(ds))) {
+          date_shipped = new Date(Number(ds) * 1000).toISOString().slice(0, 10);
+        } else {
+          date_shipped = String(ds).slice(0, 10);
+        }
+      }
+    }
+  }
+
   const meta = Array.isArray(payload?.meta_data) ? payload.meta_data : [];
   for (const m of meta) {
     const k = String(m?.key || "").toLowerCase();
     const v = m?.value;
-    // Official WooCommerce Shipment Tracking plugin stores an array here.
-    if (k === "_wc_shipment_tracking_items") {
+    // WC Shipment Tracking + AST store items under one of these keys.
+    if (
+      k === "_wc_shipment_tracking_items" ||
+      k === "_ast_shipment_tracking_items" ||
+      k === "_shipment_tracking_items"
+    ) {
       trackingMetaSeen = true;
       if (!Array.isArray(v) || !v[0]) continue;
       const first = v[0];
       number = number || first.tracking_number || null;
-      url = url || first.tracking_link || first.tracking_url || first.custom_tracking_link || null;
+      url = url ||
+        first.ast_tracking_link || first.tracking_link || first.tracking_url ||
+        first.custom_tracking_link || null;
       provider = provider || first.formatted_tracking_provider || first.tracking_provider ||
         first.custom_tracking_provider || null;
       if (!date_shipped && first.date_shipped) {
@@ -287,12 +331,11 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 
   let internalId: string | null = existing?.id ?? null;
   if (existing) {
-    const { data: cur } = await supabase
-      .from("orders").select("tracking_number, tracking_url")
-      .eq("id", existing.id).maybeSingle();
+    // Always reflect the latest tracking from Woo. The Advanced Shipment
+    // Tracking plugin owns this data — internal edits should not stick.
     if (wooTracking.number && !forceClearShipping) {
-      if (!cur?.tracking_number) orderRow.tracking_number = wooTracking.number;
-      if (!cur?.tracking_url && wooTracking.url) orderRow.tracking_url = wooTracking.url;
+      orderRow.tracking_number = wooTracking.number;
+      if (wooTracking.url) orderRow.tracking_url = wooTracking.url;
       if (wooTracking.provider) orderRow.courier_name = wooTracking.provider;
     } else if (trackingCleared) {
       // Tracking removed in Woo — mirror the clear into internal orders.
@@ -354,4 +397,109 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     event_type: eventType, direction: "in", status: "success",
     woo_status: wooStatus,
   });
+}
+
+/**
+ * Upsert a WooCommerce REST/webhook payload into the `woocommerce_orders`
+ * mirror table (the "Website Orders" UI). Owns the Woo→internal field
+ * mapping for status / fulfillment / payment / tracking so that webhook
+ * and reconcile paths stay in lock-step.
+ */
+// deno-lint-ignore no-explicit-any
+export async function upsertWoocommerceOrder(supabase: any, payload: any, orderId: string, source: "webhook" | "reconcile" | "backfill") {
+  const lineItems = payload?.line_items || [];
+  const firstItem = lineItems[0] || {};
+  const productName = lineItems.length === 1
+    ? (firstItem.name || "Unknown Product")
+    : `${firstItem.name || "Unknown"} + ${lineItems.length - 1} more`;
+  const totalQuantity = lineItems.reduce(
+    (sum: number, item: { quantity?: number }) => sum + (item.quantity || 0),
+    0,
+  ) || 1;
+
+  const shipping = payload?.shipping || {};
+  const shippingParts = [
+    shipping.address_1, shipping.address_2, shipping.city,
+    shipping.state, shipping.postcode, shipping.country,
+  ].filter(Boolean);
+  const shippingAddress = shippingParts.join(", ") || null;
+
+  const wooStatus: string = String(payload?.status || "pending").toLowerCase();
+
+  const paymentStatusMap: Record<string, string> = {
+    completed: "paid",
+    processing: "paid",
+    delivered: "paid",
+    shipped: "paid",
+    "on-hold": "pending",
+    pending: "pending",
+    failed: "failed",
+    cancelled: "cancelled",
+    refunded: "refunded",
+  };
+
+  const isPaid = wooStatus === "completed" || wooStatus === "processing" ||
+    wooStatus === "delivered" || wooStatus === "shipped";
+  const orderTotal = parseFloat(payload?.total || "0");
+
+  const rawPhone = (payload?.billing?.phone ?? payload?.shipping?.phone ?? "").toString().trim();
+  const phone: string | null = rawPhone.length > 0 ? rawPhone : null;
+
+  const fulfillmentStatus = (wooStatus === "completed" || wooStatus === "delivered" || wooStatus === "shipped")
+    ? "fulfilled"
+    : "unfulfilled";
+
+  const orderData: Record<string, unknown> = {
+    woo_order_id: orderId,
+    order_number: payload?.number ? String(payload.number) : orderId,
+    source: "xboom_website",
+    order_status: wooStatus,
+    financial_status: wooStatus,
+    fulfillment_status: fulfillmentStatus,
+    product_name: productName,
+    product_code: firstItem.sku || null,
+    product_category: "Consumer Drones",
+    quantity: totalQuantity,
+    customer_name: `${payload?.billing?.first_name || ""} ${payload?.billing?.last_name || ""}`.trim() || "Unknown",
+    customer_company: payload?.billing?.company || "",
+    customer_email: payload?.billing?.email || "",
+    shipping_address: shippingAddress,
+    selling_price: orderTotal,
+    total_sales_amount: orderTotal,
+    amount_paid: isPaid ? orderTotal : 0,
+    payment_status: paymentStatusMap[wooStatus] || "pending",
+    currency: payload?.currency || "INR",
+    line_items: lineItems,
+    raw_data: payload,
+    woo_created_at: payload?.date_created || null,
+    woo_updated_at: payload?.date_modified || null,
+  };
+  if (phone !== null) orderData.customer_phone = phone;
+
+  // ---- Tracking: always reflect latest from Woo (AST is source of truth) ----
+  const trk = extractTrackingFromWoo(payload);
+  if (trk.number) {
+    orderData.tracking_number = trk.number;
+    orderData.courier = trk.provider ?? null;
+    orderData.expected_delivery = trk.date_shipped ?? null;
+    orderData.tracking_status =
+      (wooStatus === "delivered") ? "delivered" :
+      (wooStatus === "completed" || wooStatus === "shipped") ? "in_transit" :
+      "in_transit";
+  } else if (trk.cleared || (source !== "webhook" /* reconcile/backfill always carry full payload */) || Array.isArray(payload?.meta_data)) {
+    orderData.tracking_number = null;
+    orderData.courier = null;
+    orderData.expected_delivery = null;
+    orderData.tracking_status = null;
+  }
+
+  const { error } = await supabase
+    .from("woocommerce_orders")
+    .upsert(orderData, { onConflict: "woo_order_id" });
+
+  if (error) {
+    console.error(`[woo-mirror] upsertWoocommerceOrder #${orderId}: ${error.message}`);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }

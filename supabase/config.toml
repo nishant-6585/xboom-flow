@@ -132,6 +132,9 @@ verify_jwt = false
 [functions.woocommerce-orders-backfill]
 verify_jwt = false
 
+[functions.woocommerce-orders-reconcile]
+verify_jwt = false
+
 [functions.woocommerce-push-update]
 verify_jwt = false
 

@@ -15560,6 +15560,7 @@ export type Database = {
       }
       infer_industry_from_name: { Args: { p_name: string }; Returns: string }
       invoke_send_order_sms_msg91: { Args: never; Returns: number }
+      invoke_woocommerce_orders_reconcile: { Args: never; Returns: number }
       invoke_woocommerce_products_backfill: { Args: never; Returns: number }
       is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_kyc_reviewer: { Args: { _uid: string }; Returns: boolean }
