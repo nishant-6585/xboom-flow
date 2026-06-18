@@ -235,6 +235,36 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                     </div>
                   </div>
                 </div>
+
+                {/* Assigned To */}
+                <div className="mt-4 flex items-start gap-2">
+                  <User className="h-4 w-4 text-muted-foreground mt-2" />
+                  <div className="flex-1">
+                    <div className="text-sm text-muted-foreground mb-1">Assigned To (IT)</div>
+                    <Select
+                      value={repair.assigned_technician_id || ""}
+                      onValueChange={handleAssignTechnician}
+                      disabled={assigning}
+                    >
+                      <SelectTrigger className="w-full sm:w-72">
+                        <SelectValue placeholder="Select IT team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {itEmployees.length === 0 ? (
+                          <SelectItem value="__none__" disabled>
+                            No IT employees found
+                          </SelectItem>
+                        ) : (
+                          itEmployees.map((e) => (
+                            <SelectItem key={e.user_id} value={e.user_id}>
+                              {e.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
               {/* Customer-submitted intake form data */}
