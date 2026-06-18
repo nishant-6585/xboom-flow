@@ -140,6 +140,47 @@ export default function Repairs() {
     setSelectedRepair(null);
   };
 
+  const sortedRepairs = useMemo(() => {
+    if (!sortKey) return filteredRepairs;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const arr = [...filteredRepairs];
+    arr.sort((a: any, b: any) => {
+      let av: any; let bv: any;
+      if (sortKey === "status") {
+        av = a.date_completed ? 1 : 0; bv = b.date_completed ? 1 : 0;
+      } else if (sortKey === "created_at") {
+        av = new Date(a.created_at).getTime() || 0;
+        bv = new Date(b.created_at).getTime() || 0;
+      } else if (sortKey === "total_quote_amount" || sortKey === "balance_amount" || sortKey === "profit") {
+        av = Number(a[sortKey]) || 0; bv = Number(b[sortKey]) || 0;
+      } else {
+        av = (a[sortKey] ?? "").toString().toLowerCase();
+        bv = (b[sortKey] ?? "").toString().toLowerCase();
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [filteredRepairs, sortKey, sortDir]);
+
+  const SortHead = ({ label, k, align }: { label: string; k: RepairSortKey; align?: "right" }) => {
+    const active = sortKey === k;
+    const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <TableHead className={`whitespace-nowrap ${align === "right" ? "text-right" : ""}`}>
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${align === "right" ? "ml-auto" : ""}`}
+        >
+          {label}
+          <Icon className={`h-3.5 w-3.5 ${active ? "text-foreground" : "opacity-60"}`} />
+        </button>
+      </TableHead>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 sm:pb-0">
       <Header />
