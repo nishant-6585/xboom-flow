@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
 
   if (error) {
     console.error("[leads-incoming] insert failed", error);
-    return json({ ok: false, error: error.message }, 500);
+    return json({ ok: false, error: "insert_failed" }, 500);
   }
 
   return json({ ok: true, id: data.id });

@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
 
   try {
     if (body.action === "onboard_order") {
+      if (!callerId) return json({ error: "Not authenticated" }, 401);
       return await onboardOrder(admin, body.order_id!);
     }
     if (body.action === "submit") {
