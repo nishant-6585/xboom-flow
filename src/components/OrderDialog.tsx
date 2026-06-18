@@ -35,9 +35,10 @@ import { ProductSelect } from '@/components/ProductSelect';
 import { PricelistItem } from '@/hooks/usePricelist';
 import { InventoryFulfillmentPanel } from '@/components/order/InventoryFulfillmentPanel';
 import { DocumentViewer } from '@/components/hr/DocumentViewer';
-import { useOrderInvoices } from '@/hooks/useOrderInvoices';
+import { useOrderInvoices, OrderInvoice } from '@/hooks/useOrderInvoices';
 import { WooOrderStatusActions } from '@/components/orders/WooOrderStatusActions';
 import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDialog';
+import { InvoiceListCard } from '@/components/orders/InvoiceListCard';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -153,6 +154,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   // Multi-invoice support
   const { invoices: orderInvoices, addInvoice, removeInvoice, refetch: refetchInvoices } = useOrderInvoices(order?.id ?? null);
   const [proformaDialogOpen, setProformaDialogOpen] = useState(false);
+  const [regenerateTarget, setRegenerateTarget] = useState<OrderInvoice | null>(null);
   const canGenerateProforma = (isAdmin || isFinance || isSupplyChain) && order?.payment_status === 'full';
   // (PO number is auto-extracted from the uploaded PO document; no manual editing)
   const [isRefundRequested, setIsRefundRequested] = useState(false);
@@ -2001,66 +2003,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
               {/* List of uploaded invoices */}
               {orderInvoices.length > 0 && (
-                <div className="space-y-2">
-                  {orderInvoices.map((inv) => (
-                    <div key={inv.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <Button
-                        variant="link"
-                        className="text-primary hover:underline flex items-center gap-2 text-sm p-0 h-auto text-left"
-                        onClick={async () => {
-                          try {
-                            const { data, error } = await supabase.storage
-                              .from('invoices')
-                              .createSignedUrl(inv.storage_path, 300);
-                            if (error || !data?.signedUrl) {
-                              toast.error('Failed to open invoice.');
-                              return;
-                            }
-                            const fileName = inv.file_name || inv.storage_path.split('/').pop() || 'Invoice';
-                            const fileType = (fileName.split('.').pop() || '').toLowerCase();
-                            try {
-                              const res = await fetch(data.signedUrl);
-                              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                              const blob = await res.blob();
-                              const blobUrl = URL.createObjectURL(blob);
-                              if (invoiceViewer.url) URL.revokeObjectURL(invoiceViewer.url);
-                              setInvoiceViewer({ open: true, url: blobUrl, name: fileName, fileType });
-                            } catch {
-                              setInvoiceViewer({ open: true, url: data.signedUrl, name: fileName, fileType });
-                            }
-                          } catch (err: any) {
-                            console.error('Error opening invoice:', err);
-                            toast.error('Failed to open invoice.');
-                          }
-                        }}
-                      >
-                        <FileText className="h-4 w-4 shrink-0" />
-                        <span className="truncate">
-                          {inv.invoice_number ? `Invoice ${inv.invoice_number}` : (inv.file_name || 'Invoice')}
-                        </span>
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                      </Button>
-                        <Badge variant="outline" className={inv.source === 'xboom' ? 'border-orange-500 text-orange-700 dark:text-orange-400' : 'border-blue-500 text-blue-700 dark:text-blue-400'}>
-                          {inv.source === 'xboom' ? 'XBoom' : 'Zoho'}
-                        </Badge>
-                        <Badge variant="secondary">
-                          {inv.document_type === 'proforma' ? 'Proforma' : 'Tax Invoice'}
-                        </Badge>
-                      </div>
-                      {canEdit && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => removeInvoice(inv)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <InvoiceListCard
+                  invoices={orderInvoices}
+                  canRegenerate={!!canGenerateProforma}
+                  onRegenerate={(inv) => { setRegenerateTarget(inv); setProformaDialogOpen(true); }}
+                  canDelete={canEdit}
+                  onDelete={(inv) => removeInvoice(inv)}
+                />
               )}
 
               {canEdit ? (
@@ -2720,8 +2669,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       <GenerateProformaDialog
         order={order}
         open={proformaDialogOpen}
-        onOpenChange={setProformaDialogOpen}
-        onGenerated={() => { refetchInvoices(); }}
+        existingProforma={regenerateTarget}
+        onOpenChange={(o) => {
+          setProformaDialogOpen(o);
+          if (!o) setRegenerateTarget(null);
+        }}
+        onGenerated={() => { refetchInvoices(); setRegenerateTarget(null); }}
       />
 
       <Dialog open={titleReasonOpen} onOpenChange={(o) => { if (!loading) setTitleReasonOpen(o); }}>
