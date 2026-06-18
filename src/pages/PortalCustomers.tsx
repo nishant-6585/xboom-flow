@@ -120,6 +120,7 @@ export default function PortalCustomers() {
   return (
     <div className="min-h-[100dvh] bg-background">
       <Header />
+      <AdminTabsNav active="portal-customers" />
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-start justify-between mb-6">
           <div>
