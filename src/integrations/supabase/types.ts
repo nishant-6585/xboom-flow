@@ -12410,6 +12410,27 @@ export type Database = {
         }
         Relationships: []
       }
+      shopify_pipeline_alert_state: {
+        Row: {
+          alert_key: string
+          last_alerted_at: string
+          last_payload: Json | null
+          updated_at: string
+        }
+        Insert: {
+          alert_key: string
+          last_alerted_at?: string
+          last_payload?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          alert_key?: string
+          last_alerted_at?: string
+          last_payload?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       slack_settings: {
         Row: {
           channel_enquiries: string | null
