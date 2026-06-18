@@ -334,13 +334,54 @@ serve(async (req) => {
 
           if (updateError) throw new Error(updateError.message);
 
+          // ── Verification: re-fetch and confirm status fields match ──
+          const { data: verifyRow, error: verifyError } = await serviceClient
+            .from("shopify_orders")
+            .select(
+              "order_status, financial_status, fulfillment_status, payment_status, shopify_updated_at"
+            )
+            .eq("id", existingOrder[0].id)
+            .maybeSingle();
+
+          if (verifyError || !verifyRow) {
+            throw new Error(
+              `Post-update verification read failed: ${verifyError?.message ?? "row not found"}`
+            );
+          }
+
+          const mismatches: string[] = [];
+          const fieldsToCheck: Array<
+            keyof typeof orderData & keyof typeof verifyRow
+          > = [
+            "order_status",
+            "financial_status",
+            "fulfillment_status",
+            "payment_status",
+            "shopify_updated_at",
+          ];
+          for (const field of fieldsToCheck) {
+            const expected = (orderData as Record<string, unknown>)[field] ?? null;
+            const actual = (verifyRow as Record<string, unknown>)[field] ?? null;
+            if (String(expected) !== String(actual)) {
+              mismatches.push(`${field}: expected=${expected} actual=${actual}`);
+            }
+          }
+
+          if (mismatches.length > 0) {
+            throw new Error(
+              `Status verification failed for order ${shopifyOrderId}: ${mismatches.join("; ")}`
+            );
+          }
+
           await serviceClient
             .from("shopify_orders_raw")
             .update({ processing_status: "completed", processed_at: new Date().toISOString(), last_error: null })
             .eq("id", rawId);
 
           successCount++;
-          console.log(`Shopify order ${shopifyOrderId} updated in shopify_orders`);
+          console.log(
+            `Shopify order ${shopifyOrderId} updated in shopify_orders and verified (status=${verifyRow.order_status}, financial=${verifyRow.financial_status}, fulfillment=${verifyRow.fulfillment_status})`
+          );
           continue;
         }
 
