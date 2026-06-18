@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 
 export interface OrderInvoice {
   id: string;
-  order_id: string;
+  order_id: string | null;
+  woocommerce_order_id?: string | null;
   storage_path: string;
   invoice_number: string | null;
   file_name: string | null;
@@ -136,15 +137,33 @@ export interface ProformaPersistMeta {
   tax_breakup: unknown;
 }
 
+export interface UploadProformaTarget {
+  /** Either orderId OR woocommerceOrderId must be provided. */
+  orderId?: string | null;
+  woocommerceOrderId?: string | null;
+  /** If set, replaces (deletes + reinserts) this prior proforma — used for Regenerate. */
+  replaceInvoiceId?: string | null;
+  /** Free-form snapshot stored in audit log (POS, GST rate, lines, etc.). */
+  auditSnapshot?: Record<string, unknown>;
+  /** Human-readable name for the audit log. */
+  generatedByName?: string | null;
+}
+
 export async function uploadProformaInvoice(
-  orderId: string,
+  target: UploadProformaTarget,
   userId: string,
   blob: Blob,
   meta: ProformaPersistMeta,
 ): Promise<OrderInvoice | null> {
+  const { orderId, woocommerceOrderId, replaceInvoiceId, auditSnapshot, generatedByName } = target;
+  if ((!orderId && !woocommerceOrderId) || (orderId && woocommerceOrderId)) {
+    toast.error('Internal error: proforma target must be exactly one of order or woo order');
+    return null;
+  }
   try {
     const fileName = `${meta.invoice_number}.pdf`;
-    const filePath = `${userId}/${orderId}-${Date.now()}-${meta.invoice_number}.pdf`;
+    const refId = orderId || woocommerceOrderId!;
+    const filePath = `${userId}/${refId}-${Date.now()}-${meta.invoice_number}.pdf`;
     const file = new File([blob], fileName, { type: 'application/pdf' });
 
     const { error: upErr } = await supabase.storage.from('invoices').upload(filePath, file, {
@@ -153,10 +172,24 @@ export async function uploadProformaInvoice(
     });
     if (upErr) throw upErr;
 
+    // If regenerating, remove the prior file + row first (best-effort)
+    if (replaceInvoiceId) {
+      const { data: prior } = await supabase
+        .from('order_invoices')
+        .select('storage_path')
+        .eq('id', replaceInvoiceId)
+        .maybeSingle();
+      if (prior?.storage_path) {
+        await supabase.storage.from('invoices').remove([prior.storage_path]);
+      }
+      await supabase.from('order_invoices').delete().eq('id', replaceInvoiceId);
+    }
+
     const { data: inserted, error: insErr } = await supabase
       .from('order_invoices')
       .insert({
-        order_id: orderId,
+        order_id: orderId ?? null,
+        woocommerce_order_id: woocommerceOrderId ?? null,
         storage_path: filePath,
         file_name: fileName,
         uploaded_by: userId,
@@ -174,10 +207,84 @@ export async function uploadProformaInvoice(
       .select()
       .single();
     if (insErr) throw insErr;
+
+    // Audit log (best-effort)
+    try {
+      await (supabase.from('proforma_audit_log') as any).insert({
+        invoice_id: (inserted as any).id,
+        order_id: orderId ?? null,
+        woocommerce_order_id: woocommerceOrderId ?? null,
+        action: replaceInvoiceId ? 'regenerated' : 'generated',
+        proforma_number: meta.invoice_number,
+        generated_by: userId,
+        generated_by_name: generatedByName ?? null,
+        snapshot: {
+          ...(auditSnapshot || {}),
+          subtotal: meta.subtotal,
+          tax_amount: meta.tax_amount,
+          total: meta.total,
+          amount_paid: meta.amount_paid,
+          place_of_supply: meta.place_of_supply,
+          gst_treatment: meta.gst_treatment,
+          tax_breakup: meta.tax_breakup,
+        },
+      });
+    } catch (auditErr) {
+      console.warn('Proforma audit log insert failed (non-blocking):', auditErr);
+    }
+
     return inserted as OrderInvoice;
   } catch (err: any) {
     console.error('Proforma upload failed', err);
     toast.error(err.message || 'Failed to save proforma');
     return null;
   }
+}
+
+/**
+ * Hook variant for WooCommerce orders. Mirrors useOrderInvoices but scoped to a
+ * woocommerce_orders.id (the internal UUID, NOT the woo_order_id integer).
+ */
+export function useWooOrderInvoices(woocommerceOrderId: string | null | undefined) {
+  const [invoices, setInvoices] = useState<OrderInvoice[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetch = useCallback(async () => {
+    if (!woocommerceOrderId) {
+      setInvoices([]);
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await (supabase.from('order_invoices') as any)
+      .select('*')
+      .eq('woocommerce_order_id', woocommerceOrderId)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Failed to fetch woo order invoices:', error);
+    } else {
+      setInvoices((data as OrderInvoice[]) || []);
+    }
+    setLoading(false);
+  }, [woocommerceOrderId]);
+
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
+
+  const removeInvoice = async (invoice: OrderInvoice): Promise<boolean> => {
+    try {
+      await supabase.storage.from('invoices').remove([invoice.storage_path]);
+      const { error } = await supabase.from('order_invoices').delete().eq('id', invoice.id);
+      if (error) throw error;
+      setInvoices((prev) => prev.filter((i) => i.id !== invoice.id));
+      toast.success('Invoice removed');
+      return true;
+    } catch (err: any) {
+      console.error('Remove invoice error:', err);
+      toast.error(err.message || 'Failed to remove invoice');
+      return false;
+    }
+  };
+
+  return { invoices, loading, refetch: fetch, removeInvoice };
 }
