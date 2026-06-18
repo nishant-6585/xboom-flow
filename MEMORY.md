@@ -52,6 +52,17 @@ Last updated: 2026-06-18
 
 ---
 
+## ⏳ PLANNED — Order invoicing (self-generated Proforma + Zoho automation)
+
+Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decisions: **Proforma** (XBoom self-gen is a labelled proforma; Zoho stays the official tax invoice), **phased** (self-gen now, Zoho webhook later), **GST default 5% / HSN 88062200 with override**.
+
+Builds on existing `order_invoices` (`src/hooks/useOrderInvoices.ts`) + `invoices` storage bucket + jsPDF generators (`quotePdfGenerator.ts`). Sample reference: `docs/XI-Jun26-0088.pdf`.
+
+- **Phase 1 (build now via Lovable):** "Generate Invoice" on `payment_status='full'` orders → client-side jsPDF "PROFORMA INVOICE" (sample layout) → upload to `invoices` bucket → `order_invoices` row tagged `source='xboom'`, `document_type='proforma'`, number series `XPF-YYMM-NNNN`. GST: order total treated as inclusive; seller KA(29) → IGST vs CGST+SGST by Place of Supply. New `src/lib/invoiceGst.ts` + `src/lib/invoicePdfGenerator.ts`; extend `order_invoices` (source, document_type, tax snapshot) + `get_next_proforma_number()` RPC; role-gated finance/admin; per-order badges (XBoom/Proforma vs Zoho/Tax Invoice).
+- **Phase 2 (parked):** `zoho-invoice-webhook` + Zoho Books API auto-fetch official tax-invoice PDF (`source='zoho'`), matched by order #; needs Zoho OAuth creds.
+- **Prereqs/open:** customer state for Place of Supply (orders store address as a string — dialog lets finance confirm; consider a `state` column later); signature image in `signatures` bucket; confirm seller GSTIN/bank/T&C from sample are current.
+- Status: ⏳ Lovable prompt handed over; not yet built.
+
 ## ✅ Completed work
 
 ### 2026-06-18 — WooCommerce Order / Shipping / Tracking / Delivered sync (Item 2) — by Lovable
