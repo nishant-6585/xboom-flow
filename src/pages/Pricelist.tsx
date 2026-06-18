@@ -528,7 +528,14 @@ export default function Pricelist() {
                           </TableRow>
                         ) : (
                           paginatedItems.map((item) => (
-                            <TableRow key={item.id}>
+                            <TableRow
+                              key={item.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => {
+                                setSelectedItem(item);
+                                setDetailDialogOpen(true);
+                              }}
+                            >
                               <TableCell>
                                 <div>
                                   <div className="flex items-center gap-2">
@@ -671,7 +678,7 @@ export default function Pricelist() {
                                   <span className="text-muted-foreground text-sm">-</span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
                                     variant="ghost"
