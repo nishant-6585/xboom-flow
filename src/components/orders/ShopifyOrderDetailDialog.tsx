@@ -75,7 +75,49 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
         .update(payload)
         .eq('id', order.id);
       if (error) throw error;
-      toast({ title: 'Order updated', description: `#${order.order_number || order.shopify_order_id} saved.` });
+
+      // Push status changes back to Shopify (only changed fields, and only ones Shopify can accept)
+      const pushBody: Record<string, unknown> = {
+        shopify_order_id: order.shopify_order_id,
+        shop_domain: order.shop_domain,
+      };
+      if (form.order_status && form.order_status !== (order.order_status ?? '')) {
+        pushBody.order_status = form.order_status;
+      }
+      if (form.fulfillment_status && form.fulfillment_status !== (order.fulfillment_status ?? '')) {
+        pushBody.fulfillment_status = form.fulfillment_status;
+      }
+      if (form.payment_status && form.payment_status !== (order.payment_status ?? '')) {
+        pushBody.payment_status = form.payment_status;
+      }
+
+      const hasPush = Object.keys(pushBody).length > 2;
+      if (hasPush) {
+        const { data: pushData, error: pushError } = await supabase.functions.invoke(
+          'shopify-push-update',
+          { body: pushBody },
+        );
+        type PushResult = { action: string; ok: boolean; error?: string };
+        const results: PushResult[] = (pushData?.results ?? []) as PushResult[];
+        const failed = results.filter(r => !r.ok);
+        if (pushError || failed.length > 0) {
+          const msg = pushError?.message
+            || failed.map(f => `${f.action}: ${f.error ?? 'failed'}`).join(' • ');
+          toast({
+            title: 'Saved locally, Shopify push had issues',
+            description: msg,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Order updated',
+            description: `#${order.order_number || order.shopify_order_id} synced to Shopify.`,
+          });
+        }
+      } else {
+        toast({ title: 'Order updated', description: `#${order.order_number || order.shopify_order_id} saved.` });
+      }
+
       onUpdated?.();
       onOpenChange(false);
     } catch (e: unknown) {
