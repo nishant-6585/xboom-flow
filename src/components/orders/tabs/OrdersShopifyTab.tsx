@@ -277,18 +277,18 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b border-border/60">
                   <tr>
-                    <th className="text-left p-3 font-semibold text-muted-foreground">Order #</th>
-                    <th className="text-left p-3 font-semibold text-muted-foreground">Customer</th>
-                    <th className="text-left p-3 font-semibold text-muted-foreground">Product</th>
-                    <th className="text-left p-3 font-semibold text-muted-foreground">Qty</th>
-                    <th className="text-left p-3 font-semibold text-muted-foreground">Amount</th>
-                    <th className="text-left p-3 font-semibold text-muted-foreground">Payment</th>
-                    <th className="text-left p-3 font-semibold text-muted-foreground">Fulfillment</th>
-                    <th className="text-left p-3 font-semibold text-muted-foreground">Date</th>
+                    <SortHeader label="Order #" k="order_number" />
+                    <SortHeader label="Customer" k="customer_name" />
+                    <SortHeader label="Product" k="product_name" />
+                    <SortHeader label="Qty" k="quantity" />
+                    <SortHeader label="Amount" k="total_sales_amount" />
+                    <SortHeader label="Payment" k="payment_status" />
+                    <SortHeader label="Fulfillment" k="fulfillment_status" />
+                    <SortHeader label="Date" k="created_at" />
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedShopifyOrders.map((order) => (
+                  {displayedShopifyOrders.map((order) => (
                     <tr
                       key={order.id}
                       onClick={() => { setSelectedShopifyOrder(order); setShopifyDetailOpen(true); }}
