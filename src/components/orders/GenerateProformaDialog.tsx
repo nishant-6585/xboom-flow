@@ -82,13 +82,16 @@ export function GenerateProformaDialog({ order, open, onOpenChange, onGenerated 
           setLines(items.map(it => {
             const qty = Number(it.quantity) || 1;
             const unit = Number(it.unit_price) || 0;
-            const rate = Number(it.sales_gst_percent ?? DEFAULT_GST_RATE);
+            // Treat 0/blank gst as "not set" → fall back to default (|| not ??).
+            // Finance can still override to 0 in the dialog for exempt items.
+            const rate = Number(it.sales_gst_percent) || DEFAULT_GST_RATE;
             const includes = it.sales_price_includes_gst !== false; // default treat as inclusive
             const lineTotalExcl = unit * qty;
             const gross = includes ? lineTotalExcl : lineTotalExcl * (1 + rate / 100);
             return {
               product_name: it.product_name,
-              hsn: it.product_code || DEFAULT_HSN,
+              // product_code is a SKU, not an HSN — default to the GST HSN.
+              hsn: DEFAULT_HSN,
               quantity: qty,
               gross_total: Math.round(gross * 100) / 100,
               gst_rate: rate,

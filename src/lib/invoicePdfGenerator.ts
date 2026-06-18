@@ -236,12 +236,12 @@ export async function generateProformaPdf(input: ProformaInput): Promise<{ blob:
     if (isCgst) {
       return [
         String(idx + 1), desc, it.hsn || '88062200', String(qty),
-        fmt(ratePerUnit), `${sp.rate}%`, fmt(sp.cgst), fmt(sp.sgst), fmt(it.gross_total),
+        fmt(ratePerUnit), `${sp.rate}%`, fmt(sp.cgst), fmt(sp.sgst), fmt(sp.taxable),
       ];
     }
     return [
       String(idx + 1), desc, it.hsn || '88062200', String(qty),
-      fmt(ratePerUnit), `${sp.rate}%`, fmt(sp.igst), fmt(it.gross_total),
+      fmt(ratePerUnit), `${sp.rate}%`, fmt(sp.igst), fmt(sp.taxable),
     ];
   });
 
