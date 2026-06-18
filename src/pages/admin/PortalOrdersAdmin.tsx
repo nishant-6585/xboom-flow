@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
+import AdminTabsNav from "@/components/admin/AdminTabsNav";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,6 +144,7 @@ export default function PortalOrdersAdmin() {
   return (
     <div className="min-h-screen">
       <Header />
+      <AdminTabsNav active="portal-orders" />
       <div className="container mx-auto px-4 sm:px-6 py-6 max-w-6xl">
         <div className="mb-6 flex items-end justify-between gap-4 flex-wrap">
           <div>

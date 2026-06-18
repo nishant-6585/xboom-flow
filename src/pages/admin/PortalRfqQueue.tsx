@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
+import AdminTabsNav from "@/components/admin/AdminTabsNav";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -163,6 +164,7 @@ export default function PortalRfqQueue() {
   return (
     <div className="min-h-screen">
       <Header />
+      <AdminTabsNav active="portal-rfqs" />
       <div className="container mx-auto px-4 sm:px-6 py-6 max-w-6xl">
         <div className="mb-6 flex items-end justify-between gap-4 flex-wrap">
           <div>
