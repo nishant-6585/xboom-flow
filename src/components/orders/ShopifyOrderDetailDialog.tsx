@@ -37,6 +37,29 @@ const PAYMENT_OPTIONS = ['pending', 'authorized', 'partially_paid', 'paid', 'par
 const FULFILLMENT_OPTIONS = ['unfulfilled', 'partial', 'fulfilled'];
 const ORDER_STATUS_OPTIONS = ['open', 'closed', 'cancelled'];
 
+// Map legacy / non-Shopify values stored in DB to the closest valid Shopify enum.
+function normalizePayment(v: string | null | undefined): string {
+  if (!v) return '';
+  const s = v.toLowerCase();
+  if (s === 'full') return 'paid';
+  if (s === 'partial') return 'partially_paid';
+  return PAYMENT_OPTIONS.includes(s) ? s : '';
+}
+function normalizeFulfillment(v: string | null | undefined): string {
+  if (!v) return '';
+  const s = v.toLowerCase();
+  if (s === 'shipped' || s === 'delivered') return 'fulfilled';
+  if (s === 'cancelled' || s === 'canceled') return 'unfulfilled';
+  return FULFILLMENT_OPTIONS.includes(s) ? s : '';
+}
+function normalizeOrderStatus(v: string | null | undefined): string {
+  if (!v) return '';
+  const s = v.toLowerCase();
+  if (s === 'on_hold') return 'open';
+  if (s === 'canceled') return 'cancelled';
+  return ORDER_STATUS_OPTIONS.includes(s) ? s : '';
+}
+
 export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated }: Props) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -52,9 +75,9 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
   useEffect(() => {
     if (!order) return;
     setForm({
-      payment_status: order.payment_status ?? '',
-      fulfillment_status: order.fulfillment_status ?? '',
-      order_status: order.order_status ?? '',
+      payment_status: normalizePayment(order.payment_status),
+      fulfillment_status: normalizeFulfillment(order.fulfillment_status),
+      order_status: normalizeOrderStatus(order.order_status),
       internal_notes: order.internal_notes ?? '',
       sales_notes: order.sales_notes ?? '',
       amount_paid: order.amount_paid != null ? String(order.amount_paid) : '',
