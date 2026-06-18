@@ -37,6 +37,8 @@ import { InventoryFulfillmentPanel } from '@/components/order/InventoryFulfillme
 import { DocumentViewer } from '@/components/hr/DocumentViewer';
 import { useOrderInvoices } from '@/hooks/useOrderInvoices';
 import { WooOrderStatusActions } from '@/components/orders/WooOrderStatusActions';
+import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDialog';
+import { Badge as UIBadge } from '@/components/ui/badge';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -151,6 +153,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [poNumber, setPoNumber] = useState<string>('');
   // Multi-invoice support
   const { invoices: orderInvoices, addInvoice, removeInvoice } = useOrderInvoices(order?.id ?? null);
+  const [proformaDialogOpen, setProformaDialogOpen] = useState(false);
+  const canGenerateProforma = (isAdmin || isFinance) && order?.payment_status === 'full';
   // (PO number is auto-extracted from the uploaded PO document; no manual editing)
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
