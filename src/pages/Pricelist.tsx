@@ -569,16 +569,16 @@ export default function Pricelist() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Product</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Brand</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Website Price</TableHead>
-                          <TableHead>Dealer Price</TableHead>
-                          {canManage && <TableHead>Cost Price</TableHead>}
-                          {canManage && <TableHead>Margin</TableHead>}
+                          <SortableHead k="product_name">Product</SortableHead>
+                          <SortableHead k="product_category">Category</SortableHead>
+                          <SortableHead k="brand">Brand</SortableHead>
+                          <SortableHead k="price">Price</SortableHead>
+                          <SortableHead k="website_price">Website Price</SortableHead>
+                          <SortableHead k="dealer_price">Dealer Price</SortableHead>
+                          {canManage && <SortableHead k="cost_price">Cost Price</SortableHead>}
+                          {canManage && <SortableHead k="margin">Margin</SortableHead>}
                           <TableHead>Lead Time</TableHead>
-                          <TableHead>Availability</TableHead>
+                          <SortableHead k="availability">Availability</SortableHead>
                           <TableHead>Source</TableHead>
                           {canManage && <TableHead>Woo Stock</TableHead>}
                           <TableHead>Collateral</TableHead>
