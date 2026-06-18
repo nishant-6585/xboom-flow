@@ -49,6 +49,9 @@ import {
   Bot,
   ExternalLink,
   Globe,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { toast } from "sonner";
