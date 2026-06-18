@@ -415,23 +415,23 @@ export default function Repairs() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="whitespace-nowrap">Repair #</TableHead>
-                      <TableHead className="whitespace-nowrap">Customer</TableHead>
-                      <TableHead className="whitespace-nowrap">Model</TableHead>
-                      <TableHead className="whitespace-nowrap">Issue</TableHead>
-                      <TableHead className="whitespace-nowrap">Status</TableHead>
-                      <TableHead className="whitespace-nowrap">Payment</TableHead>
-                      <TableHead className="whitespace-nowrap">Stage</TableHead>
-                      <TableHead className="whitespace-nowrap">Assignee</TableHead>
-                      <TableHead className="whitespace-nowrap">Date</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Amount</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Balance</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Profit</TableHead>
+                      <SortHead label="Repair #" k="repair_number" />
+                      <SortHead label="Customer" k="customer_name" />
+                      <SortHead label="Model" k="model_name" />
+                      <SortHead label="Issue" k="issue_type" />
+                      <SortHead label="Status" k="status" />
+                      <SortHead label="Payment" k="payment_status" />
+                      <SortHead label="Stage" k="repair_stage" />
+                      <SortHead label="Assignee" k="assigned_technician_name" />
+                      <SortHead label="Date" k="created_at" />
+                      <SortHead label="Amount" k="total_quote_amount" align="right" />
+                      <SortHead label="Balance" k="balance_amount" align="right" />
+                      <SortHead label="Profit" k="profit" align="right" />
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRepairs.map((repair) => {
+                    {sortedRepairs.map((repair) => {
                       const issueLabel =
                         ISSUE_TYPES.find((t) => t.value === repair.issue_type)?.label ||
                         repair.issue_type;
