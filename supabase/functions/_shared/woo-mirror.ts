@@ -331,12 +331,11 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 
   let internalId: string | null = existing?.id ?? null;
   if (existing) {
-    const { data: cur } = await supabase
-      .from("orders").select("tracking_number, tracking_url")
-      .eq("id", existing.id).maybeSingle();
+    // Always reflect the latest tracking from Woo. The Advanced Shipment
+    // Tracking plugin owns this data — internal edits should not stick.
     if (wooTracking.number && !forceClearShipping) {
-      if (!cur?.tracking_number) orderRow.tracking_number = wooTracking.number;
-      if (!cur?.tracking_url && wooTracking.url) orderRow.tracking_url = wooTracking.url;
+      orderRow.tracking_number = wooTracking.number;
+      if (wooTracking.url) orderRow.tracking_url = wooTracking.url;
       if (wooTracking.provider) orderRow.courier_name = wooTracking.provider;
     } else if (trackingCleared) {
       // Tracking removed in Woo — mirror the clear into internal orders.
