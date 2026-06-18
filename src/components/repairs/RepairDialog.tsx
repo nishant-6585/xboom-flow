@@ -44,6 +44,12 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
   const [savingComponent, setSavingComponent] = useState(false);
   const [itEmployees, setItEmployees] = useState<{ user_id: string; name: string }[]>([]);
   const [assigning, setAssigning] = useState(false);
+  const [localAssigned, setLocalAssigned] = useState<{ id: string; name: string } | null>(null);
+
+  // Reset local override whenever the underlying repair changes
+  useEffect(() => {
+    setLocalAssigned(null);
+  }, [repair?.id, repair?.assigned_technician_id]);
 
   useEffect(() => {
     if (!open) return;
@@ -67,18 +73,29 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
     const emp = itEmployees.find((e) => e.user_id === userId);
     if (!emp) return;
     setAssigning(true);
-    const { error } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from("repairs")
       .update({
         assigned_technician_id: emp.user_id,
         assigned_technician_name: emp.name,
       })
-      .eq("id", repair.id);
+      .eq("id", repair.id)
+      .select("id");
     setAssigning(false);
     if (error) {
       toast({ title: "Error", description: error.message || "Failed to assign", variant: "destructive" });
       return;
     }
+    if (!data || data.length === 0) {
+      toast({
+        title: "Not allowed",
+        description: "You don't have permission to assign this repair.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Optimistically reflect in the dropdown until realtime/refetch syncs
+    setLocalAssigned({ id: emp.user_id, name: emp.name });
     toast({ title: "Assigned", description: `Repair assigned to ${emp.name}` });
   };
 
@@ -242,12 +259,14 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                   <div className="flex-1">
                     <div className="text-sm text-muted-foreground mb-1">Assigned To (IT)</div>
                     <Select
-                      value={repair.assigned_technician_id || ""}
+                      value={localAssigned?.id || repair.assigned_technician_id || ""}
                       onValueChange={handleAssignTechnician}
                       disabled={assigning}
                     >
                       <SelectTrigger className="w-full sm:w-72">
-                        <SelectValue placeholder="Select IT team member" />
+                        <SelectValue placeholder="Select IT team member">
+                          {localAssigned?.name || repair.assigned_technician_name || undefined}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {itEmployees.length === 0 ? (
