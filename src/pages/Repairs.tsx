@@ -51,6 +51,17 @@ export default function Repairs() {
   const [issueFilter, setIssueFilter] = useState<string>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
+
+  type RepairSortKey =
+    | "repair_number" | "customer_name" | "model_name" | "issue_type"
+    | "status" | "payment_status" | "repair_stage" | "assigned_technician_name"
+    | "created_at" | "total_quote_amount" | "balance_amount" | "profit";
+  const [sortKey, setSortKey] = useState<RepairSortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: RepairSortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
+  };
   const dateFilter = useDateFilter("current_month");
 
   const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
