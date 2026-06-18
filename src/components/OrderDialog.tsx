@@ -38,7 +38,6 @@ import { DocumentViewer } from '@/components/hr/DocumentViewer';
 import { useOrderInvoices } from '@/hooks/useOrderInvoices';
 import { WooOrderStatusActions } from '@/components/orders/WooOrderStatusActions';
 import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDialog';
-import { Badge as UIBadge } from '@/components/ui/badge';
 
 interface OrderDialogProps {
   order: Order | null;
