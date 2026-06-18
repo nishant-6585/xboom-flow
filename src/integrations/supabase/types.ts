@@ -8141,7 +8141,7 @@ export type Database = {
           gst_treatment: string | null
           id: string
           invoice_number: string | null
-          order_id: string
+          order_id: string | null
           place_of_supply: string | null
           source: string
           storage_path: string
@@ -8151,6 +8151,7 @@ export type Database = {
           total: number | null
           updated_at: string
           uploaded_by: string | null
+          woocommerce_order_id: string | null
         }
         Insert: {
           amount_paid?: number | null
@@ -8160,7 +8161,7 @@ export type Database = {
           gst_treatment?: string | null
           id?: string
           invoice_number?: string | null
-          order_id: string
+          order_id?: string | null
           place_of_supply?: string | null
           source?: string
           storage_path: string
@@ -8170,6 +8171,7 @@ export type Database = {
           total?: number | null
           updated_at?: string
           uploaded_by?: string | null
+          woocommerce_order_id?: string | null
         }
         Update: {
           amount_paid?: number | null
@@ -8179,7 +8181,7 @@ export type Database = {
           gst_treatment?: string | null
           id?: string
           invoice_number?: string | null
-          order_id?: string
+          order_id?: string | null
           place_of_supply?: string | null
           source?: string
           storage_path?: string
@@ -8189,6 +8191,7 @@ export type Database = {
           total?: number | null
           updated_at?: string
           uploaded_by?: string | null
+          woocommerce_order_id?: string | null
         }
         Relationships: [
           {
@@ -8203,6 +8206,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_invoices_woocommerce_order_id_fkey"
+            columns: ["woocommerce_order_id"]
+            isOneToOne: false
+            referencedRelation: "woocommerce_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -10802,6 +10812,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      proforma_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          generated_by: string | null
+          generated_by_name: string | null
+          id: string
+          invoice_id: string | null
+          order_id: string | null
+          proforma_number: string | null
+          snapshot: Json
+          woocommerce_order_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          generated_by?: string | null
+          generated_by_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          order_id?: string | null
+          proforma_number?: string | null
+          snapshot?: Json
+          woocommerce_order_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          generated_by?: string | null
+          generated_by_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          order_id?: string | null
+          proforma_number?: string | null
+          snapshot?: Json
+          woocommerce_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proforma_audit_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "order_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prospects: {
         Row: {
