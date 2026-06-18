@@ -72,7 +72,8 @@ Finance can generate an XBoom Proforma instantly for `payment_status='full'` ord
 - `OrderDialog.tsx`: role-gated "Generate Proforma" button (admin/finance, only when `payment_status='full'`); invoice rows badged XBoom/Zoho + Proforma/Tax Invoice; refetch after generation.
 - Not wired: Website Orders tab (see note above).
 - **Fix `bd19f905` (2026-06-18):** HSN/SAC now defaults to `88062200` (was showing SKU/product_code); GST rate falls back to 5% when stored value is 0/blank (`||` not `??`); line Amount column shows taxable (ex-GST) not the inclusive gross. Verify with a real 5% order.
-- **Open access note:** button is gated to admin/finance — if supply chain should generate proformas, add `supply_chain` to the role gate.
+- **Access (2026-06-18):** Generate Proforma button now visible to admin/finance/**supply_chain** (`OrderDialog.tsx:156`). RLS already permitted supply_chain for `order_invoices` INSERT + `invoices` bucket upload — no migration needed.
+- **To verify (live app):** generate a proforma on a real **5% GST** order — confirm HSN=88062200, GST shows 5%, line Amount = taxable (ex-GST), Sub Total + IGST = Total = Payment Made, Balance 0; and for a Karnataka customer that CGST+SGST columns appear.
 
 ### 2026-06-18 — WooCommerce Order / Shipping / Tracking / Delivered sync (Item 2) — by Lovable
 On `main`. Makes shipping/tracking + the Delivered status sync into both **All Orders** (`orders`) and **Website Orders** (`woocommerce_orders`).

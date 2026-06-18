@@ -153,7 +153,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   // Multi-invoice support
   const { invoices: orderInvoices, addInvoice, removeInvoice, refetch: refetchInvoices } = useOrderInvoices(order?.id ?? null);
   const [proformaDialogOpen, setProformaDialogOpen] = useState(false);
-  const canGenerateProforma = (isAdmin || isFinance) && order?.payment_status === 'full';
+  const canGenerateProforma = (isAdmin || isFinance || isSupplyChain) && order?.payment_status === 'full';
   // (PO number is auto-extracted from the uploaded PO document; no manual editing)
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
