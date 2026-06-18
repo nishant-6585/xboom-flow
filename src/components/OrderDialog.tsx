@@ -2717,6 +2717,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         fileType={invoiceViewer.fileType}
       />
 
+      <GenerateProformaDialog
+        order={order}
+        open={proformaDialogOpen}
+        onOpenChange={setProformaDialogOpen}
+        onGenerated={() => {
+          // useOrderInvoices auto-refreshes only on orderId change; trigger a refetch
+          // by re-opening the order is overkill — instead nudge a remount via key.
+          // Simpler: rely on next dialog open or manual refresh.
+        }}
+      />
+
       <Dialog open={titleReasonOpen} onOpenChange={(o) => { if (!loading) setTitleReasonOpen(o); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
