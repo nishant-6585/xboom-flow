@@ -53,16 +53,21 @@ export function usePricelist() {
   const { user, role } = useAuth();
 
   const canViewCostPrice = role === 'admin' || role === 'supply_chain';
+  const userId = user?.id ?? null;
 
   const fetchItems = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setItems([]);
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      // Only show the loading state on the very first fetch — subsequent
+      // refetches (e.g. after a window/tab focus that re-issues a Supabase
+      // session) should keep the existing list visible instead of flashing
+      // a "Loading pricelist..." screen.
+      setLoading((prev) => (items.length === 0 ? true : prev));
       
       // Use the full table for admin/supply_chain (includes cost_price)
       // Use the public view for other roles (excludes cost_price)
@@ -96,7 +101,11 @@ export function usePricelist() {
     } finally {
       setLoading(false);
     }
-  }, [user, canViewCostPrice]);
+    // Intentionally depend only on userId / role-derived flag so a refreshed
+    // user object reference (Supabase auto-refresh on tab focus) does not
+    // re-trigger the fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, canViewCostPrice]);
 
   useEffect(() => {
     fetchItems();
