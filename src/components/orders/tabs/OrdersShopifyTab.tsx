@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidge
 import { ShopifyOrderDetailDialog } from '@/components/orders/ShopifyOrderDetailDialog';
 import {
   Loader2, ShoppingBag, Search, Filter, X, ChevronDown, LayoutGrid, Table,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react';
 import type { ShopifyOrder } from '@/hooks/useShopifyOrders';
 
@@ -59,6 +60,71 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
   const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<ShopifyOrder | null>(null);
   const [shopifyDetailOpen, setShopifyDetailOpen] = useState(false);
+
+  type SortKey =
+    | 'order_number' | 'customer_name' | 'product_name' | 'quantity'
+    | 'total_sales_amount' | 'payment_status' | 'fulfillment_status' | 'created_at';
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedShopifyOrders = useMemo(() => {
+    if (!sortKey) return filteredShopifyOrders;
+    const arr = [...filteredShopifyOrders];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    arr.sort((a: any, b: any) => {
+      let av = a?.[sortKey];
+      let bv = b?.[sortKey];
+      if (sortKey === 'order_number') {
+        av = Number(a.order_number) || 0;
+        bv = Number(b.order_number) || 0;
+      } else if (sortKey === 'created_at') {
+        av = new Date(a.created_at).getTime() || 0;
+        bv = new Date(b.created_at).getTime() || 0;
+      } else if (sortKey === 'quantity' || sortKey === 'total_sales_amount') {
+        av = Number(av) || 0;
+        bv = Number(bv) || 0;
+      } else {
+        av = (av ?? '').toString().toLowerCase();
+        bv = (bv ?? '').toString().toLowerCase();
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [filteredShopifyOrders, sortKey, sortDir]);
+
+  const displayedShopifyOrders = useMemo(() => {
+    if (!sortKey) return paginatedShopifyOrders;
+    const start = (shopifyPage - 1) * SHOPIFY_PAGE_SIZE;
+    return sortedShopifyOrders.slice(start, start + SHOPIFY_PAGE_SIZE);
+  }, [sortKey, sortedShopifyOrders, shopifyPage, SHOPIFY_PAGE_SIZE, paginatedShopifyOrders]);
+
+  const SortHeader = ({ label, k, className }: { label: string; k: SortKey; className?: string }) => {
+    const active = sortKey === k;
+    const Icon = !active ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown;
+    return (
+      <th className={`text-left p-3 font-semibold text-muted-foreground ${className || ''}`}>
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+        >
+          {label}
+          <Icon className={`h-3.5 w-3.5 ${active ? 'text-foreground' : 'opacity-60'}`} />
+        </button>
+      </th>
+    );
+  };
 
   return (
     <TabsContent value="shopify" className="space-y-6 mt-0">
