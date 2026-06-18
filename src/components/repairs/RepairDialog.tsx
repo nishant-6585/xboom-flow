@@ -42,6 +42,45 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
   const [customName, setCustomName] = useState("");
   const [customCost, setCustomCost] = useState<string>("");
   const [savingComponent, setSavingComponent] = useState(false);
+  const [itEmployees, setItEmployees] = useState<{ user_id: string; name: string }[]>([]);
+  const [assigning, setAssigning] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("employees")
+        .select("user_id, name")
+        .eq("department", "IT")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+      if (!error && data) {
+        setItEmployees(
+          data.filter((e: any) => e.user_id && e.name) as { user_id: string; name: string }[]
+        );
+      }
+    })();
+  }, [open]);
+
+  const handleAssignTechnician = async (userId: string) => {
+    if (!repair) return;
+    const emp = itEmployees.find((e) => e.user_id === userId);
+    if (!emp) return;
+    setAssigning(true);
+    const { error } = await (supabase as any)
+      .from("repairs")
+      .update({
+        assigned_technician_id: emp.user_id,
+        assigned_technician_name: emp.name,
+      })
+      .eq("id", repair.id);
+    setAssigning(false);
+    if (error) {
+      toast({ title: "Error", description: error.message || "Failed to assign", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Assigned", description: `Repair assigned to ${emp.name}` });
+  };
 
   if (!repair) return null;
 
