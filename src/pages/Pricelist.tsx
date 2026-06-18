@@ -49,6 +49,9 @@ import {
   Bot,
   ExternalLink,
   Globe,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { toast } from "sonner";
@@ -91,6 +94,8 @@ export default function Pricelist() {
   const [enquiryNotes, setEnquiryNotes] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   
   const [formData, setFormData] = useState<PricelistFormData>({
@@ -147,16 +152,50 @@ export default function Pricelist() {
     });
   }, [items, search, categoryFilter, brandFilter, availabilityFilter, priceFilter]);
 
+  const sortedItems = useMemo(() => {
+    if (!sortBy) return filteredItems;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const getVal = (it: any) => {
+      switch (sortBy) {
+        case "product_name": return (it.product_name || "").toLowerCase();
+        case "product_category": return (it.product_category || "").toLowerCase();
+        case "brand": return (it.brand || "").toLowerCase();
+        case "price": return it.unit_price ?? it.website_price ?? it.dealer_price ?? null;
+        case "website_price": return it.website_price ?? null;
+        case "dealer_price": return it.dealer_price ?? null;
+        case "cost_price": return it.cost_price ?? null;
+        case "margin":
+          return it.dealer_price && it.cost_price
+            ? ((it.dealer_price - it.cost_price) / it.dealer_price) * 100
+            : null;
+        case "availability": return (it.availability || "").toLowerCase();
+        default: return null;
+      }
+    };
+    return [...filteredItems].sort((a, b) => {
+      const av = getVal(a);
+      const bv = getVal(b);
+      const aNull = av === null || av === undefined || av === "";
+      const bNull = bv === null || bv === undefined || bv === "";
+      if (aNull && bNull) return 0;
+      if (aNull) return 1; // nulls last regardless of direction
+      if (bNull) return -1;
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+  }, [filteredItems, sortBy, sortDir]);
+
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [search, categoryFilter, brandFilter, availabilityFilter, priceFilter]);
+  }, [search, categoryFilter, brandFilter, availabilityFilter, priceFilter, sortBy, sortDir]);
 
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredItems.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredItems, currentPage, itemsPerPage]);
+    return sortedItems.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedItems, currentPage, itemsPerPage]);
 
   const categories = useMemo(() => {
     const cats = new Set(items.map((i) => i.product_category).filter(Boolean));
@@ -370,6 +409,33 @@ export default function Pricelist() {
     }
   };
 
+  const toggleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ k }: { k: string }) => {
+    if (sortBy !== k) return <ArrowUpDown className="w-3 h-3 opacity-50" />;
+    return sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />;
+  };
+
+  const SortableHead = ({ k, children, className }: { k: string; children: React.ReactNode; className?: string }) => (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => toggleSort(k)}
+        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        {children}
+        <SortIcon k={k} />
+      </button>
+    </TableHead>
+  );
+
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
@@ -503,16 +569,16 @@ export default function Pricelist() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Product</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Brand</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Website Price</TableHead>
-                          <TableHead>Dealer Price</TableHead>
-                          {canManage && <TableHead>Cost Price</TableHead>}
-                          {canManage && <TableHead>Margin</TableHead>}
+                          <SortableHead k="product_name">Product</SortableHead>
+                          <SortableHead k="product_category">Category</SortableHead>
+                          <SortableHead k="brand">Brand</SortableHead>
+                          <SortableHead k="price">Price</SortableHead>
+                          <SortableHead k="website_price">Website Price</SortableHead>
+                          <SortableHead k="dealer_price">Dealer Price</SortableHead>
+                          {canManage && <SortableHead k="cost_price">Cost Price</SortableHead>}
+                          {canManage && <SortableHead k="margin">Margin</SortableHead>}
                           <TableHead>Lead Time</TableHead>
-                          <TableHead>Availability</TableHead>
+                          <SortableHead k="availability">Availability</SortableHead>
                           <TableHead>Source</TableHead>
                           {canManage && <TableHead>Woo Stock</TableHead>}
                           <TableHead>Collateral</TableHead>
