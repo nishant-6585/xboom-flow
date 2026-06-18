@@ -259,12 +259,14 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                   <div className="flex-1">
                     <div className="text-sm text-muted-foreground mb-1">Assigned To (IT)</div>
                     <Select
-                      value={repair.assigned_technician_id || ""}
+                      value={localAssigned?.id || repair.assigned_technician_id || ""}
                       onValueChange={handleAssignTechnician}
                       disabled={assigning}
                     >
                       <SelectTrigger className="w-full sm:w-72">
-                        <SelectValue placeholder="Select IT team member" />
+                        <SelectValue placeholder="Select IT team member">
+                          {localAssigned?.name || repair.assigned_technician_name || undefined}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {itEmployees.length === 0 ? (
