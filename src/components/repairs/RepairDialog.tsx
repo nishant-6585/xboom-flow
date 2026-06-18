@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,9 @@ import { RepairStageActionPanel } from "./RepairStageActionPanel";
 import { RepairStageHistory } from "./RepairStageHistory";
 import { PartSelector } from "./PartSelector";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { Edit2, Trash2, Phone, Calendar, Clock, User, Wrench, IndianRupee, Link2, Plus, X } from "lucide-react";
@@ -39,6 +42,45 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
   const [customName, setCustomName] = useState("");
   const [customCost, setCustomCost] = useState<string>("");
   const [savingComponent, setSavingComponent] = useState(false);
+  const [itEmployees, setItEmployees] = useState<{ user_id: string; name: string }[]>([]);
+  const [assigning, setAssigning] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("employees")
+        .select("user_id, name")
+        .eq("department", "IT")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+      if (!error && data) {
+        setItEmployees(
+          data.filter((e: any) => e.user_id && e.name) as { user_id: string; name: string }[]
+        );
+      }
+    })();
+  }, [open]);
+
+  const handleAssignTechnician = async (userId: string) => {
+    if (!repair) return;
+    const emp = itEmployees.find((e) => e.user_id === userId);
+    if (!emp) return;
+    setAssigning(true);
+    const { error } = await (supabase as any)
+      .from("repairs")
+      .update({
+        assigned_technician_id: emp.user_id,
+        assigned_technician_name: emp.name,
+      })
+      .eq("id", repair.id);
+    setAssigning(false);
+    if (error) {
+      toast({ title: "Error", description: error.message || "Failed to assign", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Assigned", description: `Repair assigned to ${emp.name}` });
+  };
 
   if (!repair) return null;
 
@@ -191,6 +233,36 @@ export function RepairDialog({ repair, open, onOpenChange, onUpdate, onDelete }:
                       <div className="text-sm text-muted-foreground">Date of Receipt</div>
                       <div className="font-medium">{format(new Date(repair.date_of_receipt), "dd MMM yyyy")}</div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Assigned To */}
+                <div className="mt-4 flex items-start gap-2">
+                  <User className="h-4 w-4 text-muted-foreground mt-2" />
+                  <div className="flex-1">
+                    <div className="text-sm text-muted-foreground mb-1">Assigned To (IT)</div>
+                    <Select
+                      value={repair.assigned_technician_id || ""}
+                      onValueChange={handleAssignTechnician}
+                      disabled={assigning}
+                    >
+                      <SelectTrigger className="w-full sm:w-72">
+                        <SelectValue placeholder="Select IT team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {itEmployees.length === 0 ? (
+                          <SelectItem value="__none__" disabled>
+                            No IT employees found
+                          </SelectItem>
+                        ) : (
+                          itEmployees.map((e) => (
+                            <SelectItem key={e.user_id} value={e.user_id}>
+                              {e.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
