@@ -362,6 +362,16 @@ serve(async (req) => {
           for (const field of fieldsToCheck) {
             const expected = (orderData as Record<string, unknown>)[field] ?? null;
             const actual = (verifyRow as Record<string, unknown>)[field] ?? null;
+            // Timestamps may round-trip with a different TZ representation
+            // (e.g. +05:30 vs UTC). Compare as instants for date fields.
+            if (field === "shopify_updated_at") {
+              const e = expected ? new Date(String(expected)).getTime() : null;
+              const a = actual ? new Date(String(actual)).getTime() : null;
+              if (e !== a) {
+                mismatches.push(`${field}: expected=${expected} actual=${actual}`);
+              }
+              continue;
+            }
             if (String(expected) !== String(actual)) {
               mismatches.push(`${field}: expected=${expected} actual=${actual}`);
             }
