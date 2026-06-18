@@ -134,7 +134,7 @@ export function GenerateProformaDialog({ order, open, onOpenChange, onGenerated 
     setBusy(true);
     try {
       // Get proforma number
-      const { data: numData, error: numErr } = await supabase.rpc('get_next_proforma_number');
+      const { data: numData, error: numErr } = await (supabase.rpc as any)('get_next_proforma_number');
       if (numErr) throw numErr;
       const proformaNumber = numData as string;
 
