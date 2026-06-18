@@ -152,16 +152,50 @@ export default function Pricelist() {
     });
   }, [items, search, categoryFilter, brandFilter, availabilityFilter, priceFilter]);
 
+  const sortedItems = useMemo(() => {
+    if (!sortBy) return filteredItems;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const getVal = (it: any) => {
+      switch (sortBy) {
+        case "product_name": return (it.product_name || "").toLowerCase();
+        case "product_category": return (it.product_category || "").toLowerCase();
+        case "brand": return (it.brand || "").toLowerCase();
+        case "price": return it.unit_price ?? it.website_price ?? it.dealer_price ?? null;
+        case "website_price": return it.website_price ?? null;
+        case "dealer_price": return it.dealer_price ?? null;
+        case "cost_price": return it.cost_price ?? null;
+        case "margin":
+          return it.dealer_price && it.cost_price
+            ? ((it.dealer_price - it.cost_price) / it.dealer_price) * 100
+            : null;
+        case "availability": return (it.availability || "").toLowerCase();
+        default: return null;
+      }
+    };
+    return [...filteredItems].sort((a, b) => {
+      const av = getVal(a);
+      const bv = getVal(b);
+      const aNull = av === null || av === undefined || av === "";
+      const bNull = bv === null || bv === undefined || bv === "";
+      if (aNull && bNull) return 0;
+      if (aNull) return 1; // nulls last regardless of direction
+      if (bNull) return -1;
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+  }, [filteredItems, sortBy, sortDir]);
+
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [search, categoryFilter, brandFilter, availabilityFilter, priceFilter]);
+  }, [search, categoryFilter, brandFilter, availabilityFilter, priceFilter, sortBy, sortDir]);
 
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredItems.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredItems, currentPage, itemsPerPage]);
+    return sortedItems.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedItems, currentPage, itemsPerPage]);
 
   const categories = useMemo(() => {
     const cats = new Set(items.map((i) => i.product_category).filter(Boolean));
