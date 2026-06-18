@@ -28,9 +28,14 @@ function fmtDate(iso: string | null) {
   } catch { return iso; }
 }
 
-const PAYMENT_OPTIONS = ['pending', 'partial', 'full', 'refunded', 'voided'];
-const FULFILLMENT_OPTIONS = ['unfulfilled', 'partial', 'fulfilled', 'shipped', 'delivered', 'cancelled'];
-const ORDER_STATUS_OPTIONS = ['open', 'closed', 'cancelled', 'on_hold'];
+// Aligned to Shopify's actual enum values (financial_status, fulfillment_status, order status).
+// Notes:
+//  - Shopify fulfillment_status is derived from fulfillment events — only unfulfilled / partial / fulfilled exist.
+//  - To revert a fulfilled order to unfulfilled, Shopify requires cancelling the fulfillment.
+//  - Refunds must be issued from Shopify (line items + restock decisions required).
+const PAYMENT_OPTIONS = ['pending', 'authorized', 'partially_paid', 'paid', 'partially_refunded', 'refunded', 'voided'];
+const FULFILLMENT_OPTIONS = ['unfulfilled', 'partial', 'fulfilled'];
+const ORDER_STATUS_OPTIONS = ['open', 'closed', 'cancelled'];
 
 export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated }: Props) {
   const { toast } = useToast();

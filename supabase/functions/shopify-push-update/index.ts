@@ -81,9 +81,6 @@ async function applyOrderStatus(
     });
     return { action: "order_status:cancelled", ok: r.ok, status: r.status, error: r.ok ? undefined : `Shopify ${r.status}`, detail: r.ok ? undefined : r.body };
   }
-  if (s === "on_hold") {
-    return { action: "order_status:on_hold", ok: false, error: "Shopify has no direct on_hold transition; manage via fulfillment hold in Shopify admin" };
-  }
   return { action: `order_status:${s}`, ok: false, error: "Unsupported order_status" };
 }
 
@@ -93,7 +90,7 @@ async function applyFulfillment(
   status: string,
 ): Promise<ActionResult> {
   const s = status.toLowerCase();
-  if (s === "fulfilled" || s === "shipped" || s === "delivered") {
+  if (s === "fulfilled") {
     // Fetch open fulfillment orders for this order
     const fo = await shopifyFetch(shop, `/orders/${orderId}/fulfillment_orders.json`);
     if (!fo.ok) return { action: `fulfillment:${s}`, ok: false, status: fo.status, error: "Failed to load fulfillment_orders", detail: fo.body };
@@ -118,14 +115,15 @@ async function applyFulfillment(
     });
     return { action: `fulfillment:${s}`, ok: r.ok, status: r.status, error: r.ok ? undefined : `Shopify ${r.status}`, detail: r.ok ? undefined : r.body };
   }
-  if (s === "cancelled" || s === "canceled") {
+  if (s === "unfulfilled" || s === "cancelled" || s === "canceled") {
+    // Shopify has no "set unfulfilled" API — the only way to revert is to cancel active fulfillments.
     const fl = await shopifyFetch(shop, `/orders/${orderId}/fulfillments.json`);
-    if (!fl.ok) return { action: "fulfillment:cancelled", ok: false, status: fl.status, error: "Failed to load fulfillments", detail: fl.body };
+    if (!fl.ok) return { action: `fulfillment:${s}`, ok: false, status: fl.status, error: "Failed to load fulfillments", detail: fl.body };
     // deno-lint-ignore no-explicit-any
     const fulfillments = ((fl.body as any)?.fulfillments ?? []) as Array<{ id: number; status: string }>;
     const targets = fulfillments.filter(f => f.status !== "cancelled");
     if (targets.length === 0) {
-      return { action: "fulfillment:cancelled", ok: true, status: 200, detail: "no active fulfillments" };
+      return { action: `fulfillment:${s}`, ok: true, status: 200, detail: "no active fulfillments to cancel" };
     }
     const results: Array<{ id: number; ok: boolean; status: number }> = [];
     for (const t of targets) {
@@ -133,10 +131,10 @@ async function applyFulfillment(
       results.push({ id: t.id, ok: r.ok, status: r.status });
     }
     const allOk = results.every(r => r.ok);
-    return { action: "fulfillment:cancelled", ok: allOk, detail: results };
+    return { action: `fulfillment:${s}`, ok: allOk, detail: results };
   }
-  if (s === "unfulfilled" || s === "partial") {
-    return { action: `fulfillment:${s}`, ok: false, error: `Cannot push '${s}' to Shopify — it is derived from fulfillment events` };
+  if (s === "partial") {
+    return { action: `fulfillment:${s}`, ok: false, error: `'partial' is derived from partial fulfillment events — fulfill specific line items in Shopify instead` };
   }
   return { action: `fulfillment:${s}`, ok: false, error: "Unsupported fulfillment_status" };
 }
@@ -196,11 +194,11 @@ async function applyPayment(
     });
     return { action: "payment:voided", ok: r.ok, status: r.status, error: r.ok ? undefined : `Shopify ${r.status}`, detail: r.ok ? undefined : r.body };
   }
-  if (s === "refunded" || s === "partial") {
-    return { action: `payment:${s}`, ok: false, error: `Refunds must be issued from Shopify admin (need line items & restock decisions)` };
+  if (s === "refunded" || s === "partial" || s === "partially_refunded" || s === "partially_paid") {
+    return { action: `payment:${s}`, ok: false, error: `Refunds and partial payments must be issued from Shopify admin (need line items & restock decisions)` };
   }
-  if (s === "pending") {
-    return { action: "payment:pending", ok: true, detail: "no-op (cannot un-capture in Shopify)" };
+  if (s === "pending" || s === "authorized") {
+    return { action: `payment:${s}`, ok: true, detail: "no-op (cannot un-capture or re-authorize in Shopify)" };
   }
   return { action: `payment:${s}`, ok: false, error: "Unsupported payment_status" };
 }
