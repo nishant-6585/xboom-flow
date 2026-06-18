@@ -1979,6 +1979,16 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   <FileText className="h-4 w-4" />
                   Invoice
                 </h4>
+                {canGenerateProforma && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setProformaDialogOpen(true)}
+                  >
+                    <FileText className="h-4 w-4 mr-1" /> Generate Proforma
+                  </Button>
+                )}
               </div>
 
               {/* Invoice Numbers (auto-extracted, read-only) */}
@@ -1994,6 +2004,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 <div className="space-y-2">
                   {orderInvoices.map((inv) => (
                     <div key={inv.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                       <Button
                         variant="link"
                         className="text-primary hover:underline flex items-center gap-2 text-sm p-0 h-auto text-left"
@@ -2030,6 +2041,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         </span>
                         <ExternalLink className="h-3 w-3 shrink-0" />
                       </Button>
+                        <Badge variant="outline" className={inv.source === 'xboom' ? 'border-orange-500 text-orange-700 dark:text-orange-400' : 'border-blue-500 text-blue-700 dark:text-blue-400'}>
+                          {inv.source === 'xboom' ? 'XBoom' : 'Zoho'}
+                        </Badge>
+                        <Badge variant="secondary">
+                          {inv.document_type === 'proforma' ? 'Proforma' : 'Tax Invoice'}
+                        </Badge>
+                      </div>
                       {canEdit && (
                         <Button
                           variant="ghost"
