@@ -44,17 +44,61 @@ export function extractTrackingFromWoo(payload: any): {
   let date_shipped: string | null = null;
   let trackingMetaSeen = false;
 
+  // ---- AST (Advanced Shipment Tracking for WooCommerce) ---------------------
+  // Newer AST versions expose tracking as a top-level REST field on the order:
+  //   payload.wc_shipment_tracking_items: [...]
+  //   payload.shipment_tracking:          [...]            (alt name)
+  //   payload.ast_tracking_items / payload.tracking_items   (alt names)
+  // Each item looks like:
+  //   { tracking_number, tracking_provider, formatted_tracking_provider,
+  //     tracking_link, custom_tracking_link, date_shipped, ast_tracking_link, ... }
+  // deno-lint-ignore no-explicit-any
+  const topLevelArrays: any[] = [
+    payload?.wc_shipment_tracking_items,
+    payload?.shipment_tracking_items,
+    payload?.shipment_tracking,
+    payload?.ast_tracking_items,
+    payload?.tracking_items,
+  ].filter(Array.isArray);
+  if (topLevelArrays.length > 0) {
+    trackingMetaSeen = true;
+    const first = topLevelArrays[0][0];
+    if (first && typeof first === "object") {
+      number = number || first.tracking_number || null;
+      url = url ||
+        first.ast_tracking_link || first.tracking_link || first.tracking_url ||
+        first.custom_tracking_link || null;
+      provider = provider ||
+        first.formatted_tracking_provider || first.tracking_provider ||
+        first.custom_tracking_provider || null;
+      if (!date_shipped && first.date_shipped) {
+        const ds = first.date_shipped;
+        if (typeof ds === "number" || /^\d+$/.test(String(ds))) {
+          date_shipped = new Date(Number(ds) * 1000).toISOString().slice(0, 10);
+        } else {
+          date_shipped = String(ds).slice(0, 10);
+        }
+      }
+    }
+  }
+
   const meta = Array.isArray(payload?.meta_data) ? payload.meta_data : [];
   for (const m of meta) {
     const k = String(m?.key || "").toLowerCase();
     const v = m?.value;
-    // Official WooCommerce Shipment Tracking plugin stores an array here.
-    if (k === "_wc_shipment_tracking_items") {
+    // WC Shipment Tracking + AST store items under one of these keys.
+    if (
+      k === "_wc_shipment_tracking_items" ||
+      k === "_ast_shipment_tracking_items" ||
+      k === "_shipment_tracking_items"
+    ) {
       trackingMetaSeen = true;
       if (!Array.isArray(v) || !v[0]) continue;
       const first = v[0];
       number = number || first.tracking_number || null;
-      url = url || first.tracking_link || first.tracking_url || first.custom_tracking_link || null;
+      url = url ||
+        first.ast_tracking_link || first.tracking_link || first.tracking_url ||
+        first.custom_tracking_link || null;
       provider = provider || first.formatted_tracking_provider || first.tracking_provider ||
         first.custom_tracking_provider || null;
       if (!date_shipped && first.date_shipped) {
