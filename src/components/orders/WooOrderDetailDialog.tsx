@@ -220,6 +220,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   const amount = order.total_sales_amount || order.selling_price || 0;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
