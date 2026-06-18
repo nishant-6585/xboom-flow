@@ -106,7 +106,7 @@ function mapShopifyToShopifyOrder(
     currency: String(payload.currency || "INR"),
     line_items: lineItems,
     internal_notes: `Shopify Order #${payload.order_number}\nItems: ${lineItemsSummary}`,
-    sales_notes: `Fulfillment: ${payload.fulfillment_status || "unfulfilled"}`,
+    sales_notes: null,
     tags: String(payload.tags || ""),
     shopify_created_at: payload.created_at ? String(payload.created_at) : null,
     shopify_updated_at: payload.updated_at ? String(payload.updated_at) : null,
@@ -325,8 +325,6 @@ serve(async (req) => {
               fulfillment_status: orderData.fulfillment_status,
               financial_status: orderData.financial_status,
               order_status: orderData.order_status,
-              sales_notes: orderData.sales_notes,
-              internal_notes: orderData.internal_notes,
               line_items: orderData.line_items,
               shopify_updated_at: orderData.shopify_updated_at,
             })
