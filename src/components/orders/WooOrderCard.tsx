@@ -16,6 +16,8 @@ type OrderWithTracking = WooCommerceOrder & {
 };
 
 const statusColors: Record<string, string> = {
+  delivered: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  shipped: 'border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
   completed: 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400',
   processing: 'border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400',
   pending: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
