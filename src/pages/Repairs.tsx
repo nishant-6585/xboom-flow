@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import { RepairDialog } from "@/components/repairs/RepairDialog";
 import { RepairPartsAnalytics } from "@/components/repairs/RepairPartsAnalytics";
 import { RepairStageDistribution } from "@/components/repairs/RepairStageDistribution";
 import { REPAIR_STAGES } from "@/hooks/useRepairs";
-import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange, LayoutGrid, List as ListIcon, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { exportRepairsToExcel } from "@/utils/repairExportHelpers";
 import { toast } from "sonner";
@@ -51,6 +51,17 @@ export default function Repairs() {
   const [issueFilter, setIssueFilter] = useState<string>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
+
+  type RepairSortKey =
+    | "repair_number" | "customer_name" | "model_name" | "issue_type"
+    | "status" | "payment_status" | "repair_stage" | "assigned_technician_name"
+    | "created_at" | "total_quote_amount" | "balance_amount" | "profit";
+  const [sortKey, setSortKey] = useState<RepairSortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: RepairSortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
+  };
   const dateFilter = useDateFilter("current_month");
 
   const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
@@ -127,6 +138,47 @@ export default function Repairs() {
   const handleDelete = async (id: string) => {
     await deleteRepair(id);
     setSelectedRepair(null);
+  };
+
+  const sortedRepairs = useMemo(() => {
+    if (!sortKey) return filteredRepairs;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const arr = [...filteredRepairs];
+    arr.sort((a: any, b: any) => {
+      let av: any; let bv: any;
+      if (sortKey === "status") {
+        av = a.date_completed ? 1 : 0; bv = b.date_completed ? 1 : 0;
+      } else if (sortKey === "created_at") {
+        av = new Date(a.created_at).getTime() || 0;
+        bv = new Date(b.created_at).getTime() || 0;
+      } else if (sortKey === "total_quote_amount" || sortKey === "balance_amount" || sortKey === "profit") {
+        av = Number(a[sortKey]) || 0; bv = Number(b[sortKey]) || 0;
+      } else {
+        av = (a[sortKey] ?? "").toString().toLowerCase();
+        bv = (b[sortKey] ?? "").toString().toLowerCase();
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [filteredRepairs, sortKey, sortDir]);
+
+  const SortHead = ({ label, k, align }: { label: string; k: RepairSortKey; align?: "right" }) => {
+    const active = sortKey === k;
+    const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <TableHead className={`whitespace-nowrap ${align === "right" ? "text-right" : ""}`}>
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${align === "right" ? "ml-auto" : ""}`}
+        >
+          {label}
+          <Icon className={`h-3.5 w-3.5 ${active ? "text-foreground" : "opacity-60"}`} />
+        </button>
+      </TableHead>
+    );
   };
 
   return (
@@ -363,23 +415,23 @@ export default function Repairs() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="whitespace-nowrap">Repair #</TableHead>
-                      <TableHead className="whitespace-nowrap">Customer</TableHead>
-                      <TableHead className="whitespace-nowrap">Model</TableHead>
-                      <TableHead className="whitespace-nowrap">Issue</TableHead>
-                      <TableHead className="whitespace-nowrap">Status</TableHead>
-                      <TableHead className="whitespace-nowrap">Payment</TableHead>
-                      <TableHead className="whitespace-nowrap">Stage</TableHead>
-                      <TableHead className="whitespace-nowrap">Assignee</TableHead>
-                      <TableHead className="whitespace-nowrap">Date</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Amount</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Balance</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Profit</TableHead>
+                      <SortHead label="Repair #" k="repair_number" />
+                      <SortHead label="Customer" k="customer_name" />
+                      <SortHead label="Model" k="model_name" />
+                      <SortHead label="Issue" k="issue_type" />
+                      <SortHead label="Status" k="status" />
+                      <SortHead label="Payment" k="payment_status" />
+                      <SortHead label="Stage" k="repair_stage" />
+                      <SortHead label="Assignee" k="assigned_technician_name" />
+                      <SortHead label="Date" k="created_at" />
+                      <SortHead label="Amount" k="total_quote_amount" align="right" />
+                      <SortHead label="Balance" k="balance_amount" align="right" />
+                      <SortHead label="Profit" k="profit" align="right" />
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRepairs.map((repair) => {
+                    {sortedRepairs.map((repair) => {
                       const issueLabel =
                         ISSUE_TYPES.find((t) => t.value === repair.issue_type)?.label ||
                         repair.issue_type;
