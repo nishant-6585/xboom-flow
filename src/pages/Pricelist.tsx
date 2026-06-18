@@ -409,6 +409,33 @@ export default function Pricelist() {
     }
   };
 
+  const toggleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ k }: { k: string }) => {
+    if (sortBy !== k) return <ArrowUpDown className="w-3 h-3 opacity-50" />;
+    return sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />;
+  };
+
+  const SortableHead = ({ k, children, className }: { k: string; children: React.ReactNode; className?: string }) => (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => toggleSort(k)}
+        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        {children}
+        <SortIcon k={k} />
+      </button>
+    </TableHead>
+  );
+
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
