@@ -11,6 +11,15 @@ export interface OrderInvoice {
   uploaded_by: string | null;
   created_at: string;
   updated_at: string;
+  source?: 'xboom' | 'zoho';
+  document_type?: 'proforma' | 'tax_invoice';
+  subtotal?: number | null;
+  tax_amount?: number | null;
+  total?: number | null;
+  amount_paid?: number | null;
+  place_of_supply?: string | null;
+  gst_treatment?: 'igst' | 'cgst_sgst' | null;
+  tax_breakup?: unknown;
 }
 
 export function useOrderInvoices(orderId: string | null | undefined) {
@@ -114,4 +123,61 @@ export function useOrderInvoices(orderId: string | null | undefined) {
   };
 
   return { invoices, loading, refetch: fetch, addInvoice, removeInvoice };
+}
+
+export interface ProformaPersistMeta {
+  invoice_number: string;
+  subtotal: number;
+  tax_amount: number;
+  total: number;
+  amount_paid: number;
+  place_of_supply: string;
+  gst_treatment: 'igst' | 'cgst_sgst';
+  tax_breakup: unknown;
+}
+
+export async function uploadProformaInvoice(
+  orderId: string,
+  userId: string,
+  blob: Blob,
+  meta: ProformaPersistMeta,
+): Promise<OrderInvoice | null> {
+  try {
+    const fileName = `${meta.invoice_number}.pdf`;
+    const filePath = `${userId}/${orderId}-${Date.now()}-${meta.invoice_number}.pdf`;
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+
+    const { error: upErr } = await supabase.storage.from('invoices').upload(filePath, file, {
+      contentType: 'application/pdf',
+      upsert: false,
+    });
+    if (upErr) throw upErr;
+
+    const { data: inserted, error: insErr } = await supabase
+      .from('order_invoices')
+      .insert({
+        order_id: orderId,
+        storage_path: filePath,
+        file_name: fileName,
+        uploaded_by: userId,
+        invoice_number: meta.invoice_number,
+        source: 'xboom',
+        document_type: 'proforma',
+        subtotal: meta.subtotal,
+        tax_amount: meta.tax_amount,
+        total: meta.total,
+        amount_paid: meta.amount_paid,
+        place_of_supply: meta.place_of_supply,
+        gst_treatment: meta.gst_treatment,
+        tax_breakup: meta.tax_breakup as any,
+      } as any)
+      .select()
+      .single();
+    if (insErr) throw insErr;
+    return inserted as OrderInvoice;
+  } catch (err: any) {
+    console.error('Proforma upload failed', err);
+    toast.error(err.message || 'Failed to save proforma');
+    return null;
+  }
 }
