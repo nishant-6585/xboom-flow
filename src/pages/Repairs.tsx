@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import { RepairDialog } from "@/components/repairs/RepairDialog";
 import { RepairPartsAnalytics } from "@/components/repairs/RepairPartsAnalytics";
 import { RepairStageDistribution } from "@/components/repairs/RepairStageDistribution";
 import { REPAIR_STAGES } from "@/hooks/useRepairs";
-import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange, LayoutGrid, List as ListIcon, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { exportRepairsToExcel } from "@/utils/repairExportHelpers";
 import { toast } from "sonner";
