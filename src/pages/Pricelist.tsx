@@ -85,6 +85,7 @@ export default function Pricelist() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [enquiryDialogOpen, setEnquiryDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [enquiryQuantity, setEnquiryQuantity] = useState(1);
   const [enquiryNotes, setEnquiryNotes] = useState("");
