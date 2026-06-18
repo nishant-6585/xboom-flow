@@ -58,7 +58,7 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 
 - **Phase 2 (⏳ parked):** `zoho-invoice-webhook` + Zoho Books API auto-fetch of the official tax-invoice PDF (`source='zoho'`), matched by order #; needs Zoho OAuth creds (client id/secret, refresh token, org id).
 - **Open / prereqs:** customer state for Place of Supply (orders store address as a string — dialog lets finance confirm; consider a `state` column later); signature image in `signatures` bucket; confirm seller GSTIN/bank/T&C from sample are current.
-- **Website orders:** no separate flow needed — paid woo orders are mirrored into `orders` with `payment_status='full'`, so "Generate Proforma" already covers them via All Orders. Optional: a convenience button on the Website Orders tab that resolves to the mirrored internal order (`orders.external_id = woo id`) and reuses the same flow — NOT yet built.
+- **Website orders:** ✅ now wired by Lovable — `GenerateProformaDialog` accepts a `wooOrder` prop; `WooOrderDetailDialog`/`ShopifyOrderDetailDialog` have Generate buttons; new `InvoiceListCard`. Also added: buyer GSTIN field, regenerate-existing-proforma (keeps number).
 
 ## ✅ Completed work
 
