@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
+import AdminTabsNav from "@/components/admin/AdminTabsNav";
 
 interface PortalAccountRow {
   id: string;
