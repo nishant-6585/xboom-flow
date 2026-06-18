@@ -8134,32 +8134,59 @@ export type Database = {
       }
       order_invoices: {
         Row: {
+          amount_paid: number | null
           created_at: string
+          document_type: string
           file_name: string | null
+          gst_treatment: string | null
           id: string
           invoice_number: string | null
           order_id: string
+          place_of_supply: string | null
+          source: string
           storage_path: string
+          subtotal: number | null
+          tax_amount: number | null
+          tax_breakup: Json | null
+          total: number | null
           updated_at: string
           uploaded_by: string | null
         }
         Insert: {
+          amount_paid?: number | null
           created_at?: string
+          document_type?: string
           file_name?: string | null
+          gst_treatment?: string | null
           id?: string
           invoice_number?: string | null
           order_id: string
+          place_of_supply?: string | null
+          source?: string
           storage_path: string
+          subtotal?: number | null
+          tax_amount?: number | null
+          tax_breakup?: Json | null
+          total?: number | null
           updated_at?: string
           uploaded_by?: string | null
         }
         Update: {
+          amount_paid?: number | null
           created_at?: string
+          document_type?: string
           file_name?: string | null
+          gst_treatment?: string | null
           id?: string
           invoice_number?: string | null
           order_id?: string
+          place_of_supply?: string | null
+          source?: string
           storage_path?: string
+          subtotal?: number | null
+          tax_amount?: number | null
+          tax_breakup?: Json | null
+          total?: number | null
           updated_at?: string
           uploaded_by?: string | null
         }
@@ -15403,6 +15430,7 @@ export type Database = {
         }[]
       }
       get_my_portal_account_id: { Args: never; Returns: string }
+      get_next_proforma_number: { Args: never; Returns: string }
       get_order_profits:
         | {
             Args: { p_order_ids: string[] }
