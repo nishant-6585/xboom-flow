@@ -8,6 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { RepairStageBadge } from "@/components/repairs/RepairStageBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useRepairs, Repair, RepairFormData, ISSUE_TYPES, PAYMENT_STATUSES } from "@/hooks/useRepairs";
 import { RepairCard } from "@/components/repairs/RepairCard";
@@ -17,7 +21,8 @@ import { RepairDialog } from "@/components/repairs/RepairDialog";
 import { RepairPartsAnalytics } from "@/components/repairs/RepairPartsAnalytics";
 import { RepairStageDistribution } from "@/components/repairs/RepairStageDistribution";
 import { REPAIR_STAGES } from "@/hooks/useRepairs";
-import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange } from "lucide-react";
+import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange, LayoutGrid, List as ListIcon } from "lucide-react";
+import { format } from "date-fns";
 import { exportRepairsToExcel } from "@/utils/repairExportHelpers";
 import { toast } from "sonner";
 import { useDateFilter } from "@/hooks/useDateFilter";
@@ -47,6 +52,26 @@ export default function Repairs() {
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
   const dateFilter = useDateFilter("current_month");
+
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    if (typeof window === "undefined") return "grid";
+    const saved = window.localStorage.getItem("repairs_view_mode");
+    return saved === "list" ? "list" : "grid";
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("repairs_view_mode", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
+
+  const paymentBadgeClass: Record<string, string> = {
+    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+    partial: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  };
 
   const handleExport = async () => {
     try {
@@ -254,6 +279,22 @@ export default function Repairs() {
               ))}
             </SelectContent>
           </Select>
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(v) => {
+              if (v === "grid" || v === "list") setViewMode(v);
+            }}
+            className="border rounded-md"
+            aria-label="View mode"
+          >
+            <ToggleGroupItem value="grid" aria-label="Grid view" className="h-10 px-3">
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" className="h-10 px-3">
+              <ListIcon className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
         {/* Stage distribution strip */}
@@ -295,7 +336,7 @@ export default function Repairs() {
               )}
             </CardContent>
           </Card>
-        ) : (
+        ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredRepairs.map((repair) => (
               <RepairCard
@@ -305,6 +346,113 @@ export default function Repairs() {
               />
             ))}
           </div>
+        ) : (
+          <>
+            {/* Mobile fallback to grid (list is cramped on small screens) */}
+            <div className="grid grid-cols-1 sm:hidden gap-4">
+              {filteredRepairs.map((repair) => (
+                <RepairCard
+                  key={repair.id}
+                  repair={repair}
+                  onClick={() => setSelectedRepair(repair)}
+                />
+              ))}
+            </div>
+            <Card className="hidden sm:block">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Repair #</TableHead>
+                      <TableHead className="whitespace-nowrap">Customer</TableHead>
+                      <TableHead className="whitespace-nowrap">Model</TableHead>
+                      <TableHead className="whitespace-nowrap">Issue</TableHead>
+                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                      <TableHead className="whitespace-nowrap">Payment</TableHead>
+                      <TableHead className="whitespace-nowrap">Stage</TableHead>
+                      <TableHead className="whitespace-nowrap">Assignee</TableHead>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Amount</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Balance</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Profit</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRepairs.map((repair) => {
+                      const issueLabel =
+                        ISSUE_TYPES.find((t) => t.value === repair.issue_type)?.label ||
+                        repair.issue_type;
+                      const payCls =
+                        paymentBadgeClass[repair.payment_status] || paymentBadgeClass.pending;
+                      const payLabel =
+                        PAYMENT_STATUSES.find((p) => p.value === repair.payment_status)
+                          ?.label || repair.payment_status;
+                      const statusLabel = repair.date_completed ? "Completed" : "In Progress";
+                      return (
+                        <TableRow
+                          key={repair.id}
+                          className="cursor-pointer"
+                          onClick={() => setSelectedRepair(repair)}
+                        >
+                          <TableCell className="font-mono text-xs whitespace-nowrap">
+                            {repair.repair_number || "—"}
+                          </TableCell>
+                          <TableCell className="font-medium whitespace-nowrap">
+                            {repair.customer_name}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">{repair.model_name}</TableCell>
+                          <TableCell className="whitespace-nowrap">{issueLabel}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Badge variant={repair.date_completed ? "default" : "secondary"}>
+                              {statusLabel}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Badge className={payCls}>{payLabel}</Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <RepairStageBadge stage={repair.repair_stage} />
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {repair.assigned_technician_name || "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                            {format(new Date(repair.created_at), "dd MMM yyyy")}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-right">
+                            ₹{(repair.total_quote_amount || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-right">
+                            ₹{(repair.balance_amount || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell
+                            className={`whitespace-nowrap text-right font-medium ${
+                              (repair.profit || 0) >= 0 ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            ₹{(repair.profit || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedRepair(repair);
+                              }}
+                            >
+                              Open
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
+          </>
         )}
       </main>
 
