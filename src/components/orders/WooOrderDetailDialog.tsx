@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck, MapPin, Package, ExternalLink, Calendar } from 'lucide-react';
+import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck, MapPin, Package, ExternalLink, Calendar, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
@@ -16,8 +16,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { CourierCombobox } from '@/components/CourierCombobox';
 import { buildTrackingUrl } from '@/lib/courierTracking';
+import { useWooOrderInvoices, OrderInvoice } from '@/hooks/useOrderInvoices';
+import { GenerateProformaDialog } from './GenerateProformaDialog';
+import { InvoiceListCard } from './InvoiceListCard';
 
 const TRACKING_ROLES = new Set(['admin', 'supply_chain', 'sales_manager', 'finance']);
+const PROFORMA_ROLES = new Set(['admin', 'finance', 'supply_chain']);
 
 interface StatusLog {
   id: string;
@@ -81,6 +85,12 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   const [actionsKey, setActionsKey] = useState(0);
   const { role } = useAuth();
   const canEditTracking = !!role && TRACKING_ROLES.has(role);
+  const canGenerateProforma = !!role && PROFORMA_ROLES.has(role);
+
+  const { invoices: wooInvoices, refetch: refetchWooInvoices, removeInvoice: removeWooInvoice } =
+    useWooOrderInvoices(open ? order?.id ?? null : null);
+  const [proformaOpen, setProformaOpen] = useState(false);
+  const [regenerateTarget, setRegenerateTarget] = useState<OrderInvoice | null>(null);
 
   const [detail, setDetail] = useState<WooDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -308,6 +318,40 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
             </section>
 
             <Separator />
+
+            {/* Status update */}
+            {/* Invoices / Proforma */}
+            {canGenerateProforma && (
+              <>
+                <section className="p-4 bg-muted/50 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <FileText className="h-4 w-4" /> Invoices
+                    </h4>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setRegenerateTarget(null); setProformaOpen(true); }}
+                    >
+                      <FileText className="h-4 w-4 mr-1" /> Generate Proforma
+                    </Button>
+                  </div>
+                  {wooInvoices.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No proforma generated yet.</p>
+                  ) : (
+                    <InvoiceListCard
+                      invoices={wooInvoices}
+                      canRegenerate
+                      onRegenerate={(inv) => { setRegenerateTarget(inv); setProformaOpen(true); }}
+                      canDelete
+                      onDelete={(inv) => removeWooInvoice(inv)}
+                    />
+                  )}
+                </section>
+                <Separator />
+              </>
+            )}
 
             {/* Status update */}
             <section>
@@ -607,6 +651,16 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
         </ScrollArea>
       </DialogContent>
     </Dialog>
+    {canGenerateProforma && (
+      <GenerateProformaDialog
+        wooOrder={order}
+        existingProforma={regenerateTarget}
+        open={proformaOpen}
+        onOpenChange={(o) => { setProformaOpen(o); if (!o) setRegenerateTarget(null); }}
+        onGenerated={() => { refetchWooInvoices(); setRegenerateTarget(null); }}
+      />
+    )}
+    </>
   );
 }
 
