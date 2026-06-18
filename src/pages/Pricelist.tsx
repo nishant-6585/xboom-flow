@@ -94,6 +94,8 @@ export default function Pricelist() {
   const [enquiryNotes, setEnquiryNotes] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   
   const [formData, setFormData] = useState<PricelistFormData>({
