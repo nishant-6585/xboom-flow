@@ -325,8 +325,6 @@ serve(async (req) => {
               fulfillment_status: orderData.fulfillment_status,
               financial_status: orderData.financial_status,
               order_status: orderData.order_status,
-              sales_notes: orderData.sales_notes,
-              internal_notes: orderData.internal_notes,
               line_items: orderData.line_items,
               shopify_updated_at: orderData.shopify_updated_at,
             })
