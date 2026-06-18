@@ -60,6 +60,15 @@ function normalizeOrderStatus(v: string | null | undefined): string {
   return ORDER_STATUS_OPTIONS.includes(s) ? s : '';
 }
 
+function buildAutoSalesNotes(payment: string, fulfillment: string, orderStatus: string): string {
+  const parts = [
+    `Fulfillment: ${fulfillment || 'unfulfilled'}`,
+    `Payment: ${payment || 'pending'}`,
+    `Order: ${orderStatus || 'open'}`,
+  ];
+  return parts.join(' | ');
+}
+
 export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated }: Props) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -74,15 +83,26 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
 
   useEffect(() => {
     if (!order) return;
+    const payment = normalizePayment(order.payment_status);
+    const fulfillment = normalizeFulfillment(order.fulfillment_status);
+    const orderStatus = normalizeOrderStatus(order.order_status);
     setForm({
-      payment_status: normalizePayment(order.payment_status),
-      fulfillment_status: normalizeFulfillment(order.fulfillment_status),
-      order_status: normalizeOrderStatus(order.order_status),
+      payment_status: payment,
+      fulfillment_status: fulfillment,
+      order_status: orderStatus,
       internal_notes: order.internal_notes ?? '',
-      sales_notes: order.sales_notes ?? '',
+      sales_notes: buildAutoSalesNotes(payment, fulfillment, orderStatus),
       amount_paid: order.amount_paid != null ? String(order.amount_paid) : '',
     });
   }, [order]);
+
+  // Auto-overwrite sales notes whenever any status changes
+  useEffect(() => {
+    setForm(f => ({
+      ...f,
+      sales_notes: buildAutoSalesNotes(f.payment_status, f.fulfillment_status, f.order_status),
+    }));
+  }, [form.payment_status, form.fulfillment_status, form.order_status]);
 
   if (!order) return null;
 
@@ -258,9 +278,13 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
               <Label className="text-xs">Sales notes</Label>
               <Textarea
                 value={form.sales_notes}
-                onChange={(e) => setForm(f => ({ ...f, sales_notes: e.target.value }))}
+                readOnly
                 rows={2}
+                className="bg-muted/40 text-muted-foreground"
               />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Auto-generated from order status. Saved on "Save changes".
+              </p>
             </div>
             <div>
               <Label className="text-xs">Internal notes</Label>
