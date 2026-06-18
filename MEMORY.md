@@ -52,18 +52,25 @@ Last updated: 2026-06-18
 
 ---
 
-## ⏳ PLANNED — Order invoicing (self-generated Proforma + Zoho automation)
+## 🟡 Order invoicing (self-generated Proforma + Zoho automation)
 
-Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decisions: **Proforma** (XBoom self-gen is a labelled proforma; Zoho stays the official tax invoice), **phased** (self-gen now, Zoho webhook later), **GST default 5% / HSN 88062200 with override**.
+Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decisions: **Proforma** (XBoom self-gen is a labelled proforma; Zoho stays the official tax invoice), **phased**, **GST default 5% / HSN 88062200 with override**. Sample reference: `docs/XI-Jun26-0088.pdf`.
 
-Builds on existing `order_invoices` (`src/hooks/useOrderInvoices.ts`) + `invoices` storage bucket + jsPDF generators (`quotePdfGenerator.ts`). Sample reference: `docs/XI-Jun26-0088.pdf`.
-
-- **Phase 1 (build now via Lovable):** "Generate Invoice" on `payment_status='full'` orders → client-side jsPDF "PROFORMA INVOICE" (sample layout) → upload to `invoices` bucket → `order_invoices` row tagged `source='xboom'`, `document_type='proforma'`, number series `XPF-YYMM-NNNN`. GST: order total treated as inclusive; seller KA(29) → IGST vs CGST+SGST by Place of Supply. New `src/lib/invoiceGst.ts` + `src/lib/invoicePdfGenerator.ts`; extend `order_invoices` (source, document_type, tax snapshot) + `get_next_proforma_number()` RPC; role-gated finance/admin; per-order badges (XBoom/Proforma vs Zoho/Tax Invoice).
-- **Phase 2 (parked):** `zoho-invoice-webhook` + Zoho Books API auto-fetch official tax-invoice PDF (`source='zoho'`), matched by order #; needs Zoho OAuth creds.
-- **Prereqs/open:** customer state for Place of Supply (orders store address as a string — dialog lets finance confirm; consider a `state` column later); signature image in `signatures` bucket; confirm seller GSTIN/bank/T&C from sample are current.
-- Status: ⏳ Lovable prompt handed over; not yet built.
+- **Phase 2 (⏳ parked):** `zoho-invoice-webhook` + Zoho Books API auto-fetch of the official tax-invoice PDF (`source='zoho'`), matched by order #; needs Zoho OAuth creds (client id/secret, refresh token, org id).
+- **Open / prereqs:** customer state for Place of Supply (orders store address as a string — dialog lets finance confirm; consider a `state` column later); signature image in `signatures` bucket; confirm seller GSTIN/bank/T&C from sample are current.
+- **Website orders:** no separate flow needed — paid woo orders are mirrored into `orders` with `payment_status='full'`, so "Generate Proforma" already covers them via All Orders. Optional: a convenience button on the Website Orders tab that resolves to the mirrored internal order (`orders.external_id = woo id`) and reuses the same flow — NOT yet built.
 
 ## ✅ Completed work
+
+### 2026-06-18 — Order invoicing Phase 1: self-generated Proforma ✅ (by Lovable)
+Finance can generate an XBoom Proforma instantly for `payment_status='full'` orders; Zoho upload + AI extraction untouched.
+- Migration: `order_invoices` extended with `source`/`document_type` + tax snapshot; `proforma_number_seq` + `get_next_proforma_number()` RPC (series `XPF-YYMM-NNNN`).
+- `src/lib/invoiceGst.ts`: GST-inclusive splitter, Karnataka(29) IGST-vs-CGST+SGST logic, INR amount-in-words, state-code guesser.
+- `src/lib/invoicePdfGenerator.ts`: jsPDF "PROFORMA INVOICE" (seller / Bill-To / items / totals / words / bank details / signature / T&C).
+- `useOrderInvoices.uploadProformaInvoice()`: stores PDF in `invoices` bucket, inserts row tagged `source='xboom'`, `document_type='proforma'` (no AI extraction).
+- `GenerateProformaDialog.tsx`: prefilled Bill-To, POS dropdown, editable lines from `order_items`, treatment hint, live totals → RPC number → PDF → upload.
+- `OrderDialog.tsx`: role-gated "Generate Proforma" button (admin/finance, only when `payment_status='full'`); invoice rows badged XBoom/Zoho + Proforma/Tax Invoice; refetch after generation.
+- Not wired: Website Orders tab (see note above).
 
 ### 2026-06-18 — WooCommerce Order / Shipping / Tracking / Delivered sync (Item 2) — by Lovable
 On `main`. Makes shipping/tracking + the Delivered status sync into both **All Orders** (`orders`) and **Website Orders** (`woocommerce_orders`).
