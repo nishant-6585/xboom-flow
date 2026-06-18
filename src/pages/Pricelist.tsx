@@ -85,6 +85,7 @@ export default function Pricelist() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [enquiryDialogOpen, setEnquiryDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [enquiryQuantity, setEnquiryQuantity] = useState(1);
   const [enquiryNotes, setEnquiryNotes] = useState("");
@@ -527,7 +528,14 @@ export default function Pricelist() {
                           </TableRow>
                         ) : (
                           paginatedItems.map((item) => (
-                            <TableRow key={item.id}>
+                            <TableRow
+                              key={item.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => {
+                                setSelectedItem(item);
+                                setDetailDialogOpen(true);
+                              }}
+                            >
                               <TableCell>
                                 <div>
                                   <div className="flex items-center gap-2">
@@ -670,7 +678,7 @@ export default function Pricelist() {
                                   <span className="text-muted-foreground text-sm">-</span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
                                     variant="ghost"
@@ -1046,6 +1054,119 @@ export default function Pricelist() {
           </DialogContent>
         </Dialog>
       </main>
+
+      {/* Product details dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selectedItem && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 flex-wrap">
+                  <span>{selectedItem.product_name}</span>
+                  {(selectedItem.woo_product_id || selectedItem.sync_source === "woocommerce") && (
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1">
+                      <Globe className="w-3 h-3" /> Website
+                    </Badge>
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedItem.product_category}
+                  {selectedItem.brand ? ` • ${selectedItem.brand}` : ""}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {[
+                  ["Price", selectedItem.unit_price],
+                  ["Website Price", selectedItem.website_price],
+                  ["Dealer Price", selectedItem.dealer_price],
+                  ...(canManage ? [["Cost Price", selectedItem.cost_price] as const] : []),
+                ].map(([label, value]) => (
+                  <div key={label as string}>
+                    <p className="text-muted-foreground">{label}</p>
+                    <p className="font-medium">
+                      {value
+                        ? `${selectedItem.currency === "USD" ? "$" : "₹"}${Number(value).toLocaleString()}`
+                        : "On Request"}
+                    </p>
+                  </div>
+                ))}
+                {canManage && selectedItem.dealer_price && selectedItem.cost_price && (
+                  <div>
+                    <p className="text-muted-foreground">Margin</p>
+                    <p className="font-medium">
+                      {(((selectedItem.dealer_price - selectedItem.cost_price) / selectedItem.dealer_price) * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-muted-foreground">Lead Time</p>
+                  <p className="font-medium">{selectedItem.lead_time || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Availability</p>
+                  <Badge variant="outline" className={getAvailabilityColor(selectedItem.availability)}>
+                    {selectedItem.availability}
+                  </Badge>
+                </div>
+                {canManage && selectedItem.woo_stock_status && (
+                  <div>
+                    <p className="text-muted-foreground">Woo Stock</p>
+                    <code className="text-xs px-1.5 py-0.5 rounded bg-muted">{selectedItem.woo_stock_status}</code>
+                  </div>
+                )}
+                {selectedItem.website_synced_at && (
+                  <div>
+                    <p className="text-muted-foreground">Last Synced</p>
+                    <p className="font-medium">{new Date(selectedItem.website_synced_at).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedItem.description && (
+                <div className="text-sm">
+                  <p className="text-muted-foreground mb-1">Description</p>
+                  <p className="whitespace-pre-wrap">{selectedItem.description}</p>
+                </div>
+              )}
+
+              {selectedItem.marketing_collateral_url && (
+                <a
+                  href={selectedItem.marketing_collateral_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-primary hover:underline text-sm"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  {selectedItem.marketing_collateral_name || "View collateral"}
+                </a>
+              )}
+
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDetailDialogOpen(false);
+                    openEnquiryDialog(selectedItem);
+                  }}
+                >
+                  <MessageSquarePlus className="w-4 h-4 mr-1" /> Raise Enquiry
+                </Button>
+                {canManage && (
+                  <Button
+                    onClick={() => {
+                      setDetailDialogOpen(false);
+                      openEditDialog(selectedItem);
+                    }}
+                  >
+                    <Edit className="w-4 h-4 mr-1" /> Edit
+                  </Button>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* AI Sales Assistant Floating Button */}
       <Button
