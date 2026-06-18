@@ -15256,6 +15256,7 @@ export type Database = {
           retry_count: number
           shop_domain: string
           updated_at: string
+          webhook_topic: string
         }[]
       }
       find_duplicate_enquiries: {
