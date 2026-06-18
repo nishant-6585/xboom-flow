@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import AdminTabsNav from "@/components/admin/AdminTabsNav";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface PortalAccountRow {
   id: string;
@@ -28,6 +38,15 @@ export default function PortalCustomers() {
   const [rows, setRows] = useState<PortalAccountRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editRow, setEditRow] = useState<PortalAccountRow | null>(null);
+  const [editCompanyName, setEditCompanyName] = useState("");
+  const [editGstin, setEditGstin] = useState("");
+  const [editIndustry, setEditIndustry] = useState("");
+  const [editStatus, setEditStatus] = useState<string>("active");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteRow, setDeleteRow] = useState<PortalAccountRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [companyName, setCompanyName] = useState("");
@@ -98,6 +117,59 @@ export default function PortalCustomers() {
     toast({ title: "Invite sent", description: `${email} will receive a setup link.` });
     setOpen(false);
     reset();
+    load();
+  };
+
+  const openEdit = (r: PortalAccountRow) => {
+    setEditRow(r);
+    setEditCompanyName(r.company_name);
+    setEditGstin("");
+    setEditIndustry(r.industry ?? "");
+    setEditStatus(r.status || "active");
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editRow) return;
+    if (!editCompanyName.trim()) {
+      toast({ title: "Company name required", variant: "destructive" });
+      return;
+    }
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("portal_accounts")
+      .update({
+        company_name: editCompanyName.trim(),
+        gstin: editGstin.trim() || null,
+        industry: editIndustry.trim() || null,
+        status: editStatus,
+      })
+      .eq("id", editRow.id);
+    setSavingEdit(false);
+    if (error) {
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Customer updated" });
+    setEditOpen(false);
+    setEditRow(null);
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteRow) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from("portal_accounts")
+      .delete()
+      .eq("id", deleteRow.id);
+    setDeleting(false);
+    if (error) {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Customer deleted" });
+    setDeleteRow(null);
     load();
   };
 
@@ -218,6 +290,7 @@ export default function PortalCustomers() {
                     <TableHead>Industry</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -231,6 +304,27 @@ export default function PortalCustomers() {
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(r.created_at).toLocaleDateString()}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEdit(r)}
+                            aria-label={`Edit ${r.company_name}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteRow(r)}
+                            aria-label={`Delete ${r.company_name}`}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -239,6 +333,74 @@ export default function PortalCustomers() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={(o) => { setEditOpen(o); if (!o) setEditRow(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit customer</DialogTitle>
+            <DialogDescription>Update company details and account status.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Company name *</Label>
+              <Input value={editCompanyName} onChange={(e) => setEditCompanyName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>GSTIN</Label>
+                <Input value={editGstin} onChange={(e) => setEditGstin(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Industry</Label>
+                <Input value={editIndustry} onChange={(e) => setEditIndustry(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteRow} onOpenChange={(o) => { if (!o) setDeleteRow(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete portal customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{deleteRow?.company_name}</strong> and may
+              affect related portal contacts, orders, and documents. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
