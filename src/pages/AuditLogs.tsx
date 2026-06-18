@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
+import AdminTabsNav from "@/components/admin/AdminTabsNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -131,6 +132,7 @@ const AuditLogs = () => {
   return (
     <div className="min-h-[100dvh] bg-background">
       <Header />
+      <AdminTabsNav active="audit-logs" />
       <main className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">
           <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="mb-2">

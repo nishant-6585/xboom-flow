@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
+import AdminTabsNav from "@/components/admin/AdminTabsNav";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -157,6 +158,7 @@ export default function CompanyCleanup() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      <AdminTabsNav active="company-cleanup" />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate("/admin")}>

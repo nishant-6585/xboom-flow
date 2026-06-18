@@ -43,7 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { WooCommerceSyncPanel } from "@/components/admin/WooCommerceSyncPanel";
 import { LeadSyncHealthPanel } from "@/components/admin/LeadSyncHealthPanel";
@@ -98,6 +98,7 @@ const Admin = () => {
   const { enquiries } = useEnquiries();
   const { orders } = useOrders();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
@@ -130,6 +131,20 @@ const Admin = () => {
       setActiveTab("approvals");
     }
   }, [isFinanceOnly]);
+
+  // Sync activeTab with ?tab= URL param so deep-links from AdminTabsNav work
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && t !== activeTab) setActiveTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleTabChange = (v: string) => {
+    setActiveTab(v);
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", v);
+    setSearchParams(next, { replace: true });
+  };
 
   // Move useEffect before any conditional returns to follow React Hooks rules
   useEffect(() => {
@@ -676,7 +691,7 @@ const Admin = () => {
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-6 h-auto flex-wrap justify-start">
             {!isFinanceOnly && (
               <>

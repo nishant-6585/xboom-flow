@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
+import AdminTabsNav from "@/components/admin/AdminTabsNav";
 
 interface PortalAccountRow {
   id: string;
@@ -119,6 +120,7 @@ export default function PortalCustomers() {
   return (
     <div className="min-h-[100dvh] bg-background">
       <Header />
+      <AdminTabsNav active="portal-customers" />
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-start justify-between mb-6">
           <div>
