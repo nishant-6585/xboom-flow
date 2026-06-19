@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ChevronDown, ChevronUp, Info, ShieldCheck, FlaskConical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -86,6 +86,14 @@ export function GenerateProformaDialog({
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [emailState, setEmailState] = useState<InvoiceEmailState>(defaultEmailState(''));
+  const [overrideReason, setOverrideReason] = useState('');
+  const [overrideBusy, setOverrideBusy] = useState(false);
+  const [dryRun, setDryRun] = useState<null | {
+    delta: number;
+    proformaTotal: number;
+    expectedTotal: number;
+    changedLines: Array<{ index: number; product_name: string; field: string; before: any; after: any }>;
+  }>(null);
 
   const subject = useMemo(() => {
     if (order) {
@@ -304,6 +312,78 @@ export function GenerateProformaDialog({
 
   const duplicateFlags = useMemo(() => detectBundleDuplicates(lines), [lines]);
 
+  /** Recalculate proformas using current rules WITHOUT saving. */
+  const runDryRun = () => {
+    if (!subject) return;
+    const changedLines: Array<{ index: number; product_name: string; field: string; before: any; after: any }> = [];
+    let dryProformaTotal = 0;
+    lines.forEach((l, idx) => {
+      const inferred = inferGstRate(l.product_name, l.hsn);
+      const qty = Number(l.quantity) || 0;
+      const correctedGross = Math.round(l.unit_price_excl * qty * (1 + inferred / 100) * 100) / 100;
+      dryProformaTotal += correctedGross;
+      if (inferred !== Number(l.gst_rate)) {
+        changedLines.push({ index: idx, product_name: l.product_name, field: 'gst_rate', before: l.gst_rate, after: inferred });
+      }
+      if (Math.abs(correctedGross - Number(l.gross_total)) > 0.01) {
+        changedLines.push({ index: idx, product_name: l.product_name, field: 'gross_total', before: l.gross_total, after: correctedGross });
+      }
+    });
+    const expected = Number(subject.total) || 0;
+    setDryRun({
+      delta: Math.round((dryProformaTotal - expected) * 100) / 100,
+      proformaTotal: Math.round(dryProformaTotal * 100) / 100,
+      expectedTotal: expected,
+      changedLines,
+    });
+    toast.success(`Dry-run complete — ${changedLines.length} field change(s) would be applied`);
+  };
+
+  /** Manual override: approve current proforma as-is even though it's flagged stale. */
+  const handleManualOverride = async () => {
+    if (!existingProforma || !user) return;
+    if (!canRegenerate) { toast.error('Only Supply Chain, Finance, or Admin can override'); return; }
+    if (!overrideReason.trim() || overrideReason.trim().length < 8) {
+      toast.error('Please provide a clear reason (min 8 chars) for the override');
+      return;
+    }
+    setOverrideBusy(true);
+    try {
+      const actorName = (profile as any)?.full_name || user.email || null;
+      const { error } = await (supabase.from('order_invoices') as any)
+        .update({
+          needs_regenerate: false,
+          regenerate_reason: null,
+          regenerate_flagged_at: null,
+          override_reason: overrideReason.trim(),
+          override_by: user.id,
+          override_by_name: actorName,
+          override_at: new Date().toISOString(),
+        })
+        .eq('id', (existingProforma as any).id);
+      if (error) throw error;
+      await (supabase.from('proforma_rule_audit') as any).insert({
+        order_number: subject?.order_number,
+        order_id: order?.id || null,
+        woocommerce_order_id: wooOrder?.id || null,
+        action: 'MANUAL_OVERRIDE',
+        triggered_by: user.id,
+        triggered_by_name: actorName,
+        line_changes: { rules_version: PROFORMA_RULES_VERSION, role, reason: overrideReason.trim() },
+        before_snapshot: { needs_regenerate: true },
+        after_snapshot: { needs_regenerate: false, override_reason: overrideReason.trim() },
+      });
+      toast.success('Proforma re-approved with override');
+      setOverrideReason('');
+      onGenerated?.();
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Override failed');
+    } finally {
+      setOverrideBusy(false);
+    }
+  };
+
   const [rulesExpanded, setRulesExpanded] = useState(false);
   const lineRuleBreakdown = useMemo(
     () => lines.map((l) => ({ line: l, explain: explainGstRate(l.product_name, l.hsn) })),
@@ -426,9 +506,51 @@ export function GenerateProformaDialog({
       // Clear the auto-flagged stale marker on the new proforma row.
       try {
         await (supabase.from('order_invoices') as any)
-          .update({ needs_regenerate: false, regenerate_reason: null, regenerate_flagged_at: null })
+          .update({
+            needs_regenerate: false,
+            regenerate_reason: null,
+            regenerate_flagged_at: null,
+            override_reason: null,
+            override_by: null,
+            override_by_name: null,
+            override_at: null,
+          })
           .eq('id', (saved as any).id);
       } catch { /* non-fatal */ }
+
+      // Audit log entry for every (re)generation — captures rules_version,
+      // changed line items vs prior snapshot, and the initiating user/role.
+      try {
+        const beforeLines = ((existingProforma as any)?.audit_snapshot?.lines) || [];
+        const afterLines = lines.map((l) => ({
+          product_name: l.product_name, hsn: l.hsn, quantity: l.quantity,
+          gst_rate: l.gst_rate, gross_total: l.gross_total,
+        }));
+        const changes: any[] = [];
+        afterLines.forEach((a, i) => {
+          const b = beforeLines[i];
+          if (!b) { changes.push({ index: i, field: '__added__', before: null, after: a, product_name: a.product_name }); return; }
+          ['gst_rate', 'gross_total', 'quantity', 'product_name', 'hsn'].forEach((f) => {
+            if (String(b[f] ?? '') !== String((a as any)[f] ?? '')) {
+              changes.push({ index: i, field: f, before: b[f], after: (a as any)[f], product_name: a.product_name });
+            }
+          });
+        });
+        beforeLines.slice(afterLines.length).forEach((b: any, j: number) => {
+          changes.push({ index: afterLines.length + j, field: '__removed__', before: b, after: null, product_name: b.product_name });
+        });
+        await (supabase.from('proforma_rule_audit') as any).insert({
+          order_number: subject.order_number,
+          order_id: order?.id || null,
+          woocommerce_order_id: wooOrder?.id || null,
+          action: isRegenerate ? 'REGENERATE' : 'GENERATE',
+          triggered_by: user.id,
+          triggered_by_name: generatedByName,
+          line_changes: { rules_version: PROFORMA_RULES_VERSION, role, changes },
+          before_snapshot: { lines: beforeLines, rules_version: (existingProforma as any)?.audit_snapshot?.rules_version || null },
+          after_snapshot: { lines: afterLines, rules_version: PROFORMA_RULES_VERSION },
+        });
+      } catch (e) { console.warn('audit log write failed', e); }
 
       toast.success(`Proforma ${proformaNumber} ${isRegenerate ? 'regenerated' : 'generated'}`);
 
@@ -524,20 +646,43 @@ export function GenerateProformaDialog({
               {((existingProforma as any)?.needs_regenerate ||
                 ((existingProforma as any)?.audit_snapshot?.rules_version &&
                  (existingProforma as any).audit_snapshot.rules_version !== PROFORMA_RULES_VERSION)) && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <div className="font-medium">This proforma is out of date.</div>
-                    <div className="text-muted-foreground">
-                      {(existingProforma as any)?.regenerate_reason && <>Reason: {(existingProforma as any).regenerate_reason}. </>}
-                      Saved with rules v{(existingProforma as any)?.audit_snapshot?.rules_version || '—'}, current is v{PROFORMA_RULES_VERSION}.
-                      Click <em>Regenerate Proforma</em> to refresh.
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-medium">This proforma is out of date.</div>
+                      <div className="text-muted-foreground">
+                        {(existingProforma as any)?.regenerate_reason && <>Reason: {(existingProforma as any).regenerate_reason}. </>}
+                        Saved with rules v{(existingProforma as any)?.audit_snapshot?.rules_version || '—'}, current is v{PROFORMA_RULES_VERSION}.
+                        Click <em>Regenerate Proforma</em> to refresh, or override below with a reason.
+                      </div>
                     </div>
                   </div>
+                  {canRegenerate && (
+                    <div className="rounded border border-amber-200 bg-white/60 dark:bg-black/20 p-2 space-y-1.5">
+                      <Label className="text-[11px] flex items-center gap-1">
+                        <ShieldCheck className="h-3 w-3" /> Manual override — approve as-is
+                      </Label>
+                      <Textarea rows={2} placeholder="Why is regeneration unnecessary? (min 8 chars — kept in audit log)"
+                        value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} className="text-xs" />
+                      <div className="flex justify-end">
+                        <Button type="button" size="sm" variant="outline" className="h-7"
+                          disabled={overrideBusy || overrideReason.trim().length < 8}
+                          onClick={handleManualOverride}>
+                          {overrideBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                          Confirm override
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex items-center justify-end">
                 <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={runDryRun}
+                    title="Recalculate using current rules without saving">
+                    <FlaskConical className="h-4 w-4 mr-1" /> Dry-run
+                  </Button>
                   <Button type="button" variant="outline" size="sm" onClick={autoFixRates}
                     disabled={!canRegenerate}
                     title={canRegenerate ? 'Re-apply SAC/HSN GST rules to all lines' : 'Requires Supply Chain / Finance / Admin role'}>
@@ -652,6 +797,36 @@ export function GenerateProformaDialog({
               </div>
             )}
 
+            {reconciliation && (
+              dryRun && (
+                <div className="border rounded-lg p-3 text-xs space-y-1 border-indigo-300 bg-indigo-50 dark:bg-indigo-950/30">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <FlaskConical className="h-4 w-4 text-indigo-600" />
+                      Dry-run preview (not saved)
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2"
+                      onClick={() => setDryRun(null)}>Dismiss</Button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                    <div>Recalc total: <span className="text-foreground font-medium">₹{dryRun.proformaTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                    <div>Expected: <span className="text-foreground font-medium">₹{dryRun.expectedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                    <div>Δ: <span className={`font-medium ${Math.abs(dryRun.delta) <= 1 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {dryRun.delta > 0 ? '+' : ''}₹{dryRun.delta.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span></div>
+                  </div>
+                  {dryRun.changedLines.length === 0 ? (
+                    <div className="text-emerald-700">No line-item changes — current rules already match.</div>
+                  ) : (
+                    <ul className="space-y-0.5 font-mono text-[11px]">
+                      {dryRun.changedLines.map((c, i) => (
+                        <li key={i}>L{c.index + 1} {c.product_name || '—'}: {c.field} {String(c.before)} → {String(c.after)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            )}
             {reconciliation && (
               <div className={`border rounded-lg p-3 text-xs space-y-2 ${
                 Math.abs(reconciliation.delta) <= 1
