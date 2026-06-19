@@ -7,14 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Order } from '@/hooks/useOrders';
 import { useOrderItems, OrderItem } from '@/hooks/useOrderItems';
 import {
-  DEFAULT_GST_RATE,
   DEFAULT_HSN,
   INDIAN_STATES,
   getGstTreatment,
