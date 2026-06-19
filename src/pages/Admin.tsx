@@ -1281,6 +1281,9 @@ const Admin = () => {
           <TabsContent value="agent-mapping">
             <AgentMappingPanel />
           </TabsContent>
+          <TabsContent value="feature-flags">
+            <FeatureFlagsPanel />
+          </TabsContent>
         </Tabs>
       </main>
       <ReAuthDialog
