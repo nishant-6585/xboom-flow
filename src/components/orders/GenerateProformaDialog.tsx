@@ -195,7 +195,7 @@ export function GenerateProformaDialog({
               const total = Number(it.total ?? it.subtotal ?? (Number(it.price) || 0) * qty) || 0;
               const gross = Math.round(total * 100) / 100;
               const name = it.name || it.product_name || 'Item';
-              const rate = inferGstRate(name, DEFAULT_HSN);
+              const rate = inferGstRateFromWooLine(it);
               const unitExcl = qty > 0 ? (gross / qty) / (1 + rate / 100) : 0;
               return {
                 product_name: name,
