@@ -20,6 +20,16 @@ import {
   type Order, type OrderOutcome, type LostReason,
 } from '@/hooks/useOrders';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+type KycFilter = 'all' | 'pending' | 'approved' | 'not_invited';
+
+interface KycInfo { kyc_status: string | null; has_portal_account: boolean }
+
+const KYC_PENDING_STATUSES = new Set([
+  'not_submitted', 'pending_verification', 'rejected', 'resubmission_required',
+]);
 
 export type UnifiedRow =
   | { kind: 'manual'; date: number; row: Order }
@@ -119,17 +129,93 @@ export default function OrdersListTab(props: OrdersListTabProps) {
     filtersOpen, setFiltersOpen,
     startDate, endDate, setStartDate, setEndDate,
     viewMode, setViewMode,
-    loading, filteredOrders, wooTotalCount,
+    loading, filteredOrders: filteredOrdersIn, wooTotalCount,
     allOrders, sourceCounts,
     manualPage, setManualPage, MANUAL_PAGE_SIZE,
-    manualTotalPages, paginatedManualOrders,
-    unifiedRows, unifiedTotalPages, paginatedUnified,
+    manualTotalPages: manualTotalPagesIn, paginatedManualOrders,
+    unifiedRows: unifiedRowsIn, unifiedTotalPages: unifiedTotalPagesIn, paginatedUnified: paginatedUnifiedIn,
     handleOrderClick, handleUpdateOutcome, handleWooOrderClick,
     refetchWooOrders, refetchWooSync,
     dashTimePeriod, setDashTimePeriod,
     dashSalesPersonFilter, setDashSalesPersonFilter,
     selectedWooOrder, wooDetailOpen, setWooDetailOpen,
   } = props;
+
+  const [kycFilter, setKycFilter] = useState<KycFilter>('all');
+  const [kycMap, setKycMap] = useState<Record<string, KycInfo>>({});
+
+  // Fetch KYC status for currently-loaded manual orders.
+  const orderIdsKey = useMemo(
+    () => filteredOrdersIn.map((o) => o.id).sort().join(','),
+    [filteredOrdersIn],
+  );
+  useEffect(() => {
+    let cancelled = false;
+    const ids = orderIdsKey ? orderIdsKey.split(',') : [];
+    if (ids.length === 0) { setKycMap({}); return; }
+    (async () => {
+      const { data, error } = await (supabase as any).rpc('get_orders_kyc_status', { p_order_ids: ids });
+      if (cancelled) return;
+      if (error || !Array.isArray(data)) { setKycMap({}); return; }
+      const m: Record<string, KycInfo> = {};
+      for (const r of data as any[]) {
+        m[r.order_id] = { kyc_status: r.kyc_status ?? null, has_portal_account: !!r.has_portal_account };
+      }
+      setKycMap(m);
+    })();
+    return () => { cancelled = true; };
+  }, [orderIdsKey]);
+
+  const matchesKyc = (orderId: string): boolean => {
+    if (kycFilter === 'all') return true;
+    const info = kycMap[orderId];
+    // No-op if data unavailable (e.g. role returns nothing): keep order visible.
+    if (!info && Object.keys(kycMap).length === 0) return true;
+    const status = info?.kyc_status ?? null;
+    const hasAccount = info?.has_portal_account ?? false;
+    if (kycFilter === 'not_invited') return !hasAccount;
+    if (kycFilter === 'approved') return status === 'approved';
+    if (kycFilter === 'pending') {
+      if (!hasAccount) return true;
+      return !!status && KYC_PENDING_STATUSES.has(status);
+    }
+    return true;
+  };
+
+  // Apply KYC filter to manual orders + unified rows, then re-paginate locally.
+  const filteredOrders = useMemo(
+    () => (kycFilter === 'all' ? filteredOrdersIn : filteredOrdersIn.filter((o) => matchesKyc(o.id))),
+    [filteredOrdersIn, kycFilter, kycMap],
+  );
+  const unifiedRows = useMemo(
+    () => (kycFilter === 'all'
+      ? unifiedRowsIn
+      : unifiedRowsIn.filter((u) => (u.kind === 'manual' ? matchesKyc(u.row.id) : false))),
+    [unifiedRowsIn, kycFilter, kycMap],
+  );
+  const manualTotalPages = kycFilter === 'all'
+    ? manualTotalPagesIn
+    : Math.max(1, Math.ceil(filteredOrders.length / MANUAL_PAGE_SIZE));
+  const unifiedTotalPages = kycFilter === 'all'
+    ? unifiedTotalPagesIn
+    : Math.max(1, Math.ceil(unifiedRows.length / MANUAL_PAGE_SIZE));
+  const paginatedUnified = kycFilter === 'all'
+    ? paginatedUnifiedIn
+    : unifiedRows.slice((manualPage - 1) * MANUAL_PAGE_SIZE, manualPage * MANUAL_PAGE_SIZE);
+
+  const kycChipFor = (orderId: string) => {
+    const info = kycMap[orderId];
+    if (!info) return null;
+    const s = info.kyc_status;
+    if (!info.has_portal_account) {
+      return { label: 'Not invited', cls: 'bg-muted text-muted-foreground border-transparent' };
+    }
+    if (s === 'approved') return { label: 'KYC Approved', cls: 'bg-emerald-600 text-white border-transparent' };
+    if (s === 'pending_verification') return { label: 'KYC Pending', cls: 'bg-amber-500 text-white border-transparent' };
+    if (s === 'resubmission_required') return { label: 'KYC Resubmit', cls: 'bg-amber-500 text-white border-transparent' };
+    if (s === 'rejected') return { label: 'KYC Rejected', cls: 'bg-red-600 text-white border-transparent' };
+    return { label: 'KYC: Not submitted', cls: 'bg-muted text-muted-foreground border-transparent' };
+  };
 
   return (
     <TabsContent value="list" className="space-y-6 mt-0">
@@ -257,6 +343,15 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                     <SelectContent className="bg-popover">
                       <SelectItem value="all">All Categories</SelectItem>
                       {categoryOptions.map(cat => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={kycFilter} onValueChange={(v) => { setKycFilter(v as KycFilter); setManualPage(1); }}>
+                    <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20"><SelectValue placeholder="KYC" /></SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="all">All KYC</SelectItem>
+                      <SelectItem value="pending">KYC Pending</SelectItem>
+                      <SelectItem value="approved">KYC Approved</SelectItem>
+                      <SelectItem value="not_invited">Not Invited</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -392,7 +487,17 @@ export default function OrdersListTab(props: OrdersListTabProps) {
               style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
             >
               {u.kind === 'manual' ? (
-                <OrderCard order={u.row} onClick={() => handleOrderClick(u.row)} />
+                <div className="relative">
+                  {(() => {
+                    const chip = kycChipFor(u.row.id);
+                    return chip ? (
+                      <Badge className={`absolute top-2 right-2 z-10 text-[10px] h-5 px-1.5 ${chip.cls}`}>
+                        {chip.label}
+                      </Badge>
+                    ) : null;
+                  })()}
+                  <OrderCard order={u.row} onClick={() => handleOrderClick(u.row)} />
+                </div>
               ) : (
                 <WooOrderCard
                   order={u.row}
