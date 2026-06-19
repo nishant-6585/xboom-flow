@@ -62,6 +62,15 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 
 ## ✅ Completed work
 
+### 2026-06-19 — Email invoice to customer (proforma + Zoho) ✅ (by Lovable)
+Auto-emails the customer when a proforma is generated or a Zoho invoice is uploaded; reuses the existing **Resend** integration (`RESEND_API_KEY`, verified domain `xboom.in`, sender `invoices@xboom.in`).
+- `send-invoice-email` edge fn: pulls PDF from `invoices` bucket, base64-attaches, document-aware subject/body (Proforma vs Tax Invoice; tax invoice notes it supersedes the proforma). Auto-mode idempotent (skips if a 'sent' row exists for that invoice id); manual re-send always allowed. `verify_jwt=false`.
+- `invoice_email_log` table (migration `20260619070111`): order_id, invoice_id, doc_type, to_email, status sent/failed/skipped, bypass_reason, error, sent_by, attempted_at.
+- `InvoiceEmailControl` component: "Email invoice to customer" checkbox (default ON → email required+validated); OFF path (pickup/no-email) needs a bypass reason and is locked to **admin/finance** (`canBypassEmail`).
+- Wired into `GenerateProformaDialog` (validates + updates `customer_email` before generate) and `OrderDialog` Zoho upload. `InvoiceListCard` shows Sent/Failed/Skipped badge + Mail re-send button. Email failure never blocks the invoice save.
+- Best practices applied: both documents sent (distinct, labelled); per-document idempotency; accountable logged bypass.
+
+
 ### 2026-06-18 — Order invoicing Phase 1: self-generated Proforma ✅ (by Lovable)
 Finance can generate an XBoom Proforma instantly for `payment_status='full'` orders; Zoho upload + AI extraction untouched.
 - Migration: `order_invoices` extended with `source`/`document_type` + tax snapshot; `proforma_number_seq` + `get_next_proforma_number()` RPC (series `XPF-YYMM-NNNN`).
