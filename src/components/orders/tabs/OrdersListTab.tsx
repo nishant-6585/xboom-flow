@@ -345,6 +345,15 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                       {categoryOptions.map(cat => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
                     </SelectContent>
                   </Select>
+                  <Select value={kycFilter} onValueChange={(v) => { setKycFilter(v as KycFilter); setManualPage(1); }}>
+                    <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20"><SelectValue placeholder="KYC" /></SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="all">All KYC</SelectItem>
+                      <SelectItem value="pending">KYC Pending</SelectItem>
+                      <SelectItem value="approved">KYC Approved</SelectItem>
+                      <SelectItem value="not_invited">Not Invited</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CollapsibleContent>
             </Collapsible>
