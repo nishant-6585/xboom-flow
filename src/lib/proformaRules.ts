@@ -108,6 +108,16 @@ export function detectBundleDuplicates(
         if (i === j) return;
         const otherName = other.product_name || '';
         if (rule.component.test(otherName) && !rule.bundleRe.test(otherName)) {
+          // Only flag as duplicate when the standalone line is a small add-on
+          // relative to the bundle line. If both have similar magnitude they
+          // are almost certainly two distinct priced rows (e.g. order_items
+          // carries the drone and the subscription as separate inclusive
+          // amounts) and must NOT be deduplicated.
+          const bundleAmount = Number((line as any).gross_total) || 0;
+          const otherAmount = Number((other as any).gross_total) || 0;
+          if (bundleAmount > 0 && otherAmount > 0 && otherAmount > bundleAmount * 0.1) {
+            continue;
+          }
           flags.push({
             duplicateIndex: j,
             bundleIndex: i,
