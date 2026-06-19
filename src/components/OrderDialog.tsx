@@ -39,6 +39,8 @@ import { useOrderInvoices, OrderInvoice } from '@/hooks/useOrderInvoices';
 import { WooOrderStatusActions } from '@/components/orders/WooOrderStatusActions';
 import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDialog';
 import { InvoiceListCard } from '@/components/orders/InvoiceListCard';
+import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
+import { sendInvoiceEmail } from '@/lib/invoiceEmail';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -156,6 +158,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [proformaDialogOpen, setProformaDialogOpen] = useState(false);
   const [regenerateTarget, setRegenerateTarget] = useState<OrderInvoice | null>(null);
   const canGenerateProforma = (isAdmin || isFinance || isSupplyChain) && order?.payment_status === 'full';
+  const canBypassInvoiceEmail = isAdmin || isFinance;
+  const [invoiceEmailState, setInvoiceEmailState] = useState<InvoiceEmailState>(defaultEmailState(''));
   // (PO number is auto-extracted from the uploaded PO document; no manual editing)
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
