@@ -434,9 +434,51 @@ export function GenerateProformaDialog({
       // Clear the auto-flagged stale marker on the new proforma row.
       try {
         await (supabase.from('order_invoices') as any)
-          .update({ needs_regenerate: false, regenerate_reason: null, regenerate_flagged_at: null })
+          .update({
+            needs_regenerate: false,
+            regenerate_reason: null,
+            regenerate_flagged_at: null,
+            override_reason: null,
+            override_by: null,
+            override_by_name: null,
+            override_at: null,
+          })
           .eq('id', (saved as any).id);
       } catch { /* non-fatal */ }
+
+      // Audit log entry for every (re)generation — captures rules_version,
+      // changed line items vs prior snapshot, and the initiating user/role.
+      try {
+        const beforeLines = ((existingProforma as any)?.audit_snapshot?.lines) || [];
+        const afterLines = lines.map((l) => ({
+          product_name: l.product_name, hsn: l.hsn, quantity: l.quantity,
+          gst_rate: l.gst_rate, gross_total: l.gross_total,
+        }));
+        const changes: any[] = [];
+        afterLines.forEach((a, i) => {
+          const b = beforeLines[i];
+          if (!b) { changes.push({ index: i, field: '__added__', before: null, after: a, product_name: a.product_name }); return; }
+          ['gst_rate', 'gross_total', 'quantity', 'product_name', 'hsn'].forEach((f) => {
+            if (String(b[f] ?? '') !== String((a as any)[f] ?? '')) {
+              changes.push({ index: i, field: f, before: b[f], after: (a as any)[f], product_name: a.product_name });
+            }
+          });
+        });
+        beforeLines.slice(afterLines.length).forEach((b: any, j: number) => {
+          changes.push({ index: afterLines.length + j, field: '__removed__', before: b, after: null, product_name: b.product_name });
+        });
+        await (supabase.from('proforma_rule_audit') as any).insert({
+          order_number: subject.order_number,
+          order_id: order?.id || null,
+          woocommerce_order_id: wooOrder?.id || null,
+          action: isRegenerate ? 'REGENERATE' : 'GENERATE',
+          triggered_by: user.id,
+          triggered_by_name: generatedByName,
+          line_changes: { rules_version: PROFORMA_RULES_VERSION, role, changes },
+          before_snapshot: { lines: beforeLines, rules_version: (existingProforma as any)?.audit_snapshot?.rules_version || null },
+          after_snapshot: { lines: afterLines, rules_version: PROFORMA_RULES_VERSION },
+        });
+      } catch (e) { console.warn('audit log write failed', e); }
 
       toast.success(`Proforma ${proformaNumber} ${isRegenerate ? 'regenerated' : 'generated'}`);
 
