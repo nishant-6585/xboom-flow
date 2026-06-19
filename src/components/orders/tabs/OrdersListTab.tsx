@@ -190,7 +190,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
   const unifiedRows = useMemo(
     () => (kycFilter === 'all'
       ? unifiedRowsIn
-      : unifiedRowsIn.filter((u) => u.kind !== 'manual' ? kycFilter === 'all' : matchesKyc(u.row.id))),
+      : unifiedRowsIn.filter((u) => (u.kind === 'manual' ? matchesKyc(u.row.id) : false))),
     [unifiedRowsIn, kycFilter, kycMap],
   );
   const manualTotalPages = kycFilter === 'all'
