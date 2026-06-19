@@ -583,9 +583,39 @@ export function GenerateProformaDialog({
                     )}
                     Reconciliation vs order total
                   </span>
-                  <span>
-                    Δ {reconciliation.delta > 0 ? '+' : ''}₹{reconciliation.delta.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span>
+                      Δ {reconciliation.delta > 0 ? '+' : ''}₹{reconciliation.delta.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2"
+                      onClick={() => exportReconciliationCsv({
+                        orderNumber: subject.order_number,
+                        proformaTotal: reconciliation.proformaTotal,
+                        expectedTotal: reconciliation.expectedTotal,
+                        delta: reconciliation.delta,
+                        amountPaid: subject.amount_paid,
+                        rules: reconciliation.rules,
+                        lines: lines.map((l) => ({ product_name: l.product_name, hsn: l.hsn, quantity: l.quantity, gst_rate: l.gst_rate, gross_total: l.gross_total })),
+                      })}>
+                      <FileSpreadsheet className="h-3 w-3 mr-1" />CSV
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2"
+                      onClick={() => exportReconciliationPdf({
+                        orderNumber: subject.order_number,
+                        proformaTotal: reconciliation.proformaTotal,
+                        expectedTotal: reconciliation.expectedTotal,
+                        delta: reconciliation.delta,
+                        amountPaid: subject.amount_paid,
+                        rules: reconciliation.rules,
+                        lines: lines.map((l) => ({ product_name: l.product_name, hsn: l.hsn, quantity: l.quantity, gst_rate: l.gst_rate, gross_total: l.gross_total })),
+                      })}>
+                      <FileDown className="h-3 w-3 mr-1" />PDF
+                    </Button>
+                    <Link to={`/proforma-reconciliation?order=${encodeURIComponent(subject.order_number)}`}
+                      target="_blank" className="inline-flex items-center text-xs underline">
+                      <ExternalLink className="h-3 w-3 mr-0.5" />Open view
+                    </Link>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-muted-foreground">
                   <div>Proforma: <span className="text-foreground font-medium">₹{reconciliation.proformaTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
