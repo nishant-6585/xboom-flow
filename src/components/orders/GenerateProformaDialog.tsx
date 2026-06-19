@@ -546,6 +546,7 @@ export function GenerateProformaDialog({
           action: isRegenerate ? 'REGENERATE' : 'GENERATE',
           triggered_by: user.id,
           triggered_by_name: generatedByName,
+          rules_version: PROFORMA_RULES_VERSION,
           line_changes: { rules_version: PROFORMA_RULES_VERSION, role, changes },
           before_snapshot: { lines: beforeLines, rules_version: (existingProforma as any)?.audit_snapshot?.rules_version || null },
           after_snapshot: { lines: afterLines, rules_version: PROFORMA_RULES_VERSION },
