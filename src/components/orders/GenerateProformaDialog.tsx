@@ -303,6 +303,7 @@ export function GenerateProformaDialog({
         action: 'AUTO_FIX_GST',
         triggered_by: user.id,
         triggered_by_name: (profile as any)?.full_name || user.email || null,
+        rules_version: PROFORMA_RULES_VERSION,
         line_changes: changes,
         before_snapshot: { lines: before },
         after_snapshot: { lines: next },
@@ -369,6 +370,7 @@ export function GenerateProformaDialog({
         action: 'MANUAL_OVERRIDE',
         triggered_by: user.id,
         triggered_by_name: actorName,
+        rules_version: PROFORMA_RULES_VERSION,
         line_changes: { rules_version: PROFORMA_RULES_VERSION, role, reason: overrideReason.trim() },
         before_snapshot: { needs_regenerate: true },
         after_snapshot: { needs_regenerate: false, override_reason: overrideReason.trim() },
@@ -564,6 +566,7 @@ export function GenerateProformaDialog({
           action: isRegenerate ? 'REGENERATE' : 'GENERATE',
           triggered_by: user.id,
           triggered_by_name: generatedByName,
+          rules_version: PROFORMA_RULES_VERSION,
           line_changes: { rules_version: PROFORMA_RULES_VERSION, role, changes },
           before_snapshot: {
             lines: beforeLinesEnriched,

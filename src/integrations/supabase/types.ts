@@ -10946,6 +10946,7 @@ export type Database = {
           order_number: string | null
           rolled_back_at: string | null
           rolled_back_by: string | null
+          rules_version: string | null
           triggered_by: string
           triggered_by_name: string | null
           woocommerce_order_id: string | null
@@ -10961,6 +10962,7 @@ export type Database = {
           order_number?: string | null
           rolled_back_at?: string | null
           rolled_back_by?: string | null
+          rules_version?: string | null
           triggered_by: string
           triggered_by_name?: string | null
           woocommerce_order_id?: string | null
@@ -10976,6 +10978,7 @@ export type Database = {
           order_number?: string | null
           rolled_back_at?: string | null
           rolled_back_by?: string | null
+          rules_version?: string | null
           triggered_by?: string
           triggered_by_name?: string | null
           woocommerce_order_id?: string | null
