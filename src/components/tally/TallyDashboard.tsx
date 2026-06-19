@@ -87,6 +87,7 @@ interface TallyInvoice {
   id: string;
   invoice_number: string | null;
   order_id: string | null;
+  document_type: string | null;
 }
 
 interface TallyInventoryLink {
@@ -141,6 +142,7 @@ interface TallyRow {
   createdAt: string;
   orderDate: string | null;
   invoiceNumber: string;
+  proformaNumber: string;
   poNumber: string;
   supplierName: string;
   customerGst: string;
@@ -297,7 +299,7 @@ export function TallyDashboard() {
             .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, procurement_price_includes_gst, unit_price, sales_gst_amount, sales_price_includes_gst, supplier_id"),
           supabase
             .from("order_invoices")
-            .select("id, invoice_number, order_id")
+            .select("id, invoice_number, order_id, document_type")
             .not("order_id", "is", null),
           supabase
             .from("suppliers")
@@ -527,8 +529,11 @@ export function TallyDashboard() {
         : procPayStatuses.every((s) => s === "paid") ? "paid"
         : procPayStatuses.some((s) => s === "partial") ? "partial" : "pending";
 
-      // Invoice number(s) — from order_invoices uploaded against the order
-      const invoiceNumber = [...new Set(invs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
+      // Invoice number(s) — split tax invoices vs proforma invoices
+      const taxInvs = invs.filter(i => i.document_type !== "proforma");
+      const proformaInvs = invs.filter(i => i.document_type === "proforma");
+      const invoiceNumber = [...new Set(taxInvs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
+      const proformaNumber = [...new Set(proformaInvs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
 
       // PO number: prefer PO uploaded on the order itself, fall back to linked procurement POs
       const orderPoNumbers = (o.po_number || "").split(",").map(s => s.trim()).filter(Boolean);
@@ -587,6 +592,7 @@ export function TallyDashboard() {
         createdAt: o.created_at,
         orderDate: o.order_date || o.created_at,
         invoiceNumber,
+        proformaNumber,
         poNumber,
         supplierName,
         customerGst,
@@ -608,6 +614,7 @@ export function TallyDashboard() {
           has(r.customerCompany) ||
           has(r.productName) ||
           has(r.invoiceNumber) ||
+          has(r.proformaNumber) ||
           has(r.poNumber) ||
           has(r.supplierName) ||
           has(r.customerGst)
