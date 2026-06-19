@@ -61,6 +61,7 @@ import AIAutomation from "./pages/AIAutomation";
 
 import CreditCards from "./pages/CreditCards";
 import BankReconciliation from "./pages/BankReconciliation";
+import ProformaReconciliation from "./pages/ProformaReconciliation";
 import DroneOperations from "./pages/DroneOperations";
 import SpareParts from "./pages/SpareParts";
 import NotFound from "./pages/NotFound";
