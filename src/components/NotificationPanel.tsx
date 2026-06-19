@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Notification, useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface NotificationPanelProps {
   className?: string;
@@ -32,12 +33,15 @@ function NotificationItem({
   const isMegaDeal = notification.type === 'mega_deal';
   const isEnquiryResponse = notification.type === 'enquiry_response';
   const isEnquiryMessage = notification.type === 'enquiry_message';
+  const isProformaStale = notification.type === 'proforma_stale';
+  const navigate = useNavigate();
 
   const getIcon = () => {
     if (isHotLead) return <Flame className="w-4 h-4" />;
     if (isMegaDeal) return <Star className="w-4 h-4" />;
     if (isEnquiryResponse) return <ClipboardCheck className="w-4 h-4" />;
     if (isEnquiryMessage) return <MessageSquare className="w-4 h-4" />;
+    if (isProformaStale) return <FileWarning className="w-4 h-4" />;
     if (isOverdue) return <AlertTriangle className="w-4 h-4" />;
     if (isDueToday) return <Clock className="w-4 h-4" />;
     return <CreditCard className="w-4 h-4" />;
@@ -48,6 +52,7 @@ function NotificationItem({
     if (isMegaDeal) return 'bg-yellow-500/10 text-yellow-500';
     if (isEnquiryResponse) return 'bg-emerald-500/10 text-emerald-500';
     if (isEnquiryMessage) return 'bg-blue-500/10 text-blue-500';
+    if (isProformaStale) return 'bg-amber-500/10 text-amber-600';
     if (isOverdue) return 'bg-destructive/10 text-destructive';
     if (isDueToday) return 'bg-warning/10 text-warning';
     return 'bg-primary/10 text-primary';
@@ -85,6 +90,22 @@ function NotificationItem({
           <p className="text-sm text-muted-foreground line-clamp-2">
             {notification.message}
           </p>
+          {isProformaStale && notification.order_id && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => {
+                  if (!notification.is_read) onMarkAsRead(notification.id);
+                  navigate(`/proforma-reconciliation?order_id=${notification.order_id}`);
+                }}
+              >
+                Review now
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2">
             <span className="text-xs text-muted-foreground">
               {formatDistanceToNow(new Date(notification.created_at), {
