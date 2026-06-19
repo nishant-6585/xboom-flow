@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
+import QRCode from 'qrcode';
 import logoAsset from '@/assets/xboom-logo.png.asset.json';
 import {
   GstSplit,
@@ -74,13 +75,16 @@ const TERMS: Array<{ title: string; content: string }> = [
   { title: '1. Document Type', content: 'This is a Proforma Invoice issued for advance confirmation and payment reconciliation. It is NOT a valid tax invoice for the purpose of claiming GST input credit. A formal GST tax invoice will be issued separately on dispatch.' },
   { title: '2. Validity', content: 'This proforma is valid for 7 calendar days from the date of issue.' },
   { title: '3. Payment Terms', content: 'Due on receipt. Order processing begins on confirmation of payment.' },
-  { title: '4. Taxes', content: 'All amounts shown are inclusive of GST at the rate indicated. HSN/SAC: 88062200 (default, unless overridden).' },
-  { title: '5. Delivery', content: 'Estimated delivery is 7–10 working days from payment confirmation, unless agreed otherwise.' },
-  { title: '6. Warranty', content: 'Standard manufacturer warranty applies wherever applicable.' },
-  { title: '7. Cancellations', content: 'Confirmed orders cannot be cancelled or modified without prior written consent from the seller.' },
-  { title: '8. Availability', content: 'Subject to stock availability at the time of payment confirmation.' },
-  { title: '9. Force Majeure', content: 'Seller is not liable for delays caused by events beyond reasonable control.' },
-  { title: '10. Jurisdiction', content: 'Governed by the laws of India; disputes are subject to the exclusive jurisdiction of courts in Bangalore, Karnataka.' },
+  { title: '4. Warranty Policy', content: 'The product is covered by a 12 (twelve) months manufacturer\u2019s warranty, wherever applicable, as per the manufacturer\u2019s standard terms and conditions. No warranty, return, or exchange shall be provided by the seller beyond the scope of the manufacturer\u2019s warranty.' },
+  { title: '5. Transit Damage', content: 'Products damaged during transit are not covered under warranty. Upon delivery, customers are advised to inspect the package. If the item is found damaged or incorrect, report the issue within 24 hours of delivery.' },
+  { title: '6. Reporting Damaged/Incorrect Products', content: 'In case of a damaged or incorrect product received, please contact our support team immediately at 08447831821 or email support@xboom.in with order details and images.' },
+  { title: '7. Late Payment Charges', content: 'Any payment delays beyond the agreed payment terms will incur a late fee of 2% per week on the outstanding amount. This interest will accrue until the full balance is paid.' },
+  { title: '8. Ownership and Risk Transfer', content: 'Ownership of goods transfers to the buyer upon full payment. Risk of loss or damage passes to the buyer upon dispatch.' },
+  { title: '9. Returns and Cancellations', content: 'All sales are final. No returns, cancellations, or exchanges will be entertained once the proforma is confirmed and the order is processed, except as required by applicable law.' },
+  { title: '10. Jurisdiction', content: 'Any disputes arising out of or in connection with this document shall be subject to the exclusive jurisdiction of the courts in Bangalore, India.' },
+  { title: '11. Installation Support (if applicable)', content: 'Installation, configuration, or training is not included unless specifically mentioned in the proforma.' },
+  { title: '12. Pricing Validity', content: 'Prices mentioned are valid only for the date of issue and may be subject to change without prior notice.' },
+  { title: '13. Force Majeure Clause', content: 'We are not liable for delays or non-performance due to acts of God, natural calamities, transportation delays, or any circumstance beyond our control.' },
 ];
 
 function loadImage(url: string): Promise<string> {
@@ -351,9 +355,24 @@ export async function generateProformaPdf(input: ProformaInput): Promise<{ blob:
   doc.text('Authorized Signature', sigBoxX + 3, cursorY + 5);
   if (input.signature_data_url) {
     try {
-      doc.addImage(input.signature_data_url, 'PNG', sigBoxX + 4, cursorY + 8, sigBoxW - 8, 18);
+      doc.addImage(input.signature_data_url, 'PNG', sigBoxX + 4, cursorY + 8, (sigBoxW - 8) * 0.55, 16);
     } catch { /* ignore */ }
   }
+  // Vector company seal (right side of signature box)
+  const sealCx = sigBoxX + sigBoxW - 12;
+  const sealCy = cursorY + boxH / 2 + 1;
+  const sealR = 10;
+  doc.setDrawColor(40, 70, 160); doc.setLineWidth(0.5);
+  doc.circle(sealCx, sealCy, sealR, 'S');
+  doc.setLineWidth(0.2);
+  doc.circle(sealCx, sealCy, sealR - 1.6, 'S');
+  doc.setTextColor(40, 70, 160);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(5);
+  doc.text('XBOOM UTILITIES', sealCx, sealCy - 1.5, { align: 'center' });
+  doc.setFontSize(4);
+  doc.text('BENGALURU', sealCx, sealCy + 2, { align: 'center' });
+  doc.setFontSize(3.2);
+  doc.text('GSTIN: ' + SELLER.gstin, sealCx, sealCy + 5, { align: 'center' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...GRAY);
   doc.text('For ' + SELLER.name, sigBoxX + 3, cursorY + boxH - 3);
 
@@ -373,6 +392,37 @@ export async function generateProformaPdf(input: ProformaInput): Promise<{ blob:
     doc.text(body2, margin, cursorY + 3);
     cursorY += body2.length * 3 + 3;
   });
+
+  // QR code reference block (proforma summary; not a government IRN)
+  try {
+    const qrPayload = JSON.stringify({
+      type: 'PROFORMA',
+      no: input.proforma_number,
+      date: format(input.invoice_date, 'yyyy-MM-dd'),
+      order: input.order_number || null,
+      seller_gstin: SELLER.gstin,
+      buyer_gstin: input.bill_to.gstin || null,
+      total: Number(totals.total.toFixed(2)),
+      tax: Number(totals.tax.toFixed(2)),
+    });
+    const qrDataUrl = await QRCode.toDataURL(qrPayload, { margin: 1, width: 240 });
+    const qrSize = 28;
+    if (cursorY + qrSize + 6 > 285) { doc.addPage(); cursorY = 18; }
+    cursorY += 4;
+    doc.setDrawColor(...BORDER); doc.setLineWidth(0.2);
+    doc.roundedRect(margin, cursorY, pageW - margin * 2, qrSize + 8, 2, 2, 'S');
+    doc.addImage(qrDataUrl, 'PNG', margin + 3, cursorY + 4, qrSize, qrSize);
+    const tx = margin + qrSize + 9;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...DARK);
+    doc.text('Proforma Reference Code', tx, cursorY + 7);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...GRAY);
+    doc.text(`Proforma #: ${input.proforma_number}`, tx, cursorY + 12);
+    doc.text(`Date: ${format(input.invoice_date, 'dd MMM yyyy')}`, tx, cursorY + 16);
+    if (input.order_number) doc.text(`Order #: ${input.order_number}`, tx, cursorY + 20);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5);
+    doc.text('Scan to verify proforma details. This is not a government e-Invoice IRN/QR.', tx, cursorY + 26);
+    cursorY += qrSize + 10;
+  } catch { /* QR generation is non-critical */ }
 
   const blob = doc.output('blob');
   return { blob, totals };
