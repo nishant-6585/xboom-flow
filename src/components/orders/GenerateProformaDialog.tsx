@@ -747,7 +747,8 @@ export function GenerateProformaDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={handleGenerate} disabled={busy || loading}>
+          <Button onClick={handleGenerate} disabled={busy || loading || !canRegenerate}
+            title={!canRegenerate ? 'Only Supply Chain, Finance, or Admin can generate proformas' : undefined}>
             {busy ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{isRegenerate ? 'Regenerating…' : 'Generating…'}</>
             ) : isRegenerate ? (
