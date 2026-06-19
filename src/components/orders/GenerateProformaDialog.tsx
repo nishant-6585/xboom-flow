@@ -5,19 +5,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Trash2, Plus, RotateCcw } from 'lucide-react';
+import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Order } from '@/hooks/useOrders';
 import { useOrderItems, OrderItem } from '@/hooks/useOrderItems';
 import {
-  DEFAULT_GST_RATE,
   DEFAULT_HSN,
   INDIAN_STATES,
   getGstTreatment,
   guessStateCode,
 } from '@/lib/invoiceGst';
+import {
+  inferGstRate as ruleInferGstRate,
+  inferGstRateFromWooLine as ruleInferGstRateFromWooLine,
+  detectBundleDuplicates,
+  reconcileProforma,
+} from '@/lib/proformaRules';
 import { computeProformaTotals, generateProformaPdf, ProformaLineInput } from '@/lib/invoicePdfGenerator';
 import { uploadProformaInvoice, OrderInvoice } from '@/hooks/useOrderInvoices';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
@@ -32,58 +38,13 @@ interface Line {
   gst_rate: number;
   /** Per-unit, GST-exclusive price. Used to recompute gross_total when qty/GST changes. */
   unit_price_excl: number;
+  /** When true, the user-entered `gross_total` is treated as already GST-inclusive
+   *  (default). When false, `gross_total` is the taxable amount and GST is added on top. */
+  rate_includes_gst?: boolean;
 }
 
-/**
- * Category-based GST rate:
- *   - Drones → 5%
- *   - All other accessories / spares → 18%
- * Name-based fallback (case-insensitive). Accessories like propellers, batteries,
- * chargers, cables, gimbals, cases, props, blades, remotes are explicitly 18%.
- * HSN 8806* is the drone HSN family but ONLY counts when the name doesn't look
- * like an accessory (DJI accessories often share HSN 88062200).
- */
-function inferGstRate(productName: string, hsn?: string): number {
-  const name = (productName || '').toLowerCase();
-  const code = (hsn || '').trim();
-  const isAccessory = /(propeller|prop\b|blade|battery|batteries|charger|cable|cord|adapter|case|bag|backpack|strap|filter|nd\s*filter|lens|gimbal|remote\b|controller|antenna|landing\s*gear|guard|hood|mount|holder|memory|sd\s*card|spare|accessor)/i.test(name);
-  if (isAccessory) return 18;
-  const isDrone =
-    /\bdrones?\b/.test(name) ||
-    /\buav\b/.test(name) ||
-    /\bquadcopter\b/.test(name) ||
-    // HSN 8806 family — only trust it when the name didn't flag as accessory above
-    code.startsWith('8806');
-  return isDrone ? 5 : 18;
-}
-
-/**
- * Derive the GST rate from a WooCommerce line_item payload. Tries the most
- * reliable signals first:
- *   1. subtotal_tax / subtotal → exact effective rate paid on Woo
- *   2. tax_class string (Woo stores rates like "18", "5", "gst-18", "rate-5")
- *   3. Name/HSN heuristic via inferGstRate()
- */
-function inferGstRateFromWooLine(it: any): number {
-  const sub = Number(it?.subtotal ?? 0);
-  const subTax = Number(it?.subtotal_tax ?? 0);
-  if (sub > 0 && subTax > 0) {
-    const pct = (subTax / sub) * 100;
-    // Snap to common Indian GST slabs
-    const slabs = [0, 5, 12, 18, 28];
-    const snapped = slabs.reduce((best, s) =>
-      Math.abs(s - pct) < Math.abs(best - pct) ? s : best, slabs[0]);
-    if (Math.abs(snapped - pct) <= 1) return snapped;
-    return Math.round(pct);
-  }
-  const tc = String(it?.tax_class ?? '').trim();
-  const m = tc.match(/(\d{1,2})/);
-  if (m) {
-    const n = Number(m[1]);
-    if ([0, 3, 5, 12, 18, 28].includes(n)) return n;
-  }
-  return inferGstRate(it?.name || it?.product_name || '', DEFAULT_HSN);
-}
+const inferGstRate = ruleInferGstRate;
+const inferGstRateFromWooLine = (it: any) => ruleInferGstRateFromWooLine(it, DEFAULT_HSN);
 
 interface Props {
   /** Internal order — pass this OR wooOrder. */
@@ -267,26 +228,63 @@ export function GenerateProformaDialog({
       const next = { ...l, ...patch };
       const qtyOrRateChanged = 'quantity' in patch || 'gst_rate' in patch;
       const grossEdited = 'gross_total' in patch;
+      const inclusiveToggled = 'rate_includes_gst' in patch;
+      const includes = next.rate_includes_gst !== false;
+      const qty = Number(next.quantity) || 0;
+      const rate = Number(next.gst_rate) || 0;
       if (grossEdited) {
         // User typed a new total — back-derive per-unit ex-GST price.
-        const qty = Number(next.quantity) || 0;
-        const rate = Number(next.gst_rate) || 0;
         next.unit_price_excl = qty > 0
-          ? Math.round((next.gross_total / qty) / (1 + rate / 100) * 10000) / 10000
+          ? Math.round((next.gross_total / qty) / (includes ? 1 + rate / 100 : 1) * 10000) / 10000
           : 0;
-      } else if (qtyOrRateChanged) {
+      } else if (qtyOrRateChanged || inclusiveToggled) {
         // Recompute total from the locked-in per-unit ex-GST price.
-        const qty = Number(next.quantity) || 0;
-        const rate = Number(next.gst_rate) || 0;
         next.gross_total = Math.round(next.unit_price_excl * qty * (1 + rate / 100) * 100) / 100;
       }
       return next;
     }));
   };
   const addLine = () => setLines((prev) => [...prev, {
-    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: 18, unit_price_excl: 0,
+    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: 18, unit_price_excl: 0, rate_includes_gst: true,
   }]);
   const removeLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
+
+  /** Re-apply GST inference per line (does not touch unit_price_excl). */
+  const autoFixRates = () => {
+    setLines((prev) => prev.map((l) => {
+      const newRate = inferGstRate(l.product_name, l.hsn);
+      if (newRate === l.gst_rate) return l;
+      const qty = Number(l.quantity) || 0;
+      return {
+        ...l,
+        gst_rate: newRate,
+        gross_total: Math.round(l.unit_price_excl * qty * (1 + newRate / 100) * 100) / 100,
+      };
+    }));
+    toast.success('Re-applied SAC/HSN GST rules to every line');
+  };
+
+  const duplicateFlags = useMemo(() => detectBundleDuplicates(lines), [lines]);
+
+  const removeDuplicate = (idx: number) => {
+    setLines((prev) => prev.filter((_, i) => i !== idx));
+    toast.success('Removed duplicate bundled line');
+  };
+
+  const reconciliation = useMemo(() => {
+    if (!subject || !previewTotals) return null;
+    // Use the order's recorded total (from Zoho/order header) as the expected.
+    const expected = Number(subject.total) || 0;
+    if (expected <= 0) return null;
+    return reconcileProforma({
+      lines: lines.map((l) => ({
+        product_name: l.product_name, hsn: l.hsn, quantity: l.quantity,
+        gross_total: l.gross_total, gst_rate: l.gst_rate,
+      })),
+      proformaTotal: previewTotals.total,
+      expectedTotal: expected,
+    });
+  }, [subject, previewTotals, lines]);
 
   const handleGenerate = async () => {
     if (!subject || !user) return;
@@ -469,10 +467,31 @@ export function GenerateProformaDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Line Items (amounts are GST-inclusive)</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addLine}>
-                  <Plus className="h-4 w-4 mr-1" /> Add line
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={autoFixRates} title="Re-apply SAC/HSN GST rules to all lines">
+                    <Wand2 className="h-4 w-4 mr-1" /> Auto-fix GST
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                    <Plus className="h-4 w-4 mr-1" /> Add line
+                  </Button>
+                </div>
               </div>
+              {duplicateFlags.length > 0 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs space-y-1">
+                  {duplicateFlags.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        Line {f.duplicateIndex + 1}: {f.message}.
+                      </span>
+                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-amber-700 hover:text-amber-900"
+                        onClick={() => removeDuplicate(f.duplicateIndex)}>
+                        Remove duplicate
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-xs">
                   <thead className="bg-muted">
@@ -522,6 +541,43 @@ export function GenerateProformaDialog({
                 <div className="flex justify-between font-semibold border-t pt-1"><span>Total</span><span>₹{previewTotals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
                 <div className="flex justify-between text-muted-foreground"><span>Payment Made</span><span>− ₹{previewTotals.amount_paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
                 <div className="flex justify-between font-bold text-orange-600"><span>Balance Due</span><span>₹{previewTotals.balance_due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+              </div>
+            )}
+
+            {reconciliation && (
+              <div className={`border rounded-lg p-3 text-xs space-y-2 ${
+                Math.abs(reconciliation.delta) <= 1
+                  ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30'
+                  : 'border-rose-300 bg-rose-50 dark:bg-rose-950/30'
+              }`}>
+                <div className="flex items-center justify-between font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    {Math.abs(reconciliation.delta) <= 1 ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-rose-600" />
+                    )}
+                    Reconciliation vs order total
+                  </span>
+                  <span>
+                    Δ {reconciliation.delta > 0 ? '+' : ''}₹{reconciliation.delta.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                  <div>Proforma: <span className="text-foreground font-medium">₹{reconciliation.proformaTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                  <div>Expected: <span className="text-foreground font-medium">₹{reconciliation.expectedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                  <div>Paid: <span className="text-foreground font-medium">₹{(subject?.amount_paid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                </div>
+                <ul className="space-y-1">
+                  {reconciliation.rules.map((r, i) => (
+                    <li key={i} className="flex gap-1.5">
+                      <Badge variant={r.rule === 'OK' ? 'default' : 'destructive'} className="h-4 px-1.5 text-[10px] shrink-0">
+                        {r.rule}
+                      </Badge>
+                      <span>{r.detail}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
