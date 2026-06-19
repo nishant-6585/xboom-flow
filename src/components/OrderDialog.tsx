@@ -964,6 +964,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       Cancelled
                     </Badge>
                   )}
+                  <KycInviteBadge
+                    orderId={order.id}
+                    customerEmail={customerEmail || (order as any).customer_email}
+                  />
                 </DialogDescription>
               </div>
               <div className="mr-8 shrink-0">
