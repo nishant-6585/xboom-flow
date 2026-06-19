@@ -789,6 +789,10 @@ const Admin = () => {
                   <Briefcase className="w-4 h-4" />
                   Dispatch Queue
                 </TabsTrigger>
+                <TabsTrigger value="kyc-emails" className="flex items-center gap-2" onClick={() => navigate("/admin/kyc-emails")}>
+                  <Mail className="w-4 h-4" />
+                  KYC Emails
+                </TabsTrigger>
               </>
             )}
           </TabsList>
