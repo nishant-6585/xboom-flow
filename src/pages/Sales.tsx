@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv, FileText } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -37,6 +37,7 @@ import { UntouchedLeadsPanel } from "@/components/sales/UntouchedLeadsPanel";
 import { UntouchedLoginAlert } from "@/components/sales/UntouchedLoginAlert";
 import { MyLeadsPanel } from "@/components/sales/MyLeadsPanel";
 import { TeamAvailabilityPanel } from "@/components/sales/TeamAvailabilityPanel";
+import { QuotesPanel } from "@/components/sales/QuotesPanel";
 import { CalendarOff } from "lucide-react";
 
 
@@ -140,6 +141,10 @@ export default function Sales() {
                 <TabsTrigger value="pipeline" className={triggerPrimary}>
                   <TrendingUp className="w-4 h-4" />
                   Pipeline
+                </TabsTrigger>
+                <TabsTrigger value="quotes" className={`${triggerBase} data-[state=active]:bg-sky-600 data-[state=active]:text-white`}>
+                  <FileText className="w-4 h-4" />
+                  Quotes
                 </TabsTrigger>
                 <TabsTrigger value="untouched" className={`${triggerBase} data-[state=active]:bg-red-600 data-[state=active]:text-white`}>
                   <AlertTriangle className="w-4 h-4" />
@@ -303,6 +308,10 @@ export default function Sales() {
 
           <TabsContent value="pipeline" className="space-y-6">
             <PipelineOrders selectedLeadId={urlLeadId} />
+          </TabsContent>
+
+          <TabsContent value="quotes" className="space-y-6">
+            <QuotesPanel />
           </TabsContent>
 
           <TabsContent value="prospects" className="space-y-6">
