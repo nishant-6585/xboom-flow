@@ -263,9 +263,9 @@ export default function KycEmailLogs() {
                         {r.sent_by ? (senderNames[r.sent_by] || r.sent_by.slice(0, 8)) : "system"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {r.order_number ? (
+                        {r.order_id ? (
                           <Button asChild size="sm" variant="ghost" className="h-7">
-                            <Link to={`/orders?order=${encodeURIComponent(r.order_number)}`}>
+                            <Link to={`/orders?tab=list&order_id=${encodeURIComponent(r.order_id)}`}>
                               Open <ArrowRight className="h-3 w-3 ml-1" />
                             </Link>
                           </Button>
