@@ -660,6 +660,10 @@ export function GenerateProformaDialog({
               )}
               <div className="flex items-center justify-end">
                 <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={runDryRun}
+                    title="Recalculate using current rules without saving">
+                    <FlaskConical className="h-4 w-4 mr-1" /> Dry-run
+                  </Button>
                   <Button type="button" variant="outline" size="sm" onClick={autoFixRates}
                     disabled={!canRegenerate}
                     title={canRegenerate ? 'Re-apply SAC/HSN GST rules to all lines' : 'Requires Supply Chain / Finance / Admin role'}>
