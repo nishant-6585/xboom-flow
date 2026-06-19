@@ -10913,6 +10913,54 @@ export type Database = {
           },
         ]
       }
+      proforma_rule_audit: {
+        Row: {
+          action: string
+          after_snapshot: Json | null
+          before_snapshot: Json | null
+          created_at: string
+          id: string
+          line_changes: Json
+          order_id: string | null
+          order_number: string | null
+          rolled_back_at: string | null
+          rolled_back_by: string | null
+          triggered_by: string
+          triggered_by_name: string | null
+          woocommerce_order_id: string | null
+        }
+        Insert: {
+          action: string
+          after_snapshot?: Json | null
+          before_snapshot?: Json | null
+          created_at?: string
+          id?: string
+          line_changes?: Json
+          order_id?: string | null
+          order_number?: string | null
+          rolled_back_at?: string | null
+          rolled_back_by?: string | null
+          triggered_by: string
+          triggered_by_name?: string | null
+          woocommerce_order_id?: string | null
+        }
+        Update: {
+          action?: string
+          after_snapshot?: Json | null
+          before_snapshot?: Json | null
+          created_at?: string
+          id?: string
+          line_changes?: Json
+          order_id?: string | null
+          order_number?: string | null
+          rolled_back_at?: string | null
+          rolled_back_by?: string | null
+          triggered_by?: string
+          triggered_by_name?: string | null
+          woocommerce_order_id?: string | null
+        }
+        Relationships: []
+      }
       prospects: {
         Row: {
           a_category_marked_at: string | null
