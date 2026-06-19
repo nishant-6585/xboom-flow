@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, ShieldCheck, AlertTriangle, CheckCircle2, ExternalLink, FileSpreadsheet, FileDown } from 'lucide-react';
+import { Loader2, ShieldCheck, AlertTriangle, CheckCircle2, ExternalLink, FileSpreadsheet, FileDown, RefreshCw, XCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,7 +21,8 @@ interface Row {
   rules_version_stored?: string | null;
   stale: boolean;
   rule_hits: string[];
-  status: 'OK' | 'MISMATCH' | 'STALE_RULES' | 'MISSING';
+  status: 'OK' | 'MISMATCH' | 'STALE_RULES' | 'MISSING' | 'FAILED';
+  error?: string;
 }
 
 function inr(n: number) { return `₹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`; }
@@ -31,55 +32,111 @@ export default function ProformaBatchValidate() {
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [retrying, setRetrying] = useState(false);
+
+  /** Validate a single order number and return its Row (never throws). */
+  const validateOne = async (num: string, prefetched?: any): Promise<Row> => {
+    try {
+      let order = prefetched;
+      if (!order) {
+        const { data } = await (supabase.from('orders') as any)
+          .select('id, order_number, total_sales_amount, amount_paid')
+          .eq('order_number', num).maybeSingle();
+        order = data;
+      }
+      if (!order) {
+        return { order_number: num, expected_total: 0, computed_total: 0, delta: 0,
+          stale: false, rule_hits: ['Order not found'], status: 'MISSING' };
+      }
+      const [itemsRes, invoicesRes] = await Promise.all([
+        (supabase.from('order_items') as any).select('product_name, quantity, unit_price').eq('order_id', order.id),
+        (supabase.from('order_invoices') as any).select('audit_snapshot').eq('order_id', order.id).eq('invoice_type', 'proforma').order('created_at', { ascending: false }).limit(1),
+      ]);
+      if (itemsRes.error) throw itemsRes.error;
+      if (invoicesRes.error) throw invoicesRes.error;
+      const lines = (itemsRes.data || []).map((it: any) => {
+        const qty = Number(it.quantity) || 1;
+        const unit = Number(it.unit_price) || 0;
+        const rate = inferGstRate(it.product_name, '88062200');
+        const gross = Math.round(unit * qty * 100) / 100;
+        return { product_name: it.product_name, hsn: '88062200', quantity: qty, gst_rate: rate, gross_total: gross };
+      });
+      const computed = lines.reduce((s: number, l: any) => s + l.gross_total, 0);
+      const expected = Number(order.total_sales_amount) || 0;
+      const recon = reconcileProforma({ lines, proformaTotal: computed, expectedTotal: expected });
+      const storedVersion = invoicesRes.data?.[0]?.audit_snapshot?.rules_version || null;
+      const stale = storedVersion !== PROFORMA_RULES_VERSION;
+      const status: Row['status'] = Math.abs(recon.delta) > 1 ? 'MISMATCH' : (stale ? 'STALE_RULES' : 'OK');
+      return {
+        order_number: num, order_id: order.id,
+        expected_total: expected, computed_total: computed, delta: recon.delta,
+        rules_version_stored: storedVersion, stale,
+        rule_hits: recon.rules.map((r) => `${r.rule}: ${r.detail}`),
+        status,
+      };
+    } catch (e: any) {
+      const msg = e?.message || (typeof e === 'string' ? e : 'Unknown error');
+      console.error(`[ProformaBatchValidate] ${num} failed`, e);
+      return {
+        order_number: num, expected_total: 0, computed_total: 0, delta: 0,
+        stale: false, rule_hits: [`Error: ${msg}`], status: 'FAILED', error: msg,
+      };
+    }
+  };
 
   const run = async () => {
     const numbers = input.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
     if (numbers.length === 0) { toast.error('Paste at least one order number'); return; }
     setBusy(true); setRows([]); setSelected(new Set());
     try {
-      const { data: orders } = await (supabase
-        .from('orders') as any)
-        .select('id, order_number, total_sales_amount, amount_paid')
-        .in('order_number', numbers);
-      const map = new Map<string, any>((orders || []).map((o: any) => [o.order_number, o]));
-
+      // Prefetch orders in one round-trip; if that bulk read fails, each order
+      // still gets its own attempt (and its own FAILED row) so nothing is dropped.
+      let prefetch = new Map<string, any>();
+      try {
+        const { data: orders, error } = await (supabase.from('orders') as any)
+          .select('id, order_number, total_sales_amount, amount_paid')
+          .in('order_number', numbers);
+        if (error) throw error;
+        prefetch = new Map<string, any>((orders || []).map((o: any) => [o.order_number, o]));
+      } catch (e: any) {
+        toast.error(`Bulk order fetch failed — retrying per-order. ${e?.message || ''}`);
+      }
       const results: Row[] = [];
       for (const num of numbers) {
-        const order = map.get(num);
-        if (!order) {
-          results.push({ order_number: num, expected_total: 0, computed_total: 0, delta: 0,
-            stale: false, rule_hits: ['Order not found'], status: 'MISSING' });
-          continue;
-        }
-        const [{ data: items }, { data: invoices }] = await Promise.all([
-          (supabase.from('order_items') as any).select('product_name, quantity, unit_price').eq('order_id', order.id),
-          (supabase.from('order_invoices') as any).select('audit_snapshot').eq('order_id', order.id).eq('invoice_type', 'proforma').order('created_at', { ascending: false }).limit(1),
-        ]);
-        const lines = (items || []).map((it: any) => {
-          const qty = Number(it.quantity) || 1;
-          const unit = Number(it.unit_price) || 0;
-          const rate = inferGstRate(it.product_name, '88062200');
-          const gross = Math.round(unit * qty * 100) / 100;
-          return { product_name: it.product_name, hsn: '88062200', quantity: qty, gst_rate: rate, gross_total: gross };
-        });
-        const computed = lines.reduce((s: number, l: any) => s + l.gross_total, 0);
-        const expected = Number(order.total_sales_amount) || 0;
-        const recon = reconcileProforma({ lines, proformaTotal: computed, expectedTotal: expected });
-        const storedVersion = invoices?.[0]?.audit_snapshot?.rules_version || null;
-        const stale = storedVersion !== PROFORMA_RULES_VERSION;
-        const status: Row['status'] = Math.abs(recon.delta) > 1 ? 'MISMATCH' : (stale ? 'STALE_RULES' : 'OK');
-        results.push({
-          order_number: num, order_id: order.id,
-          expected_total: expected, computed_total: computed, delta: recon.delta,
-          rules_version_stored: storedVersion, stale,
-          rule_hits: recon.rules.map((r) => `${r.rule}: ${r.detail}`),
-          status,
-        });
+        results.push(await validateOne(num, prefetch.get(num)));
       }
       setRows(results);
+      const failed = results.filter((r) => r.status === 'FAILED').length;
       const flagged = results.filter((r) => r.status !== 'OK').length;
-      toast.success(`Validated ${results.length} orders — ${flagged} need attention`);
+      if (failed > 0) {
+        toast.error(`${failed} of ${results.length} order(s) failed to validate — see results table`);
+      } else {
+        toast.success(`Validated ${results.length} orders — ${flagged} need attention`);
+      }
     } finally { setBusy(false); }
+  };
+
+  /** Re-run validation ONLY for the rows currently marked FAILED. */
+  const retryFailed = async () => {
+    const failedNums = rows.filter((r) => r.status === 'FAILED').map((r) => r.order_number);
+    if (failedNums.length === 0) { toast.info('No failed orders to retry'); return; }
+    setRetrying(true);
+    try {
+      const updates = new Map<string, Row>();
+      for (const num of failedNums) {
+        updates.set(num, await validateOne(num));
+      }
+      setRows((prev) => prev.map((r) => updates.get(r.order_number) || r));
+      const stillFailed = Array.from(updates.values()).filter((r) => r.status === 'FAILED').length;
+      const recovered = failedNums.length - stillFailed;
+      if (stillFailed === 0) {
+        toast.success(`Retried ${failedNums.length} — all recovered`);
+      } else if (recovered > 0) {
+        toast.warning(`Retried ${failedNums.length} — ${recovered} recovered, ${stillFailed} still failing`);
+      } else {
+        toast.error(`Retried ${failedNums.length} — all still failing`);
+      }
+    } finally { setRetrying(false); }
   };
 
   const toggle = (n: string) => {
