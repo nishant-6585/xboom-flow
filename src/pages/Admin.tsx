@@ -50,6 +50,7 @@ import { LeadSyncHealthPanel } from "@/components/admin/LeadSyncHealthPanel";
 import { MyOperatorSettingsPanel } from "@/components/admin/MyOperatorSettingsPanel";
 import { ExotelSettingsPanel } from "@/components/admin/ExotelSettingsPanel";
 import AgentMappingPanel from "@/components/admin/AgentMappingPanel";
+import FeatureFlagsPanel from "@/components/admin/FeatureFlagsPanel";
 
 import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
 import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSettings";
