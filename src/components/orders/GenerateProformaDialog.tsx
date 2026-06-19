@@ -798,6 +798,36 @@ export function GenerateProformaDialog({
             )}
 
             {reconciliation && (
+              dryRun && (
+                <div className="border rounded-lg p-3 text-xs space-y-1 border-indigo-300 bg-indigo-50 dark:bg-indigo-950/30">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <FlaskConical className="h-4 w-4 text-indigo-600" />
+                      Dry-run preview (not saved)
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2"
+                      onClick={() => setDryRun(null)}>Dismiss</Button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                    <div>Recalc total: <span className="text-foreground font-medium">₹{dryRun.proformaTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                    <div>Expected: <span className="text-foreground font-medium">₹{dryRun.expectedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                    <div>Δ: <span className={`font-medium ${Math.abs(dryRun.delta) <= 1 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {dryRun.delta > 0 ? '+' : ''}₹{dryRun.delta.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span></div>
+                  </div>
+                  {dryRun.changedLines.length === 0 ? (
+                    <div className="text-emerald-700">No line-item changes — current rules already match.</div>
+                  ) : (
+                    <ul className="space-y-0.5 font-mono text-[11px]">
+                      {dryRun.changedLines.map((c, i) => (
+                        <li key={i}>L{c.index + 1} {c.product_name || '—'}: {c.field} {String(c.before)} → {String(c.after)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            )}
+            {reconciliation && (
               <div className={`border rounded-lg p-3 text-xs space-y-2 ${
                 Math.abs(reconciliation.delta) <= 1
                   ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30'
