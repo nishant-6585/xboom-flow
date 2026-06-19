@@ -57,6 +57,35 @@ export function inferGstRate(productName: string, hsn?: string | null): number {
   return STANDARD_GST;
 }
 
+/** Human-readable explanation for *why* inferGstRate picked a rate. */
+export function explainGstRate(productName: string, hsn?: string | null): {
+  rate: number;
+  source: 'SAC_997_SERVICE' | 'HSN_8806_DRONE' | 'HSN_8806_ACCESSORY' | 'NAME_ACCESSORY' | 'NAME_DRONE' | 'NAME_SUBSCRIPTION' | 'FALLBACK_18';
+  detail: string;
+} {
+  const name = (productName || '').toLowerCase();
+  const code = (hsn || '').trim();
+  if (/^997\d{0,5}$/.test(code)) {
+    return { rate: STANDARD_GST, source: 'SAC_997_SERVICE', detail: `SAC ${code} is a service code → 18%.` };
+  }
+  if (code.startsWith('8806')) {
+    if (ACCESSORY_RE.test(name)) {
+      return { rate: STANDARD_GST, source: 'HSN_8806_ACCESSORY', detail: `HSN ${code} but description matches accessory keyword → 18%.` };
+    }
+    return { rate: DRONE_GST, source: 'HSN_8806_DRONE', detail: `HSN ${code} (drone) → 5%, takes precedence over bundled subscription wording.` };
+  }
+  if (ACCESSORY_RE.test(name)) {
+    return { rate: STANDARD_GST, source: 'NAME_ACCESSORY', detail: `Description matches accessory keyword → 18%.` };
+  }
+  if (DRONE_RE.test(name)) {
+    return { rate: DRONE_GST, source: 'NAME_DRONE', detail: `Description names a drone (matrice/mavic/etc.) → 5%.` };
+  }
+  if (SUBSCRIPTION_RE.test(name)) {
+    return { rate: STANDARD_GST, source: 'NAME_SUBSCRIPTION', detail: `Description matches subscription/service keyword → 18%.` };
+  }
+  return { rate: STANDARD_GST, source: 'FALLBACK_18', detail: `No SAC/HSN/keyword match — default 18%.` };
+}
+
 /**
  * Resolve GST rate for a WooCommerce line_item payload.
  * Order of trust:
