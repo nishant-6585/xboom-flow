@@ -41,15 +41,18 @@ export async function sendInvoiceEmail(args: SendInvoiceEmailArgs): Promise<{
       // edge function returned non-2xx
       const msg = (error as any)?.message || 'Email send failed';
       if (!args.silent) toast.error(`Invoice email failed: ${msg}`);
+      notifyInvoiceEmailChanged(args.invoice_id);
       return { ok: false, error: msg };
     }
     if ((data as any)?.skipped) return { ok: true, skipped: true };
     if ((data as any)?.deduped) return { ok: true, deduped: true };
     if (args.mode === 'manual') toast.success('Invoice email sent');
     else toast.success('Invoice emailed to customer');
+    notifyInvoiceEmailChanged(args.invoice_id);
     return { ok: true };
   } catch (err: any) {
     if (!args.silent) toast.error(`Invoice email failed: ${err.message || err}`);
+    notifyInvoiceEmailChanged(args.invoice_id);
     return { ok: false, error: err?.message || String(err) };
   }
 }
@@ -77,3 +80,10 @@ export const BYPASS_REASONS = [
   'Email will be sent manually',
   'Internal/test order',
 ];
+
+/** Cross-component signal so any mounted InvoiceListCard refreshes its email-status badges immediately. */
+export const INVOICE_EMAIL_EVENT = 'invoice-email-changed';
+export function notifyInvoiceEmailChanged(invoiceId?: string) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(INVOICE_EMAIL_EVENT, { detail: { invoiceId } }));
+}
