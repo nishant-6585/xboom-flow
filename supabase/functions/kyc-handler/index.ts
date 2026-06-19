@@ -159,7 +159,13 @@ function btn(href: string, label: string) {
 // ---------- Action handlers ----------
 
 interface Body {
-  action: "onboard_order" | "submit" | "review" | "notify_salesperson" | "resend_invite";
+  action:
+    | "onboard_order"
+    | "submit"
+    | "review"
+    | "notify_salesperson"
+    | "resend_invite"
+    | "order_kyc_status";
   // onboard_order
   order_id?: string;
   // resend_invite
@@ -222,6 +228,15 @@ Deno.serve(async (req) => {
         force: true,
         overrideEmail: body.override_email,
       });
+    }
+    if (body.action === "order_kyc_status") {
+      if (!callerId) return json({ error: "Not authenticated" }, 401);
+      const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", callerId);
+      const allowed = (roles || []).some((r: any) =>
+        ["admin", "sales", "sales_manager"].includes(r.role),
+      );
+      if (!allowed) return json({ error: "Forbidden" }, 403);
+      return await orderKycStatus(admin, body.order_id!);
     }
     if (body.action === "submit") {
       if (!callerId) return json({ error: "Not authenticated" }, 401);
@@ -764,4 +779,53 @@ async function emailCustomerStatus(
     decision === "approved" ? "Your KYC has been approved" : "Action needed: KYC was rejected",
     html,
   );
+}
+
+// ============ ORDER KYC STATUS (read-only) ============
+async function orderKycStatus(
+  admin: ReturnType<typeof createClient>,
+  orderId: string,
+) {
+  if (!orderId) return json({ error: "order_id required" }, 400);
+  const { data: order } = await admin
+    .from("orders")
+    .select("id, customer_email")
+    .eq("id", orderId)
+    .maybeSingle();
+  const customerEmail =
+    ((order as any)?.customer_email || "").toString().trim().toLowerCase() || null;
+
+  let kycStatus: string | null = null;
+  let hasPortalAccount = false;
+  if (customerEmail) {
+    const { data: contact } = await admin
+      .from("portal_contacts")
+      .select("account_id")
+      .ilike("email", customerEmail)
+      .maybeSingle();
+    if ((contact as any)?.account_id) {
+      hasPortalAccount = true;
+      const { data: acct } = await admin
+        .from("portal_accounts")
+        .select("kyc_status")
+        .eq("id", (contact as any).account_id)
+        .maybeSingle();
+      kycStatus = ((acct as any)?.kyc_status as string) ?? "not_submitted";
+    }
+  }
+
+  const { data: lastLog } = await admin
+    .from("kyc_email_log")
+    .select("status, created_at, attempt_count")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return json({
+    kyc_status: kycStatus,
+    has_portal_account: hasPortalAccount,
+    customer_email: customerEmail,
+    last_invite: lastLog ?? null,
+  });
 }
