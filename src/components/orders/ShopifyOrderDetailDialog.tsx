@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ExternalLink, Save } from 'lucide-react';
+import { Loader2, ExternalLink, Save, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useEditHistory } from '@/hooks/useEditHistory';
+import { EditHistoryPanel } from '@/components/EditHistoryPanel';
 import type { ShopifyOrder } from '@/hooks/useShopifyOrders';
 
 interface Props {
@@ -71,7 +74,10 @@ function buildAutoSalesNotes(payment: string, fulfillment: string, orderStatus: 
 
 export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated }: Props) {
   const { toast } = useToast();
+  const { user, profile } = useAuth();
+  const { recordChanges } = useEditHistory();
   const [saving, setSaving] = useState(false);
+  const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [form, setForm] = useState({
     payment_status: '',
     fulfillment_status: '',
@@ -80,21 +86,81 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
     sales_notes: '',
     amount_paid: '',
   });
+  // Baselines for autosave diffing — refreshed when dialog opens or after a persisted autosave
+  const initialSalesNotesRef = useRef<string>('');
+  const lastSavedSalesNotesRef = useRef<string>('');
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!order) return;
     const payment = normalizePayment(order.payment_status);
     const fulfillment = normalizeFulfillment(order.fulfillment_status);
     const orderStatus = normalizeOrderStatus(order.order_status);
+    const salesNotes = order.sales_notes ?? buildAutoSalesNotes(payment, fulfillment, orderStatus);
     setForm({
       payment_status: payment,
       fulfillment_status: fulfillment,
       order_status: orderStatus,
       internal_notes: order.internal_notes ?? '',
-      sales_notes: order.sales_notes ?? buildAutoSalesNotes(payment, fulfillment, orderStatus),
+      sales_notes: salesNotes,
       amount_paid: order.amount_paid != null ? String(order.amount_paid) : '',
     });
+    initialSalesNotesRef.current = salesNotes;
+    lastSavedSalesNotesRef.current = salesNotes;
+    setAutosaveState('idle');
   }, [order]);
+
+  // Debounced autosave for sales_notes only
+  useEffect(() => {
+    if (!order || !open) return;
+    const current = form.sales_notes ?? '';
+    if (current === lastSavedSalesNotesRef.current) return;
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    setAutosaveState('saving');
+    autosaveTimerRef.current = setTimeout(async () => {
+      const previous = lastSavedSalesNotesRef.current;
+      try {
+        const { error } = await supabase
+          .from('shopify_orders')
+          .update({ sales_notes: current || null, updated_at: new Date().toISOString() })
+          .eq('id', order.id);
+        if (error) throw error;
+
+        if (user && previous !== current) {
+          await recordChanges(
+            'shopify_orders',
+            order.id,
+            { sales_notes: { old: previous, new: current } },
+            profile?.name || user.email || 'Unknown',
+          );
+        }
+
+        lastSavedSalesNotesRef.current = current;
+        setAutosaveState('saved');
+        if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+        savedFlashTimerRef.current = setTimeout(() => setAutosaveState('idle'), 1500);
+      } catch (e: unknown) {
+        console.error('Sales notes autosave failed:', e);
+        setAutosaveState('error');
+        toast({
+          title: 'Autosave failed',
+          description: e instanceof Error ? e.message : 'Could not save sales notes',
+          variant: 'destructive',
+        });
+      }
+    }, 1000);
+
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [form.sales_notes, order, open, user, profile?.name, recordChanges, toast]);
+
+  useEffect(() => () => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+  }, []);
 
   if (!order) return null;
 
@@ -269,7 +335,17 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Sales notes</Label>
-                <Button
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground min-w-[60px] text-right">
+                    {autosaveState === 'saving' && (
+                      <span className="inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Saving…</span>
+                    )}
+                    {autosaveState === 'saved' && (
+                      <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400"><Check className="h-3 w-3" /> Saved</span>
+                    )}
+                    {autosaveState === 'error' && <span className="text-destructive">Save failed</span>}
+                  </span>
+                  <Button
                   type="button"
                   variant="ghost"
                   size="sm"
@@ -285,7 +361,8 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
                   }}
                 >
                   Insert status snapshot
-                </Button>
+                  </Button>
+                </div>
               </div>
               <Textarea
                 value={form.sales_notes}
@@ -294,7 +371,7 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
                 placeholder="Add notes for the sales team…"
               />
               <p className="text-[10px] text-muted-foreground mt-1">
-                Editable. Use "Insert status snapshot" to append the current Fulfillment/Payment/Order status.
+                Autosaves a second after you stop typing. Use "Insert status snapshot" to append the current Fulfillment/Payment/Order status.
               </p>
             </div>
             <div>
@@ -305,6 +382,8 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
                 rows={2}
               />
             </div>
+
+            <EditHistoryPanel tableName="shopify_orders" recordId={order.id} />
           </section>
         </div>
 
