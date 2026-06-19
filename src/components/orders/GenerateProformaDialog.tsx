@@ -520,6 +520,23 @@ export function GenerateProformaDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Line Items (amounts are GST-inclusive)</Label>
+              </div>
+              {((existingProforma as any)?.needs_regenerate ||
+                ((existingProforma as any)?.audit_snapshot?.rules_version &&
+                 (existingProforma as any).audit_snapshot.rules_version !== PROFORMA_RULES_VERSION)) && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="font-medium">This proforma is out of date.</div>
+                    <div className="text-muted-foreground">
+                      {(existingProforma as any)?.regenerate_reason && <>Reason: {(existingProforma as any).regenerate_reason}. </>}
+                      Saved with rules v{(existingProforma as any)?.audit_snapshot?.rules_version || '—'}, current is v{PROFORMA_RULES_VERSION}.
+                      Click <em>Regenerate Proforma</em> to refresh.
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-end">
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={autoFixRates}
                     disabled={!canRegenerate}
