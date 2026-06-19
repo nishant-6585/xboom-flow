@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ChevronDown, ChevronUp, Info, ShieldCheck, FlaskConical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -86,6 +86,14 @@ export function GenerateProformaDialog({
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [emailState, setEmailState] = useState<InvoiceEmailState>(defaultEmailState(''));
+  const [overrideReason, setOverrideReason] = useState('');
+  const [overrideBusy, setOverrideBusy] = useState(false);
+  const [dryRun, setDryRun] = useState<null | {
+    delta: number;
+    proformaTotal: number;
+    expectedTotal: number;
+    changedLines: Array<{ index: number; product_name: string; field: string; before: any; after: any }>;
+  }>(null);
 
   const subject = useMemo(() => {
     if (order) {
