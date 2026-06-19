@@ -155,3 +155,6 @@ verify_jwt = false
 
 [functions.admin-reset-mfa]
 verify_jwt = false
+
+[functions.send-invoice-email]
+verify_jwt = false

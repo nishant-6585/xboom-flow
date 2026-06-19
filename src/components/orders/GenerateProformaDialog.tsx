@@ -21,6 +21,8 @@ import {
 import { computeProformaTotals, generateProformaPdf, ProformaLineInput } from '@/lib/invoicePdfGenerator';
 import { uploadProformaInvoice, OrderInvoice } from '@/hooks/useOrderInvoices';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
+import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
+import { sendInvoiceEmail } from '@/lib/invoiceEmail';
 
 interface Line {
   product_name: string;
@@ -50,10 +52,11 @@ export function GenerateProformaDialog({
   onOpenChange,
   onGenerated,
 }: Props) {
-  const { user, profile } = useAuth();
+  const { user, profile, role } = useAuth();
   const { fetchOrderItems } = useOrderItems();
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const canBypassEmail = role === 'admin' || role === 'finance';
 
   const isRegenerate = !!existingProforma;
   const isWoo = !!wooOrder;
@@ -64,6 +67,7 @@ export function GenerateProformaDialog({
   const [stateCode, setStateCode] = useState<string>('29');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
+  const [emailState, setEmailState] = useState<InvoiceEmailState>(defaultEmailState(''));
 
   const subject = useMemo(() => {
     if (order) {
@@ -110,6 +114,7 @@ export function GenerateProformaDialog({
       email: subject.email,
       phone: subject.phone,
     });
+    setEmailState(defaultEmailState(subject.email));
     if (isRegenerate && existingProforma?.place_of_supply) {
       const m = existingProforma.place_of_supply.match(/\((\d{2})\)/);
       if (m) {
@@ -206,8 +211,25 @@ export function GenerateProformaDialog({
     if (lines.some((l) => !l.product_name.trim() || l.gross_total <= 0)) {
       toast.error('Every line needs a name and a positive amount'); return;
     }
+    // Validate email control BEFORE saving the invoice
+    let emailPlan: { mode: 'auto' | 'skip'; email?: string; bypassReason?: string };
+    try {
+      emailPlan = validateEmailState(emailState);
+    } catch (e: any) {
+      toast.error(e.message);
+      return;
+    }
     setBusy(true);
     try {
+      // If sending, persist the email back onto the source order/woo_order
+      if (emailPlan.mode === 'auto' && emailPlan.email) {
+        if (order) {
+          await supabase.from('orders').update({ customer_email: emailPlan.email }).eq('id', order.id);
+        } else if (wooOrder) {
+          await (supabase.from('woocommerce_orders') as any)
+            .update({ customer_email: emailPlan.email }).eq('id', wooOrder.id);
+        }
+      }
       let proformaNumber: string;
       if (isRegenerate && existingProforma?.invoice_number) {
         proformaNumber = existingProforma.invoice_number;
@@ -275,6 +297,23 @@ export function GenerateProformaDialog({
       if (!saved) throw new Error('Failed to save proforma');
 
       toast.success(`Proforma ${proformaNumber} ${isRegenerate ? 'regenerated' : 'generated'}`);
+
+      // Fire-and-forget email send (or skip log). Never blocks save.
+      if (emailPlan.mode === 'auto') {
+        sendInvoiceEmail({
+          invoice_id: (saved as any).id,
+          to_email: emailPlan.email,
+          mode: 'auto',
+        }).catch(() => {});
+      } else {
+        sendInvoiceEmail({
+          invoice_id: (saved as any).id,
+          mode: 'skip',
+          bypass_reason: emailPlan.bypassReason,
+          silent: true,
+        }).catch(() => {});
+      }
+
       onGenerated?.();
       onOpenChange(false);
     } catch (err: any) {
@@ -407,6 +446,12 @@ export function GenerateProformaDialog({
               <Label>Notes (optional)</Label>
               <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+
+            <InvoiceEmailControl
+              state={emailState}
+              onChange={setEmailState}
+              canBypass={canBypassEmail}
+            />
           </div>
         )}
 

@@ -6645,6 +6645,59 @@ export type Database = {
           },
         ]
       }
+      invoice_email_log: {
+        Row: {
+          attempted_at: string
+          bypass_reason: string | null
+          created_at: string
+          doc_type: string
+          error: string | null
+          id: string
+          invoice_id: string
+          order_id: string | null
+          sent_by: string | null
+          status: string
+          to_email: string | null
+          woocommerce_order_id: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          bypass_reason?: string | null
+          created_at?: string
+          doc_type: string
+          error?: string | null
+          id?: string
+          invoice_id: string
+          order_id?: string | null
+          sent_by?: string | null
+          status: string
+          to_email?: string | null
+          woocommerce_order_id?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          bypass_reason?: string | null
+          created_at?: string
+          doc_type?: string
+          error?: string | null
+          id?: string
+          invoice_id?: string
+          order_id?: string | null
+          sent_by?: string | null
+          status?: string
+          to_email?: string | null
+          woocommerce_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_email_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "order_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string

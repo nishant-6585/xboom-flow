@@ -39,6 +39,8 @@ import { useOrderInvoices, OrderInvoice } from '@/hooks/useOrderInvoices';
 import { WooOrderStatusActions } from '@/components/orders/WooOrderStatusActions';
 import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDialog';
 import { InvoiceListCard } from '@/components/orders/InvoiceListCard';
+import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
+import { sendInvoiceEmail } from '@/lib/invoiceEmail';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -156,6 +158,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [proformaDialogOpen, setProformaDialogOpen] = useState(false);
   const [regenerateTarget, setRegenerateTarget] = useState<OrderInvoice | null>(null);
   const canGenerateProforma = (isAdmin || isFinance || isSupplyChain) && order?.payment_status === 'full';
+  const canBypassInvoiceEmail = isAdmin || isFinance;
+  const [invoiceEmailState, setInvoiceEmailState] = useState<InvoiceEmailState>(defaultEmailState(''));
   // (PO number is auto-extracted from the uploaded PO document; no manual editing)
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
@@ -277,6 +281,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setCustomerGst((order as any).customer_gst || '');
       setCustomerPhone((order as any).customer_phone || '');
       setCustomerEmail((order as any).customer_email || '');
+      setInvoiceEmailState(defaultEmailState((order as any).customer_email || ''));
       setEscalationReason('');
       setShowEscalationForm(false);
 
@@ -307,14 +312,43 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
   const handleInvoiceUpload = async (file: File) => {
     if (!user || !order) return;
+    // Validate email control BEFORE upload
+    let emailPlan: { mode: 'auto' | 'skip'; email?: string; bypassReason?: string };
+    try {
+      emailPlan = validateEmailState(invoiceEmailState);
+    } catch (e: any) {
+      toast.error(e.message);
+      if (invoiceInputRef.current) invoiceInputRef.current.value = '';
+      return;
+    }
     setInvoiceUploading(true);
     try {
+      // Persist email back to the order before upload (so future flows have it)
+      if (emailPlan.mode === 'auto' && emailPlan.email && emailPlan.email !== (order as any).customer_email) {
+        await supabase.from('orders').update({ customer_email: emailPlan.email }).eq('id', order.id);
+        setCustomerEmail(emailPlan.email);
+      }
       const inserted = await addInvoice(file, user.id);
       if (inserted) {
         // Note: do NOT mirror onto orders.invoice_url anymore — order_invoices is the
         // source of truth. Mirroring caused older invoices to appear "lost" whenever
         // invoice_url was overwritten or cleared elsewhere.
         setInvoiceUrl(inserted.storage_path);
+        // Fire-and-forget email (never blocks save)
+        if (emailPlan.mode === 'auto') {
+          sendInvoiceEmail({
+            invoice_id: inserted.id,
+            to_email: emailPlan.email,
+            mode: 'auto',
+          }).catch(() => {});
+        } else {
+          sendInvoiceEmail({
+            invoice_id: inserted.id,
+            mode: 'skip',
+            bypass_reason: emailPlan.bypassReason,
+            silent: true,
+          }).catch(() => {});
+        }
       }
     } finally {
       setInvoiceUploading(false);
@@ -2014,6 +2048,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
               {canEdit ? (
                 <div>
+                  <InvoiceEmailControl
+                    state={invoiceEmailState}
+                    onChange={setInvoiceEmailState}
+                    canBypass={canBypassInvoiceEmail}
+                    className="mb-3"
+                  />
                   <input
                     ref={invoiceInputRef}
                     type="file"

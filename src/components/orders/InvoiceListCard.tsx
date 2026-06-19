@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, ExternalLink, Download, RotateCcw, X, Loader2 } from 'lucide-react';
+import { FileText, ExternalLink, Download, RotateCcw, X, Loader2, Mail, MailCheck, MailX, MailMinus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DocumentViewer } from '@/components/hr/DocumentViewer';
 import { OrderInvoice } from '@/hooks/useOrderInvoices';
+import { fetchInvoiceEmailLogs, sendInvoiceEmail, InvoiceEmailLog, isValidEmail } from '@/lib/invoiceEmail';
 
 interface Props {
   invoices: OrderInvoice[];
@@ -22,6 +23,28 @@ export function InvoiceListCard({ invoices, canRegenerate, onRegenerate, canDele
     open: false, url: null, name: '', fileType: '',
   });
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [logs, setLogs] = useState<Record<string, InvoiceEmailLog>>({});
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const refreshLogs = async () => {
+    const ids = invoices.map((i) => i.id);
+    if (ids.length === 0) return;
+    setLogs(await fetchInvoiceEmailLogs(ids));
+  };
+
+  useEffect(() => { refreshLogs(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [invoices.map((i) => i.id).join(',')]);
+
+  const handleResend = async (inv: OrderInvoice) => {
+    const existing = logs[inv.id];
+    const prefill = existing?.to_email || '';
+    const email = window.prompt('Send invoice to customer email:', prefill);
+    if (!email) return;
+    if (!isValidEmail(email)) { toast.error('Invalid email address'); return; }
+    setResendingId(inv.id);
+    const r = await sendInvoiceEmail({ invoice_id: inv.id, to_email: email.trim(), mode: 'manual', force: true });
+    setResendingId(null);
+    if (r.ok) refreshLogs();
+  };
 
   const openInvoice = async (inv: OrderInvoice, mode: 'preview' | 'download') => {
     setOpeningId(inv.id);
@@ -120,8 +143,37 @@ export function InvoiceListCard({ invoices, canRegenerate, onRegenerate, canDele
                 >
                   {isProforma ? 'Proforma' : 'Tax Invoice'}
                 </Badge>
+                {(() => {
+                  const log = logs[inv.id];
+                  if (!log) return null;
+                  if (log.status === 'sent') return (
+                    <Badge variant="outline" className="border-green-500 text-green-700 dark:text-green-400 gap-1" title={`Sent to ${log.to_email} on ${new Date(log.attempted_at).toLocaleString()}`}>
+                      <MailCheck className="h-3 w-3" /> Sent
+                    </Badge>
+                  );
+                  if (log.status === 'failed') return (
+                    <Badge variant="outline" className="border-red-500 text-red-700 dark:text-red-400 gap-1" title={log.error || 'Send failed'}>
+                      <MailX className="h-3 w-3" /> Email failed
+                    </Badge>
+                  );
+                  return (
+                    <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-400 gap-1" title={log.bypass_reason || 'Skipped'}>
+                      <MailMinus className="h-3 w-3" /> Skipped
+                    </Badge>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Resend invoice email to customer"
+                  onClick={() => handleResend(inv)}
+                  disabled={resendingId === inv.id}
+                >
+                  {resendingId === inv.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
