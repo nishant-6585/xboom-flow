@@ -312,14 +312,43 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
   const handleInvoiceUpload = async (file: File) => {
     if (!user || !order) return;
+    // Validate email control BEFORE upload
+    let emailPlan: { mode: 'auto' | 'skip'; email?: string; bypassReason?: string };
+    try {
+      emailPlan = validateEmailState(invoiceEmailState);
+    } catch (e: any) {
+      toast.error(e.message);
+      if (invoiceInputRef.current) invoiceInputRef.current.value = '';
+      return;
+    }
     setInvoiceUploading(true);
     try {
+      // Persist email back to the order before upload (so future flows have it)
+      if (emailPlan.mode === 'auto' && emailPlan.email && emailPlan.email !== (order as any).customer_email) {
+        await supabase.from('orders').update({ customer_email: emailPlan.email }).eq('id', order.id);
+        setCustomerEmail(emailPlan.email);
+      }
       const inserted = await addInvoice(file, user.id);
       if (inserted) {
         // Note: do NOT mirror onto orders.invoice_url anymore — order_invoices is the
         // source of truth. Mirroring caused older invoices to appear "lost" whenever
         // invoice_url was overwritten or cleared elsewhere.
         setInvoiceUrl(inserted.storage_path);
+        // Fire-and-forget email (never blocks save)
+        if (emailPlan.mode === 'auto') {
+          sendInvoiceEmail({
+            invoice_id: inserted.id,
+            to_email: emailPlan.email,
+            mode: 'auto',
+          }).catch(() => {});
+        } else {
+          sendInvoiceEmail({
+            invoice_id: inserted.id,
+            mode: 'skip',
+            bypass_reason: emailPlan.bypassReason,
+            silent: true,
+          }).catch(() => {});
+        }
       }
     } finally {
       setInvoiceUploading(false);
