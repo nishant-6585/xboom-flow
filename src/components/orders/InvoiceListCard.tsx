@@ -143,8 +143,37 @@ export function InvoiceListCard({ invoices, canRegenerate, onRegenerate, canDele
                 >
                   {isProforma ? 'Proforma' : 'Tax Invoice'}
                 </Badge>
+                {(() => {
+                  const log = logs[inv.id];
+                  if (!log) return null;
+                  if (log.status === 'sent') return (
+                    <Badge variant="outline" className="border-green-500 text-green-700 dark:text-green-400 gap-1" title={`Sent to ${log.to_email} on ${new Date(log.attempted_at).toLocaleString()}`}>
+                      <MailCheck className="h-3 w-3" /> Sent
+                    </Badge>
+                  );
+                  if (log.status === 'failed') return (
+                    <Badge variant="outline" className="border-red-500 text-red-700 dark:text-red-400 gap-1" title={log.error || 'Send failed'}>
+                      <MailX className="h-3 w-3" /> Email failed
+                    </Badge>
+                  );
+                  return (
+                    <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-400 gap-1" title={log.bypass_reason || 'Skipped'}>
+                      <MailMinus className="h-3 w-3" /> Skipped
+                    </Badge>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Resend invoice email to customer"
+                  onClick={() => handleResend(inv)}
+                  disabled={resendingId === inv.id}
+                >
+                  {resendingId === inv.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
