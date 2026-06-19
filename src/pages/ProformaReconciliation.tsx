@@ -321,41 +321,135 @@ export default function ProformaReconciliation() {
               {auditTrail.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">No rule changes recorded for this order yet.</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>When</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>By</TableHead>
-                      <TableHead>Changes</TableHead>
-                      <TableHead className="text-right">Rollback</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {auditTrail.map((a) => (
-                      <TableRow key={a.id} className={a.rolled_back_at ? 'opacity-60' : ''}>
-                        <TableCell className="text-xs">{format(new Date(a.created_at), 'dd MMM HH:mm')}</TableCell>
-                        <TableCell><Badge variant="outline">{a.action}</Badge></TableCell>
-                        <TableCell className="text-xs">{a.triggered_by_name || '—'}</TableCell>
-                        <TableCell className="text-xs">
-                          {(a.line_changes || []).slice(0, 4).map((c, i) => (
-                            <div key={i}>L{c.index + 1} {c.field}: {String(c.before)} → <span className="font-semibold">{String(c.after)}</span></div>
-                          ))}
-                          {(a.line_changes || []).length > 4 && <div className="text-muted-foreground">+{a.line_changes.length - 4} more</div>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {a.rolled_back_at ? (
-                            <Badge variant="secondary">Rolled back</Badge>
-                          ) : (
-                            <Button size="sm" variant="outline" onClick={() => rollback(a)} disabled={!isPriv}>
-                              <RotateCcw className="h-3 w-3 mr-1" />Rollback
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="space-y-4">
+                  {auditTrail.map((a) => {
+                    // line_changes may be an array (legacy) or an object { changes: [...] } (new).
+                    const rawChanges: any = a.line_changes;
+                    const changes: Array<{ index: number; field: string; before: any; after: any; product_name?: string }> =
+                      Array.isArray(rawChanges)
+                        ? rawChanges
+                        : Array.isArray(rawChanges?.changes)
+                          ? rawChanges.changes
+                          : [];
+                    // Group line-scoped changes by index for the diff table.
+                    const lineGroups = new Map<number, { product_name?: string; rows: typeof changes }>();
+                    const meta: typeof changes = [];
+                    changes.forEach((c) => {
+                      if (typeof c.index !== 'number' || c.field === '__added__' || c.field === '__removed__') {
+                        meta.push(c);
+                        return;
+                      }
+                      if (!lineGroups.has(c.index)) lineGroups.set(c.index, { product_name: c.product_name, rows: [] });
+                      const g = lineGroups.get(c.index)!;
+                      if (c.product_name && !g.product_name) g.product_name = c.product_name;
+                      g.rows.push(c);
+                    });
+                    const beforeTotal = Number(a.before_snapshot?.total);
+                    const afterTotal = Number(a.after_snapshot?.total);
+                    const totalChanged = Number.isFinite(beforeTotal) && Number.isFinite(afterTotal)
+                      && Math.abs(beforeTotal - afterTotal) > 0.01;
+                    const fmtField = (f: string) => {
+                      switch (f) {
+                        case 'gst_rate': return 'GST %';
+                        case 'gross_total': return 'Gross ₹';
+                        case 'taxable': return 'Taxable ₹';
+                        case 'quantity': return 'Qty';
+                        case 'product_name': return 'Name';
+                        case 'hsn': return 'HSN';
+                        default: return f;
+                      }
+                    };
+                    const fmtVal = (f: string, v: any) => {
+                      if (v == null || v === '') return '—';
+                      if (f === 'gst_rate') return `${v}%`;
+                      if (f === 'gross_total' || f === 'taxable') {
+                        const n = Number(v);
+                        return Number.isFinite(n)
+                          ? `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                          : String(v);
+                      }
+                      return String(v);
+                    };
+                    return (
+                      <div key={a.id} className={`border rounded-lg p-3 ${a.rolled_back_at ? 'opacity-60' : ''}`}>
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Badge variant="outline">{a.action}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(a.created_at), 'dd MMM HH:mm')} · {a.triggered_by_name || '—'}
+                            </span>
+                          </div>
+                          <div>
+                            {a.rolled_back_at ? (
+                              <Badge variant="secondary">Rolled back</Badge>
+                            ) : (
+                              <Button size="sm" variant="outline" onClick={() => rollback(a)} disabled={!isPriv}>
+                                <RotateCcw className="h-3 w-3 mr-1" />Rollback
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {totalChanged && (
+                          <div className="mt-2 text-xs flex items-center gap-2">
+                            <span className="text-muted-foreground">Proforma TOTAL</span>
+                            <span className="line-through text-muted-foreground">{fmtVal('gross_total', beforeTotal)}</span>
+                            <span>→</span>
+                            <span className="font-semibold">{fmtVal('gross_total', afterTotal)}</span>
+                            <Badge variant={Math.abs(afterTotal - beforeTotal) > 1 ? 'destructive' : 'secondary'} className="ml-1">
+                              Δ {fmtVal('gross_total', Math.round((afterTotal - beforeTotal) * 100) / 100)}
+                            </Badge>
+                          </div>
+                        )}
+                        {lineGroups.size > 0 ? (
+                          <div className="mt-2 overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-12">Line</TableHead>
+                                  <TableHead>Item</TableHead>
+                                  <TableHead>Field</TableHead>
+                                  <TableHead>Before</TableHead>
+                                  <TableHead>After</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {Array.from(lineGroups.entries())
+                                  .sort((a, b) => a[0] - b[0])
+                                  .flatMap(([idx, g]) =>
+                                    g.rows.map((r, j) => (
+                                      <TableRow key={`${idx}-${r.field}-${j}`}>
+                                        <TableCell className="text-xs font-mono">L{idx + 1}</TableCell>
+                                        <TableCell className="text-xs">{g.product_name || '—'}</TableCell>
+                                        <TableCell className="text-xs">{fmtField(r.field)}</TableCell>
+                                        <TableCell className="text-xs text-rose-600 line-through">
+                                          {fmtVal(r.field, r.before)}
+                                        </TableCell>
+                                        <TableCell className="text-xs font-semibold text-emerald-700">
+                                          {fmtVal(r.field, r.after)}
+                                        </TableCell>
+                                      </TableRow>
+                                    )),
+                                  )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground mt-2">
+                            {meta.length > 0
+                              ? `Metadata-only change (${meta.map((m) => m.field).join(', ')})`
+                              : 'No line-level changes recorded.'}
+                          </div>
+                        )}
+                        {meta.some((m) => m.field === '__added__' || m.field === '__removed__') && (
+                          <div className="mt-1 text-[11px] text-muted-foreground">
+                            {meta.filter((m) => m.field === '__added__').length} added,{' '}
+                            {meta.filter((m) => m.field === '__removed__').length} removed
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
               {!isPriv && (
                 <p className="text-[11px] text-muted-foreground mt-2">Rollback is restricted to Admin/Finance roles.</p>
