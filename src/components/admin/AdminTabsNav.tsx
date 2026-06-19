@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   BarChart3, CreditCard, Receipt, Users, MessageSquare, ClipboardList,
   Bell, KeyRound, Activity, Building2, CalendarClock, CalendarDays,
-  History, UserCog, Shield, Briefcase, FileQuestion, Package,
+  History, UserCog, Shield, Briefcase, FileQuestion, Package, ToggleLeft,
 } from "lucide-react";
 
 type TabDef = {
@@ -31,6 +31,7 @@ const TABS: TabDef[] = [
   { value: "holidays", label: "Holidays", icon: CalendarDays, to: "/admin?tab=holidays" },
   { value: "employee-activity", label: "Employee Activity", icon: History, to: "/admin?tab=employee-activity" },
   { value: "agent-mapping", label: "Agent Mapping", icon: UserCog, to: "/admin?tab=agent-mapping" },
+  { value: "feature-flags", label: "Feature Flags", icon: ToggleLeft, to: "/admin?tab=feature-flags" },
   { value: "audit-logs", label: "Audit Logs", icon: Shield, to: "/admin/audit-logs" },
   { value: "company-cleanup", label: "Company Cleanup", icon: Building2, to: "/admin/company-cleanup" },
   { value: "portal-dashboard", label: "Portal Dashboard", icon: Activity, to: "/admin/portal-dashboard" },
