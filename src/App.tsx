@@ -156,6 +156,7 @@ function AppInner() {
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
+       <Route path="/proforma-reconciliation" element={<ProtectedRoute><ProformaReconciliation /></ProtectedRoute>} />
         <Route path="/drone-operations" element={<ProtectedRoute><DroneOperations /></ProtectedRoute>} />
         <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
         <Route path="/spare-parts" element={<ProtectedRoute><SpareParts /></ProtectedRoute>} />
