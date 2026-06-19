@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   BarChart3, CreditCard, Receipt, Users, MessageSquare, ClipboardList,
   Bell, KeyRound, Activity, Building2, CalendarClock, CalendarDays,
-  History, UserCog, Shield, Briefcase, FileQuestion, Package, ToggleLeft,
+  History, UserCog, Shield, Briefcase, FileQuestion, Package, ToggleLeft, Mail,
 } from "lucide-react";
 
 type TabDef = {
@@ -39,6 +39,7 @@ const TABS: TabDef[] = [
   { value: "portal-rfqs", label: "Portal RFQs", icon: FileQuestion, to: "/admin/portal-rfqs" },
   { value: "portal-orders", label: "Portal Orders", icon: Package, to: "/admin/portal-orders" },
   { value: "portal-dispatch", label: "Dispatch Queue", icon: Briefcase, to: "/admin/portal-dispatch" },
+  { value: "kyc-emails", label: "KYC Emails", icon: Mail, to: "/admin/kyc-emails" },
 ];
 
 interface Props {
