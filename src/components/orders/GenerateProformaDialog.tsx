@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +29,8 @@ import { uploadProformaInvoice, OrderInvoice } from '@/hooks/useOrderInvoices';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
 import { sendInvoiceEmail } from '@/lib/invoiceEmail';
+import { exportReconciliationCsv, exportReconciliationPdf } from '@/lib/proformaReconciliationExport';
+import { Link } from 'react-router-dom';
 
 interface Line {
   product_name: string;
@@ -251,17 +253,39 @@ export function GenerateProformaDialog({
 
   /** Re-apply GST inference per line (does not touch unit_price_excl). */
   const autoFixRates = () => {
-    setLines((prev) => prev.map((l) => {
+    const before = lines.map((l) => ({ ...l }));
+    const changes: Array<{ index: number; field: string; before: any; after: any; product_name: string }> = [];
+    const next = lines.map((l, idx) => {
       const newRate = inferGstRate(l.product_name, l.hsn);
       if (newRate === l.gst_rate) return l;
+      changes.push({ index: idx, field: 'gst_rate', before: l.gst_rate, after: newRate, product_name: l.product_name });
       const qty = Number(l.quantity) || 0;
       return {
         ...l,
         gst_rate: newRate,
         gross_total: Math.round(l.unit_price_excl * qty * (1 + newRate / 100) * 100) / 100,
       };
-    }));
-    toast.success('Re-applied SAC/HSN GST rules to every line');
+    });
+    setLines(next);
+    if (changes.length === 0) {
+      toast.info('All lines already match SAC/HSN rules');
+      return;
+    }
+    toast.success(`Re-applied GST rules to ${changes.length} line(s)`);
+    // Fire-and-forget audit entry.
+    if (user && subject) {
+      (supabase.from('proforma_rule_audit') as any).insert({
+        order_number: subject.order_number,
+        order_id: order?.id || null,
+        woocommerce_order_id: wooOrder?.id || null,
+        action: 'AUTO_FIX_GST',
+        triggered_by: user.id,
+        triggered_by_name: (profile as any)?.full_name || user.email || null,
+        line_changes: changes,
+        before_snapshot: { lines: before },
+        after_snapshot: { lines: next },
+      }).then(({ error }: any) => { if (error) console.error('Audit log failed', error); });
+    }
   };
 
   const duplicateFlags = useMemo(() => detectBundleDuplicates(lines), [lines]);
