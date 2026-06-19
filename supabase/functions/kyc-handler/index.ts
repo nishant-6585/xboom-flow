@@ -12,18 +12,50 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-// Kill switch for customer-facing KYC emails while the feature is being
-// tested internally. Internal staff notifications (e.g. salesperson review
-// alert) are NOT affected by this flag. Set to "true" to re-enable.
-const CUSTOMER_EMAILS_ENABLED =
-  (Deno.env.get("KYC_CUSTOMER_EMAILS_ENABLED") ?? "false").toLowerCase() === "true";
-
-async function sendCustomerEmail(to: string, subject: string, html: string) {
-  if (!CUSTOMER_EMAILS_ENABLED) {
-    console.log("[kyc-handler] customer email suppressed (kill switch)", { to, subject });
-    return { ok: true, skipped: true as const };
+// Kill switch for customer-facing KYC emails. Source of truth is the
+// `feature_flags` row with key='kyc_customer_emails_enabled' (DB-backed
+// so admins can toggle from the UI without redeploying). Falls back to
+// the KYC_CUSTOMER_EMAILS_ENABLED env var if the row is missing.
+async function isCustomerEmailsEnabled(admin: ReturnType<typeof createClient>): Promise<boolean> {
+  try {
+    const { data } = await admin
+      .from("feature_flags")
+      .select("enabled")
+      .eq("key", "kyc_customer_emails_enabled")
+      .maybeSingle();
+    if (data && typeof (data as any).enabled === "boolean") return (data as any).enabled;
+  } catch (e) {
+    console.error("[kyc-handler] feature_flags read failed:", e);
   }
-  return await sendEmail(to, subject, html);
+  return (Deno.env.get("KYC_CUSTOMER_EMAILS_ENABLED") ?? "false").toLowerCase() === "true";
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// Wraps sendEmail with retries (3 attempts: 1s, 3s, 9s) on transient errors
+// (HTTP 429 / 5xx / network throws). Hard 4xx errors are NOT retried.
+async function sendEmailWithRetry(
+  to: string,
+  subject: string,
+  html: string,
+): Promise<{ ok: boolean; error?: string; attempts: number }> {
+  const delays = [1000, 3000, 9000];
+  let lastErr: string | undefined;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await sendEmailOnce(to, subject, html);
+    if (res.ok) return { ok: true, attempts: attempt };
+    lastErr = res.error;
+    // Decide if transient
+    const status = res.status ?? 0;
+    const transient = res.network === true || status === 429 || (status >= 500 && status < 600);
+    if (!transient || attempt === 3) return { ok: false, error: lastErr, attempts: attempt };
+    await sleep(delays[attempt - 1]);
+  }
+  return { ok: false, error: lastErr, attempts: 3 };
 }
 const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE = "https://xboomflow.com";
@@ -52,7 +84,11 @@ function esc(s: string) {
   );
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
+async function sendEmailOnce(
+  to: string,
+  subject: string,
+  html: string,
+): Promise<{ ok: boolean; error?: string; status?: number; network?: boolean }> {
   if (!RESEND_API_KEY) return { ok: false, error: "RESEND_API_KEY missing" };
   try {
     const r = await fetch("https://api.resend.com/emails", {
@@ -63,10 +99,49 @@ async function sendEmail(to: string, subject: string, html: string) {
       },
       body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html }),
     });
-    if (!r.ok) return { ok: false, error: `Resend ${r.status}: ${(await r.text()).slice(0, 240)}` };
+    if (!r.ok) {
+      return {
+        ok: false,
+        status: r.status,
+        error: `Resend ${r.status}: ${(await r.text()).slice(0, 240)}`,
+      };
+    }
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    return { ok: false, network: true, error: (e as Error).message };
+  }
+}
+
+// Back-compat wrapper used by staff notifications / status emails (no retry needed).
+async function sendEmail(to: string, subject: string, html: string) {
+  return await sendEmailOnce(to, subject, html);
+}
+
+async function logKycEmail(
+  admin: ReturnType<typeof createClient>,
+  row: {
+    order_id?: string | null;
+    order_number?: string | null;
+    recipient_email?: string | null;
+    status: "sent" | "failed" | "skipped" | "pending";
+    error?: string | null;
+    attempt_count?: number;
+    sent_by?: string | null;
+  },
+) {
+  try {
+    await admin.from("kyc_email_log").insert({
+      order_id: row.order_id ?? null,
+      order_number: row.order_number ?? null,
+      recipient_email: row.recipient_email ?? null,
+      doc_type: "kyc_invite",
+      status: row.status,
+      error: row.error ?? null,
+      attempt_count: row.attempt_count ?? 1,
+      sent_by: row.sent_by ?? null,
+    });
+  } catch (e) {
+    console.error("[kyc-handler] kyc_email_log insert failed:", e);
   }
 }
 
@@ -95,9 +170,12 @@ function btn(href: string, label: string) {
 // ---------- Action handlers ----------
 
 interface Body {
-  action: "onboard_order" | "submit" | "review" | "notify_salesperson";
+  action: "onboard_order" | "submit" | "review" | "notify_salesperson" | "resend_invite";
   // onboard_order
   order_id?: string;
+  // resend_invite
+  override_email?: string;
+  force?: boolean;
   // submit
   aadhaar_number?: string;
   file_path?: string;
@@ -141,7 +219,20 @@ Deno.serve(async (req) => {
   try {
     if (body.action === "onboard_order") {
       if (!callerId) return json({ error: "Not authenticated" }, 401);
-      return await onboardOrder(admin, body.order_id!);
+      return await onboardOrder(admin, body.order_id!, { triggeredBy: callerId });
+    }
+    if (body.action === "resend_invite") {
+      if (!callerId) return json({ error: "Not authenticated" }, 401);
+      const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", callerId);
+      const allowed = (roles || []).some((r: any) =>
+        ["admin", "sales", "sales_manager"].includes(r.role),
+      );
+      if (!allowed) return json({ error: "Forbidden" }, 403);
+      return await onboardOrder(admin, body.order_id!, {
+        triggeredBy: callerId,
+        force: true,
+        overrideEmail: body.override_email,
+      });
     }
     if (body.action === "submit") {
       if (!callerId) return json({ error: "Not authenticated" }, 401);
@@ -159,14 +250,23 @@ Deno.serve(async (req) => {
 });
 
 // ============ ONBOARDING ============
-async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: string) {
+async function onboardOrder(
+  admin: ReturnType<typeof createClient>,
+  orderId: string,
+  opts: { triggeredBy?: string | null; force?: boolean; overrideEmail?: string } = {},
+) {
   if (!orderId) return json({ error: "order_id required" }, 400);
-  // Hard kill-switch: if customer KYC/portal-invite emails are disabled, do
-  // NOTHING — no portal_account, no auth user, no portal_contact, no role.
-  // Otherwise we'd leave orphan accounts that cause future runs to
-  // short-circuit at the "portal_account_exists" check and silently send
-  // no email when the flag is later enabled.
-  if (!CUSTOMER_EMAILS_ENABLED) {
+  // Hard kill-switch (DB-backed). When OFF: no portal_account, no auth
+  // user, no portal_contact, no role, no email. Manual force from staff
+  // still requires the flag to be on.
+  const flagOn = await isCustomerEmailsEnabled(admin);
+  if (!flagOn) {
+    await logKycEmail(admin, {
+      order_id: orderId,
+      status: "skipped",
+      error: "feature_disabled",
+      sent_by: opts.triggeredBy ?? null,
+    });
     return json({ skipped: true, reason: "feature_disabled" });
   }
   const { data: order, error } = await admin
@@ -177,8 +277,43 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
   if (error) return json({ error: error.message }, 500);
   if (!order) return json({ error: "Order not found" }, 404);
 
-  const email = (order.customer_email || "").trim().toLowerCase();
-  if (!email) return json({ skipped: true, reason: "no_customer_email" });
+  const email = ((opts.overrideEmail ?? order.customer_email) || "").trim().toLowerCase();
+  if (!email) {
+    await logKycEmail(admin, {
+      order_id: order.id,
+      order_number: order.order_number,
+      status: "skipped",
+      error: "no_customer_email",
+      sent_by: opts.triggeredBy ?? null,
+    });
+    return json({ skipped: true, reason: "no_customer_email" });
+  }
+  if (!EMAIL_RE.test(email)) {
+    await logKycEmail(admin, {
+      order_id: order.id,
+      order_number: order.order_number,
+      recipient_email: email,
+      status: "skipped",
+      error: "invalid_email",
+      sent_by: opts.triggeredBy ?? null,
+    });
+    return json({ skipped: true, reason: "invalid_email" });
+  }
+
+  // Idempotency: if we've already sent a KYC invite for this order, don't
+  // auto-send again. Manual resend (force=true) bypasses this guard.
+  if (!opts.force) {
+    const { data: prevSent } = await admin
+      .from("kyc_email_log")
+      .select("id")
+      .eq("order_id", order.id)
+      .eq("status", "sent")
+      .limit(1)
+      .maybeSingle();
+    if (prevSent) {
+      return json({ skipped: true, reason: "already_sent" });
+    }
+  }
 
   // Only send onboarding/KYC email for drone orders, not for pure
   // Drone Components orders. If every line item on the order is in the
@@ -192,6 +327,14 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
       (it: any) => (it.product_category || "").trim().toLowerCase() === "drone components",
     );
     if (allComponents) {
+      await logKycEmail(admin, {
+        order_id: order.id,
+        order_number: order.order_number,
+        recipient_email: email,
+        status: "skipped",
+        error: "drone_components_only",
+        sent_by: opts.triggeredBy ?? null,
+      });
       return json({ skipped: true, reason: "drone_components_only" });
     }
   }
@@ -202,10 +345,11 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
     .select("id, account_id, auth_user_id")
     .ilike("email", email)
     .maybeSingle();
-  if (existingContact?.auth_user_id) {
-    return json({ skipped: true, reason: "portal_account_exists", account_id: existingContact.account_id });
-  }
+  let acctId: string | null = existingContact?.account_id ?? null;
+  let authUserId: string | null = existingContact?.auth_user_id ?? null;
+  const reusingExisting = !!(existingContact?.auth_user_id);
 
+  if (!reusingExisting) {
   // Pick a salesperson: existing on the order, else round-robin random active sales user
   let assignedRepId: string | null = order.sales_person_id;
   if (!assignedRepId) {
@@ -234,9 +378,9 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
     .select("id")
     .single();
   if (acctErr) return json({ error: `account create failed: ${acctErr.message}` }, 500);
+  acctId = acct.id;
 
   // Create or find auth user
-  let authUserId: string | null = null;
   const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
     email,
@@ -259,6 +403,9 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
     authUserId = created!.user.id;
   }
   if (!authUserId) return json({ error: "could not resolve user" }, 500);
+  } // end !reusingExisting
+
+  if (!authUserId || !acctId) return json({ error: "could not resolve user/account" }, 500);
 
   // Recovery link → set-password page
   const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
@@ -272,22 +419,24 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
     hashed!,
   )}&type=recovery`;
 
-  // portal_contact
-  await admin.from("portal_contacts").insert({
-    account_id: acct.id,
-    auth_user_id: authUserId,
-    full_name: order.customer_name || email.split("@")[0],
-    email,
-    role: "admin",
-    is_active: true,
-    invited_at: new Date().toISOString(),
-  });
+  if (!reusingExisting) {
+    // portal_contact
+    await admin.from("portal_contacts").insert({
+      account_id: acctId,
+      auth_user_id: authUserId,
+      full_name: order.customer_name || email.split("@")[0],
+      email,
+      role: "admin",
+      is_active: true,
+      invited_at: new Date().toISOString(),
+    });
 
-  // b2b_customer role + notif prefs
-  await admin.from("user_roles").upsert(
-    { user_id: authUserId, role: "b2b_customer" },
-    { onConflict: "user_id,role", ignoreDuplicates: true },
-  );
+    // b2b_customer role + notif prefs
+    await admin.from("user_roles").upsert(
+      { user_id: authUserId, role: "b2b_customer" },
+      { onConflict: "user_id,role", ignoreDuplicates: true },
+    );
+  }
 
   // Onboarding + KYC email
   const kycLink = `${PORTAL_BASE}/portal/kyc`;
@@ -313,17 +462,44 @@ async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: str
      <p style="margin:0;font-size:12px;color:#94a3b8;">Order processing may require KYC approval. If you have questions, just reply to this email.</p>`,
   );
 
-  const sendRes = await sendCustomerEmail(email, "Welcome to XBOOM — set up your portal & complete KYC", html);
+  const sendRes = await sendEmailWithRetry(
+    email,
+    "Welcome to XBOOM — set up your portal & complete KYC",
+    html,
+  );
 
-  await admin.from("kyc_audit_log").insert({
-    account_id: acct.id,
-    action: "onboarding_email_sent",
-    actor_role: "system",
-    notes: sendRes.ok ? null : sendRes.error,
-    metadata: { order_id: order.id, order_number: order.order_number },
+  await logKycEmail(admin, {
+    order_id: order.id,
+    order_number: order.order_number,
+    recipient_email: email,
+    status: sendRes.ok ? "sent" : "failed",
+    error: sendRes.ok ? null : sendRes.error,
+    attempt_count: sendRes.attempts,
+    sent_by: opts.triggeredBy ?? null,
   });
 
-  return json({ ok: true, account_id: acct.id, email_sent: sendRes.ok, email_error: sendRes.error });
+  await admin.from("kyc_audit_log").insert({
+    account_id: acctId,
+    action: "onboarding_email_sent",
+    actor_role: opts.triggeredBy ? "staff" : "system",
+    actor_id: opts.triggeredBy ?? null,
+    notes: sendRes.ok ? null : sendRes.error,
+    metadata: {
+      order_id: order.id,
+      order_number: order.order_number,
+      attempts: sendRes.attempts,
+      reused_existing: reusingExisting,
+      forced: !!opts.force,
+    },
+  });
+
+  return json({
+    ok: true,
+    account_id: acctId,
+    email_sent: sendRes.ok,
+    email_error: sendRes.error,
+    attempts: sendRes.attempts,
+  });
 }
 
 // ============ SUBMIT (customer) ============
@@ -583,7 +759,12 @@ async function emailCustomerStatus(
            <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.55;">Please re-upload your Aadhaar card from the portal so we can review again.</p>
            <p style="margin:0;">${btn(portalLink, "Re-upload KYC")}</p>`,
         );
-  await sendCustomerEmail(
+  // Approve/reject emails are also customer-facing — respect the kill switch.
+  if (!(await isCustomerEmailsEnabled(admin))) {
+    console.log("[kyc-handler] status email suppressed (kill switch)", { to: c.email });
+    return;
+  }
+  await sendEmail(
     c.email,
     decision === "approved" ? "Your KYC has been approved" : "Action needed: KYC was rejected",
     html,

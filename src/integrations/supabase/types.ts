@@ -4753,6 +4753,30 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_flags: {
+        Row: {
+          enabled: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: []
+      }
       flow_template_library: {
         Row: {
           category: string | null
@@ -7132,6 +7156,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      kyc_email_log: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          doc_type: string
+          error: string | null
+          id: string
+          order_id: string | null
+          order_number: string | null
+          recipient_email: string | null
+          sent_by: string | null
+          status: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          doc_type?: string
+          error?: string | null
+          id?: string
+          order_id?: string | null
+          order_number?: string | null
+          recipient_email?: string | null
+          sent_by?: string | null
+          status: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          doc_type?: string
+          error?: string | null
+          id?: string
+          order_id?: string | null
+          order_number?: string | null
+          recipient_email?: string | null
+          sent_by?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       kyc_sensitive_data: {
         Row: {

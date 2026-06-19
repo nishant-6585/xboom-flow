@@ -41,6 +41,7 @@ import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDial
 import { InvoiceListCard } from '@/components/orders/InvoiceListCard';
 import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
 import { sendInvoiceEmail } from '@/lib/invoiceEmail';
+import { KycInviteBadge } from '@/components/orders/KycInviteBadge';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -964,6 +965,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       Cancelled
                     </Badge>
                   )}
+                  <KycInviteBadge
+                    orderId={order.id}
+                    customerEmail={customerEmail || (order as any).customer_email}
+                  />
                 </DialogDescription>
               </div>
               <div className="mr-8 shrink-0">
