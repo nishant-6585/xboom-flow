@@ -407,17 +407,24 @@ async function onboardOrder(
 
   if (!authUserId || !acctId) return json({ error: "could not resolve user/account" }, 500);
 
-  // Recovery link → set-password page
-  const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
-    type: "recovery",
-    email,
-    options: { redirectTo: `${PORTAL_BASE}/portal/set-password` },
-  });
-  if (linkErr) return json({ error: `link gen failed: ${linkErr.message}` }, 500);
-  const hashed = linkData?.properties?.hashed_token;
-  const setupLink = `${PORTAL_BASE}/portal/set-password?token_hash=${encodeURIComponent(
-    hashed!,
-  )}&type=recovery`;
+  // Non-consuming invite link → /portal/activate. We mint our own token
+  // (NOT Supabase's single-use recovery token_hash) so email scanners /
+  // link previews can hit the URL without burning the one-time credential.
+  const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: inviteRow, error: inviteErr } = await admin
+    .from("portal_invite_tokens")
+    .insert({
+      auth_user_id: authUserId,
+      email,
+      account_id: acctId,
+      expires_at: inviteExpiresAt,
+    })
+    .select("token")
+    .single();
+  if (inviteErr) return json({ error: `invite token create failed: ${inviteErr.message}` }, 500);
+  const setupLink = `${PORTAL_BASE}/portal/activate?invite=${encodeURIComponent(
+    (inviteRow as { token: string }).token,
+  )}`;
 
   if (!reusingExisting) {
     // portal_contact
