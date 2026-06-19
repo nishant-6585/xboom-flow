@@ -155,23 +155,27 @@ Deno.serve(async (req) => {
       authUserId = created.user.id;
     }
 
-    // 5b. Generate a recovery link (works for both new + existing users)
-    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: { redirectTo },
-    });
-    if (linkErr) {
-      return json({ error: `Link generation failed: ${linkErr.message}` }, 500);
+    // 5b. Mint a non-consuming invite token (NOT Supabase's single-use
+    // recovery token_hash) so email scanners / link previews can hit the
+    // URL without burning the credential. The token is validated and
+    // consumed by the portal-activate edge function on password submit.
+    const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: inviteRow, error: inviteErr } = await admin
+      .from("portal_invite_tokens")
+      .insert({
+        auth_user_id: authUserId,
+        email,
+        account_id: accountId,
+        expires_at: inviteExpiresAt,
+      })
+      .select("token")
+      .single();
+    if (inviteErr) {
+      return json({ error: `Invite token create failed: ${inviteErr.message}` }, 500);
     }
-    // Build a direct link to our portal page using the hashed token so the
-    // recipient never has to hit the raw Supabase verify endpoint (which
-    // some networks fail to resolve and looks unbranded).
-    const hashedToken = linkData?.properties?.hashed_token;
-    if (!hashedToken) return json({ error: "No token returned" }, 500);
-    const actionLink = `${PORTAL_BASE}/portal/set-password?token_hash=${encodeURIComponent(
-      hashedToken,
-    )}&type=recovery`;
+    const actionLink = `${PORTAL_BASE}/portal/activate?invite=${encodeURIComponent(
+      (inviteRow as { token: string }).token,
+    )}`;
 
     // 6. Upsert portal_contact
     let contactId: string;
