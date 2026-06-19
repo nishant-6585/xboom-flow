@@ -51,8 +51,11 @@ serve(async (req) => {
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !user) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    const userId = claimsData?.claims?.sub as string | undefined;
+    if (claimsErr || !userId) {
+      console.error("JWT verification failed:", claimsErr);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -114,7 +117,7 @@ serve(async (req) => {
       woocommerce_order_id: inv.woocommerce_order_id,
       invoice_id: inv.id,
       doc_type: docType,
-      sent_by: user.id,
+      sent_by: userId,
     };
 
     // SKIP path
