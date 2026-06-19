@@ -312,6 +312,78 @@ export function GenerateProformaDialog({
 
   const duplicateFlags = useMemo(() => detectBundleDuplicates(lines), [lines]);
 
+  /** Recalculate proformas using current rules WITHOUT saving. */
+  const runDryRun = () => {
+    if (!subject) return;
+    const changedLines: Array<{ index: number; product_name: string; field: string; before: any; after: any }> = [];
+    let dryProformaTotal = 0;
+    lines.forEach((l, idx) => {
+      const inferred = inferGstRate(l.product_name, l.hsn);
+      const qty = Number(l.quantity) || 0;
+      const correctedGross = Math.round(l.unit_price_excl * qty * (1 + inferred / 100) * 100) / 100;
+      dryProformaTotal += correctedGross;
+      if (inferred !== Number(l.gst_rate)) {
+        changedLines.push({ index: idx, product_name: l.product_name, field: 'gst_rate', before: l.gst_rate, after: inferred });
+      }
+      if (Math.abs(correctedGross - Number(l.gross_total)) > 0.01) {
+        changedLines.push({ index: idx, product_name: l.product_name, field: 'gross_total', before: l.gross_total, after: correctedGross });
+      }
+    });
+    const expected = Number(subject.total) || 0;
+    setDryRun({
+      delta: Math.round((dryProformaTotal - expected) * 100) / 100,
+      proformaTotal: Math.round(dryProformaTotal * 100) / 100,
+      expectedTotal: expected,
+      changedLines,
+    });
+    toast.success(`Dry-run complete — ${changedLines.length} field change(s) would be applied`);
+  };
+
+  /** Manual override: approve current proforma as-is even though it's flagged stale. */
+  const handleManualOverride = async () => {
+    if (!existingProforma || !user) return;
+    if (!canRegenerate) { toast.error('Only Supply Chain, Finance, or Admin can override'); return; }
+    if (!overrideReason.trim() || overrideReason.trim().length < 8) {
+      toast.error('Please provide a clear reason (min 8 chars) for the override');
+      return;
+    }
+    setOverrideBusy(true);
+    try {
+      const actorName = (profile as any)?.full_name || user.email || null;
+      const { error } = await (supabase.from('order_invoices') as any)
+        .update({
+          needs_regenerate: false,
+          regenerate_reason: null,
+          regenerate_flagged_at: null,
+          override_reason: overrideReason.trim(),
+          override_by: user.id,
+          override_by_name: actorName,
+          override_at: new Date().toISOString(),
+        })
+        .eq('id', (existingProforma as any).id);
+      if (error) throw error;
+      await (supabase.from('proforma_rule_audit') as any).insert({
+        order_number: subject?.order_number,
+        order_id: order?.id || null,
+        woocommerce_order_id: wooOrder?.id || null,
+        action: 'MANUAL_OVERRIDE',
+        triggered_by: user.id,
+        triggered_by_name: actorName,
+        line_changes: { rules_version: PROFORMA_RULES_VERSION, role, reason: overrideReason.trim() },
+        before_snapshot: { needs_regenerate: true },
+        after_snapshot: { needs_regenerate: false, override_reason: overrideReason.trim() },
+      });
+      toast.success('Proforma re-approved with override');
+      setOverrideReason('');
+      onGenerated?.();
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Override failed');
+    } finally {
+      setOverrideBusy(false);
+    }
+  };
+
   const [rulesExpanded, setRulesExpanded] = useState(false);
   const lineRuleBreakdown = useMemo(
     () => lines.map((l) => ({ line: l, explain: explainGstRate(l.product_name, l.hsn) })),
