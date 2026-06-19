@@ -1,8 +1,9 @@
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { DroneOperation } from "@/hooks/useDroneOperations";
 
 interface Props {
@@ -29,27 +30,60 @@ const typeColors: Record<string, string> = {
 };
 
 export function OperationsTable({ operations, employeeMap, canEdit, onView, onEdit, onDelete, onDownloadReport }: Props) {
+  type SortKey = "activity_datetime" | "activity_type" | "project_name" | "client_name" | "service_fee" | "status";
+  const [sortKey, setSortKey] = useState<SortKey>("activity_datetime");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
+  };
+  const sortedOperations = useMemo(() => {
+    const arr = [...operations];
+    arr.sort((a, b) => {
+      let av: any; let bv: any;
+      switch (sortKey) {
+        case "activity_datetime": av = new Date(a.activity_datetime).getTime(); bv = new Date(b.activity_datetime).getTime(); break;
+        case "service_fee": av = a.service_fee ?? -Infinity; bv = b.service_fee ?? -Infinity; break;
+        default: av = (a[sortKey] || "").toString().toLowerCase(); bv = (b[sortKey] || "").toString().toLowerCase();
+      }
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return arr;
+  }, [operations, sortKey, sortDir]);
+  const SortHead = ({ k, label }: { k: SortKey; label: string }) => {
+    const active = sortKey === k;
+    const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <TableHead onClick={() => toggleSort(k)} className="cursor-pointer select-none">
+        <span className={`inline-flex items-center gap-1 ${active ? "text-foreground" : "text-muted-foreground"}`}>
+          {label} <Icon className="h-3 w-3" />
+        </span>
+      </TableHead>
+    );
+  };
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date & Time</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Project</TableHead>
-            <TableHead>Client / Location</TableHead>
+            <SortHead k="activity_datetime" label="Date & Time" />
+            <SortHead k="activity_type" label="Type" />
+            <SortHead k="project_name" label="Project" />
+            <SortHead k="client_name" label="Client / Location" />
             <TableHead>Equipment</TableHead>
-            <TableHead>Service Fee</TableHead>
+            <SortHead k="service_fee" label="Service Fee" />
             <TableHead>Team</TableHead>
-            <TableHead>Status</TableHead>
+            <SortHead k="status" label="Status" />
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {operations.length === 0 && (
+          {sortedOperations.length === 0 && (
             <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No operations found</TableCell></TableRow>
           )}
-          {operations.map(op => (
+          {sortedOperations.map(op => (
             <TableRow key={op.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onView(op)}>
               <TableCell className="whitespace-nowrap text-sm">{format(new Date(op.activity_datetime), "dd MMM yyyy, hh:mm a")}</TableCell>
               <TableCell><Badge className={typeColors[op.activity_type] || ""} variant="secondary">{op.activity_type}</Badge></TableCell>
