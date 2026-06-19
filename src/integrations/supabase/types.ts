@@ -10171,6 +10171,36 @@ export type Database = {
           },
         ]
       }
+      portal_invite_tokens: {
+        Row: {
+          account_id: string | null
+          auth_user_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          auth_user_id: string
+          created_at?: string
+          email: string
+          expires_at: string
+          token?: string
+          used_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          auth_user_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       portal_notification_preferences: {
         Row: {
           contact_id: string
