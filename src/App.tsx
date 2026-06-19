@@ -175,6 +175,7 @@ function AppInner() {
               <Routes>
                 <Route path="login" element={<PortalLogin />} />
                 <Route path="set-password" element={<PortalSetPassword />} />
+                <Route path="activate" element={<PortalActivate />} />
                 <Route
                   path="dashboard"
                   element={
