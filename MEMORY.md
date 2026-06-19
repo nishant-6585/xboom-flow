@@ -4,7 +4,19 @@
 > Update this file as tasks complete. Newest entries at the top of each section.
 > Status legend: ✅ done · 🟡 in progress · ⏳ pending / not started · ❗ blocker
 
-Last updated: 2026-06-18
+Last updated: 2026-06-19
+
+---
+
+## ⏳ PLANNED — Proforma audit/reconciliation polish (prompts handed to Lovable)
+
+Polish on the existing proforma rules-engine/reconciliation/audit system (`proforma_rule_audit`, `proformaRules.ts`, ProformaReconciliation/BatchValidate pages, `proforma_stale` notifications). Priority: A → B → C; #4 deferred.
+
+- **A (do first, ⏳):** #5 "Review now" CTA on `proforma_stale` notifications deep-linking to `/proforma-reconciliation?order=…` (page already highlights mismatched GST lines) + #1 line-level old→new diff (GST rate, taxable, gross, proforma total) in the audit trail from `line_changes`/snapshots; ensure snapshots include taxable+total going forward.
+- **B (⏳):** global filterable audit log — promote `rules_version` from `line_changes` JSONB to a real column (+ backfill/index, and write it going forward), add a filterable list (order, action incl auto-regenerate/auto-fix, user, rules_version, date).
+- **C (⏳):** `ProformaBatchValidate` — per-order failure surfacing + "Retry failed" button + clear error toasts.
+- **#4 DEFERRED:** per-user notification preferences (in-app vs email/Slack) for stale alerts — heavy, overlaps migration. Cheap interim if needed: mirror `proforma_stale` to the existing supply-chain Slack channel.
+- Meta note: proforma subsystem is large for a non-tax document — sharpen (A/B), avoid further scope creep pre-migration.
 
 ---
 
