@@ -2,6 +2,13 @@
 // Single source of truth so the dialog, regenerate flow and reconciliation view
 // all reach the same answer for the same line.
 
+/**
+ * Bump whenever inferGstRate / detectBundleDuplicates / loader semantics
+ * change. Stored on every generated proforma's audit_snapshot so we can
+ * flag pre-existing proformas as stale and offer one-click regeneration.
+ */
+export const PROFORMA_RULES_VERSION = '2026.06.19';
+
 export const DRONE_GST = 5;
 export const STANDARD_GST = 18;
 
