@@ -646,16 +646,35 @@ export function GenerateProformaDialog({
               {((existingProforma as any)?.needs_regenerate ||
                 ((existingProforma as any)?.audit_snapshot?.rules_version &&
                  (existingProforma as any).audit_snapshot.rules_version !== PROFORMA_RULES_VERSION)) && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <div className="font-medium">This proforma is out of date.</div>
-                    <div className="text-muted-foreground">
-                      {(existingProforma as any)?.regenerate_reason && <>Reason: {(existingProforma as any).regenerate_reason}. </>}
-                      Saved with rules v{(existingProforma as any)?.audit_snapshot?.rules_version || '—'}, current is v{PROFORMA_RULES_VERSION}.
-                      Click <em>Regenerate Proforma</em> to refresh.
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-medium">This proforma is out of date.</div>
+                      <div className="text-muted-foreground">
+                        {(existingProforma as any)?.regenerate_reason && <>Reason: {(existingProforma as any).regenerate_reason}. </>}
+                        Saved with rules v{(existingProforma as any)?.audit_snapshot?.rules_version || '—'}, current is v{PROFORMA_RULES_VERSION}.
+                        Click <em>Regenerate Proforma</em> to refresh, or override below with a reason.
+                      </div>
                     </div>
                   </div>
+                  {canRegenerate && (
+                    <div className="rounded border border-amber-200 bg-white/60 dark:bg-black/20 p-2 space-y-1.5">
+                      <Label className="text-[11px] flex items-center gap-1">
+                        <ShieldCheck className="h-3 w-3" /> Manual override — approve as-is
+                      </Label>
+                      <Textarea rows={2} placeholder="Why is regeneration unnecessary? (min 8 chars — kept in audit log)"
+                        value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} className="text-xs" />
+                      <div className="flex justify-end">
+                        <Button type="button" size="sm" variant="outline" className="h-7"
+                          disabled={overrideBusy || overrideReason.trim().length < 8}
+                          onClick={handleManualOverride}>
+                          {overrideBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                          Confirm override
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex items-center justify-end">
