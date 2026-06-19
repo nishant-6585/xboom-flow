@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Trash2, Plus, RotateCcw } from 'lucide-react';
+import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +20,12 @@ import {
   getGstTreatment,
   guessStateCode,
 } from '@/lib/invoiceGst';
+import {
+  inferGstRate as ruleInferGstRate,
+  inferGstRateFromWooLine as ruleInferGstRateFromWooLine,
+  detectBundleDuplicates,
+  reconcileProforma,
+} from '@/lib/proformaRules';
 import { computeProformaTotals, generateProformaPdf, ProformaLineInput } from '@/lib/invoicePdfGenerator';
 import { uploadProformaInvoice, OrderInvoice } from '@/hooks/useOrderInvoices';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
@@ -32,58 +40,13 @@ interface Line {
   gst_rate: number;
   /** Per-unit, GST-exclusive price. Used to recompute gross_total when qty/GST changes. */
   unit_price_excl: number;
+  /** When true, the user-entered `gross_total` is treated as already GST-inclusive
+   *  (default). When false, `gross_total` is the taxable amount and GST is added on top. */
+  rate_includes_gst?: boolean;
 }
 
-/**
- * Category-based GST rate:
- *   - Drones → 5%
- *   - All other accessories / spares → 18%
- * Name-based fallback (case-insensitive). Accessories like propellers, batteries,
- * chargers, cables, gimbals, cases, props, blades, remotes are explicitly 18%.
- * HSN 8806* is the drone HSN family but ONLY counts when the name doesn't look
- * like an accessory (DJI accessories often share HSN 88062200).
- */
-function inferGstRate(productName: string, hsn?: string): number {
-  const name = (productName || '').toLowerCase();
-  const code = (hsn || '').trim();
-  const isAccessory = /(propeller|prop\b|blade|battery|batteries|charger|cable|cord|adapter|case|bag|backpack|strap|filter|nd\s*filter|lens|gimbal|remote\b|controller|antenna|landing\s*gear|guard|hood|mount|holder|memory|sd\s*card|spare|accessor)/i.test(name);
-  if (isAccessory) return 18;
-  const isDrone =
-    /\bdrones?\b/.test(name) ||
-    /\buav\b/.test(name) ||
-    /\bquadcopter\b/.test(name) ||
-    // HSN 8806 family — only trust it when the name didn't flag as accessory above
-    code.startsWith('8806');
-  return isDrone ? 5 : 18;
-}
-
-/**
- * Derive the GST rate from a WooCommerce line_item payload. Tries the most
- * reliable signals first:
- *   1. subtotal_tax / subtotal → exact effective rate paid on Woo
- *   2. tax_class string (Woo stores rates like "18", "5", "gst-18", "rate-5")
- *   3. Name/HSN heuristic via inferGstRate()
- */
-function inferGstRateFromWooLine(it: any): number {
-  const sub = Number(it?.subtotal ?? 0);
-  const subTax = Number(it?.subtotal_tax ?? 0);
-  if (sub > 0 && subTax > 0) {
-    const pct = (subTax / sub) * 100;
-    // Snap to common Indian GST slabs
-    const slabs = [0, 5, 12, 18, 28];
-    const snapped = slabs.reduce((best, s) =>
-      Math.abs(s - pct) < Math.abs(best - pct) ? s : best, slabs[0]);
-    if (Math.abs(snapped - pct) <= 1) return snapped;
-    return Math.round(pct);
-  }
-  const tc = String(it?.tax_class ?? '').trim();
-  const m = tc.match(/(\d{1,2})/);
-  if (m) {
-    const n = Number(m[1]);
-    if ([0, 3, 5, 12, 18, 28].includes(n)) return n;
-  }
-  return inferGstRate(it?.name || it?.product_name || '', DEFAULT_HSN);
-}
+const inferGstRate = ruleInferGstRate;
+const inferGstRateFromWooLine = (it: any) => ruleInferGstRateFromWooLine(it, DEFAULT_HSN);
 
 interface Props {
   /** Internal order — pass this OR wooOrder. */
