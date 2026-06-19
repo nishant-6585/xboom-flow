@@ -84,16 +84,17 @@ export default function ProformaReconciliation() {
         setAmountPaid(amountPaidLocal);
         if (expectedTotal === 0) setExpectedTotal(orderTotalLocal);
 
-        // 2. Latest proforma audit snapshot
-        const { data: invs } = await (supabase.from('order_invoices') as any)
-          .select('id, invoice_number, total, audit_snapshot, created_at')
-          .ilike('audit_snapshot->>order_number', search)
+        // 2. Latest proforma snapshot from audit log
+        const { data: logs } = await (supabase.from('proforma_audit_log') as any)
+          .select('id, invoice_id, snapshot, created_at')
+          .filter('snapshot->>order_number', 'eq', search)
           .order('created_at', { ascending: false }).limit(1);
-        const inv = invs?.[0];
-        if (inv) {
-          setProformaId(inv.id);
-          setProformaTotal(Number(inv.total) || 0);
-          const snapLines = (inv.audit_snapshot?.lines || []) as ProformaLine[];
+        const log = logs?.[0];
+        if (log) {
+          setProformaId(log.invoice_id);
+          const snap = log.snapshot || {};
+          setProformaTotal(Number(snap.total) || 0);
+          const snapLines = (snap.lines || []) as ProformaLine[];
           setLines(snapLines.map((l) => ({
             product_name: l.product_name, hsn: l.hsn || '',
             quantity: Number(l.quantity) || 0,
