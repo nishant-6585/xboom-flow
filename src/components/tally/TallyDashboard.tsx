@@ -1003,6 +1003,7 @@ export function TallyDashboard() {
                   <TableHead><SortBtn field="orderNumber" label="Order #" /></TableHead>
                   <TableHead><SortBtn field="orderDate" label="Order Date" /></TableHead>
                   <TableHead>Invoice #</TableHead>
+                  <TableHead>Proforma #</TableHead>
                   <TableHead>PO #</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Product</TableHead>
@@ -1027,7 +1028,7 @@ export function TallyDashboard() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={22} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={23} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
@@ -1043,6 +1044,7 @@ export function TallyDashboard() {
                         {r.orderDate ? format(new Date(r.orderDate), "dd MMM yyyy") : "—"}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap min-w-[140px]">{r.invoiceNumber}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap min-w-[140px]">{r.proformaNumber}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px]">{r.poNumber}</TableCell>
                       <TableCell>
                         <button onClick={() => openOrderDialog(r.orderId)} className="max-w-[140px] text-left cursor-pointer hover:opacity-80" title="View Order">
