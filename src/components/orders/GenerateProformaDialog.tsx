@@ -332,6 +332,7 @@ export function GenerateProformaDialog({
 
   const handleGenerate = async () => {
     if (!subject || !user) return;
+    if (!canRegenerate) { toast.error('Only Supply Chain, Finance, or Admin can generate proformas'); return; }
     if (lines.length === 0) { toast.error('Add at least one line item'); return; }
     if (lines.some((l) => !l.product_name.trim() || l.gross_total <= 0)) {
       toast.error('Every line needs a name and a positive amount'); return;
@@ -514,6 +515,9 @@ export function GenerateProformaDialog({
                 <Label>Line Items (amounts are GST-inclusive)</Label>
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={autoFixRates} title="Re-apply SAC/HSN GST rules to all lines">
+                  </Button>
+                </div>
+              </div>
                     <Wand2 className="h-4 w-4 mr-1" /> Auto-fix GST
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={addLine}>
