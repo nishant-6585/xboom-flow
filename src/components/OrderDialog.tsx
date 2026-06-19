@@ -281,6 +281,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setCustomerGst((order as any).customer_gst || '');
       setCustomerPhone((order as any).customer_phone || '');
       setCustomerEmail((order as any).customer_email || '');
+      setInvoiceEmailState(defaultEmailState((order as any).customer_email || ''));
       setEscalationReason('');
       setShowEscalationForm(false);
 
