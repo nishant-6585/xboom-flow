@@ -10,6 +10,12 @@
 //
 // Stays on the same Resend-based email pattern as portal-invite-customer.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  EMAIL_RE,
+  isDuplicate,
+  sendWithRetry,
+  type SendResult,
+} from "./helpers.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // Kill switch for customer-facing KYC emails. Source of truth is the
@@ -30,32 +36,15 @@ async function isCustomerEmailsEnabled(admin: ReturnType<typeof createClient>): 
   return (Deno.env.get("KYC_CUSTOMER_EMAILS_ENABLED") ?? "false").toLowerCase() === "true";
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-async function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-// Wraps sendEmail with retries (3 attempts: 1s, 3s, 9s) on transient errors
-// (HTTP 429 / 5xx / network throws). Hard 4xx errors are NOT retried.
+// Wraps sendEmailOnce with the shared retry helper (3 attempts: 1s, 3s, 9s
+// on HTTP 429 / 5xx / network throws — hard 4xx never retries).
 async function sendEmailWithRetry(
   to: string,
   subject: string,
   html: string,
 ): Promise<{ ok: boolean; error?: string; attempts: number }> {
-  const delays = [1000, 3000, 9000];
-  let lastErr: string | undefined;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const res = await sendEmailOnce(to, subject, html);
-    if (res.ok) return { ok: true, attempts: attempt };
-    lastErr = res.error;
-    // Decide if transient
-    const status = res.status ?? 0;
-    const transient = res.network === true || status === 429 || (status >= 500 && status < 600);
-    if (!transient || attempt === 3) return { ok: false, error: lastErr, attempts: attempt };
-    await sleep(delays[attempt - 1]);
-  }
-  return { ok: false, error: lastErr, attempts: 3 };
+  const outcome = await sendWithRetry(() => sendEmailOnce(to, subject, html) as Promise<SendResult>);
+  return { ok: outcome.ok, error: outcome.error, attempts: outcome.attempt_count };
 }
 const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE = "https://xboomflow.com";
