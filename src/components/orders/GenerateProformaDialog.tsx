@@ -564,6 +564,42 @@ export function GenerateProformaDialog({
                   </tbody>
                 </table>
               </div>
+              {lines.length > 0 && (
+                <div className="border rounded-lg">
+                  <button type="button" onClick={() => setRulesExpanded((v) => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-muted/50">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Info className="h-3.5 w-3.5" />
+                      Per-line GST rule breakdown ({lines.length}) — rules v{PROFORMA_RULES_VERSION}
+                    </span>
+                    {rulesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                  {rulesExpanded && (
+                    <div className="px-3 pb-3 space-y-1.5 text-[11px]">
+                      {lineRuleBreakdown.map(({ line, explain }, idx) => {
+                        const mismatch = explain.rate !== Number(line.gst_rate);
+                        return (
+                          <div key={idx} className={`grid grid-cols-[1fr_auto] gap-2 rounded border p-2 ${mismatch ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/30' : 'border-border'}`}>
+                            <div>
+                              <div className="font-medium">Line {idx + 1}: {line.product_name || '—'}</div>
+                              <div className="text-muted-foreground">{explain.detail}</div>
+                              <div className="text-muted-foreground">
+                                Source: <span className="font-mono">{explain.source}</span> ·
+                                Inferred: <span className="font-medium">{explain.rate}%</span> ·
+                                Applied: <span className={`font-medium ${mismatch ? 'text-amber-700' : ''}`}>{line.gst_rate}%</span> ·
+                                Total is GST-{line.rate_includes_gst !== false ? 'inclusive' : 'exclusive'}
+                              </div>
+                            </div>
+                            {mismatch && (
+                              <Badge variant="outline" className="self-start text-[10px]">Override active</Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {previewTotals && (
