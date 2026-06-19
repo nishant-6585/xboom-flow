@@ -2048,6 +2048,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
               {canEdit ? (
                 <div>
+                  <InvoiceEmailControl
+                    state={invoiceEmailState}
+                    onChange={setInvoiceEmailState}
+                    canBypass={canBypassInvoiceEmail}
+                    className="mb-3"
+                  />
                   <input
                     ref={invoiceInputRef}
                     type="file"
