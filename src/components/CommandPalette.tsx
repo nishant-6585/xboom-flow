@@ -33,7 +33,7 @@ const NAV_ITEMS = [
   { label: 'Spare Parts', route: '/spare-parts', icon: Package },
   { label: 'Pricelist', route: '/pricelist', icon: ClipboardList },
   { label: 'Finance', route: '/finance', icon: IndianRupee },
-  { label: 'Billing', route: '/billing', icon: FileText },
+  { label: 'Quotes', route: '/sales?tab=quotes', icon: FileText },
   { label: 'Suppliers', route: '/suppliers', icon: Building2 },
   { label: 'Tasks', route: '/tasks', icon: ListTodo },
   { label: 'Tickets', route: '/tickets', icon: Ticket },
