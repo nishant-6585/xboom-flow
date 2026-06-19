@@ -8196,6 +8196,10 @@ export type Database = {
           invoice_number: string | null
           needs_regenerate: boolean
           order_id: string | null
+          override_at: string | null
+          override_by: string | null
+          override_by_name: string | null
+          override_reason: string | null
           place_of_supply: string | null
           regenerate_flagged_at: string | null
           regenerate_reason: string | null
@@ -8219,6 +8223,10 @@ export type Database = {
           invoice_number?: string | null
           needs_regenerate?: boolean
           order_id?: string | null
+          override_at?: string | null
+          override_by?: string | null
+          override_by_name?: string | null
+          override_reason?: string | null
           place_of_supply?: string | null
           regenerate_flagged_at?: string | null
           regenerate_reason?: string | null
@@ -8242,6 +8250,10 @@ export type Database = {
           invoice_number?: string | null
           needs_regenerate?: boolean
           order_id?: string | null
+          override_at?: string | null
+          override_by?: string | null
+          override_by_name?: string | null
+          override_reason?: string | null
           place_of_supply?: string | null
           regenerate_flagged_at?: string | null
           regenerate_reason?: string | null
