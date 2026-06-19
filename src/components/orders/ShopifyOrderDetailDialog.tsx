@@ -91,18 +91,10 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
       fulfillment_status: fulfillment,
       order_status: orderStatus,
       internal_notes: order.internal_notes ?? '',
-      sales_notes: buildAutoSalesNotes(payment, fulfillment, orderStatus),
+      sales_notes: order.sales_notes ?? buildAutoSalesNotes(payment, fulfillment, orderStatus),
       amount_paid: order.amount_paid != null ? String(order.amount_paid) : '',
     });
   }, [order]);
-
-  // Auto-overwrite sales notes whenever any status changes
-  useEffect(() => {
-    setForm(f => ({
-      ...f,
-      sales_notes: buildAutoSalesNotes(f.payment_status, f.fulfillment_status, f.order_status),
-    }));
-  }, [form.payment_status, form.fulfillment_status, form.order_status]);
 
   if (!order) return null;
 
@@ -275,15 +267,34 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
               />
             </div>
             <div>
-              <Label className="text-xs">Sales notes</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Sales notes</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[10px]"
+                  onClick={() => {
+                    const snap = buildAutoSalesNotes(form.payment_status, form.fulfillment_status, form.order_status);
+                    setForm(f => ({
+                      ...f,
+                      sales_notes: f.sales_notes && !f.sales_notes.endsWith(snap)
+                        ? `${f.sales_notes}\n${snap}`
+                        : (f.sales_notes || snap),
+                    }));
+                  }}
+                >
+                  Insert status snapshot
+                </Button>
+              </div>
               <Textarea
                 value={form.sales_notes}
-                readOnly
-                rows={2}
-                className="bg-muted/40 text-muted-foreground"
+                onChange={(e) => setForm(f => ({ ...f, sales_notes: e.target.value }))}
+                rows={3}
+                placeholder="Add notes for the sales team…"
               />
               <p className="text-[10px] text-muted-foreground mt-1">
-                Auto-generated from order status. Saved on "Save changes".
+                Editable. Use "Insert status snapshot" to append the current Fulfillment/Payment/Order status.
               </p>
             </div>
             <div>
