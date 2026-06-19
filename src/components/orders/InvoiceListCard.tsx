@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, ExternalLink, Download, RotateCcw, X, Loader2 } from 'lucide-react';
+import { FileText, ExternalLink, Download, RotateCcw, X, Loader2, Mail, MailCheck, MailX, MailMinus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DocumentViewer } from '@/components/hr/DocumentViewer';
 import { OrderInvoice } from '@/hooks/useOrderInvoices';
+import { fetchInvoiceEmailLogs, sendInvoiceEmail, InvoiceEmailLog, isValidEmail } from '@/lib/invoiceEmail';
 
 interface Props {
   invoices: OrderInvoice[];
@@ -22,6 +23,28 @@ export function InvoiceListCard({ invoices, canRegenerate, onRegenerate, canDele
     open: false, url: null, name: '', fileType: '',
   });
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [logs, setLogs] = useState<Record<string, InvoiceEmailLog>>({});
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const refreshLogs = async () => {
+    const ids = invoices.map((i) => i.id);
+    if (ids.length === 0) return;
+    setLogs(await fetchInvoiceEmailLogs(ids));
+  };
+
+  useEffect(() => { refreshLogs(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [invoices.map((i) => i.id).join(',')]);
+
+  const handleResend = async (inv: OrderInvoice) => {
+    const existing = logs[inv.id];
+    const prefill = existing?.to_email || '';
+    const email = window.prompt('Send invoice to customer email:', prefill);
+    if (!email) return;
+    if (!isValidEmail(email)) { toast.error('Invalid email address'); return; }
+    setResendingId(inv.id);
+    const r = await sendInvoiceEmail({ invoice_id: inv.id, to_email: email.trim(), mode: 'manual', force: true });
+    setResendingId(null);
+    if (r.ok) refreshLogs();
+  };
 
   const openInvoice = async (inv: OrderInvoice, mode: 'preview' | 'download') => {
     setOpeningId(inv.id);
