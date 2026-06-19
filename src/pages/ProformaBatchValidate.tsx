@@ -144,11 +144,12 @@ export default function ProformaBatchValidate() {
   };
 
   const exportCsv = () => {
-    const out: string[] = [['Order', 'Status', 'Expected', 'Computed', 'Delta', 'Stored rules version', 'Rules hit'].join(',')];
+    const out: string[] = [['Order', 'Status', 'Expected', 'Computed', 'Delta', 'Stored rules version', 'Rules hit / error'].join(',')];
     for (const r of rows) {
+      const detail = r.status === 'FAILED' ? (r.error || 'Unknown error') : r.rule_hits.join(' | ');
       out.push([
         r.order_number, r.status, r.expected_total, r.computed_total, r.delta,
-        r.rules_version_stored || '', `"${r.rule_hits.join(' | ').replace(/"/g, "'")}"`,
+        r.rules_version_stored || '', `"${detail.replace(/"/g, "'")}"`,
       ].join(','));
     }
     const blob = new Blob([out.join('\n')], { type: 'text/csv' });
@@ -178,6 +179,7 @@ export default function ProformaBatchValidate() {
       ['Mismatch', String(counts.MISMATCH || 0)],
       ['Stale rules', String(counts.STALE_RULES || 0)],
       ['Missing', String(counts.MISSING || 0)],
+      ['Failed', String(counts.FAILED || 0)],
       ['Aggregate |Δ|', inr(totalDrift)],
     ];
     for (const [k, v] of sums) { doc.text(k, 50, y); doc.text(v, W - 50, y, { align: 'right' }); y += 14; }
@@ -238,6 +240,14 @@ export default function ProformaBatchValidate() {
               <Badge variant="destructive">Mismatch: {counts.MISMATCH || 0}</Badge>
               <Badge variant="outline">Stale: {counts.STALE_RULES || 0}</Badge>
               <Badge variant="secondary">Missing: {counts.MISSING || 0}</Badge>
+            <Badge variant="destructive" className="bg-rose-700">Failed: {counts.FAILED || 0}</Badge>
+            {(counts.FAILED || 0) > 0 && (
+              <Button variant="outline" size="sm" onClick={retryFailed} disabled={retrying || busy}>
+                {retrying
+                  ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Retrying…</>
+                  : <><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry failed ({counts.FAILED})</>}
+              </Button>
+            )}
               <Button variant="ghost" size="sm" onClick={exportCsv}>
                 <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />CSV
               </Button>
@@ -262,7 +272,12 @@ export default function ProformaBatchValidate() {
               </TableHeader>
               <TableBody>
                 {rows.map((r) => (
-                  <TableRow key={r.order_number} className={r.status === 'MISMATCH' ? 'bg-rose-50/40 dark:bg-rose-950/20' : ''}>
+                  <TableRow key={r.order_number}
+                    className={
+                      r.status === 'FAILED' ? 'bg-rose-100/60 dark:bg-rose-950/40'
+                        : r.status === 'MISMATCH' ? 'bg-rose-50/40 dark:bg-rose-950/20'
+                          : ''
+                    }>
                     <TableCell>
                       {r.status !== 'OK' && r.status !== 'MISSING' && (
                         <Checkbox checked={selected.has(r.order_number)} onCheckedChange={() => toggle(r.order_number)} />
@@ -274,16 +289,29 @@ export default function ProformaBatchValidate() {
                       {r.status === 'MISMATCH' && <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Mismatch</Badge>}
                       {r.status === 'STALE_RULES' && <Badge variant="outline">Stale rules</Badge>}
                       {r.status === 'MISSING' && <Badge variant="secondary">Missing</Badge>}
+                      {r.status === 'FAILED' && (
+                        <Badge variant="destructive" className="bg-rose-700" title={r.error || 'Unknown error'}>
+                          <XCircle className="h-3 w-3 mr-1" />Failed
+                        </Badge>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right text-xs">{inr(r.expected_total)}</TableCell>
-                    <TableCell className="text-right text-xs">{inr(r.computed_total)}</TableCell>
-                    <TableCell className={`text-right text-xs ${Math.abs(r.delta) > 1 ? 'text-rose-600 font-medium' : ''}`}>
-                      {r.delta === 0 ? '—' : inr(r.delta)}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {r.rules_version_stored || <span className="text-muted-foreground italic">none</span>}
-                      {r.stale && r.rules_version_stored && <span className="text-amber-600"> ≠ v{PROFORMA_RULES_VERSION}</span>}
-                    </TableCell>
+                    {r.status === 'FAILED' ? (
+                      <TableCell colSpan={4} className="text-xs text-rose-700 dark:text-rose-300">
+                        {r.error || 'Unknown error'}
+                      </TableCell>
+                    ) : (
+                      <>
+                        <TableCell className="text-right text-xs">{inr(r.expected_total)}</TableCell>
+                        <TableCell className="text-right text-xs">{inr(r.computed_total)}</TableCell>
+                        <TableCell className={`text-right text-xs ${Math.abs(r.delta) > 1 ? 'text-rose-600 font-medium' : ''}`}>
+                          {r.delta === 0 ? '—' : inr(r.delta)}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {r.rules_version_stored || <span className="text-muted-foreground italic">none</span>}
+                          {r.stale && r.rules_version_stored && <span className="text-amber-600"> ≠ v{PROFORMA_RULES_VERSION}</span>}
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell>
                       {r.order_id && (
                         <Link to={`/orders?open=${r.order_id}`} className="text-xs underline inline-flex items-center">
