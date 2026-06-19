@@ -299,6 +299,12 @@ export function GenerateProformaDialog({
 
   const duplicateFlags = useMemo(() => detectBundleDuplicates(lines), [lines]);
 
+  const [rulesExpanded, setRulesExpanded] = useState(false);
+  const lineRuleBreakdown = useMemo(
+    () => lines.map((l) => ({ line: l, explain: explainGstRate(l.product_name, l.hsn) })),
+    [lines],
+  );
+
   const removeDuplicate = (idx: number) => {
     setLines((prev) => prev.filter((_, i) => i !== idx));
     toast.success('Removed duplicate bundled line');
