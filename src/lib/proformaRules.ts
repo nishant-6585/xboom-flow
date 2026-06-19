@@ -116,7 +116,7 @@ export function detectBundleDuplicates(
           const bundleAmount = Number((line as any).gross_total) || 0;
           const otherAmount = Number((other as any).gross_total) || 0;
           if (bundleAmount > 0 && otherAmount > 0 && otherAmount > bundleAmount * 0.1) {
-            continue;
+            return;
           }
           flags.push({
             duplicateIndex: j,
