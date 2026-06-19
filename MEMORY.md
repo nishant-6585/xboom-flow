@@ -22,7 +22,9 @@ Last updated: 2026-06-19
 Flag: edge-function secret **`KYC_CUSTOMER_EMAILS_ENABLED`** (defaults `"false"`). `kyc-handler` `onboardOrder` (called from `useOrders.ts:644` after order create) sends the portal invite + KYC email only when this is `"true"`. Invite link is built like the working manual invite (`generateLink` recovery → `https://xboomflow.com/portal/set-password?token_hash=…&type=recovery`, verified by `portal-set-password`).
 - **Retest gotcha:** while the flag was OFF, `onboardOrder` STILL created `portal_account` + auth user + `portal_contact` + `b2b_customer` role (only the *email* was gated). So re-testing with a previously-used customer email short-circuits at `existingContact.auth_user_id` → `portal_account_exists`, sends nothing. Retest with a FRESH email, or delete that email's portal_contacts/portal_accounts/auth.users first.
 - **Likely past "link issue":** one-time recovery token consumed by email scanner/link preview, or recovery-link expiry (~1h), or the stale-account short-circuit above.
-- **Optional hardening (not built):** gate account/user creation behind the same flag (stop orphan accounts); switch to a non-consuming set-password link if scanners burn the OTP.
+- **Hardening Part 1 ✅** (commit `2f551263`): `onboardOrder()` now returns `{skipped, reason:"feature_disabled"}` before creating any portal_account/auth user/contact/role when flag ≠ "true" (no more orphan accounts). Idempotent `portal_account_exists` check preserved for flag-on.
+- **Hardening Part 2 ⏳ deferred:** non-consuming set-password link — only if retest shows the one-time recovery token is being consumed by scanners/previews.
+- **Bigger enhancement prompt (⏳ not built):** KYC email audit log (`kyc_email_log`) + auto-retry on transient failures + UI status badge + DB-backed feature flag with admin toggle/last-changed (supersedes the env secret). Plus good-to-haves: idempotency, manual resend, email validation.
 
 ---
 
