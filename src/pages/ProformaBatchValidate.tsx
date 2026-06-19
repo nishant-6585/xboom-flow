@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, ShieldCheck, AlertTriangle, CheckCircle2, ExternalLink, FileSpreadsheet } from 'lucide-react';
+import { Loader2, ShieldCheck, AlertTriangle, CheckCircle2, ExternalLink, FileSpreadsheet, FileDown } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { inferGstRate, reconcileProforma, PROFORMA_RULES_VERSION } from '@/lib/proformaRules';
@@ -100,6 +101,50 @@ export default function ProformaBatchValidate() {
     a.click(); URL.revokeObjectURL(a.href);
   };
 
+  const exportPdf = () => {
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const W = doc.internal.pageSize.getWidth();
+    let y = 40;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+    doc.text('Proforma Batch Validation Report', 40, y); y += 22;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 40, y);
+    doc.text(`Rules version: ${PROFORMA_RULES_VERSION}`, W - 200, y); y += 18;
+    doc.setDrawColor(220); doc.line(40, y, W - 40, y); y += 16;
+
+    doc.setFont('helvetica', 'bold'); doc.text('Summary', 40, y); y += 14;
+    doc.setFont('helvetica', 'normal');
+    const totalDrift = rows.reduce((s, r) => s + Math.abs(r.delta), 0);
+    const sums: Array<[string, string]> = [
+      ['Total orders', String(rows.length)],
+      ['OK', String(counts.OK || 0)],
+      ['Mismatch', String(counts.MISMATCH || 0)],
+      ['Stale rules', String(counts.STALE_RULES || 0)],
+      ['Missing', String(counts.MISSING || 0)],
+      ['Aggregate |Δ|', inr(totalDrift)],
+    ];
+    for (const [k, v] of sums) { doc.text(k, 50, y); doc.text(v, W - 50, y, { align: 'right' }); y += 14; }
+    y += 8;
+
+    doc.setFont('helvetica', 'bold'); doc.text('Per-order detail', 40, y); y += 14;
+    doc.setFontSize(9);
+    const headers = ['Order', 'Status', 'Expected', 'Computed', 'Δ', 'Rules v'];
+    const colX = [40, 150, 230, 310, 390, 460];
+    headers.forEach((h, i) => doc.text(h, colX[i], y)); y += 12;
+    doc.setFont('helvetica', 'normal');
+    for (const r of rows) {
+      if (y > 780) { doc.addPage(); y = 40; }
+      doc.text(r.order_number, colX[0], y);
+      doc.text(r.status, colX[1], y);
+      doc.text(inr(r.expected_total), colX[2], y);
+      doc.text(inr(r.computed_total), colX[3], y);
+      doc.text(r.delta === 0 ? '—' : inr(r.delta), colX[4], y);
+      doc.text(r.rules_version_stored || '—', colX[5], y);
+      y += 11;
+    }
+    doc.save(`proforma-batch-validate-${Date.now()}.pdf`);
+  };
+
   const counts = rows.reduce((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {} as Record<string, number>);
 
   return (
@@ -138,6 +183,9 @@ export default function ProformaBatchValidate() {
               <Badge variant="secondary">Missing: {counts.MISSING || 0}</Badge>
               <Button variant="ghost" size="sm" onClick={exportCsv}>
                 <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />CSV
+              </Button>
+              <Button variant="ghost" size="sm" onClick={exportPdf}>
+                <FileDown className="h-3.5 w-3.5 mr-1" />PDF
               </Button>
             </div>
           </CardHeader>
