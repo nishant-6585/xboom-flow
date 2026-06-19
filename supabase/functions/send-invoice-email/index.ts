@@ -62,6 +62,20 @@ serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    // Role check — only finance/admin/supply_chain/sales_manager may send invoice PDFs.
+    const { data: roles } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const ALLOWED_ROLES = ["admin", "finance", "supply_chain", "sales_manager"];
+    if (!roles?.some((r: { role: string }) => ALLOWED_ROLES.includes(r.role))) {
+      console.warn("Forbidden invoice email attempt by user", userId);
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body = (await req.json()) as Body;
     if (!body?.invoice_id) {
       return new Response(JSON.stringify({ error: "invoice_id required" }), {
@@ -83,7 +97,10 @@ serve(async (req) => {
     // Load order context for to_email + order number/total
     let orderNumber = "";
     let customerName = "";
-    let customerEmail = (body.to_email || "").trim();
+    // SECURITY: ignore client-supplied to_email; always derive recipient from the
+    // order record on the server. This prevents exfiltration of invoice PDFs to
+    // arbitrary addresses.
+    let customerEmail = "";
     let total = Number(inv.total || 0);
 
     if (inv.order_id) {
@@ -95,7 +112,7 @@ serve(async (req) => {
       if (o) {
         orderNumber = o.order_number || "";
         customerName = o.customer_name || "";
-        if (!customerEmail) customerEmail = (o.customer_email || "").trim();
+        customerEmail = (o.customer_email || "").trim();
         if (!total) total = Number(o.total_sales_amount || 0);
       }
     } else if (inv.woocommerce_order_id) {
@@ -107,9 +124,19 @@ serve(async (req) => {
       if (w) {
         orderNumber = w.order_number || w.woo_order_id || "";
         customerName = w.customer_name || "";
-        if (!customerEmail) customerEmail = (w.customer_email || "").trim();
+        customerEmail = (w.customer_email || "").trim();
         if (!total) total = Number(w.total_sales_amount || 0);
       }
+    }
+
+    // If the caller supplied a to_email, it MUST match the on-file customer
+    // email (case-insensitive). Mismatches are treated as exfiltration attempts.
+    if (body.to_email && body.to_email.trim().toLowerCase() !== customerEmail.toLowerCase()) {
+      console.warn("Rejected to_email override for invoice", body.invoice_id, "by user", userId);
+      return new Response(
+        JSON.stringify({ error: "to_email must match the customer email on file" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const logBase = {
