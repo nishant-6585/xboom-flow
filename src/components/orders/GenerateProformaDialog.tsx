@@ -446,6 +446,12 @@ export function GenerateProformaDialog({
               <Label>Notes (optional)</Label>
               <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+
+            <InvoiceEmailControl
+              state={emailState}
+              onChange={setEmailState}
+              canBypass={canBypassEmail}
+            />
           </div>
         )}
 
