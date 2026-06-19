@@ -487,7 +487,17 @@ export default function OrdersListTab(props: OrdersListTabProps) {
               style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
             >
               {u.kind === 'manual' ? (
-                <OrderCard order={u.row} onClick={() => handleOrderClick(u.row)} />
+                <div className="relative">
+                  {(() => {
+                    const chip = kycChipFor(u.row.id);
+                    return chip ? (
+                      <Badge className={`absolute top-2 right-2 z-10 text-[10px] h-5 px-1.5 ${chip.cls}`}>
+                        {chip.label}
+                      </Badge>
+                    ) : null;
+                  })()}
+                  <OrderCard order={u.row} onClick={() => handleOrderClick(u.row)} />
+                </div>
               ) : (
                 <WooOrderCard
                   order={u.row}
