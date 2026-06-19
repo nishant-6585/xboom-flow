@@ -74,6 +74,7 @@ export function GenerateProformaDialog({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const canBypassEmail = role === 'admin' || role === 'finance';
+  const canRegenerate = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
   const isRegenerate = !!existingProforma;
   const isWoo = !!wooOrder;
@@ -262,6 +263,10 @@ export function GenerateProformaDialog({
 
   /** Re-apply GST inference per line (does not touch unit_price_excl). */
   const autoFixRates = () => {
+    if (!canRegenerate) {
+      toast.error('Only Supply Chain, Finance, or Admin can apply auto-fix');
+      return;
+    }
     const before = lines.map((l) => ({ ...l }));
     const changes: Array<{ index: number; field: string; before: any; after: any; product_name: string }> = [];
     const next = lines.map((l, idx) => {
