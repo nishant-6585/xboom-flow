@@ -50,7 +50,11 @@ function statusBadge(status: string) {
 
 export default function KycEmailLogs() {
   const { role, loading: authLoading } = useAuth();
-  const isAllowed = role === "admin" || role === "sales" || role === "sales_manager";
+  const isAllowed =
+    role === "admin" ||
+    role === "sales" ||
+    role === "sales_manager" ||
+    role === "finance";
 
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
