@@ -759,7 +759,12 @@ async function emailCustomerStatus(
            <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.55;">Please re-upload your Aadhaar card from the portal so we can review again.</p>
            <p style="margin:0;">${btn(portalLink, "Re-upload KYC")}</p>`,
         );
-  await sendCustomerEmail(
+  // Approve/reject emails are also customer-facing — respect the kill switch.
+  if (!(await isCustomerEmailsEnabled(admin))) {
+    console.log("[kyc-handler] status email suppressed (kill switch)", { to: c.email });
+    return;
+  }
+  await sendEmail(
     c.email,
     decision === "approved" ? "Your KYC has been approved" : "Action needed: KYC was rejected",
     html,
