@@ -210,18 +210,20 @@ export async function generateProformaPdf(input: ProformaInput): Promise<{ blob:
   doc.roundedRect(margin, y, pageW - margin * 2, 26, 2, 2, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...ORANGE);
   doc.text('BILL TO', margin + 4, y + 6);
+  const billToX = margin + 4;
+  const billToName = (input.bill_to.name || '').trim() || '—';
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...DARK);
-  doc.text(input.bill_to.name || '—', margin + 4, y + 12);
+  doc.text(billToName, billToX, y + 12);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRAY);
   const billLines: string[] = [];
-  if (input.bill_to.company) billLines.push(input.bill_to.company);
-  if (input.bill_to.address) billLines.push(...doc.splitTextToSize(input.bill_to.address, pageW - margin * 2 - 8));
-  if (input.bill_to.gstin) billLines.push(`GSTIN: ${input.bill_to.gstin}`);
+  if (input.bill_to.company?.trim()) billLines.push(input.bill_to.company.trim());
+  if (input.bill_to.address?.trim()) billLines.push(...doc.splitTextToSize(input.bill_to.address.trim(), pageW - margin * 2 - 8));
+  if (input.bill_to.gstin?.trim()) billLines.push(`GSTIN: ${input.bill_to.gstin.trim()}`);
   if (input.bill_to.email || input.bill_to.phone) {
-    billLines.push([input.bill_to.email, input.bill_to.phone].filter(Boolean).join(' | '));
+    billLines.push([input.bill_to.email?.trim(), input.bill_to.phone?.trim()].filter(Boolean).join(' | '));
   }
   let by = y + 17;
-  billLines.slice(0, 3).forEach(l => { doc.text(l, margin + 4, by); by += 4; });
+  billLines.slice(0, 3).forEach(l => { doc.text(l, billToX, by); by += 4; });
 
   // Compute totals
   const totals = computeProformaTotals(input);
