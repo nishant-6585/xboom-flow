@@ -4,6 +4,7 @@ import { Order, PaymentStatus, OrderOutcome } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { PaymentStatusTracker } from '@/components/PaymentStatusTracker';
+import { KycInviteBadge } from '@/components/orders/KycInviteBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { Package, User, Building2, Truck, ExternalLink, TrendingUp, Clock, CreditCard, Trophy, XCircle, Undo2, IndianRupee, Calendar, ShoppingBag } from 'lucide-react';
@@ -79,6 +80,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
                     RTO
                   </Badge>
                 )}
+                <KycInviteBadge orderId={order.id} compact />
               </div>
               <h3 className="font-semibold text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors duration-200">
                 {order.product_name}
