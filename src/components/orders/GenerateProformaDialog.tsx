@@ -385,6 +385,7 @@ export function GenerateProformaDialog({
           auditSnapshot: {
             kind: order ? 'order' : 'woocommerce_order',
             order_number: subject.order_number,
+            rules_version: PROFORMA_RULES_VERSION,
             place_of_supply_code: stateCode,
             place_of_supply_name: stateName,
             treatment,
