@@ -34,6 +34,23 @@ interface Line {
   unit_price_excl: number;
 }
 
+/**
+ * Category-based GST rate:
+ *   - Drones → 5%
+ *   - All other accessories / spares → 18%
+ * Detection is name-based (case-insensitive). HSN 8806* is the drone HSN family.
+ */
+function inferGstRate(productName: string, hsn?: string): number {
+  const name = (productName || '').toLowerCase();
+  const code = (hsn || '').trim();
+  const isDrone =
+    code.startsWith('8806') ||
+    /\bdrones?\b/.test(name) ||
+    /\buav\b/.test(name) ||
+    /\bquadcopter\b/.test(name);
+  return isDrone ? 5 : 18;
+}
+
 interface Props {
   /** Internal order — pass this OR wooOrder. */
   order?: Order | null;
