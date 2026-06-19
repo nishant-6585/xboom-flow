@@ -127,3 +127,60 @@ export function exportReconciliationPdf(p: ReconExportPayload, filename?: string
 
   doc.save(filename || `reconciliation-${p.orderNumber}.pdf`);
 }
+
+// ------------------------- Audit-log CSV export -------------------------
+
+export interface ReconAuditCsvInput {
+  orderNumber: string;
+  audit: Array<{
+    created_at?: string;
+    action?: string;
+    triggered_by_name?: string | null;
+    triggered_by?: string | null;
+    line_changes?: any;
+    before_snapshot?: any;
+    after_snapshot?: any;
+  }>;
+  currentLines: ReconLineRow[];
+}
+
+/** CSV of every rule change recorded against an order, with timestamps,
+ *  who acted, and per-line before/after rate attribution. */
+export function exportReconciliationAuditCsv(p: ReconAuditCsvInput, filename?: string) {
+  const rows: string[] = [];
+  rows.push(`Reconciliation audit,${csvEscape(p.orderNumber)}`);
+  rows.push(`Exported,${csvEscape(new Date().toISOString())}`);
+  rows.push('');
+  rows.push('Current proforma lines');
+  rows.push(['Item', 'HSN', 'Qty', 'GST %', 'Gross total'].map(csvEscape).join(','));
+  for (const l of p.currentLines) {
+    rows.push([l.product_name, l.hsn, l.quantity, l.gst_rate, l.gross_total].map(csvEscape).join(','));
+  }
+  rows.push('');
+  rows.push('Audit history');
+  rows.push(['Timestamp', 'Action', 'By', 'Line #', 'Product', 'Field', 'Before', 'After']
+    .map(csvEscape).join(','));
+  for (const entry of p.audit) {
+    const ts = entry.created_at || '';
+    const who = entry.triggered_by_name || entry.triggered_by || '';
+    const changes: any[] = Array.isArray(entry.line_changes) ? entry.line_changes : [];
+    if (changes.length === 0) {
+      rows.push([ts, entry.action || '', who, '', '', '', '', ''].map(csvEscape).join(','));
+    }
+    for (const c of changes) {
+      rows.push([
+        ts, entry.action || '', who,
+        (Number(c.index) + 1) || '', c.product_name || '',
+        c.field || '', c.before ?? '', c.after ?? '',
+      ].map(csvEscape).join(','));
+    }
+  }
+
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `reconciliation-audit-${p.orderNumber}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

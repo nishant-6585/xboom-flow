@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ExternalLink } from 'lucide-react';
+import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,14 +23,15 @@ import {
   inferGstRateFromWooLine as ruleInferGstRateFromWooLine,
   detectBundleDuplicates,
   reconcileProforma,
+  explainGstRate,
+  PROFORMA_RULES_VERSION,
 } from '@/lib/proformaRules';
 import { computeProformaTotals, generateProformaPdf, ProformaLineInput } from '@/lib/invoicePdfGenerator';
 import { uploadProformaInvoice, OrderInvoice } from '@/hooks/useOrderInvoices';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
 import { sendInvoiceEmail } from '@/lib/invoiceEmail';
-import { exportReconciliationCsv, exportReconciliationPdf } from '@/lib/proformaReconciliationExport';
-import { Link } from 'react-router-dom';
+import { exportReconciliationCsv, exportReconciliationPdf, exportReconciliationAuditCsv } from '@/lib/proformaReconciliationExport';
 
 interface Line {
   product_name: string;
@@ -298,6 +299,12 @@ export function GenerateProformaDialog({
 
   const duplicateFlags = useMemo(() => detectBundleDuplicates(lines), [lines]);
 
+  const [rulesExpanded, setRulesExpanded] = useState(false);
+  const lineRuleBreakdown = useMemo(
+    () => lines.map((l) => ({ line: l, explain: explainGstRate(l.product_name, l.hsn) })),
+    [lines],
+  );
+
   const removeDuplicate = (idx: number) => {
     setLines((prev) => prev.filter((_, i) => i !== idx));
     toast.success('Removed duplicate bundled line');
@@ -378,6 +385,7 @@ export function GenerateProformaDialog({
           auditSnapshot: {
             kind: order ? 'order' : 'woocommerce_order',
             order_number: subject.order_number,
+            rules_version: PROFORMA_RULES_VERSION,
             place_of_supply_code: stateCode,
             place_of_supply_name: stateName,
             treatment,
@@ -557,6 +565,42 @@ export function GenerateProformaDialog({
                   </tbody>
                 </table>
               </div>
+              {lines.length > 0 && (
+                <div className="border rounded-lg">
+                  <button type="button" onClick={() => setRulesExpanded((v) => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-muted/50">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Info className="h-3.5 w-3.5" />
+                      Per-line GST rule breakdown ({lines.length}) — rules v{PROFORMA_RULES_VERSION}
+                    </span>
+                    {rulesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                  {rulesExpanded && (
+                    <div className="px-3 pb-3 space-y-1.5 text-[11px]">
+                      {lineRuleBreakdown.map(({ line, explain }, idx) => {
+                        const mismatch = explain.rate !== Number(line.gst_rate);
+                        return (
+                          <div key={idx} className={`grid grid-cols-[1fr_auto] gap-2 rounded border p-2 ${mismatch ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/30' : 'border-border'}`}>
+                            <div>
+                              <div className="font-medium">Line {idx + 1}: {line.product_name || '—'}</div>
+                              <div className="text-muted-foreground">{explain.detail}</div>
+                              <div className="text-muted-foreground">
+                                Source: <span className="font-mono">{explain.source}</span> ·
+                                Inferred: <span className="font-medium">{explain.rate}%</span> ·
+                                Applied: <span className={`font-medium ${mismatch ? 'text-amber-700' : ''}`}>{line.gst_rate}%</span> ·
+                                Total is GST-{line.rate_includes_gst !== false ? 'inclusive' : 'exclusive'}
+                              </div>
+                            </div>
+                            {mismatch && (
+                              <Badge variant="outline" className="self-start text-[10px]">Override active</Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {previewTotals && (
@@ -619,10 +663,25 @@ export function GenerateProformaDialog({
                       })}>
                       <FileDown className="h-3 w-3 mr-1" />PDF
                     </Button>
-                    <Link to={`/proforma-reconciliation?order=${encodeURIComponent(subject.order_number)}`}
-                      target="_blank" className="inline-flex items-center text-xs underline">
-                      <ExternalLink className="h-3 w-3 mr-0.5" />Open view
-                    </Link>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2"
+                      onClick={async () => {
+                        const { data } = await (supabase
+                          .from('proforma_rule_audit') as any)
+                          .select('*')
+                          .eq('order_number', subject.order_number)
+                          .order('created_at', { ascending: false });
+                        exportReconciliationAuditCsv({
+                          orderNumber: subject.order_number,
+                          audit: (data || []) as any[],
+                          currentLines: lines.map((l) => ({
+                            product_name: l.product_name, hsn: l.hsn,
+                            quantity: l.quantity, gst_rate: l.gst_rate, gross_total: l.gross_total,
+                          })),
+                        });
+                      }}
+                      title="Export full rule-audit history (CSV)">
+                      <FileSpreadsheet className="h-3 w-3 mr-1" />Audit
+                    </Button>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-muted-foreground">
@@ -640,6 +699,28 @@ export function GenerateProformaDialog({
                     </li>
                   ))}
                 </ul>
+                {Math.abs(reconciliation.delta) > 1 && (
+                  <div className="mt-2 border-t border-rose-200 dark:border-rose-900 pt-2 space-y-1">
+                    <div className="font-semibold text-rose-700 dark:text-rose-300">Root cause — fields driving the delta</div>
+                    {lineRuleBreakdown.map(({ line, explain }, idx) => {
+                      const overridden = explain.rate !== Number(line.gst_rate);
+                      if (!overridden) return null;
+                      const correctedGross = line.unit_price_excl * Number(line.quantity) * (1 + explain.rate / 100);
+                      const driftPerLine = Math.round((line.gross_total - correctedGross) * 100) / 100;
+                      return (
+                        <div key={idx} className="text-[11px] font-mono bg-white/40 dark:bg-black/20 rounded px-2 py-1">
+                          L{idx + 1}: applied={line.gst_rate}% vs inferred={explain.rate}% ({explain.source}),
+                          incl_flag={String(line.rate_includes_gst !== false)},
+                          gross=₹{line.gross_total.toLocaleString('en-IN')},
+                          drift={driftPerLine >= 0 ? '+' : ''}₹{driftPerLine.toLocaleString('en-IN')}
+                        </div>
+                      );
+                    })}
+                    <Button type="button" size="sm" variant="outline" className="h-7 mt-1" onClick={autoFixRates}>
+                      <Wand2 className="h-3.5 w-3.5 mr-1" />Auto-fix to match Zoho
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
