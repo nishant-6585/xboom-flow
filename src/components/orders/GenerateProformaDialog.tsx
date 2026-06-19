@@ -187,25 +187,22 @@ export function GenerateProformaDialog({
           setLines(items.map((it) => {
             const qty = Number(it.quantity) || 1;
             const unit = Number(it.unit_price) || 0;
-            const storedRate = Number(it.sales_gst_percent) || 0;
-            // If the stored GST% is missing/zero, infer it from the product
-            // name/HSN. In that case the stored `unit_price` represents the
-            // GST-INCLUSIVE amount the customer was billed (this is how
-            // order_items totals roll up to the order's `total_sales_amount`),
-            // regardless of the `sales_price_includes_gst` flag — which is
-            // unreliable when no GST% was captured.
-            const inferredRate = inferGstRate(it.product_name, DEFAULT_HSN);
-            const rate = storedRate > 0 ? storedRate : inferredRate;
-            const includes = storedRate > 0
-              ? it.sales_price_includes_gst !== false
-              : true;
-            const unitExcl = includes ? unit / (1 + rate / 100) : unit;
-            const gross = unitExcl * qty * (1 + rate / 100);
+            // Trust the SAC/HSN rule engine as the single source of truth for
+            // the GST rate — `sales_gst_percent` in DB is frequently wrong
+            // (e.g. drone combos saved at 18% when they should be 5%) and the
+            // proforma must match what Zoho billed.  The stored `unit_price`
+            // is treated as the GST-INCLUSIVE amount the customer was billed
+            // (order_items totals roll up to orders.total_sales_amount, which
+            // is the inclusive total).  gross_total therefore stays equal to
+            // unit × qty — only the taxable/GST split changes.
+            const rate = inferGstRate(it.product_name, DEFAULT_HSN);
+            const gross = Math.round(unit * qty * 100) / 100;
+            const unitExcl = unit / (1 + rate / 100);
             return {
               product_name: it.product_name,
               hsn: DEFAULT_HSN,
               quantity: qty,
-              gross_total: Math.round(gross * 100) / 100,
+              gross_total: gross,
               gst_rate: rate,
               unit_price_excl: Math.round(unitExcl * 10000) / 10000,
               rate_includes_gst: true,
