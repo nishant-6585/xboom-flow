@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DocumentViewer } from '@/components/hr/DocumentViewer';
 import { OrderInvoice } from '@/hooks/useOrderInvoices';
-import { fetchInvoiceEmailLogs, sendInvoiceEmail, InvoiceEmailLog, isValidEmail } from '@/lib/invoiceEmail';
+import { fetchInvoiceEmailLogs, sendInvoiceEmail, InvoiceEmailLog, isValidEmail, INVOICE_EMAIL_EVENT } from '@/lib/invoiceEmail';
 
 interface Props {
   invoices: OrderInvoice[];
@@ -33,6 +33,18 @@ export function InvoiceListCard({ invoices, canRegenerate, onRegenerate, canDele
   };
 
   useEffect(() => { refreshLogs(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [invoices.map((i) => i.id).join(',')]);
+
+  // Refresh email-status badges immediately when any send/skip happens elsewhere in the app.
+  useEffect(() => {
+    const ids = new Set(invoices.map((i) => i.id));
+    const handler = (e: Event) => {
+      const invoiceId = (e as CustomEvent).detail?.invoiceId;
+      if (!invoiceId || ids.has(invoiceId)) refreshLogs();
+    };
+    window.addEventListener(INVOICE_EMAIL_EVENT, handler);
+    return () => window.removeEventListener(INVOICE_EMAIL_EVENT, handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoices.map((i) => i.id).join(',')]);
 
   const handleResend = async (inv: OrderInvoice) => {
     const existing = logs[inv.id];
