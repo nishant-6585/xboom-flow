@@ -8,15 +8,21 @@ Last updated: 2026-06-19
 
 ---
 
-## ⏳ PLANNED — Proforma audit/reconciliation polish (prompts handed to Lovable)
+## 🟡 Proforma audit/reconciliation polish — A/B/C done, #4 deferred
 
-Polish on the existing proforma rules-engine/reconciliation/audit system (`proforma_rule_audit`, `proformaRules.ts`, ProformaReconciliation/BatchValidate pages, `proforma_stale` notifications). Priority: A → B → C; #4 deferred.
+- **A ✅** (2026-06-19): "Review now" CTA on `proforma_stale` notifications → `/proforma-reconciliation?order_id=…` (page resolves order_id→order_number); line-level before→after diff in the audit trail.
+- **B ✅** (commit `bf03eb5a`): global audit page `ProformaAudit.tsx`; `rules_version` promoted to a real column (migration `20260619120353`).
+- **C ✅** (commit `f2a9b99b`): `ProformaBatchValidate` surfaces per-order FAILED + error + retry.
+- **#4 ⏳ DEFERRED:** per-user notification preferences (in-app vs email/Slack) for stale alerts — heavy, overlaps migration. Cheap interim if needed: mirror `proforma_stale` to the supply-chain Slack channel.
 
-- **A (do first, ⏳):** #5 "Review now" CTA on `proforma_stale` notifications deep-linking to `/proforma-reconciliation?order=…` (page already highlights mismatched GST lines) + #1 line-level old→new diff (GST rate, taxable, gross, proforma total) in the audit trail from `line_changes`/snapshots; ensure snapshots include taxable+total going forward.
-- **B (⏳):** global filterable audit log — promote `rules_version` from `line_changes` JSONB to a real column (+ backfill/index, and write it going forward), add a filterable list (order, action incl auto-regenerate/auto-fix, user, rules_version, date).
-- **C (⏳):** `ProformaBatchValidate` — per-order failure surfacing + "Retry failed" button + clear error toasts.
-- **#4 DEFERRED:** per-user notification preferences (in-app vs email/Slack) for stale alerts — heavy, overlaps migration. Cheap interim if needed: mirror `proforma_stale` to the existing supply-chain Slack channel.
-- Meta note: proforma subsystem is large for a non-tax document — sharpen (A/B), avoid further scope creep pre-migration.
+---
+
+## 🟡 Invite-on-order-creation (KYC portal onboarding) — retest pending
+
+Flag: edge-function secret **`KYC_CUSTOMER_EMAILS_ENABLED`** (defaults `"false"`). `kyc-handler` `onboardOrder` (called from `useOrders.ts:644` after order create) sends the portal invite + KYC email only when this is `"true"`. Invite link is built like the working manual invite (`generateLink` recovery → `https://xboomflow.com/portal/set-password?token_hash=…&type=recovery`, verified by `portal-set-password`).
+- **Retest gotcha:** while the flag was OFF, `onboardOrder` STILL created `portal_account` + auth user + `portal_contact` + `b2b_customer` role (only the *email* was gated). So re-testing with a previously-used customer email short-circuits at `existingContact.auth_user_id` → `portal_account_exists`, sends nothing. Retest with a FRESH email, or delete that email's portal_contacts/portal_accounts/auth.users first.
+- **Likely past "link issue":** one-time recovery token consumed by email scanner/link preview, or recovery-link expiry (~1h), or the stale-account short-circuit above.
+- **Optional hardening (not built):** gate account/user creation behind the same flag (stop orphan accounts); switch to a non-consuming set-password link if scanners burn the OTP.
 
 ---
 
