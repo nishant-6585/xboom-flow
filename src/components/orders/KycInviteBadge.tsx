@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface Props {
   orderId: string;
   customerEmail?: string | null;
+  compact?: boolean;
 }
 
 interface LogRow {
@@ -27,7 +28,7 @@ const STATUS_META: Record<string, { label: string; variant: any; Icon: any; cls:
   pending: { label: "KYC Invite: Pending", variant: "outline", Icon: Clock, cls: "" },
 };
 
-export function KycInviteBadge({ orderId, customerEmail }: Props) {
+export function KycInviteBadge({ orderId, customerEmail, compact = false }: Props) {
   const { roles } = useAuth();
   const canResend =
     Array.isArray(roles) &&
@@ -87,6 +88,30 @@ export function KycInviteBadge({ orderId, customerEmail }: Props) {
   const status = row?.status ?? "pending";
   const meta = STATUS_META[status] ?? STATUS_META.pending;
   const Icon = meta.Icon;
+
+  if (compact) {
+    const shortLabel =
+      status === "sent" ? "KYC Sent"
+      : status === "failed" ? "KYC Failed"
+      : status === "skipped" ? "KYC Skipped"
+      : "KYC Pending";
+    return (
+      <Badge
+        variant={meta.variant}
+        className={`text-[10px] h-5 px-1.5 gap-1 ${meta.cls}`}
+        title={
+          row
+            ? `${meta.label} • ${new Date(row.created_at).toLocaleString()}${
+                row.error ? ` • ${row.error}` : ""
+              } • attempts: ${row.attempt_count}`
+            : "No KYC invite yet"
+        }
+      >
+        <Icon className="h-3 w-3" />
+        {shortLabel}
+      </Badge>
+    );
+  }
 
   return (
     <div className="inline-flex items-center gap-1.5">
