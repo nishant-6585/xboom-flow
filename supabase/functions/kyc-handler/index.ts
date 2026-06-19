@@ -292,14 +292,13 @@ async function onboardOrder(
   // Idempotency: if we've already sent a KYC invite for this order, don't
   // auto-send again. Manual resend (force=true) bypasses this guard.
   if (!opts.force) {
-    const { data: prevSent } = await admin
+    const { data: prev } = await admin
       .from("kyc_email_log")
-      .select("id")
+      .select("status")
       .eq("order_id", order.id)
       .eq("status", "sent")
-      .limit(1)
-      .maybeSingle();
-    if (prevSent) {
+      .limit(1);
+    if (isDuplicate(prev as Array<{ status?: string | null }> | null)) {
       return json({ skipped: true, reason: "already_sent" });
     }
   }
