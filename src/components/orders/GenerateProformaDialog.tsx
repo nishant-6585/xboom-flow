@@ -698,6 +698,28 @@ export function GenerateProformaDialog({
                     </li>
                   ))}
                 </ul>
+                {Math.abs(reconciliation.delta) > 1 && (
+                  <div className="mt-2 border-t border-rose-200 dark:border-rose-900 pt-2 space-y-1">
+                    <div className="font-semibold text-rose-700 dark:text-rose-300">Root cause — fields driving the delta</div>
+                    {lineRuleBreakdown.map(({ line, explain }, idx) => {
+                      const overridden = explain.rate !== Number(line.gst_rate);
+                      if (!overridden) return null;
+                      const correctedGross = line.unit_price_excl * Number(line.quantity) * (1 + explain.rate / 100);
+                      const driftPerLine = Math.round((line.gross_total - correctedGross) * 100) / 100;
+                      return (
+                        <div key={idx} className="text-[11px] font-mono bg-white/40 dark:bg-black/20 rounded px-2 py-1">
+                          L{idx + 1}: applied={line.gst_rate}% vs inferred={explain.rate}% ({explain.source}),
+                          incl_flag={String(line.rate_includes_gst !== false)},
+                          gross=₹{line.gross_total.toLocaleString('en-IN')},
+                          drift={driftPerLine >= 0 ? '+' : ''}₹{driftPerLine.toLocaleString('en-IN')}
+                        </div>
+                      );
+                    })}
+                    <Button type="button" size="sm" variant="outline" className="h-7 mt-1" onClick={autoFixRates}>
+                      <Wand2 className="h-3.5 w-3.5 mr-1" />Auto-fix to match Zoho
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
