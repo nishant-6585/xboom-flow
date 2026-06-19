@@ -514,13 +514,12 @@ export function GenerateProformaDialog({
               <div className="flex items-center justify-between">
                 <Label>Line Items (amounts are GST-inclusive)</Label>
                 <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={autoFixRates} title="Re-apply SAC/HSN GST rules to all lines">
-                  </Button>
-                </div>
-              </div>
+                  <Button type="button" variant="outline" size="sm" onClick={autoFixRates}
+                    disabled={!canRegenerate}
+                    title={canRegenerate ? 'Re-apply SAC/HSN GST rules to all lines' : 'Requires Supply Chain / Finance / Admin role'}>
                     <Wand2 className="h-4 w-4 mr-1" /> Auto-fix GST
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                  <Button type="button" variant="outline" size="sm" onClick={addLine} disabled={!canRegenerate}>
                     <Plus className="h-4 w-4 mr-1" /> Add line
                   </Button>
                 </div>
