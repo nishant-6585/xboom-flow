@@ -123,11 +123,7 @@ describe('ORD2600320 regression — full proforma matches Zoho exactly', () => {
 
   it('explains why each rate was chosen', () => {
     expect(explainGstRate(items[0].product_name, '88062200').source).toBe('HSN_8806_DRONE');
-    expect(explainGstRate(items[1].product_name, '88062200').source).toBe('HSN_8806_DRONE');
-    // Note: Terra subscription happens to share 8806 HSN in DB; without an
-    // explicit SAC, HSN takes precedence. The 18% bucket is captured by
-    // splitting it as a separate line whose product name does NOT match
-    // DRONE_RE — handled via inferGstRate above.
+    expect(explainGstRate(items[1].product_name, '88062200').source).toBe('NAME_SUBSCRIPTION');
   });
 
   it('exposes a stable rules version string', () => {
