@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +29,8 @@ import { uploadProformaInvoice, OrderInvoice } from '@/hooks/useOrderInvoices';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
 import { sendInvoiceEmail } from '@/lib/invoiceEmail';
+import { exportReconciliationCsv, exportReconciliationPdf } from '@/lib/proformaReconciliationExport';
+import { Link } from 'react-router-dom';
 
 interface Line {
   product_name: string;
@@ -251,17 +253,39 @@ export function GenerateProformaDialog({
 
   /** Re-apply GST inference per line (does not touch unit_price_excl). */
   const autoFixRates = () => {
-    setLines((prev) => prev.map((l) => {
+    const before = lines.map((l) => ({ ...l }));
+    const changes: Array<{ index: number; field: string; before: any; after: any; product_name: string }> = [];
+    const next = lines.map((l, idx) => {
       const newRate = inferGstRate(l.product_name, l.hsn);
       if (newRate === l.gst_rate) return l;
+      changes.push({ index: idx, field: 'gst_rate', before: l.gst_rate, after: newRate, product_name: l.product_name });
       const qty = Number(l.quantity) || 0;
       return {
         ...l,
         gst_rate: newRate,
         gross_total: Math.round(l.unit_price_excl * qty * (1 + newRate / 100) * 100) / 100,
       };
-    }));
-    toast.success('Re-applied SAC/HSN GST rules to every line');
+    });
+    setLines(next);
+    if (changes.length === 0) {
+      toast.info('All lines already match SAC/HSN rules');
+      return;
+    }
+    toast.success(`Re-applied GST rules to ${changes.length} line(s)`);
+    // Fire-and-forget audit entry.
+    if (user && subject) {
+      (supabase.from('proforma_rule_audit') as any).insert({
+        order_number: subject.order_number,
+        order_id: order?.id || null,
+        woocommerce_order_id: wooOrder?.id || null,
+        action: 'AUTO_FIX_GST',
+        triggered_by: user.id,
+        triggered_by_name: (profile as any)?.full_name || user.email || null,
+        line_changes: changes,
+        before_snapshot: { lines: before },
+        after_snapshot: { lines: next },
+      }).then(({ error }: any) => { if (error) console.error('Audit log failed', error); });
+    }
   };
 
   const duplicateFlags = useMemo(() => detectBundleDuplicates(lines), [lines]);
@@ -559,9 +583,39 @@ export function GenerateProformaDialog({
                     )}
                     Reconciliation vs order total
                   </span>
-                  <span>
-                    Δ {reconciliation.delta > 0 ? '+' : ''}₹{reconciliation.delta.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span>
+                      Δ {reconciliation.delta > 0 ? '+' : ''}₹{reconciliation.delta.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2"
+                      onClick={() => exportReconciliationCsv({
+                        orderNumber: subject.order_number,
+                        proformaTotal: reconciliation.proformaTotal,
+                        expectedTotal: reconciliation.expectedTotal,
+                        delta: reconciliation.delta,
+                        amountPaid: subject.amount_paid,
+                        rules: reconciliation.rules,
+                        lines: lines.map((l) => ({ product_name: l.product_name, hsn: l.hsn, quantity: l.quantity, gst_rate: l.gst_rate, gross_total: l.gross_total })),
+                      })}>
+                      <FileSpreadsheet className="h-3 w-3 mr-1" />CSV
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2"
+                      onClick={() => exportReconciliationPdf({
+                        orderNumber: subject.order_number,
+                        proformaTotal: reconciliation.proformaTotal,
+                        expectedTotal: reconciliation.expectedTotal,
+                        delta: reconciliation.delta,
+                        amountPaid: subject.amount_paid,
+                        rules: reconciliation.rules,
+                        lines: lines.map((l) => ({ product_name: l.product_name, hsn: l.hsn, quantity: l.quantity, gst_rate: l.gst_rate, gross_total: l.gross_total })),
+                      })}>
+                      <FileDown className="h-3 w-3 mr-1" />PDF
+                    </Button>
+                    <Link to={`/proforma-reconciliation?order=${encodeURIComponent(subject.order_number)}`}
+                      target="_blank" className="inline-flex items-center text-xs underline">
+                      <ExternalLink className="h-3 w-3 mr-0.5" />Open view
+                    </Link>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-muted-foreground">
                   <div>Proforma: <span className="text-foreground font-medium">₹{reconciliation.proformaTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>

@@ -61,6 +61,7 @@ import AIAutomation from "./pages/AIAutomation";
 
 import CreditCards from "./pages/CreditCards";
 import BankReconciliation from "./pages/BankReconciliation";
+import ProformaReconciliation from "./pages/ProformaReconciliation";
 import DroneOperations from "./pages/DroneOperations";
 import SpareParts from "./pages/SpareParts";
 import NotFound from "./pages/NotFound";
@@ -155,6 +156,7 @@ function AppInner() {
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
+       <Route path="/proforma-reconciliation" element={<ProtectedRoute><ProformaReconciliation /></ProtectedRoute>} />
         <Route path="/drone-operations" element={<ProtectedRoute><DroneOperations /></ProtectedRoute>} />
         <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
         <Route path="/spare-parts" element={<ProtectedRoute><SpareParts /></ProtectedRoute>} />
