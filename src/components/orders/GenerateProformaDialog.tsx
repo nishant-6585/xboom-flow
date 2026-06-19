@@ -620,10 +620,25 @@ export function GenerateProformaDialog({
                       })}>
                       <FileDown className="h-3 w-3 mr-1" />PDF
                     </Button>
-                    <Link to={`/proforma-reconciliation?order=${encodeURIComponent(subject.order_number)}`}
-                      target="_blank" className="inline-flex items-center text-xs underline">
-                      <ExternalLink className="h-3 w-3 mr-0.5" />Open view
-                    </Link>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2"
+                      onClick={async () => {
+                        const { data } = await (supabase
+                          .from('proforma_rule_audit') as any)
+                          .select('*')
+                          .eq('order_number', subject.order_number)
+                          .order('created_at', { ascending: false });
+                        exportReconciliationAuditCsv({
+                          orderNumber: subject.order_number,
+                          audit: (data || []) as any[],
+                          currentLines: lines.map((l) => ({
+                            product_name: l.product_name, hsn: l.hsn,
+                            quantity: l.quantity, gst_rate: l.gst_rate, gross_total: l.gross_total,
+                          })),
+                        });
+                      }}
+                      title="Export full rule-audit history (CSV)">
+                      <FileSpreadsheet className="h-3 w-3 mr-1" />Audit
+                    </Button>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-muted-foreground">
