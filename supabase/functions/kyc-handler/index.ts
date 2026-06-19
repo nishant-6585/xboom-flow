@@ -161,6 +161,14 @@ Deno.serve(async (req) => {
 // ============ ONBOARDING ============
 async function onboardOrder(admin: ReturnType<typeof createClient>, orderId: string) {
   if (!orderId) return json({ error: "order_id required" }, 400);
+  // Hard kill-switch: if customer KYC/portal-invite emails are disabled, do
+  // NOTHING — no portal_account, no auth user, no portal_contact, no role.
+  // Otherwise we'd leave orphan accounts that cause future runs to
+  // short-circuit at the "portal_account_exists" check and silently send
+  // no email when the flag is later enabled.
+  if (!CUSTOMER_EMAILS_ENABLED) {
+    return json({ skipped: true, reason: "feature_disabled" });
+  }
   const { data: order, error } = await admin
     .from("orders")
     .select("id, order_number, customer_name, customer_email, customer_company, sales_person_id, sales_person_name, source")
