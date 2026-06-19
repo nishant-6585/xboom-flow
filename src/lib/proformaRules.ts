@@ -77,6 +77,9 @@ export function explainGstRate(productName: string, hsn?: string | null): {
     if (ACCESSORY_RE.test(name)) {
       return { rate: STANDARD_GST, source: 'HSN_8806_ACCESSORY', detail: `HSN ${code} but description matches accessory keyword → 18%.` };
     }
+    if (SUBSCRIPTION_RE.test(name) && !DRONE_RE.test(name)) {
+      return { rate: STANDARD_GST, source: 'NAME_SUBSCRIPTION', detail: `HSN ${code} but description is a standalone service/subscription → 18%.` };
+    }
     return { rate: DRONE_GST, source: 'HSN_8806_DRONE', detail: `HSN ${code} (drone) → 5%, takes precedence over bundled subscription wording.` };
   }
   if (ACCESSORY_RE.test(name)) {
