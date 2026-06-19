@@ -15788,6 +15788,14 @@ export type Database = {
               total_sales: number
             }[]
           }
+      get_orders_kyc_status: {
+        Args: { p_order_ids: string[] }
+        Returns: {
+          has_portal_account: boolean
+          kyc_status: string
+          order_id: string
+        }[]
+      }
       get_pending_registrations: {
         Args: never
         Returns: {
