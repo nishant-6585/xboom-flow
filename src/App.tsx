@@ -39,7 +39,6 @@ import Forms from "./pages/Forms";
 import FormEmbed from "./pages/FormEmbed";
 import Repairs from "./pages/Repairs";
 
-import Billing from "./pages/Billing";
 import Tickets from "./pages/Tickets";
 import Tally from "./pages/Tally";
 import Buyback from "./pages/Buyback";
@@ -129,7 +128,7 @@ function AppInner() {
         <Route path="/form-embed/:formId" element={<FormEmbed />} />
         <Route path="/public/drone-repair-enquiry" element={<PublicDroneRepairEnquiry />} />
         <Route path="/sample-payslip" element={<SamplePayslip />} />
-        <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+        <Route path="/billing" element={<Navigate to="/sales?tab=quotes" replace />} />
         <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
         <Route path="/tally" element={<ProtectedRoute><Tally /></ProtectedRoute>} />
         <Route path="/buyback" element={<ProtectedRoute><Buyback /></ProtectedRoute>} />
