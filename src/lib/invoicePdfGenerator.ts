@@ -180,8 +180,9 @@ export async function generateProformaPdf(input: ProformaInput): Promise<{ blob:
   // Meta box (right)
   const metaX = pageW - margin - 75;
   const metaY = y - 4;
+  const metaH = input.order_number ? 28 : 22;
   doc.setDrawColor(...BORDER); doc.setLineWidth(0.3);
-  doc.roundedRect(metaX, metaY, 75, 22, 2, 2, 'S');
+  doc.roundedRect(metaX, metaY, 75, metaH, 2, 2, 'S');
   doc.setFontSize(8); doc.setTextColor(...GRAY); doc.setFont('helvetica', 'normal');
   const lx = metaX + 3, vx = metaX + 32;
   doc.text('Proforma #:', lx, metaY + 5);
@@ -191,14 +192,17 @@ export async function generateProformaPdf(input: ProformaInput): Promise<{ blob:
   doc.text(input.proforma_number, vx, metaY + 5);
   doc.text(format(input.invoice_date, 'dd MMM yyyy'), vx, metaY + 11);
   doc.text('Due on Receipt', vx, metaY + 17);
+  if (input.order_number) {
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...GRAY);
+    doc.text('Order #:', lx, metaY + 23);
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(...DARK);
+    doc.text(input.order_number, vx, metaY + 23);
+  }
 
   // Place of Supply
   y = 52;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRAY);
   doc.text(`Place of Supply: ${input.place_of_supply_name} (${input.place_of_supply_code})`, margin, y);
-  if (input.order_number) {
-    doc.text(`Order #: ${input.order_number}`, pageW - margin, y, { align: 'right' });
-  }
 
   // Bill To
   y = 58;
