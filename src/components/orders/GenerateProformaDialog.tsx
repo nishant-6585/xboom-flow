@@ -469,10 +469,31 @@ export function GenerateProformaDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Line Items (amounts are GST-inclusive)</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addLine}>
-                  <Plus className="h-4 w-4 mr-1" /> Add line
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={autoFixRates} title="Re-apply SAC/HSN GST rules to all lines">
+                    <Wand2 className="h-4 w-4 mr-1" /> Auto-fix GST
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                    <Plus className="h-4 w-4 mr-1" /> Add line
+                  </Button>
+                </div>
               </div>
+              {duplicateFlags.length > 0 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs space-y-1">
+                  {duplicateFlags.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        Line {f.duplicateIndex + 1}: {f.message}.
+                      </span>
+                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-amber-700 hover:text-amber-900"
+                        onClick={() => removeDuplicate(f.duplicateIndex)}>
+                        Remove duplicate
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-xs">
                   <thead className="bg-muted">
@@ -522,6 +543,43 @@ export function GenerateProformaDialog({
                 <div className="flex justify-between font-semibold border-t pt-1"><span>Total</span><span>₹{previewTotals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
                 <div className="flex justify-between text-muted-foreground"><span>Payment Made</span><span>− ₹{previewTotals.amount_paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
                 <div className="flex justify-between font-bold text-orange-600"><span>Balance Due</span><span>₹{previewTotals.balance_due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+              </div>
+            )}
+
+            {reconciliation && (
+              <div className={`border rounded-lg p-3 text-xs space-y-2 ${
+                Math.abs(reconciliation.delta) <= 1
+                  ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30'
+                  : 'border-rose-300 bg-rose-50 dark:bg-rose-950/30'
+              }`}>
+                <div className="flex items-center justify-between font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    {Math.abs(reconciliation.delta) <= 1 ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-rose-600" />
+                    )}
+                    Reconciliation vs order total
+                  </span>
+                  <span>
+                    Δ {reconciliation.delta > 0 ? '+' : ''}₹{reconciliation.delta.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                  <div>Proforma: <span className="text-foreground font-medium">₹{reconciliation.proformaTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                  <div>Expected: <span className="text-foreground font-medium">₹{reconciliation.expectedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                  <div>Paid: <span className="text-foreground font-medium">₹{(subject?.amount_paid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></div>
+                </div>
+                <ul className="space-y-1">
+                  {reconciliation.rules.map((r, i) => (
+                    <li key={i} className="flex gap-1.5">
+                      <Badge variant={r.rule === 'OK' ? 'default' : 'destructive'} className="h-4 px-1.5 text-[10px] shrink-0">
+                        {r.rule}
+                      </Badge>
+                      <span>{r.detail}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
