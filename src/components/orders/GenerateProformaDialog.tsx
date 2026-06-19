@@ -423,6 +423,13 @@ export function GenerateProformaDialog({
 
       if (!saved) throw new Error('Failed to save proforma');
 
+      // Clear the auto-flagged stale marker on the new proforma row.
+      try {
+        await (supabase.from('order_invoices') as any)
+          .update({ needs_regenerate: false, regenerate_reason: null, regenerate_flagged_at: null })
+          .eq('id', (saved as any).id);
+      } catch { /* non-fatal */ }
+
       toast.success(`Proforma ${proformaNumber} ${isRegenerate ? 'regenerated' : 'generated'}`);
 
       // Fire-and-forget email send (or skip log). Never blocks save.
