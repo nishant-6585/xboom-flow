@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ExternalLink } from 'lucide-react';
+import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,14 +23,15 @@ import {
   inferGstRateFromWooLine as ruleInferGstRateFromWooLine,
   detectBundleDuplicates,
   reconcileProforma,
+  explainGstRate,
+  PROFORMA_RULES_VERSION,
 } from '@/lib/proformaRules';
 import { computeProformaTotals, generateProformaPdf, ProformaLineInput } from '@/lib/invoicePdfGenerator';
 import { uploadProformaInvoice, OrderInvoice } from '@/hooks/useOrderInvoices';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
 import { sendInvoiceEmail } from '@/lib/invoiceEmail';
-import { exportReconciliationCsv, exportReconciliationPdf } from '@/lib/proformaReconciliationExport';
-import { Link } from 'react-router-dom';
+import { exportReconciliationCsv, exportReconciliationPdf, exportReconciliationAuditCsv } from '@/lib/proformaReconciliationExport';
 
 interface Line {
   product_name: string;
