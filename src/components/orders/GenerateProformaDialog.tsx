@@ -30,6 +30,8 @@ interface Line {
   quantity: number;
   gross_total: number;
   gst_rate: number;
+  /** Per-unit, GST-exclusive price. Used to recompute gross_total when qty/GST changes. */
+  unit_price_excl: number;
 }
 
 interface Props {
@@ -140,21 +142,28 @@ export function GenerateProformaDialog({
             setLines(wli.map((it) => {
               const qty = Number(it.quantity ?? it.qty ?? 1) || 1;
               const total = Number(it.total ?? it.subtotal ?? (Number(it.price) || 0) * qty) || 0;
+              const gross = Math.round(total * 100) / 100;
+              const unitExcl = qty > 0 ? (gross / qty) / (1 + DEFAULT_GST_RATE / 100) : 0;
               return {
                 product_name: it.name || it.product_name || 'Item',
                 hsn: DEFAULT_HSN,
                 quantity: qty,
-                gross_total: Math.round(total * 100) / 100,
+                gross_total: gross,
                 gst_rate: DEFAULT_GST_RATE,
+                unit_price_excl: Math.round(unitExcl * 10000) / 10000,
               };
             }));
           } else {
+            const qty = 1;
+            const gross = subject.total;
+            const unitExcl = (gross / qty) / (1 + DEFAULT_GST_RATE / 100);
             setLines([{
               product_name: subject.product_name,
               hsn: DEFAULT_HSN,
-              quantity: 1,
-              gross_total: subject.total,
+              quantity: qty,
+              gross_total: gross,
               gst_rate: DEFAULT_GST_RATE,
+              unit_price_excl: Math.round(unitExcl * 10000) / 10000,
             }]);
           }
         } else {
@@ -163,14 +172,15 @@ export function GenerateProformaDialog({
             const unit = Number(it.unit_price) || 0;
             const rate = Number(it.sales_gst_percent) || DEFAULT_GST_RATE;
             const includes = it.sales_price_includes_gst !== false;
-            const lineTotalExcl = unit * qty;
-            const gross = includes ? lineTotalExcl : lineTotalExcl * (1 + rate / 100);
+            const unitExcl = includes ? unit / (1 + rate / 100) : unit;
+            const gross = unitExcl * qty * (1 + rate / 100);
             return {
               product_name: it.product_name,
               hsn: DEFAULT_HSN,
               quantity: qty,
               gross_total: Math.round(gross * 100) / 100,
               gst_rate: rate,
+              unit_price_excl: Math.round(unitExcl * 10000) / 10000,
             };
           }));
         }
@@ -198,10 +208,29 @@ export function GenerateProformaDialog({
   }, [subject, billTo.name, stateCode, treatment, lines]);
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+    setLines((prev) => prev.map((l, i) => {
+      if (i !== idx) return l;
+      const next = { ...l, ...patch };
+      const qtyOrRateChanged = 'quantity' in patch || 'gst_rate' in patch;
+      const grossEdited = 'gross_total' in patch;
+      if (grossEdited) {
+        // User typed a new total — back-derive per-unit ex-GST price.
+        const qty = Number(next.quantity) || 0;
+        const rate = Number(next.gst_rate) || 0;
+        next.unit_price_excl = qty > 0
+          ? Math.round((next.gross_total / qty) / (1 + rate / 100) * 10000) / 10000
+          : 0;
+      } else if (qtyOrRateChanged) {
+        // Recompute total from the locked-in per-unit ex-GST price.
+        const qty = Number(next.quantity) || 0;
+        const rate = Number(next.gst_rate) || 0;
+        next.gross_total = Math.round(next.unit_price_excl * qty * (1 + rate / 100) * 100) / 100;
+      }
+      return next;
+    }));
   };
   const addLine = () => setLines((prev) => [...prev, {
-    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: DEFAULT_GST_RATE,
+    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: DEFAULT_GST_RATE, unit_price_excl: 0,
   }]);
   const removeLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
 
