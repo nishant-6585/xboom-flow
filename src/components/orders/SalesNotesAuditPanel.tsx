@@ -105,7 +105,7 @@ export function SalesNotesAuditPanel({ orderId, orderLabel, refreshKey, onUndo }
         r.new_value ?? '(empty)',
       ]),
       styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-      headStyles: { fillBy: undefined, fillColor: [30, 41, 59], textColor: 255 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
       columnStyles: {
         0: { cellWidth: 32 },
         1: { cellWidth: 30 },
