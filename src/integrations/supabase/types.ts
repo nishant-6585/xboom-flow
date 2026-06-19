@@ -12478,6 +12478,69 @@ export type Database = {
         }
         Relationships: []
       }
+      security_findings_ledger: {
+        Row: {
+          commit_ref: string | null
+          created_at: string
+          description: string | null
+          finding_id: string
+          first_seen_at: string
+          id: string
+          internal_id: string
+          last_seen_at: string
+          metadata: Json
+          migration_ref: string | null
+          name: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          scanner_name: string
+          severity: string | null
+          status: Database["public"]["Enums"]["security_finding_status"]
+          updated_at: string
+        }
+        Insert: {
+          commit_ref?: string | null
+          created_at?: string
+          description?: string | null
+          finding_id: string
+          first_seen_at?: string
+          id?: string
+          internal_id: string
+          last_seen_at?: string
+          metadata?: Json
+          migration_ref?: string | null
+          name: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          scanner_name: string
+          severity?: string | null
+          status?: Database["public"]["Enums"]["security_finding_status"]
+          updated_at?: string
+        }
+        Update: {
+          commit_ref?: string | null
+          created_at?: string
+          description?: string | null
+          finding_id?: string
+          first_seen_at?: string
+          id?: string
+          internal_id?: string
+          last_seen_at?: string
+          metadata?: Json
+          migration_ref?: string | null
+          name?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          scanner_name?: string
+          severity?: string | null
+          status?: Database["public"]["Enums"]["security_finding_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shopify_orders: {
         Row: {
           amount_paid: number | null
@@ -16376,6 +16439,7 @@ export type Database = {
         | "hr_approved"
         | "finance_approved"
       screening_status: "New" | "Shortlisted" | "Rejected" | "On Hold"
+      security_finding_status: "open" | "fixed" | "ignored" | "wontfix"
       shopify_processing_status:
         | "pending"
         | "processing"
@@ -16742,6 +16806,7 @@ export const Constants = {
         "finance_approved",
       ],
       screening_status: ["New", "Shortlisted", "Rejected", "On Hold"],
+      security_finding_status: ["open", "fixed", "ignored", "wontfix"],
       shopify_processing_status: [
         "pending",
         "processing",
