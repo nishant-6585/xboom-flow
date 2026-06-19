@@ -187,8 +187,18 @@ export function GenerateProformaDialog({
           setLines(items.map((it) => {
             const qty = Number(it.quantity) || 1;
             const unit = Number(it.unit_price) || 0;
-            const rate = Number(it.sales_gst_percent) || inferGstRate(it.product_name, DEFAULT_HSN);
-            const includes = it.sales_price_includes_gst !== false;
+            const storedRate = Number(it.sales_gst_percent) || 0;
+            // If the stored GST% is missing/zero, infer it from the product
+            // name/HSN. In that case the stored `unit_price` represents the
+            // GST-INCLUSIVE amount the customer was billed (this is how
+            // order_items totals roll up to the order's `total_sales_amount`),
+            // regardless of the `sales_price_includes_gst` flag — which is
+            // unreliable when no GST% was captured.
+            const inferredRate = inferGstRate(it.product_name, DEFAULT_HSN);
+            const rate = storedRate > 0 ? storedRate : inferredRate;
+            const includes = storedRate > 0
+              ? it.sales_price_includes_gst !== false
+              : true;
             const unitExcl = includes ? unit / (1 + rate / 100) : unit;
             const gross = unitExcl * qty * (1 + rate / 100);
             return {
@@ -198,6 +208,7 @@ export function GenerateProformaDialog({
               gross_total: Math.round(gross * 100) / 100,
               gst_rate: rate,
               unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+              rate_includes_gst: true,
             };
           }));
         }

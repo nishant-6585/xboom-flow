@@ -24,17 +24,28 @@ export function inferGstRate(productName: string, hsn?: string | null): number {
   const name = (productName || '').toLowerCase();
   const code = (hsn || '').trim();
 
-  // Services (SAC) are always 18% regardless of name.
+  // 1. SAC services → 18% (subscriptions billed under 9973xx etc.)
   if (/^997\d{0,5}$/.test(code)) return STANDARD_GST;
 
-  // Subscription/service keywords always 18% even without a SAC code.
-  if (SUBSCRIPTION_RE.test(name)) return STANDARD_GST;
+  // 2. Drone HSN (8806xx) → 5% even if the name also mentions a bundled
+  //    subscription (e.g. "Matrice 4E Combo + Terra 1Y subscription"). The
+  //    drone classification takes precedence because the line is taxed as a
+  //    drone bundle; the subscription portion is a separate line.
+  //    Accessories under 8806 (props, batteries, etc.) still go to 18%.
+  if (code.startsWith('8806')) {
+    return ACCESSORY_RE.test(name) ? STANDARD_GST : DRONE_GST;
+  }
 
-  // Accessories override the drone HSN family (DJI accessories often share 88062200).
+  // 3. Accessories without a drone HSN → 18%.
   if (ACCESSORY_RE.test(name)) return STANDARD_GST;
 
-  if (code.startsWith('8806')) return DRONE_GST;
+  // 4. Drone-named items (combo of a drone) → 5%.
+  //    Checked BEFORE subscription keyword so "matrice combo + terra subscription"
+  //    is correctly classified as a drone bundle.
   if (DRONE_RE.test(name)) return DRONE_GST;
+
+  // 5. Subscription / service keywords → 18%.
+  if (SUBSCRIPTION_RE.test(name)) return STANDARD_GST;
 
   return STANDARD_GST;
 }
@@ -97,6 +108,16 @@ export function detectBundleDuplicates(
         if (i === j) return;
         const otherName = other.product_name || '';
         if (rule.component.test(otherName) && !rule.bundleRe.test(otherName)) {
+          // Only flag as duplicate when the standalone line is a small add-on
+          // relative to the bundle line. If both have similar magnitude they
+          // are almost certainly two distinct priced rows (e.g. order_items
+          // carries the drone and the subscription as separate inclusive
+          // amounts) and must NOT be deduplicated.
+          const bundleAmount = Number((line as any).gross_total) || 0;
+          const otherAmount = Number((other as any).gross_total) || 0;
+          if (bundleAmount > 0 && otherAmount > 0 && otherAmount > bundleAmount * 0.1) {
+            return;
+          }
           flags.push({
             duplicateIndex: j,
             bundleIndex: i,

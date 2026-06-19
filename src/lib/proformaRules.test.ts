@@ -25,17 +25,34 @@ describe('inferGstRate', () => {
   it('catches subscription keywords without an HSN', () => {
     expect(inferGstRate('DJI Care Refresh — 1 Year', '')).toBe(18);
   });
+
+  it('treats a drone combo whose name includes a bundled subscription as 5%', () => {
+    // ORD2600320 line: combo line is taxed as a drone bundle (5%), the Terra
+    // portion is a separate 18% line in the same proforma.
+    expect(inferGstRate('DJI matrice 4E combo+ terra 1 year subscription', '88062200')).toBe(5);
+    expect(inferGstRate('DJI matrice 4E combo+ terra 1 year subscription', '')).toBe(5);
+  });
 });
 
 describe('detectBundleDuplicates', () => {
-  it('flags a separate Terra line when bundled in a combo', () => {
+  it('flags a small standalone add-on that is already included in a combo line', () => {
     const flags = detectBundleDuplicates([
-      { product_name: 'DJI Matrice 4E Combo + Terra 1 Year Subscription' },
-      { product_name: 'DJI Terra - 1 Year Subscription' },
+      { product_name: 'DJI Matrice 4E Combo + Terra 1 Year Subscription', gross_total: 700000 } as any,
+      { product_name: 'DJI Terra - 1 Year Subscription', gross_total: 0 } as any,
     ]);
     expect(flags).toHaveLength(1);
     expect(flags[0].duplicateIndex).toBe(1);
-    expect(flags[0].bundleIndex).toBe(0);
+  });
+
+  it('does NOT flag a separately-priced standalone line as a duplicate', () => {
+    // order_items carries combo (~5.9L) and Terra (~2L) as two distinct
+    // priced rows that together sum to the order total — they must not be
+    // collapsed.
+    const flags = detectBundleDuplicates([
+      { product_name: 'DJI Matrice 4E Combo + Terra 1 Year Subscription', gross_total: 590100 } as any,
+      { product_name: 'DJI Terra - 1 Year Subscription', gross_total: 205910 } as any,
+    ]);
+    expect(flags).toHaveLength(0);
   });
 
   it('does not flag when no bundle exists', () => {
