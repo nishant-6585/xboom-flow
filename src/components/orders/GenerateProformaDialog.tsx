@@ -230,26 +230,63 @@ export function GenerateProformaDialog({
       const next = { ...l, ...patch };
       const qtyOrRateChanged = 'quantity' in patch || 'gst_rate' in patch;
       const grossEdited = 'gross_total' in patch;
+      const inclusiveToggled = 'rate_includes_gst' in patch;
+      const includes = next.rate_includes_gst !== false;
+      const qty = Number(next.quantity) || 0;
+      const rate = Number(next.gst_rate) || 0;
       if (grossEdited) {
         // User typed a new total — back-derive per-unit ex-GST price.
-        const qty = Number(next.quantity) || 0;
-        const rate = Number(next.gst_rate) || 0;
         next.unit_price_excl = qty > 0
-          ? Math.round((next.gross_total / qty) / (1 + rate / 100) * 10000) / 10000
+          ? Math.round((next.gross_total / qty) / (includes ? 1 + rate / 100 : 1) * 10000) / 10000
           : 0;
-      } else if (qtyOrRateChanged) {
+      } else if (qtyOrRateChanged || inclusiveToggled) {
         // Recompute total from the locked-in per-unit ex-GST price.
-        const qty = Number(next.quantity) || 0;
-        const rate = Number(next.gst_rate) || 0;
         next.gross_total = Math.round(next.unit_price_excl * qty * (1 + rate / 100) * 100) / 100;
       }
       return next;
     }));
   };
   const addLine = () => setLines((prev) => [...prev, {
-    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: 18, unit_price_excl: 0,
+    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: 18, unit_price_excl: 0, rate_includes_gst: true,
   }]);
   const removeLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
+
+  /** Re-apply GST inference per line (does not touch unit_price_excl). */
+  const autoFixRates = () => {
+    setLines((prev) => prev.map((l) => {
+      const newRate = inferGstRate(l.product_name, l.hsn);
+      if (newRate === l.gst_rate) return l;
+      const qty = Number(l.quantity) || 0;
+      return {
+        ...l,
+        gst_rate: newRate,
+        gross_total: Math.round(l.unit_price_excl * qty * (1 + newRate / 100) * 100) / 100,
+      };
+    }));
+    toast.success('Re-applied SAC/HSN GST rules to every line');
+  };
+
+  const duplicateFlags = useMemo(() => detectBundleDuplicates(lines), [lines]);
+
+  const removeDuplicate = (idx: number) => {
+    setLines((prev) => prev.filter((_, i) => i !== idx));
+    toast.success('Removed duplicate bundled line');
+  };
+
+  const reconciliation = useMemo(() => {
+    if (!subject || !previewTotals) return null;
+    // Use the order's recorded total (from Zoho/order header) as the expected.
+    const expected = Number(subject.total) || 0;
+    if (expected <= 0) return null;
+    return reconcileProforma({
+      lines: lines.map((l) => ({
+        product_name: l.product_name, hsn: l.hsn, quantity: l.quantity,
+        gross_total: l.gross_total, gst_rate: l.gst_rate,
+      })),
+      proformaTotal: previewTotals.total,
+      expectedTotal: expected,
+    });
+  }, [subject, previewTotals, lines]);
 
   const handleGenerate = async () => {
     if (!subject || !user) return;
