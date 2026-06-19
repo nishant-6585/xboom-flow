@@ -20,6 +20,16 @@ import {
   type Order, type OrderOutcome, type LostReason,
 } from '@/hooks/useOrders';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+type KycFilter = 'all' | 'pending' | 'approved' | 'not_invited';
+
+interface KycInfo { kyc_status: string | null; has_portal_account: boolean }
+
+const KYC_PENDING_STATUSES = new Set([
+  'not_submitted', 'pending_verification', 'rejected', 'resubmission_required',
+]);
 
 export type UnifiedRow =
   | { kind: 'manual'; date: number; row: Order }
