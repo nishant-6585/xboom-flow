@@ -74,6 +74,7 @@ export function GenerateProformaDialog({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const canBypassEmail = role === 'admin' || role === 'finance';
+  const canRegenerate = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
   const isRegenerate = !!existingProforma;
   const isWoo = !!wooOrder;
@@ -262,6 +263,10 @@ export function GenerateProformaDialog({
 
   /** Re-apply GST inference per line (does not touch unit_price_excl). */
   const autoFixRates = () => {
+    if (!canRegenerate) {
+      toast.error('Only Supply Chain, Finance, or Admin can apply auto-fix');
+      return;
+    }
     const before = lines.map((l) => ({ ...l }));
     const changes: Array<{ index: number; field: string; before: any; after: any; product_name: string }> = [];
     const next = lines.map((l, idx) => {
@@ -327,6 +332,7 @@ export function GenerateProformaDialog({
 
   const handleGenerate = async () => {
     if (!subject || !user) return;
+    if (!canRegenerate) { toast.error('Only Supply Chain, Finance, or Admin can generate proformas'); return; }
     if (lines.length === 0) { toast.error('Add at least one line item'); return; }
     if (lines.some((l) => !l.product_name.trim() || l.gross_total <= 0)) {
       toast.error('Every line needs a name and a positive amount'); return;
@@ -416,6 +422,13 @@ export function GenerateProformaDialog({
       );
 
       if (!saved) throw new Error('Failed to save proforma');
+
+      // Clear the auto-flagged stale marker on the new proforma row.
+      try {
+        await (supabase.from('order_invoices') as any)
+          .update({ needs_regenerate: false, regenerate_reason: null, regenerate_flagged_at: null })
+          .eq('id', (saved as any).id);
+      } catch { /* non-fatal */ }
 
       toast.success(`Proforma ${proformaNumber} ${isRegenerate ? 'regenerated' : 'generated'}`);
 
@@ -507,11 +520,30 @@ export function GenerateProformaDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Line Items (amounts are GST-inclusive)</Label>
+              </div>
+              {((existingProforma as any)?.needs_regenerate ||
+                ((existingProforma as any)?.audit_snapshot?.rules_version &&
+                 (existingProforma as any).audit_snapshot.rules_version !== PROFORMA_RULES_VERSION)) && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="font-medium">This proforma is out of date.</div>
+                    <div className="text-muted-foreground">
+                      {(existingProforma as any)?.regenerate_reason && <>Reason: {(existingProforma as any).regenerate_reason}. </>}
+                      Saved with rules v{(existingProforma as any)?.audit_snapshot?.rules_version || '—'}, current is v{PROFORMA_RULES_VERSION}.
+                      Click <em>Regenerate Proforma</em> to refresh.
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-end">
                 <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={autoFixRates} title="Re-apply SAC/HSN GST rules to all lines">
+                  <Button type="button" variant="outline" size="sm" onClick={autoFixRates}
+                    disabled={!canRegenerate}
+                    title={canRegenerate ? 'Re-apply SAC/HSN GST rules to all lines' : 'Requires Supply Chain / Finance / Admin role'}>
                     <Wand2 className="h-4 w-4 mr-1" /> Auto-fix GST
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                  <Button type="button" variant="outline" size="sm" onClick={addLine} disabled={!canRegenerate}>
                     <Plus className="h-4 w-4 mr-1" /> Add line
                   </Button>
                 </div>
@@ -739,7 +771,8 @@ export function GenerateProformaDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={handleGenerate} disabled={busy || loading}>
+          <Button onClick={handleGenerate} disabled={busy || loading || !canRegenerate}
+            title={!canRegenerate ? 'Only Supply Chain, Finance, or Admin can generate proformas' : undefined}>
             {busy ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{isRegenerate ? 'Regenerating…' : 'Generating…'}</>
             ) : isRegenerate ? (

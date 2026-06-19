@@ -40,7 +40,12 @@ export function inferGstRate(productName: string, hsn?: string | null): number {
   //    drone bundle; the subscription portion is a separate line.
   //    Accessories under 8806 (props, batteries, etc.) still go to 18%.
   if (code.startsWith('8806')) {
-    return ACCESSORY_RE.test(name) ? STANDARD_GST : DRONE_GST;
+    if (ACCESSORY_RE.test(name)) return STANDARD_GST;
+    // A standalone subscription/service line (e.g. "DJI Terra - 1 Year
+    // Subscription") may share HSN 8806 in our DB but is taxed as a
+    // service — only treat it as a drone if the name also names a drone.
+    if (SUBSCRIPTION_RE.test(name) && !DRONE_RE.test(name)) return STANDARD_GST;
+    return DRONE_GST;
   }
 
   // 3. Accessories without a drone HSN → 18%.
@@ -71,6 +76,9 @@ export function explainGstRate(productName: string, hsn?: string | null): {
   if (code.startsWith('8806')) {
     if (ACCESSORY_RE.test(name)) {
       return { rate: STANDARD_GST, source: 'HSN_8806_ACCESSORY', detail: `HSN ${code} but description matches accessory keyword → 18%.` };
+    }
+    if (SUBSCRIPTION_RE.test(name) && !DRONE_RE.test(name)) {
+      return { rate: STANDARD_GST, source: 'NAME_SUBSCRIPTION', detail: `HSN ${code} but description is a standalone service/subscription → 18%.` };
     }
     return { rate: DRONE_GST, source: 'HSN_8806_DRONE', detail: `HSN ${code} (drone) → 5%, takes precedence over bundled subscription wording.` };
   }

@@ -8194,8 +8194,11 @@ export type Database = {
           gst_treatment: string | null
           id: string
           invoice_number: string | null
+          needs_regenerate: boolean
           order_id: string | null
           place_of_supply: string | null
+          regenerate_flagged_at: string | null
+          regenerate_reason: string | null
           source: string
           storage_path: string
           subtotal: number | null
@@ -8214,8 +8217,11 @@ export type Database = {
           gst_treatment?: string | null
           id?: string
           invoice_number?: string | null
+          needs_regenerate?: boolean
           order_id?: string | null
           place_of_supply?: string | null
+          regenerate_flagged_at?: string | null
+          regenerate_reason?: string | null
           source?: string
           storage_path: string
           subtotal?: number | null
@@ -8234,8 +8240,11 @@ export type Database = {
           gst_treatment?: string | null
           id?: string
           invoice_number?: string | null
+          needs_regenerate?: boolean
           order_id?: string | null
           place_of_supply?: string | null
+          regenerate_flagged_at?: string | null
+          regenerate_reason?: string | null
           source?: string
           storage_path?: string
           subtotal?: number | null
