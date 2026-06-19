@@ -87,6 +87,7 @@ interface TallyInvoice {
   id: string;
   invoice_number: string | null;
   order_id: string | null;
+  document_type: string | null;
 }
 
 interface TallyInventoryLink {
@@ -141,6 +142,7 @@ interface TallyRow {
   createdAt: string;
   orderDate: string | null;
   invoiceNumber: string;
+  proformaNumber: string;
   poNumber: string;
   supplierName: string;
   customerGst: string;
@@ -297,7 +299,7 @@ export function TallyDashboard() {
             .select("id, order_id, product_name, quantity, procurement_rate, estimated_procurement_rate, quantity_procured, procurement_gst_amount, procurement_price_includes_gst, unit_price, sales_gst_amount, sales_price_includes_gst, supplier_id"),
           supabase
             .from("order_invoices")
-            .select("id, invoice_number, order_id")
+            .select("id, invoice_number, order_id, document_type")
             .not("order_id", "is", null),
           supabase
             .from("suppliers")
@@ -527,8 +529,11 @@ export function TallyDashboard() {
         : procPayStatuses.every((s) => s === "paid") ? "paid"
         : procPayStatuses.some((s) => s === "partial") ? "partial" : "pending";
 
-      // Invoice number(s) — from order_invoices uploaded against the order
-      const invoiceNumber = [...new Set(invs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
+      // Invoice number(s) — split tax invoices vs proforma invoices
+      const taxInvs = invs.filter(i => i.document_type !== "proforma");
+      const proformaInvs = invs.filter(i => i.document_type === "proforma");
+      const invoiceNumber = [...new Set(taxInvs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
+      const proformaNumber = [...new Set(proformaInvs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
 
       // PO number: prefer PO uploaded on the order itself, fall back to linked procurement POs
       const orderPoNumbers = (o.po_number || "").split(",").map(s => s.trim()).filter(Boolean);
@@ -587,6 +592,7 @@ export function TallyDashboard() {
         createdAt: o.created_at,
         orderDate: o.order_date || o.created_at,
         invoiceNumber,
+        proformaNumber,
         poNumber,
         supplierName,
         customerGst,
@@ -608,6 +614,7 @@ export function TallyDashboard() {
           has(r.customerCompany) ||
           has(r.productName) ||
           has(r.invoiceNumber) ||
+          has(r.proformaNumber) ||
           has(r.poNumber) ||
           has(r.supplierName) ||
           has(r.customerGst)
@@ -664,6 +671,8 @@ export function TallyDashboard() {
       customerName: r.customerName,
       customerCompany: r.customerCompany,
       productName: r.productName,
+      invoiceNumber: r.invoiceNumber,
+      proformaNumber: r.proformaNumber,
       salesValue: r.salesValue,
       amountReceived: r.amountReceived,
       pendingPayment: r.pendingPayment,
@@ -684,6 +693,8 @@ export function TallyDashboard() {
         customerName: 'Customer',
         customerCompany: 'Company',
         productName: 'Product',
+        invoiceNumber: 'Invoice #',
+        proformaNumber: 'Proforma #',
         salesValue: 'Sales Value',
         amountReceived: 'Received',
         pendingPayment: 'Pending',
@@ -996,6 +1007,7 @@ export function TallyDashboard() {
                   <TableHead><SortBtn field="orderNumber" label="Order #" /></TableHead>
                   <TableHead><SortBtn field="orderDate" label="Order Date" /></TableHead>
                   <TableHead>Invoice #</TableHead>
+                  <TableHead>Proforma #</TableHead>
                   <TableHead>PO #</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Product</TableHead>
@@ -1020,7 +1032,7 @@ export function TallyDashboard() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={22} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={23} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
@@ -1036,6 +1048,7 @@ export function TallyDashboard() {
                         {r.orderDate ? format(new Date(r.orderDate), "dd MMM yyyy") : "—"}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap min-w-[140px]">{r.invoiceNumber}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap min-w-[140px]">{r.proformaNumber}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px]">{r.poNumber}</TableCell>
                       <TableCell>
                         <button onClick={() => openOrderDialog(r.orderId)} className="max-w-[140px] text-left cursor-pointer hover:opacity-80" title="View Order">
