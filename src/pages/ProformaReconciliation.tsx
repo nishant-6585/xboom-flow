@@ -44,9 +44,11 @@ export default function ProformaReconciliation() {
   const { user, role } = useAuth();
   const isPriv = role === 'admin' || role === 'finance';
 
-  const initial = params.get('order') || 'ORD2600320';
-  const [orderNumber, setOrderNumber] = useState(initial);
-  const [search, setSearch] = useState(initial);
+  const initialOrder = params.get('order') || '';
+  const initialOrderId = params.get('order_id') || '';
+  const [orderNumber, setOrderNumber] = useState(initialOrder || 'ORD2600320');
+  const [search, setSearch] = useState(initialOrder);
+  const [resolvingId, setResolvingId] = useState(!!initialOrderId);
   const [loading, setLoading] = useState(false);
   const [lines, setLines] = useState<ProformaLine[]>([]);
   const [proformaTotal, setProformaTotal] = useState(0);
@@ -56,7 +58,38 @@ export default function ProformaReconciliation() {
   const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([]);
   const [proformaId, setProformaId] = useState<string | null>(null);
 
-  useEffect(() => { setParams({ order: search }, { replace: true }); }, [search, setParams]);
+  // Resolve `?order_id=<uuid>` deep-link → order_number, then drive normal flow.
+  useEffect(() => {
+    if (!initialOrderId) return;
+    (async () => {
+      try {
+        const { data: ord } = await (supabase.from('orders') as any)
+          .select('order_number').eq('id', initialOrderId).maybeSingle();
+        let orderNo = ord?.order_number as string | undefined;
+        if (!orderNo) {
+          const { data: woo } = await (supabase.from('woocommerce_orders') as any)
+            .select('order_number').eq('id', initialOrderId).maybeSingle();
+          orderNo = woo?.order_number;
+        }
+        if (orderNo) {
+          setSearch(orderNo);
+          setOrderNumber(orderNo);
+        } else {
+          toast.error('Could not find order for this notification');
+        }
+      } catch (e: any) {
+        toast.error(e.message || 'Failed to resolve order id');
+      } finally {
+        setResolvingId(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOrderId]);
+
+  useEffect(() => {
+    if (!search) return;
+    setParams({ order: search }, { replace: true });
+  }, [search, setParams]);
 
   useEffect(() => {
     if (!search) return;
