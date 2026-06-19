@@ -34,6 +34,23 @@ interface Line {
   unit_price_excl: number;
 }
 
+/**
+ * Category-based GST rate:
+ *   - Drones → 5%
+ *   - All other accessories / spares → 18%
+ * Detection is name-based (case-insensitive). HSN 8806* is the drone HSN family.
+ */
+function inferGstRate(productName: string, hsn?: string): number {
+  const name = (productName || '').toLowerCase();
+  const code = (hsn || '').trim();
+  const isDrone =
+    code.startsWith('8806') ||
+    /\bdrones?\b/.test(name) ||
+    /\buav\b/.test(name) ||
+    /\bquadcopter\b/.test(name);
+  return isDrone ? 5 : 18;
+}
+
 interface Props {
   /** Internal order — pass this OR wooOrder. */
   order?: Order | null;
@@ -143,26 +160,29 @@ export function GenerateProformaDialog({
               const qty = Number(it.quantity ?? it.qty ?? 1) || 1;
               const total = Number(it.total ?? it.subtotal ?? (Number(it.price) || 0) * qty) || 0;
               const gross = Math.round(total * 100) / 100;
-              const unitExcl = qty > 0 ? (gross / qty) / (1 + DEFAULT_GST_RATE / 100) : 0;
+              const name = it.name || it.product_name || 'Item';
+              const rate = inferGstRate(name, DEFAULT_HSN);
+              const unitExcl = qty > 0 ? (gross / qty) / (1 + rate / 100) : 0;
               return {
-                product_name: it.name || it.product_name || 'Item',
+                product_name: name,
                 hsn: DEFAULT_HSN,
                 quantity: qty,
                 gross_total: gross,
-                gst_rate: DEFAULT_GST_RATE,
+                gst_rate: rate,
                 unit_price_excl: Math.round(unitExcl * 10000) / 10000,
               };
             }));
           } else {
             const qty = 1;
             const gross = subject.total;
-            const unitExcl = (gross / qty) / (1 + DEFAULT_GST_RATE / 100);
+            const rate = inferGstRate(subject.product_name, DEFAULT_HSN);
+            const unitExcl = (gross / qty) / (1 + rate / 100);
             setLines([{
               product_name: subject.product_name,
               hsn: DEFAULT_HSN,
               quantity: qty,
               gross_total: gross,
-              gst_rate: DEFAULT_GST_RATE,
+              gst_rate: rate,
               unit_price_excl: Math.round(unitExcl * 10000) / 10000,
             }]);
           }
@@ -170,7 +190,7 @@ export function GenerateProformaDialog({
           setLines(items.map((it) => {
             const qty = Number(it.quantity) || 1;
             const unit = Number(it.unit_price) || 0;
-            const rate = Number(it.sales_gst_percent) || DEFAULT_GST_RATE;
+            const rate = Number(it.sales_gst_percent) || inferGstRate(it.product_name, DEFAULT_HSN);
             const includes = it.sales_price_includes_gst !== false;
             const unitExcl = includes ? unit / (1 + rate / 100) : unit;
             const gross = unitExcl * qty * (1 + rate / 100);
@@ -230,7 +250,7 @@ export function GenerateProformaDialog({
     }));
   };
   const addLine = () => setLines((prev) => [...prev, {
-    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: DEFAULT_GST_RATE, unit_price_excl: 0,
+    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: 18, unit_price_excl: 0,
   }]);
   const removeLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
 
