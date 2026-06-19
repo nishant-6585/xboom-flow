@@ -238,7 +238,7 @@ export default function ProformaReconciliation() {
         </CardContent>
       </Card>
 
-      {loading ? (
+      {(loading || resolvingId) ? (
         <div className="py-10 text-center text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin inline mr-2" />Loading…
         </div>
