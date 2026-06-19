@@ -159,7 +159,13 @@ function btn(href: string, label: string) {
 // ---------- Action handlers ----------
 
 interface Body {
-  action: "onboard_order" | "submit" | "review" | "notify_salesperson" | "resend_invite";
+  action:
+    | "onboard_order"
+    | "submit"
+    | "review"
+    | "notify_salesperson"
+    | "resend_invite"
+    | "order_kyc_status";
   // onboard_order
   order_id?: string;
   // resend_invite
@@ -222,6 +228,15 @@ Deno.serve(async (req) => {
         force: true,
         overrideEmail: body.override_email,
       });
+    }
+    if (body.action === "order_kyc_status") {
+      if (!callerId) return json({ error: "Not authenticated" }, 401);
+      const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", callerId);
+      const allowed = (roles || []).some((r: any) =>
+        ["admin", "sales", "sales_manager"].includes(r.role),
+      );
+      if (!allowed) return json({ error: "Forbidden" }, 403);
+      return await orderKycStatus(admin, body.order_id!);
     }
     if (body.action === "submit") {
       if (!callerId) return json({ error: "Not authenticated" }, 401);
