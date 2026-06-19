@@ -522,23 +522,39 @@ export function GenerateProformaDialog({
       // changed line items vs prior snapshot, and the initiating user/role.
       try {
         const beforeLines = ((existingProforma as any)?.audit_snapshot?.lines) || [];
+        const taxableOf = (gross: number, rate: number) =>
+          Math.round((Number(gross) / (1 + Number(rate) / 100)) * 100) / 100;
         const afterLines = lines.map((l) => ({
           product_name: l.product_name, hsn: l.hsn, quantity: l.quantity,
           gst_rate: l.gst_rate, gross_total: l.gross_total,
+          taxable: taxableOf(l.gross_total, l.gst_rate),
+        }));
+        // Backfill `taxable` on legacy before-snapshot lines so diffs render fully.
+        const beforeLinesEnriched = beforeLines.map((b: any) => ({
+          ...b,
+          taxable: b?.taxable != null
+            ? Number(b.taxable)
+            : taxableOf(Number(b?.gross_total) || 0, Number(b?.gst_rate) || 0),
         }));
         const changes: any[] = [];
         afterLines.forEach((a, i) => {
-          const b = beforeLines[i];
+          const b = beforeLinesEnriched[i];
           if (!b) { changes.push({ index: i, field: '__added__', before: null, after: a, product_name: a.product_name }); return; }
-          ['gst_rate', 'gross_total', 'quantity', 'product_name', 'hsn'].forEach((f) => {
+          ['gst_rate', 'taxable', 'gross_total', 'quantity', 'product_name', 'hsn'].forEach((f) => {
             if (String(b[f] ?? '') !== String((a as any)[f] ?? '')) {
               changes.push({ index: i, field: f, before: b[f], after: (a as any)[f], product_name: a.product_name });
             }
           });
         });
-        beforeLines.slice(afterLines.length).forEach((b: any, j: number) => {
+        beforeLinesEnriched.slice(afterLines.length).forEach((b: any, j: number) => {
           changes.push({ index: afterLines.length + j, field: '__removed__', before: b, after: null, product_name: b.product_name });
         });
+        const beforeTotal = Number(
+          (existingProforma as any)?.audit_snapshot?.total
+            ?? (existingProforma as any)?.total
+            ?? beforeLinesEnriched.reduce((s: number, l: any) => s + (Number(l.gross_total) || 0), 0),
+        );
+        const afterTotal = Number(totals.total);
         await (supabase.from('proforma_rule_audit') as any).insert({
           order_number: subject.order_number,
           order_id: order?.id || null,
@@ -547,8 +563,16 @@ export function GenerateProformaDialog({
           triggered_by: user.id,
           triggered_by_name: generatedByName,
           line_changes: { rules_version: PROFORMA_RULES_VERSION, role, changes },
-          before_snapshot: { lines: beforeLines, rules_version: (existingProforma as any)?.audit_snapshot?.rules_version || null },
-          after_snapshot: { lines: afterLines, rules_version: PROFORMA_RULES_VERSION },
+          before_snapshot: {
+            lines: beforeLinesEnriched,
+            total: Number.isFinite(beforeTotal) ? beforeTotal : null,
+            rules_version: (existingProforma as any)?.audit_snapshot?.rules_version || null,
+          },
+          after_snapshot: {
+            lines: afterLines,
+            total: afterTotal,
+            rules_version: PROFORMA_RULES_VERSION,
+          },
         });
       } catch (e) { console.warn('audit log write failed', e); }
 
