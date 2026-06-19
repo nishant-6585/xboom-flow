@@ -142,7 +142,7 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
           ) : (
             <>
               <Send className="h-3 w-3 mr-1" />
-              Resend
+              Send KYC invite email
             </>
           )}
         </Button>
