@@ -481,7 +481,9 @@ export function GenerateProformaDialog({
               quantity: l.quantity,
               gst_rate: l.gst_rate,
               gross_total: l.gross_total,
+              taxable: Math.round((Number(l.gross_total) / (1 + Number(l.gst_rate) / 100)) * 100) / 100,
             })),
+            total: undefined as unknown as number,  // filled below once `totals` is computed
             bill_to: billTo,
             notes,
             mode: isRegenerate ? 'regenerated' : 'generated',
