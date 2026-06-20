@@ -22,6 +22,11 @@ describe('inferGstRate', () => {
     expect(inferGstRate('Random Widget', '')).toBe(18);
   });
 
+  it('preserves WooCommerce shipping charges at 0%', () => {
+    expect(inferGstRate('Express Mode', '996812')).toBe(0);
+    expect(inferGstRate('Shipping charges', '')).toBe(0);
+  });
+
   it('catches subscription keywords without an HSN', () => {
     expect(inferGstRate('DJI Care Refresh — 1 Year', '')).toBe(18);
   });
