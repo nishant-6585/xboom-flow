@@ -1113,7 +1113,7 @@ export function GenerateProformaDialog({
                     {lineRuleBreakdown.map(({ line, explain }, idx) => {
                       const overridden = explain.rate !== Number(line.gst_rate);
                       if (!overridden) return null;
-                      const correctedGross = line.unit_price_excl * Number(line.quantity) * (1 + explain.rate / 100);
+                      const correctedGross = line.unit_price_excl * Number(line.quantity) * (line.price_includes_gst !== false ? 1 + explain.rate / 100 : 1);
                       const driftPerLine = Math.round((line.gross_total - correctedGross) * 100) / 100;
                       return (
                         <div key={idx} className="text-[11px] font-mono bg-white/40 dark:bg-black/20 rounded px-2 py-1">
