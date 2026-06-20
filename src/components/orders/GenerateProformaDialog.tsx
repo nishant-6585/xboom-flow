@@ -250,19 +250,20 @@ export function GenerateProformaDialog({
       setLoading(true);
       try {
         let items: OrderItem[] = [];
+        const wooSnapshot = await fetchWooPricingSnapshot(order, wooOrder);
         if (order) {
           items = await fetchOrderItems(order.id);
         }
         if (items.length === 0) {
-          if (wooOrder && Array.isArray(wooOrder.line_items) && (wooOrder.line_items as any[]).length > 0) {
-            const wli = wooOrder.line_items as any[];
-            setLines(wli.map((it) => {
+          const wooLineItems = normalizeWooLineItems(wooSnapshot?.line_items ?? (wooOrder as any)?.line_items);
+          if ((wooOrder || wooSnapshot) && wooLineItems.length > 0) {
+            const productLines = wooLineItems.map((it) => {
               const qty = Number(it.quantity ?? it.qty ?? 1) || 1;
               // Woo order line_items totals are tax-EXCLUSIVE for xboom.in
               // (woocommerce_prices_include_tax = no). Use subtotal/total as
               // the taxable (net) amount.
-              const net = Number(it.total ?? it.subtotal ?? (Number(it.price) || 0) * qty) || 0;
-              const gross = Math.round(net * 100) / 100;
+              const net = toNumber(it.total ?? it.subtotal ?? toNumber(it.price) * qty);
+              const gross = roundMoney(net);
               const name = it.name || it.product_name || 'Item';
               const rate = inferGstRateFromWooLine(it);
               const unitExcl = qty > 0 ? gross / qty : 0;
@@ -272,10 +273,11 @@ export function GenerateProformaDialog({
                 quantity: qty,
                 gross_total: gross,
                 gst_rate: rate,
-                unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+                unit_price_excl: roundUnit(unitExcl),
                 price_includes_gst: false,
               };
-            }));
+            });
+            setLines(appendWooShippingLines(productLines, wooSnapshot));
           } else {
             const qty = 1;
             const gross = subject.total;
@@ -290,7 +292,7 @@ export function GenerateProformaDialog({
               quantity: qty,
               gross_total: gross,
               gst_rate: rate,
-              unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+              unit_price_excl: roundUnit(unitExcl),
               price_includes_gst: includes,
             }]);
           }
@@ -303,8 +305,8 @@ export function GenerateProformaDialog({
             // INCLUSIVE/EXCLUSIVE flag, honour what was captured on the
             // order_item — operators tick the "Price incl. GST" box per line.
             const rate = inferGstRate(it.product_name, DEFAULT_HSN);
-            const includes = !!it.sales_price_includes_gst;
-            const gross = Math.round(unit * qty * 100) / 100;
+            const includes = (order as any)?.source === 'website' ? false : !!it.sales_price_includes_gst;
+            const gross = roundMoney(unit * qty);
             const unitExcl = includes ? unit / (1 + rate / 100) : unit;
             return {
               product_name: it.product_name,
@@ -312,10 +314,13 @@ export function GenerateProformaDialog({
               quantity: qty,
               gross_total: gross,
               gst_rate: rate,
-              unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+              unit_price_excl: roundUnit(unitExcl),
               price_includes_gst: includes,
             };
-          }));
+          });
+          setLines((order as any)?.source === 'website'
+            ? appendWooShippingLines(productLines, wooSnapshot)
+            : productLines);
         }
       } finally {
         setLoading(false);
