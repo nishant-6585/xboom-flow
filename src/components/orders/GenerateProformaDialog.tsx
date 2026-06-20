@@ -262,7 +262,8 @@ export function GenerateProformaDialog({
               // Woo order line_items totals are tax-EXCLUSIVE for xboom.in
               // (woocommerce_prices_include_tax = no). Use subtotal/total as
               // the taxable (net) amount.
-              const net = toNumber(it.total ?? it.subtotal ?? toNumber(it.price) * qty);
+              const unitNet = toNumber(it.price);
+              const net = unitNet > 0 ? unitNet * qty : toNumber(it.total ?? it.subtotal);
               const gross = roundMoney(net);
               const name = it.name || it.product_name || 'Item';
               const rate = inferGstRateFromWooLine(it);
