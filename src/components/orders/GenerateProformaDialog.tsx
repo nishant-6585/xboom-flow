@@ -671,25 +671,27 @@ export function GenerateProformaDialog({
       // changed line items vs prior snapshot, and the initiating user/role.
       try {
         const beforeLines = ((existingProforma as any)?.audit_snapshot?.lines) || [];
-        const taxableOf = (gross: number, rate: number) =>
-          Math.round((Number(gross) / (1 + Number(rate) / 100)) * 100) / 100;
+        const taxableOf = (gross: number, rate: number, includes = true) => includes === false
+          ? roundMoney(gross)
+          : roundMoney(Number(gross) / (1 + Number(rate) / 100));
         const afterLines = lines.map((l) => ({
           product_name: l.product_name, hsn: l.hsn, quantity: l.quantity,
           gst_rate: l.gst_rate, gross_total: l.gross_total,
-          taxable: taxableOf(l.gross_total, l.gst_rate),
+          price_includes_gst: l.price_includes_gst,
+          taxable: taxableOf(l.gross_total, l.gst_rate, l.price_includes_gst),
         }));
         // Backfill `taxable` on legacy before-snapshot lines so diffs render fully.
         const beforeLinesEnriched = beforeLines.map((b: any) => ({
           ...b,
           taxable: b?.taxable != null
             ? Number(b.taxable)
-            : taxableOf(Number(b?.gross_total) || 0, Number(b?.gst_rate) || 0),
+            : taxableOf(Number(b?.gross_total) || 0, Number(b?.gst_rate) || 0, b?.price_includes_gst),
         }));
         const changes: any[] = [];
         afterLines.forEach((a, i) => {
           const b = beforeLinesEnriched[i];
           if (!b) { changes.push({ index: i, field: '__added__', before: null, after: a, product_name: a.product_name }); return; }
-          ['gst_rate', 'taxable', 'gross_total', 'quantity', 'product_name', 'hsn'].forEach((f) => {
+          ['gst_rate', 'taxable', 'gross_total', 'price_includes_gst', 'quantity', 'product_name', 'hsn'].forEach((f) => {
             if (String(b[f] ?? '') !== String((a as any)[f] ?? '')) {
               changes.push({ index: i, field: f, before: b[f], after: (a as any)[f], product_name: a.product_name });
             }
