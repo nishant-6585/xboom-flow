@@ -85,9 +85,6 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 
 ## ✅ Completed work
 
-### 2026-06-20 — Proforma GST inclusive/exclusive fix ✅ (by Lovable)
-Bug: proforma always treated line amounts as GST-inclusive; xboom.in website prices are GST-EXCLUSIVE → order #142663 undercounted GST by ₹5,888 (AMOUNT_MISMATCH). Fix: `splitGstExclusive` added to `invoiceGst.ts`; `computeProformaTotals` branches per line on `price_includes_gst` (Total = taxable + tax both modes); `GenerateProformaDialog` seeds the flag from source (order_items.sales_price_includes_gst; Woo lines → false; fallback false for website / true for internal) + "Prices include GST" toggle; sync adds `pricelist.website_price_includes_gst` (migration `20260620063851`, probes `woocommerce_prices_include_tax`); `woo-mirror` sets `order_items.sales_price_includes_gst=false` for website orders. Verify: regenerate #142663 → Total matches paid, delta ≈ 0.
-
 ### 2026-06-19 — Email invoice to customer (proforma + Zoho) ✅ (by Lovable)
 Auto-emails the customer when a proforma is generated or a Zoho invoice is uploaded; reuses the existing **Resend** integration (`RESEND_API_KEY`, verified domain `xboom.in`, sender `invoices@xboom.in`).
 - `send-invoice-email` edge fn: pulls PDF from `invoices` bucket, base64-attaches, document-aware subject/body (Proforma vs Tax Invoice; tax invoice notes it supersedes the proforma). Auto-mode idempotent (skips if a 'sent' row exists for that invoice id); manual re-send always allowed. `verify_jwt=false`.

@@ -283,10 +283,10 @@ export function GenerateProformaDialog({
             const qty = 1;
             const gross = subject.total;
             const rate = inferGstRate(subject.product_name, DEFAULT_HSN);
-            // For website/woo subjects assume exclusive (xboom.in); for
-            // internal orders the legacy default is inclusive.
-            const includes = isWoo ? false : true;
-            const unitExcl = (gross / qty) / (includes ? (1 + rate / 100) : 1);
+            // Policy: all prices are treated as GST-EXCLUSIVE. GST (5% drone /
+            // 18% accessory) is added on top via inferGstRate().
+            const includes = false;
+            const unitExcl = gross / qty;
             setLines([{
               product_name: subject.product_name,
               hsn: DEFAULT_HSN,
@@ -306,9 +306,11 @@ export function GenerateProformaDialog({
             // INCLUSIVE/EXCLUSIVE flag, honour what was captured on the
             // order_item — operators tick the "Price incl. GST" box per line.
             const rate = inferGstRate(it.product_name, DEFAULT_HSN);
-            const includes = (order as any)?.source === 'website' ? false : !!it.sales_price_includes_gst;
+            // Policy: treat every source price as GST-EXCLUSIVE. GST is added
+            // on top per inferGstRate (5% drones, 18% accessories/services).
+            const includes = false;
             const gross = roundMoney(unit * qty);
-            const unitExcl = includes ? unit / (1 + rate / 100) : unit;
+            const unitExcl = unit;
             return {
               product_name: it.product_name,
               hsn: DEFAULT_HSN,
@@ -379,7 +381,7 @@ export function GenerateProformaDialog({
   };
   const addLine = () => setLines((prev) => [...prev, {
     product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: 18, unit_price_excl: 0,
-    price_includes_gst: !isWoo,
+    price_includes_gst: false,
   }]);
   const removeLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
 
