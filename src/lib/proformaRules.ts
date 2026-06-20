@@ -7,7 +7,7 @@
  * change. Stored on every generated proforma's audit_snapshot so we can
  * flag pre-existing proformas as stale and offer one-click regeneration.
  */
-export const PROFORMA_RULES_VERSION = '2026.06.19';
+export const PROFORMA_RULES_VERSION = '2026.06.20';
 
 export const DRONE_GST = 5;
 export const STANDARD_GST = 18;
@@ -17,6 +17,8 @@ const ACCESSORY_RE = /(propeller|prop\b|blade|battery|batteries|charger|cable|co
 const SUBSCRIPTION_RE = /(subscription|annual\s*plan|care\s*refresh|care\s*plan|enterprise\s*shield|warranty\s*plan|maintenance\s*plan|amc\b|service\s*plan|terra\s*(pro|advanced|annual|1\s*year))/i;
 
 const DRONE_RE = /\b(drones?|uav|quadcopter|matrice|mavic|phantom|inspire|agras|m3\b|m4\b|m30|m300|m350)\b/i;
+
+const SHIPPING_RE = /(shipping|delivery|freight|courier|express mode)/i;
 
 /**
  * Pure category-based GST rate.
@@ -30,6 +32,11 @@ const DRONE_RE = /\b(drones?|uav|quadcopter|matrice|mavic|phantom|inspire|agras|
 export function inferGstRate(productName: string, hsn?: string | null): number {
   const name = (productName || '').toLowerCase();
   const code = (hsn || '').trim();
+
+  // 0. WooCommerce shipping/delivery charges can be non-taxed while still
+  // included in the paid website total. Preserve them as 0% unless Woo tax
+  // data explicitly supplied another rate upstream.
+  if (code === '996812' || SHIPPING_RE.test(name)) return 0;
 
   // 1. SAC services → 18% (subscriptions billed under 9973xx etc.)
   if (/^997\d{0,5}$/.test(code)) return STANDARD_GST;
@@ -65,11 +72,14 @@ export function inferGstRate(productName: string, hsn?: string | null): number {
 /** Human-readable explanation for *why* inferGstRate picked a rate. */
 export function explainGstRate(productName: string, hsn?: string | null): {
   rate: number;
-  source: 'SAC_997_SERVICE' | 'HSN_8806_DRONE' | 'HSN_8806_ACCESSORY' | 'NAME_ACCESSORY' | 'NAME_DRONE' | 'NAME_SUBSCRIPTION' | 'FALLBACK_18';
+  source: 'SHIPPING_CHARGE' | 'SAC_997_SERVICE' | 'HSN_8806_DRONE' | 'HSN_8806_ACCESSORY' | 'NAME_ACCESSORY' | 'NAME_DRONE' | 'NAME_SUBSCRIPTION' | 'FALLBACK_18';
   detail: string;
 } {
   const name = (productName || '').toLowerCase();
   const code = (hsn || '').trim();
+  if (code === '996812' || SHIPPING_RE.test(name)) {
+    return { rate: 0, source: 'SHIPPING_CHARGE', detail: 'Website shipping/delivery charge is preserved at the WooCommerce tax rate → 0%.' };
+  }
   if (/^997\d{0,5}$/.test(code)) {
     return { rate: STANDARD_GST, source: 'SAC_997_SERVICE', detail: `SAC ${code} is a service code → 18%.` };
   }
