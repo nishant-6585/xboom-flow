@@ -386,6 +386,10 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
         product_category: "Consumer Drones",
         quantity: li.quantity || 1,
         unit_price: parseFloat(li.price || li.subtotal || "0") || 0,
+        // Woo line_items use store base prices. For xboom.in (and any store
+        // with woocommerce_prices_include_tax=no), the per-line unit price is
+        // GST-EXCLUSIVE — flag it so proforma generation computes tax on top.
+        sales_price_includes_gst: false,
       }));
       const { error: itErr } = await supabase.from("order_items").insert(items);
       if (itErr) console.error("[woo-mirror] order_items insert err", itErr.message);
