@@ -54,6 +54,94 @@ interface Line {
 const inferGstRate = ruleInferGstRate;
 const inferGstRateFromWooLine = (it: any) => ruleInferGstRateFromWooLine(it, DEFAULT_HSN);
 
+const WOO_SHIPPING_HSN = '996812';
+const SHIPPING_LINE_RE = /(shipping|delivery|freight|courier|express mode)/i;
+
+const roundMoney = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+const roundUnit = (n: number) => Math.round((Number(n) || 0) * 10000) / 10000;
+const toNumber = (value: unknown) => {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+};
+
+function normalizeWooLineItems(raw: unknown): any[] {
+  return Array.isArray(raw) ? raw : [];
+}
+
+function snapGstRateFromTax(net: number, tax: number) {
+  if (net <= 0 || tax <= 0) return 0;
+  const pct = (tax / net) * 100;
+  const slabs = [0, 5, 12, 18, 28];
+  const snapped = slabs.reduce((best, slab) => (
+    Math.abs(slab - pct) < Math.abs(best - pct) ? slab : best
+  ), slabs[0]);
+  return Math.abs(snapped - pct) <= 1 ? snapped : roundMoney(pct);
+}
+
+function buildWooShippingLines(wooSource: any): Line[] {
+  const raw = wooSource?.raw_data && typeof wooSource.raw_data === 'object' ? wooSource.raw_data : wooSource;
+  const shippingLines = Array.isArray(raw?.shipping_lines) ? raw.shipping_lines : [];
+  const lines = shippingLines
+    .map((ship: any) => {
+      const net = roundMoney(ship?.total);
+      const tax = roundMoney(ship?.total_tax);
+      if (net <= 0 && tax <= 0) return null;
+      const rate = snapGstRateFromTax(net, tax);
+      const name = String(ship?.method_title || ship?.method_id || 'Shipping charges').trim();
+      return {
+        product_name: name || 'Shipping charges',
+        hsn: WOO_SHIPPING_HSN,
+        quantity: 1,
+        gross_total: net,
+        gst_rate: rate,
+        unit_price_excl: net,
+        price_includes_gst: false,
+      } as Line;
+    })
+    .filter(Boolean) as Line[];
+
+  if (lines.length > 0) return lines;
+
+  const net = roundMoney(raw?.shipping_total);
+  const tax = roundMoney(raw?.shipping_tax);
+  if (net <= 0 && tax <= 0) return [];
+  return [{
+    product_name: 'Shipping charges',
+    hsn: WOO_SHIPPING_HSN,
+    quantity: 1,
+    gross_total: net,
+    gst_rate: snapGstRateFromTax(net, tax),
+    unit_price_excl: net,
+    price_includes_gst: false,
+  }];
+}
+
+function appendWooShippingLines(productLines: Line[], wooSource: any): Line[] {
+  if (!wooSource || productLines.some((line) => SHIPPING_LINE_RE.test(line.product_name))) return productLines;
+  const shippingLines = buildWooShippingLines(wooSource);
+  return shippingLines.length > 0 ? [...productLines, ...shippingLines] : productLines;
+}
+
+async function fetchWooPricingSnapshot(order?: Order | null, wooOrder?: WooCommerceOrder | null) {
+  if (wooOrder) {
+    const hasPricingPayload = Array.isArray((wooOrder as any).line_items) && !!(wooOrder as any).raw_data;
+    if (hasPricingPayload) return wooOrder as any;
+    let query = (supabase.from('woocommerce_orders') as any)
+      .select('id, woo_order_id, order_number, total_sales_amount, amount_paid, shipping_address, line_items, raw_data');
+    query = wooOrder.id ? query.eq('id', wooOrder.id) : query.eq('woo_order_id', wooOrder.woo_order_id);
+    const { data } = await query.maybeSingle();
+    return data ? { ...(wooOrder as any), ...data } : wooOrder as any;
+  }
+
+  const externalId = (order as any)?.external_id;
+  if ((order as any)?.source !== 'website' || !externalId) return null;
+  const { data } = await (supabase.from('woocommerce_orders') as any)
+    .select('id, woo_order_id, order_number, total_sales_amount, amount_paid, shipping_address, line_items, raw_data')
+    .eq('woo_order_id', String(externalId))
+    .maybeSingle();
+  return data || null;
+}
+
 interface Props {
   /** Internal order — pass this OR wooOrder. */
   order?: Order | null;
@@ -162,19 +250,21 @@ export function GenerateProformaDialog({
       setLoading(true);
       try {
         let items: OrderItem[] = [];
+        const wooSnapshot = await fetchWooPricingSnapshot(order, wooOrder);
         if (order) {
           items = await fetchOrderItems(order.id);
         }
         if (items.length === 0) {
-          if (wooOrder && Array.isArray(wooOrder.line_items) && (wooOrder.line_items as any[]).length > 0) {
-            const wli = wooOrder.line_items as any[];
-            setLines(wli.map((it) => {
+          const wooLineItems = normalizeWooLineItems(wooSnapshot?.line_items ?? (wooOrder as any)?.line_items);
+          if ((wooOrder || wooSnapshot) && wooLineItems.length > 0) {
+            const productLines = wooLineItems.map((it) => {
               const qty = Number(it.quantity ?? it.qty ?? 1) || 1;
               // Woo order line_items totals are tax-EXCLUSIVE for xboom.in
               // (woocommerce_prices_include_tax = no). Use subtotal/total as
               // the taxable (net) amount.
-              const net = Number(it.total ?? it.subtotal ?? (Number(it.price) || 0) * qty) || 0;
-              const gross = Math.round(net * 100) / 100;
+              const unitNet = toNumber(it.price);
+              const net = unitNet > 0 ? unitNet * qty : toNumber(it.total ?? it.subtotal);
+              const gross = roundMoney(net);
               const name = it.name || it.product_name || 'Item';
               const rate = inferGstRateFromWooLine(it);
               const unitExcl = qty > 0 ? gross / qty : 0;
@@ -184,10 +274,11 @@ export function GenerateProformaDialog({
                 quantity: qty,
                 gross_total: gross,
                 gst_rate: rate,
-                unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+                unit_price_excl: roundUnit(unitExcl),
                 price_includes_gst: false,
               };
-            }));
+            });
+            setLines(appendWooShippingLines(productLines, wooSnapshot));
           } else {
             const qty = 1;
             const gross = subject.total;
@@ -202,12 +293,12 @@ export function GenerateProformaDialog({
               quantity: qty,
               gross_total: gross,
               gst_rate: rate,
-              unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+              unit_price_excl: roundUnit(unitExcl),
               price_includes_gst: includes,
             }]);
           }
         } else {
-          setLines(items.map((it) => {
+          const productLines = items.map((it) => {
             const qty = Number(it.quantity) || 1;
             const unit = Number(it.unit_price) || 0;
             // Trust the SAC/HSN rule engine for the GST RATE (DB
@@ -215,8 +306,8 @@ export function GenerateProformaDialog({
             // INCLUSIVE/EXCLUSIVE flag, honour what was captured on the
             // order_item — operators tick the "Price incl. GST" box per line.
             const rate = inferGstRate(it.product_name, DEFAULT_HSN);
-            const includes = !!it.sales_price_includes_gst;
-            const gross = Math.round(unit * qty * 100) / 100;
+            const includes = (order as any)?.source === 'website' ? false : !!it.sales_price_includes_gst;
+            const gross = roundMoney(unit * qty);
             const unitExcl = includes ? unit / (1 + rate / 100) : unit;
             return {
               product_name: it.product_name,
@@ -224,10 +315,13 @@ export function GenerateProformaDialog({
               quantity: qty,
               gross_total: gross,
               gst_rate: rate,
-              unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+              unit_price_excl: roundUnit(unitExcl),
               price_includes_gst: includes,
             };
-          }));
+          });
+          setLines((order as any)?.source === 'website'
+            ? appendWooShippingLines(productLines, wooSnapshot)
+            : productLines);
         }
       } finally {
         setLoading(false);
@@ -340,26 +434,42 @@ export function GenerateProformaDialog({
   const runDryRun = () => {
     if (!subject) return;
     const changedLines: Array<{ index: number; product_name: string; field: string; before: any; after: any }> = [];
-    let dryProformaTotal = 0;
-    lines.forEach((l, idx) => {
+    const dryLines = lines.map((l, idx) => {
       const inferred = inferGstRate(l.product_name, l.hsn);
       const qty = Number(l.quantity) || 0;
       const includes = l.price_includes_gst !== false;
       const correctedGross = Math.round(
         l.unit_price_excl * qty * (includes ? 1 + inferred / 100 : 1) * 100,
       ) / 100;
-      dryProformaTotal += correctedGross;
       if (inferred !== Number(l.gst_rate)) {
         changedLines.push({ index: idx, product_name: l.product_name, field: 'gst_rate', before: l.gst_rate, after: inferred });
       }
       if (Math.abs(correctedGross - Number(l.gross_total)) > 0.01) {
         changedLines.push({ index: idx, product_name: l.product_name, field: 'gross_total', before: l.gross_total, after: correctedGross });
       }
+      return { ...l, gst_rate: inferred, gross_total: correctedGross };
+    });
+    const dryTotals = computeProformaTotals({
+      proforma_number: 'XPF-DRYRUN',
+      invoice_date: new Date(),
+      bill_to: { name: billTo.name },
+      place_of_supply_code: stateCode,
+      place_of_supply_name: INDIAN_STATES.find((s) => s.code === stateCode)?.name || stateCode,
+      treatment,
+      items: dryLines.map((l) => ({
+        product_name: l.product_name,
+        hsn: l.hsn,
+        quantity: l.quantity,
+        gross_total: l.gross_total,
+        gst_rate: l.gst_rate,
+        price_includes_gst: l.price_includes_gst,
+      })) as ProformaLineInput[],
+      amount_paid: subject.amount_paid,
     });
     const expected = Number(subject.total) || 0;
     setDryRun({
-      delta: Math.round((dryProformaTotal - expected) * 100) / 100,
-      proformaTotal: Math.round(dryProformaTotal * 100) / 100,
+      delta: Math.round((dryTotals.total - expected) * 100) / 100,
+      proformaTotal: Math.round(dryTotals.total * 100) / 100,
       expectedTotal: expected,
       changedLines,
     });
@@ -562,25 +672,27 @@ export function GenerateProformaDialog({
       // changed line items vs prior snapshot, and the initiating user/role.
       try {
         const beforeLines = ((existingProforma as any)?.audit_snapshot?.lines) || [];
-        const taxableOf = (gross: number, rate: number) =>
-          Math.round((Number(gross) / (1 + Number(rate) / 100)) * 100) / 100;
+        const taxableOf = (gross: number, rate: number, includes = true) => includes === false
+          ? roundMoney(gross)
+          : roundMoney(Number(gross) / (1 + Number(rate) / 100));
         const afterLines = lines.map((l) => ({
           product_name: l.product_name, hsn: l.hsn, quantity: l.quantity,
           gst_rate: l.gst_rate, gross_total: l.gross_total,
-          taxable: taxableOf(l.gross_total, l.gst_rate),
+          price_includes_gst: l.price_includes_gst,
+          taxable: taxableOf(l.gross_total, l.gst_rate, l.price_includes_gst),
         }));
         // Backfill `taxable` on legacy before-snapshot lines so diffs render fully.
         const beforeLinesEnriched = beforeLines.map((b: any) => ({
           ...b,
           taxable: b?.taxable != null
             ? Number(b.taxable)
-            : taxableOf(Number(b?.gross_total) || 0, Number(b?.gst_rate) || 0),
+            : taxableOf(Number(b?.gross_total) || 0, Number(b?.gst_rate) || 0, b?.price_includes_gst),
         }));
         const changes: any[] = [];
         afterLines.forEach((a, i) => {
           const b = beforeLinesEnriched[i];
           if (!b) { changes.push({ index: i, field: '__added__', before: null, after: a, product_name: a.product_name }); return; }
-          ['gst_rate', 'taxable', 'gross_total', 'quantity', 'product_name', 'hsn'].forEach((f) => {
+          ['gst_rate', 'taxable', 'gross_total', 'price_includes_gst', 'quantity', 'product_name', 'hsn'].forEach((f) => {
             if (String(b[f] ?? '') !== String((a as any)[f] ?? '')) {
               changes.push({ index: i, field: f, before: b[f], after: (a as any)[f], product_name: a.product_name });
             }
@@ -646,6 +758,12 @@ export function GenerateProformaDialog({
   };
 
   if (!subject) return null;
+
+  const lineAmountLabel = lines.length > 0 && lines.every((l) => l.price_includes_gst === false)
+    ? 'Taxable (₹)'
+    : lines.length > 0 && lines.every((l) => l.price_includes_gst !== false)
+      ? 'Total incl. GST (₹)'
+      : 'Amount (₹)';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -807,7 +925,7 @@ export function GenerateProformaDialog({
                       <th className="text-left p-2 w-28">HSN/SAC</th>
                       <th className="text-right p-2 w-16">Qty</th>
                       <th className="text-right p-2 w-24">GST %</th>
-                      <th className="text-right p-2 w-32">Total (₹)</th>
+                      <th className="text-right p-2 w-32">{lineAmountLabel}</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
@@ -1002,7 +1120,7 @@ export function GenerateProformaDialog({
                     {lineRuleBreakdown.map(({ line, explain }, idx) => {
                       const overridden = explain.rate !== Number(line.gst_rate);
                       if (!overridden) return null;
-                      const correctedGross = line.unit_price_excl * Number(line.quantity) * (1 + explain.rate / 100);
+                      const correctedGross = line.unit_price_excl * Number(line.quantity) * (line.price_includes_gst !== false ? 1 + explain.rate / 100 : 1);
                       const driftPerLine = Math.round((line.gross_total - correctedGross) * 100) / 100;
                       return (
                         <div key={idx} className="text-[11px] font-mono bg-white/40 dark:bg-black/20 rounded px-2 py-1">
