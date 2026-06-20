@@ -814,7 +814,7 @@ export function GenerateProformaDialog({
                                 Source: <span className="font-mono">{explain.source}</span> ·
                                 Inferred: <span className="font-medium">{explain.rate}%</span> ·
                                 Applied: <span className={`font-medium ${mismatch ? 'text-amber-700' : ''}`}>{line.gst_rate}%</span> ·
-                                Total is GST-{line.rate_includes_gst !== false ? 'inclusive' : 'exclusive'}
+                                Total is GST-{line.price_includes_gst !== false ? 'inclusive' : 'exclusive'}
                               </div>
                             </div>
                             {mismatch && (
@@ -966,7 +966,7 @@ export function GenerateProformaDialog({
                       return (
                         <div key={idx} className="text-[11px] font-mono bg-white/40 dark:bg-black/20 rounded px-2 py-1">
                           L{idx + 1}: applied={line.gst_rate}% vs inferred={explain.rate}% ({explain.source}),
-                          incl_flag={String(line.rate_includes_gst !== false)},
+                          incl_flag={String(line.price_includes_gst !== false)},
                           gross=₹{line.gross_total.toLocaleString('en-IN')},
                           drift={driftPerLine >= 0 ? '+' : ''}₹{driftPerLine.toLocaleString('en-IN')}
                         </div>
