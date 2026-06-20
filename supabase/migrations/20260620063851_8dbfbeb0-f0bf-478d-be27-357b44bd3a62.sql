@@ -1,0 +1,2 @@
+ALTER TABLE public.pricelist ADD COLUMN IF NOT EXISTS website_price_includes_gst BOOLEAN NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.pricelist.website_price_includes_gst IS 'Whether website_price (synced from WooCommerce) is GST-inclusive. Reflects WooCommerce store setting woocommerce_prices_include_tax. xboom.in is exclusive (false).';
