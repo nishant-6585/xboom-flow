@@ -433,26 +433,42 @@ export function GenerateProformaDialog({
   const runDryRun = () => {
     if (!subject) return;
     const changedLines: Array<{ index: number; product_name: string; field: string; before: any; after: any }> = [];
-    let dryProformaTotal = 0;
-    lines.forEach((l, idx) => {
+    const dryLines = lines.map((l, idx) => {
       const inferred = inferGstRate(l.product_name, l.hsn);
       const qty = Number(l.quantity) || 0;
       const includes = l.price_includes_gst !== false;
       const correctedGross = Math.round(
         l.unit_price_excl * qty * (includes ? 1 + inferred / 100 : 1) * 100,
       ) / 100;
-      dryProformaTotal += correctedGross;
       if (inferred !== Number(l.gst_rate)) {
         changedLines.push({ index: idx, product_name: l.product_name, field: 'gst_rate', before: l.gst_rate, after: inferred });
       }
       if (Math.abs(correctedGross - Number(l.gross_total)) > 0.01) {
         changedLines.push({ index: idx, product_name: l.product_name, field: 'gross_total', before: l.gross_total, after: correctedGross });
       }
+      return { ...l, gst_rate: inferred, gross_total: correctedGross };
+    });
+    const dryTotals = computeProformaTotals({
+      proforma_number: 'XPF-DRYRUN',
+      invoice_date: new Date(),
+      bill_to: { name: billTo.name },
+      place_of_supply_code: stateCode,
+      place_of_supply_name: INDIAN_STATES.find((s) => s.code === stateCode)?.name || stateCode,
+      treatment,
+      items: dryLines.map((l) => ({
+        product_name: l.product_name,
+        hsn: l.hsn,
+        quantity: l.quantity,
+        gross_total: l.gross_total,
+        gst_rate: l.gst_rate,
+        price_includes_gst: l.price_includes_gst,
+      })) as ProformaLineInput[],
+      amount_paid: subject.amount_paid,
     });
     const expected = Number(subject.total) || 0;
     setDryRun({
-      delta: Math.round((dryProformaTotal - expected) * 100) / 100,
-      proformaTotal: Math.round(dryProformaTotal * 100) / 100,
+      delta: Math.round((dryTotals.total - expected) * 100) / 100,
+      proformaTotal: Math.round(dryTotals.total * 100) / 100,
       expectedTotal: expected,
       changedLines,
     });
