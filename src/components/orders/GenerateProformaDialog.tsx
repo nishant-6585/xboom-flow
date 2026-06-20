@@ -54,6 +54,94 @@ interface Line {
 const inferGstRate = ruleInferGstRate;
 const inferGstRateFromWooLine = (it: any) => ruleInferGstRateFromWooLine(it, DEFAULT_HSN);
 
+const WOO_SHIPPING_HSN = '996812';
+const SHIPPING_LINE_RE = /(shipping|delivery|freight|courier|express mode)/i;
+
+const roundMoney = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+const roundUnit = (n: number) => Math.round((Number(n) || 0) * 10000) / 10000;
+const toNumber = (value: unknown) => {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+};
+
+function normalizeWooLineItems(raw: unknown): any[] {
+  return Array.isArray(raw) ? raw : [];
+}
+
+function snapGstRateFromTax(net: number, tax: number) {
+  if (net <= 0 || tax <= 0) return 0;
+  const pct = (tax / net) * 100;
+  const slabs = [0, 5, 12, 18, 28];
+  const snapped = slabs.reduce((best, slab) => (
+    Math.abs(slab - pct) < Math.abs(best - pct) ? slab : best
+  ), slabs[0]);
+  return Math.abs(snapped - pct) <= 1 ? snapped : roundMoney(pct);
+}
+
+function buildWooShippingLines(wooSource: any): Line[] {
+  const raw = wooSource?.raw_data && typeof wooSource.raw_data === 'object' ? wooSource.raw_data : wooSource;
+  const shippingLines = Array.isArray(raw?.shipping_lines) ? raw.shipping_lines : [];
+  const lines = shippingLines
+    .map((ship: any) => {
+      const net = roundMoney(ship?.total);
+      const tax = roundMoney(ship?.total_tax);
+      if (net <= 0 && tax <= 0) return null;
+      const rate = snapGstRateFromTax(net, tax);
+      const name = String(ship?.method_title || ship?.method_id || 'Shipping charges').trim();
+      return {
+        product_name: name || 'Shipping charges',
+        hsn: WOO_SHIPPING_HSN,
+        quantity: 1,
+        gross_total: net,
+        gst_rate: rate,
+        unit_price_excl: net,
+        price_includes_gst: false,
+      } as Line;
+    })
+    .filter(Boolean) as Line[];
+
+  if (lines.length > 0) return lines;
+
+  const net = roundMoney(raw?.shipping_total);
+  const tax = roundMoney(raw?.shipping_tax);
+  if (net <= 0 && tax <= 0) return [];
+  return [{
+    product_name: 'Shipping charges',
+    hsn: WOO_SHIPPING_HSN,
+    quantity: 1,
+    gross_total: net,
+    gst_rate: snapGstRateFromTax(net, tax),
+    unit_price_excl: net,
+    price_includes_gst: false,
+  }];
+}
+
+function appendWooShippingLines(productLines: Line[], wooSource: any): Line[] {
+  if (!wooSource || productLines.some((line) => SHIPPING_LINE_RE.test(line.product_name))) return productLines;
+  const shippingLines = buildWooShippingLines(wooSource);
+  return shippingLines.length > 0 ? [...productLines, ...shippingLines] : productLines;
+}
+
+async function fetchWooPricingSnapshot(order?: Order | null, wooOrder?: WooCommerceOrder | null) {
+  if (wooOrder) {
+    const hasPricingPayload = Array.isArray((wooOrder as any).line_items) && !!(wooOrder as any).raw_data;
+    if (hasPricingPayload) return wooOrder as any;
+    let query = (supabase.from('woocommerce_orders') as any)
+      .select('id, woo_order_id, order_number, total_sales_amount, amount_paid, shipping_address, line_items, raw_data');
+    query = wooOrder.id ? query.eq('id', wooOrder.id) : query.eq('woo_order_id', wooOrder.woo_order_id);
+    const { data } = await query.maybeSingle();
+    return data ? { ...(wooOrder as any), ...data } : wooOrder as any;
+  }
+
+  const externalId = (order as any)?.external_id;
+  if ((order as any)?.source !== 'website' || !externalId) return null;
+  const { data } = await (supabase.from('woocommerce_orders') as any)
+    .select('id, woo_order_id, order_number, total_sales_amount, amount_paid, shipping_address, line_items, raw_data')
+    .eq('woo_order_id', String(externalId))
+    .maybeSingle();
+  return data || null;
+}
+
 interface Props {
   /** Internal order — pass this OR wooOrder. */
   order?: Order | null;
