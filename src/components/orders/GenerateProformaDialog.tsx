@@ -484,7 +484,14 @@ export function GenerateProformaDialog({
         place_of_supply_code: stateCode,
         place_of_supply_name: stateName,
         treatment,
-        items: lines,
+        items: lines.map((l) => ({
+          product_name: l.product_name,
+          hsn: l.hsn,
+          quantity: l.quantity,
+          gross_total: l.gross_total,
+          gst_rate: l.gst_rate,
+          price_includes_gst: l.price_includes_gst,
+        })),
         amount_paid: amountPaid,
         notes,
       });
@@ -509,7 +516,10 @@ export function GenerateProformaDialog({
               quantity: l.quantity,
               gst_rate: l.gst_rate,
               gross_total: l.gross_total,
-              taxable: Math.round((Number(l.gross_total) / (1 + Number(l.gst_rate) / 100)) * 100) / 100,
+              price_includes_gst: l.price_includes_gst,
+              taxable: l.price_includes_gst === false
+                ? Math.round(Number(l.gross_total) * 100) / 100
+                : Math.round((Number(l.gross_total) / (1 + Number(l.gst_rate) / 100)) * 100) / 100,
             })),
             total: totals.total,
             bill_to: billTo,
