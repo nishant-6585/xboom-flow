@@ -706,7 +706,32 @@ export function GenerateProformaDialog({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Line Items (amounts are GST-inclusive)</Label>
+                <Label>
+                  Line Items (amounts are GST-{lines.length > 0 && lines.every((l) => l.price_includes_gst === false)
+                    ? 'exclusive'
+                    : lines.length > 0 && lines.every((l) => l.price_includes_gst !== false)
+                      ? 'inclusive'
+                      : 'mixed'})
+                </Label>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Prices include GST</span>
+                  <Switch
+                    checked={lines.length > 0 && lines.every((l) => l.price_includes_gst !== false)}
+                    onCheckedChange={(checked) => {
+                      setLines((prev) => prev.map((l) => {
+                        const qty = Number(l.quantity) || 0;
+                        const rate = Number(l.gst_rate) || 0;
+                        return {
+                          ...l,
+                          price_includes_gst: !!checked,
+                          gross_total: Math.round(
+                            l.unit_price_excl * qty * (checked ? 1 + rate / 100 : 1) * 100,
+                          ) / 100,
+                        };
+                      }));
+                    }}
+                  />
+                </div>
               </div>
               {((existingProforma as any)?.needs_regenerate ||
                 ((existingProforma as any)?.audit_snapshot?.rules_version &&
