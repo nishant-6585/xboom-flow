@@ -103,6 +103,12 @@ export async function upsertWooProduct(
   supabase: Supabase,
   woo: Woo,
   source: string,
+  /**
+   * Result of the Woo store setting `woocommerce_prices_include_tax`
+   * (true = "yes"). When undefined we leave the column at its DB default
+   * (false / exclusive — matches xboom.in).
+   */
+  pricesIncludeTax?: boolean,
 ): Promise<UpsertResult> {
   const wooId = Number(woo?.id);
   if (!wooId || Number.isNaN(wooId)) {
@@ -136,12 +142,18 @@ export async function upsertWooProduct(
     product_category: mapCategory(woo),
     description: stripHtml(woo?.short_description || woo?.description) || null,
     website_price: mapPrice(woo),
+    website_price_includes_gst: pricesIncludeTax === true,
     availability: mapAvailability(woo),
     woo_stock_status: woo?.stock_status ? String(woo.stock_status).toLowerCase() : null,
     woo_sku: woo?.sku ? String(woo.sku) : null,
     sync_source: source,
     website_synced_at: new Date().toISOString(),
   };
+
+  // Avoid clobbering when the caller didn't probe the store setting.
+  if (pricesIncludeTax === undefined) {
+    delete websiteFields.website_price_includes_gst;
+  }
 
   // 1) Match by woo_product_id
   const { data: byId } = await supabase

@@ -10820,6 +10820,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           website_price: number | null
+          website_price_includes_gst: boolean
           website_synced_at: string | null
           woo_product_id: number | null
           woo_sku: string | null
@@ -10847,6 +10848,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           website_price?: number | null
+          website_price_includes_gst?: boolean
           website_synced_at?: string | null
           woo_product_id?: number | null
           woo_sku?: string | null
@@ -10874,6 +10876,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           website_price?: number | null
+          website_price_includes_gst?: boolean
           website_synced_at?: string | null
           woo_product_id?: number | null
           woo_sku?: string | null

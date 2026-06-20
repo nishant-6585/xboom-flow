@@ -63,6 +63,23 @@ Deno.serve(async (req) => {
 
     const base = wcUrl.replace(/\/$/, "");
     const auth = btoa(`${wcKey}:${wcSecret}`);
+
+    // Fetch the store-wide tax setting once: tells us whether catalog prices
+    // are GST-INCLUSIVE ("yes") or GST-EXCLUSIVE ("no"). xboom.in = "no".
+    let pricesIncludeTax: boolean | undefined = undefined;
+    try {
+      const settingResp = await fetch(
+        `${base}/wp-json/wc/v3/settings/tax/woocommerce_prices_include_tax`,
+        { headers: { Authorization: `Basic ${auth}` } },
+      );
+      if (settingResp.ok) {
+        const s = await settingResp.json();
+        pricesIncludeTax = String(s?.value || "").toLowerCase() === "yes";
+      }
+    } catch (e) {
+      console.warn("[woocommerce-products-backfill] tax setting probe failed", e);
+    }
+
     const perPage = 100;
     let page = 1;
     let created = 0;
@@ -99,7 +116,9 @@ Deno.serve(async (req) => {
       for (let i = 0; i < products.length; i += BATCH) {
         const slice = products.slice(i, i + BATCH);
         const results = await Promise.allSettled(
-          slice.map((p: unknown) => upsertWooProduct(supabase, p, "woocommerce_backfill")),
+          slice.map((p: unknown) =>
+            upsertWooProduct(supabase, p, "woocommerce_backfill", pricesIncludeTax),
+          ),
         );
         for (let j = 0; j < results.length; j++) {
           const r = results[j];

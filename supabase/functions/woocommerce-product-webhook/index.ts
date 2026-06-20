@@ -76,8 +76,31 @@ Deno.serve(async (req) => {
     const wooId = Number(payload?.id);
     console.log(`[woocommerce-product-webhook] topic=${topic} product_id=${wooId || "N/A"}`);
 
+    // Probe the Woo store tax setting once per request so we can stamp
+    // website_price_includes_gst correctly on the synced row.
+    let pricesIncludeTax: boolean | undefined = undefined;
+    const wcUrl = Deno.env.get("WC_SITE_URL");
+    const wcKey = Deno.env.get("WC_CONSUMER_KEY");
+    const wcSecret = Deno.env.get("WC_CONSUMER_SECRET");
+    if (wcUrl && wcKey && wcSecret) {
+      try {
+        const base = wcUrl.replace(/\/$/, "");
+        const auth = btoa(`${wcKey}:${wcSecret}`);
+        const settingResp = await fetch(
+          `${base}/wp-json/wc/v3/settings/tax/woocommerce_prices_include_tax`,
+          { headers: { Authorization: `Basic ${auth}` } },
+        );
+        if (settingResp.ok) {
+          const s = await settingResp.json();
+          pricesIncludeTax = String(s?.value || "").toLowerCase() === "yes";
+        }
+      } catch (e) {
+        console.warn("[woocommerce-product-webhook] tax setting probe failed", e);
+      }
+    }
+
     if (topic === "product.created" || topic === "product.updated") {
-      const result = await upsertWooProduct(supabase, payload, "woocommerce_webhook");
+      const result = await upsertWooProduct(supabase, payload, "woocommerce_webhook", pricesIncludeTax);
       await supabase.from("woo_sync_logs").insert({
         event_type: "product_webhook_in",
         direction: "in",

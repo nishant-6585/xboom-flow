@@ -41,6 +41,21 @@ export function splitGstInclusive(gross: number, rate: number, treatment: GstTre
   return { taxable, tax, cgst: 0, sgst: 0, igst: tax, treatment, rate: r };
 }
 
+/**
+ * Compute taxable + tax from a GST-EXCLUSIVE net amount.
+ * Total line amount = net + tax.
+ */
+export function splitGstExclusive(net: number, rate: number, treatment: GstTreatment): GstSplit {
+  const r = Number(rate) || 0;
+  const taxable = round2(net);
+  const tax = round2(taxable * r / 100);
+  if (treatment === 'cgst_sgst') {
+    const half = round2(tax / 2);
+    return { taxable, tax, cgst: half, sgst: tax - half, igst: 0, treatment, rate: r };
+  }
+  return { taxable, tax, cgst: 0, sgst: 0, igst: tax, treatment, rate: r };
+}
+
 // Indian-numbering amount in words for INR (paise included).
 export function inrAmountInWords(amount: number): string {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',

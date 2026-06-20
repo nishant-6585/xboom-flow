@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, FileText, Trash2, Plus, RotateCcw, Wand2, AlertTriangle, CheckCircle2, FileDown, FileSpreadsheet, ChevronDown, ChevronUp, Info, ShieldCheck, FlaskConical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -41,9 +42,13 @@ interface Line {
   gst_rate: number;
   /** Per-unit, GST-exclusive price. Used to recompute gross_total when qty/GST changes. */
   unit_price_excl: number;
-  /** When true, the user-entered `gross_total` is treated as already GST-inclusive
-   *  (default). When false, `gross_total` is the taxable amount and GST is added on top. */
-  rate_includes_gst?: boolean;
+  /**
+   * When true, `gross_total` is GST-INCLUSIVE.
+   * When false, `gross_total` is the GST-EXCLUSIVE (taxable) net and GST
+   * is added on top. Set per line from the source (order_items flag, or
+   * pricelist.website_price_includes_gst for website orders).
+   */
+  price_includes_gst: boolean;
 }
 
 const inferGstRate = ruleInferGstRate;
@@ -165,11 +170,14 @@ export function GenerateProformaDialog({
             const wli = wooOrder.line_items as any[];
             setLines(wli.map((it) => {
               const qty = Number(it.quantity ?? it.qty ?? 1) || 1;
-              const total = Number(it.total ?? it.subtotal ?? (Number(it.price) || 0) * qty) || 0;
-              const gross = Math.round(total * 100) / 100;
+              // Woo order line_items totals are tax-EXCLUSIVE for xboom.in
+              // (woocommerce_prices_include_tax = no). Use subtotal/total as
+              // the taxable (net) amount.
+              const net = Number(it.total ?? it.subtotal ?? (Number(it.price) || 0) * qty) || 0;
+              const gross = Math.round(net * 100) / 100;
               const name = it.name || it.product_name || 'Item';
               const rate = inferGstRateFromWooLine(it);
-              const unitExcl = qty > 0 ? (gross / qty) / (1 + rate / 100) : 0;
+              const unitExcl = qty > 0 ? gross / qty : 0;
               return {
                 product_name: name,
                 hsn: DEFAULT_HSN,
@@ -177,13 +185,17 @@ export function GenerateProformaDialog({
                 gross_total: gross,
                 gst_rate: rate,
                 unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+                price_includes_gst: false,
               };
             }));
           } else {
             const qty = 1;
             const gross = subject.total;
             const rate = inferGstRate(subject.product_name, DEFAULT_HSN);
-            const unitExcl = (gross / qty) / (1 + rate / 100);
+            // For website/woo subjects assume exclusive (xboom.in); for
+            // internal orders the legacy default is inclusive.
+            const includes = isWoo ? false : true;
+            const unitExcl = (gross / qty) / (includes ? (1 + rate / 100) : 1);
             setLines([{
               product_name: subject.product_name,
               hsn: DEFAULT_HSN,
@@ -191,23 +203,21 @@ export function GenerateProformaDialog({
               gross_total: gross,
               gst_rate: rate,
               unit_price_excl: Math.round(unitExcl * 10000) / 10000,
+              price_includes_gst: includes,
             }]);
           }
         } else {
           setLines(items.map((it) => {
             const qty = Number(it.quantity) || 1;
             const unit = Number(it.unit_price) || 0;
-            // Trust the SAC/HSN rule engine as the single source of truth for
-            // the GST rate — `sales_gst_percent` in DB is frequently wrong
-            // (e.g. drone combos saved at 18% when they should be 5%) and the
-            // proforma must match what Zoho billed.  The stored `unit_price`
-            // is treated as the GST-INCLUSIVE amount the customer was billed
-            // (order_items totals roll up to orders.total_sales_amount, which
-            // is the inclusive total).  gross_total therefore stays equal to
-            // unit × qty — only the taxable/GST split changes.
+            // Trust the SAC/HSN rule engine for the GST RATE (DB
+            // sales_gst_percent is frequently wrong). For the GST
+            // INCLUSIVE/EXCLUSIVE flag, honour what was captured on the
+            // order_item — operators tick the "Price incl. GST" box per line.
             const rate = inferGstRate(it.product_name, DEFAULT_HSN);
+            const includes = !!it.sales_price_includes_gst;
             const gross = Math.round(unit * qty * 100) / 100;
-            const unitExcl = unit / (1 + rate / 100);
+            const unitExcl = includes ? unit / (1 + rate / 100) : unit;
             return {
               product_name: it.product_name,
               hsn: DEFAULT_HSN,
@@ -215,7 +225,7 @@ export function GenerateProformaDialog({
               gross_total: gross,
               gst_rate: rate,
               unit_price_excl: Math.round(unitExcl * 10000) / 10000,
-              rate_includes_gst: true,
+              price_includes_gst: includes,
             };
           }));
         }
@@ -237,7 +247,14 @@ export function GenerateProformaDialog({
       place_of_supply_code: stateCode,
       place_of_supply_name: INDIAN_STATES.find((s) => s.code === stateCode)?.name || stateCode,
       treatment,
-      items: lines as ProformaLineInput[],
+      items: lines.map((l) => ({
+        product_name: l.product_name,
+        hsn: l.hsn,
+        quantity: l.quantity,
+        gross_total: l.gross_total,
+        gst_rate: l.gst_rate,
+        price_includes_gst: l.price_includes_gst,
+      })) as ProformaLineInput[],
       amount_paid: subject.amount_paid,
     });
   }, [subject, billTo.name, stateCode, treatment, lines]);
@@ -248,8 +265,8 @@ export function GenerateProformaDialog({
       const next = { ...l, ...patch };
       const qtyOrRateChanged = 'quantity' in patch || 'gst_rate' in patch;
       const grossEdited = 'gross_total' in patch;
-      const inclusiveToggled = 'rate_includes_gst' in patch;
-      const includes = next.rate_includes_gst !== false;
+      const inclusiveToggled = 'price_includes_gst' in patch;
+      const includes = next.price_includes_gst !== false;
       const qty = Number(next.quantity) || 0;
       const rate = Number(next.gst_rate) || 0;
       if (grossEdited) {
@@ -259,13 +276,16 @@ export function GenerateProformaDialog({
           : 0;
       } else if (qtyOrRateChanged || inclusiveToggled) {
         // Recompute total from the locked-in per-unit ex-GST price.
-        next.gross_total = Math.round(next.unit_price_excl * qty * (1 + rate / 100) * 100) / 100;
+        next.gross_total = Math.round(
+          next.unit_price_excl * qty * (includes ? 1 + rate / 100 : 1) * 100,
+        ) / 100;
       }
       return next;
     }));
   };
   const addLine = () => setLines((prev) => [...prev, {
-    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: 18, unit_price_excl: 0, rate_includes_gst: true,
+    product_name: '', hsn: DEFAULT_HSN, quantity: 1, gross_total: 0, gst_rate: 18, unit_price_excl: 0,
+    price_includes_gst: !isWoo,
   }]);
   const removeLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
 
@@ -282,10 +302,13 @@ export function GenerateProformaDialog({
       if (newRate === l.gst_rate) return l;
       changes.push({ index: idx, field: 'gst_rate', before: l.gst_rate, after: newRate, product_name: l.product_name });
       const qty = Number(l.quantity) || 0;
+      const includes = l.price_includes_gst !== false;
       return {
         ...l,
         gst_rate: newRate,
-        gross_total: Math.round(l.unit_price_excl * qty * (1 + newRate / 100) * 100) / 100,
+        gross_total: Math.round(
+          l.unit_price_excl * qty * (includes ? 1 + newRate / 100 : 1) * 100,
+        ) / 100,
       };
     });
     setLines(next);
@@ -321,7 +344,10 @@ export function GenerateProformaDialog({
     lines.forEach((l, idx) => {
       const inferred = inferGstRate(l.product_name, l.hsn);
       const qty = Number(l.quantity) || 0;
-      const correctedGross = Math.round(l.unit_price_excl * qty * (1 + inferred / 100) * 100) / 100;
+      const includes = l.price_includes_gst !== false;
+      const correctedGross = Math.round(
+        l.unit_price_excl * qty * (includes ? 1 + inferred / 100 : 1) * 100,
+      ) / 100;
       dryProformaTotal += correctedGross;
       if (inferred !== Number(l.gst_rate)) {
         changedLines.push({ index: idx, product_name: l.product_name, field: 'gst_rate', before: l.gst_rate, after: inferred });
@@ -458,7 +484,14 @@ export function GenerateProformaDialog({
         place_of_supply_code: stateCode,
         place_of_supply_name: stateName,
         treatment,
-        items: lines,
+        items: lines.map((l) => ({
+          product_name: l.product_name,
+          hsn: l.hsn,
+          quantity: l.quantity,
+          gross_total: l.gross_total,
+          gst_rate: l.gst_rate,
+          price_includes_gst: l.price_includes_gst,
+        })),
         amount_paid: amountPaid,
         notes,
       });
@@ -483,7 +516,10 @@ export function GenerateProformaDialog({
               quantity: l.quantity,
               gst_rate: l.gst_rate,
               gross_total: l.gross_total,
-              taxable: Math.round((Number(l.gross_total) / (1 + Number(l.gst_rate) / 100)) * 100) / 100,
+              price_includes_gst: l.price_includes_gst,
+              taxable: l.price_includes_gst === false
+                ? Math.round(Number(l.gross_total) * 100) / 100
+                : Math.round((Number(l.gross_total) / (1 + Number(l.gst_rate) / 100)) * 100) / 100,
             })),
             total: totals.total,
             bill_to: billTo,
@@ -670,7 +706,32 @@ export function GenerateProformaDialog({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Line Items (amounts are GST-inclusive)</Label>
+                <Label>
+                  Line Items (amounts are GST-{lines.length > 0 && lines.every((l) => l.price_includes_gst === false)
+                    ? 'exclusive'
+                    : lines.length > 0 && lines.every((l) => l.price_includes_gst !== false)
+                      ? 'inclusive'
+                      : 'mixed'})
+                </Label>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Prices include GST</span>
+                  <Switch
+                    checked={lines.length > 0 && lines.every((l) => l.price_includes_gst !== false)}
+                    onCheckedChange={(checked) => {
+                      setLines((prev) => prev.map((l) => {
+                        const qty = Number(l.quantity) || 0;
+                        const rate = Number(l.gst_rate) || 0;
+                        return {
+                          ...l,
+                          price_includes_gst: !!checked,
+                          gross_total: Math.round(
+                            l.unit_price_excl * qty * (checked ? 1 + rate / 100 : 1) * 100,
+                          ) / 100,
+                        };
+                      }));
+                    }}
+                  />
+                </div>
               </div>
               {((existingProforma as any)?.needs_regenerate ||
                 ((existingProforma as any)?.audit_snapshot?.rules_version &&
@@ -746,7 +807,7 @@ export function GenerateProformaDialog({
                       <th className="text-left p-2 w-28">HSN/SAC</th>
                       <th className="text-right p-2 w-16">Qty</th>
                       <th className="text-right p-2 w-24">GST %</th>
-                      <th className="text-right p-2 w-32">Total (₹, incl)</th>
+                      <th className="text-right p-2 w-32">Total (₹)</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
@@ -794,7 +855,7 @@ export function GenerateProformaDialog({
                                 Source: <span className="font-mono">{explain.source}</span> ·
                                 Inferred: <span className="font-medium">{explain.rate}%</span> ·
                                 Applied: <span className={`font-medium ${mismatch ? 'text-amber-700' : ''}`}>{line.gst_rate}%</span> ·
-                                Total is GST-{line.rate_includes_gst !== false ? 'inclusive' : 'exclusive'}
+                                Total is GST-{line.price_includes_gst !== false ? 'inclusive' : 'exclusive'}
                               </div>
                             </div>
                             {mismatch && (
@@ -946,7 +1007,7 @@ export function GenerateProformaDialog({
                       return (
                         <div key={idx} className="text-[11px] font-mono bg-white/40 dark:bg-black/20 rounded px-2 py-1">
                           L{idx + 1}: applied={line.gst_rate}% vs inferred={explain.rate}% ({explain.source}),
-                          incl_flag={String(line.rate_includes_gst !== false)},
+                          incl_flag={String(line.price_includes_gst !== false)},
                           gross=₹{line.gross_total.toLocaleString('en-IN')},
                           drift={driftPerLine >= 0 ? '+' : ''}₹{driftPerLine.toLocaleString('en-IN')}
                         </div>

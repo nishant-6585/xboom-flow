@@ -8,6 +8,7 @@ import {
   GstTreatment,
   inrAmountInWords,
   splitGstInclusive,
+  splitGstExclusive,
 } from './invoiceGst';
 
 export interface ProformaLineInput {
@@ -15,8 +16,15 @@ export interface ProformaLineInput {
   description?: string | null;
   hsn?: string | null;
   quantity: number;
-  gross_total: number; // line total INCLUDING GST
+  /**
+   * Raw line amount. When `price_includes_gst` is true this is the
+   * GST-INCLUSIVE line total; otherwise it is the GST-EXCLUSIVE (taxable)
+   * net amount and tax is added on top.
+   */
+  gross_total: number;
   gst_rate: number;
+  /** When true, gross_total is GST-inclusive (default true for back-compat). */
+  price_includes_gst?: boolean;
 }
 
 export interface ProformaInput {
@@ -111,14 +119,17 @@ function fmt(n: number) {
 
 export function computeProformaTotals(input: ProformaInput): ProformaTotals {
   const line_splits = input.items.map(it =>
-    splitGstInclusive(it.gross_total, it.gst_rate, input.treatment)
+    (it.price_includes_gst === false)
+      ? splitGstExclusive(it.gross_total, it.gst_rate, input.treatment)
+      : splitGstInclusive(it.gross_total, it.gst_rate, input.treatment)
   );
   const subtotal = line_splits.reduce((s, l) => s + l.taxable, 0);
   const cgst = line_splits.reduce((s, l) => s + l.cgst, 0);
   const sgst = line_splits.reduce((s, l) => s + l.sgst, 0);
   const igst = line_splits.reduce((s, l) => s + l.igst, 0);
   const tax = cgst + sgst + igst;
-  const total = input.items.reduce((s, it) => s + (Number(it.gross_total) || 0), 0);
+  // Total = taxable + tax (works for both inclusive and exclusive lines).
+  const total = Math.round((subtotal + tax) * 100) / 100;
   const amount_paid = Number(input.amount_paid || 0);
   const balance_due = Math.max(0, total - amount_paid);
 
