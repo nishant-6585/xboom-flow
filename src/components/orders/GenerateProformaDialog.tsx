@@ -302,10 +302,13 @@ export function GenerateProformaDialog({
       if (newRate === l.gst_rate) return l;
       changes.push({ index: idx, field: 'gst_rate', before: l.gst_rate, after: newRate, product_name: l.product_name });
       const qty = Number(l.quantity) || 0;
+      const includes = l.price_includes_gst !== false;
       return {
         ...l,
         gst_rate: newRate,
-        gross_total: Math.round(l.unit_price_excl * qty * (1 + newRate / 100) * 100) / 100,
+        gross_total: Math.round(
+          l.unit_price_excl * qty * (includes ? 1 + newRate / 100 : 1) * 100,
+        ) / 100,
       };
     });
     setLines(next);
@@ -341,7 +344,10 @@ export function GenerateProformaDialog({
     lines.forEach((l, idx) => {
       const inferred = inferGstRate(l.product_name, l.hsn);
       const qty = Number(l.quantity) || 0;
-      const correctedGross = Math.round(l.unit_price_excl * qty * (1 + inferred / 100) * 100) / 100;
+      const includes = l.price_includes_gst !== false;
+      const correctedGross = Math.round(
+        l.unit_price_excl * qty * (includes ? 1 + inferred / 100 : 1) * 100,
+      ) / 100;
       dryProformaTotal += correctedGross;
       if (inferred !== Number(l.gst_rate)) {
         changedLines.push({ index: idx, product_name: l.product_name, field: 'gst_rate', before: l.gst_rate, after: inferred });
