@@ -31,7 +31,6 @@ export async function sendInvoiceEmail(args: SendInvoiceEmailArgs): Promise<{
     const { data, error } = await supabase.functions.invoke('send-invoice-email', {
       body: {
         invoice_id: args.invoice_id,
-        to_email: args.to_email,
         mode: args.mode || 'auto',
         bypass_reason: args.bypass_reason,
         force: args.force,
