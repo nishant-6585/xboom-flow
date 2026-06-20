@@ -1,6 +1,6 @@
 // GST helpers for self-generated XBoom Proforma invoices.
-// Seller state = Karnataka (state code 29). Order totals are treated as
-// GST-INCLUSIVE — we back-calculate taxable and tax.
+// Seller state = Karnataka (state code 29). Line totals can be either
+// GST-inclusive or GST-exclusive depending on the source pricing flag.
 
 export const SELLER_STATE_CODE = '29';
 export const SELLER_STATE_NAME = 'Karnataka';
