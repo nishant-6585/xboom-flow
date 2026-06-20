@@ -377,9 +377,10 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 
   if (internalId) {
     await supabase.from("order_items").delete().eq("order_id", internalId);
-    if (lineItems.length > 0) {
+    const shippingLines = Array.isArray(payload?.shipping_lines) ? payload.shipping_lines : [];
+    if (lineItems.length > 0 || shippingLines.length > 0) {
       // deno-lint-ignore no-explicit-any
-      const items = lineItems.map((li: any) => ({
+      const productItems = lineItems.map((li: any) => ({
         order_id: internalId,
         product_name: li.name || "Item",
         product_code: li.sku || null,
@@ -391,6 +392,20 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
         // GST-EXCLUSIVE — flag it so proforma generation computes tax on top.
         sales_price_includes_gst: false,
       }));
+      // Woo shipping_lines totals are also GST-EXCLUSIVE and are part of the
+      // customer-paid order total. Mirror them as order_items so proformas
+      // reconcile with paid website orders (e.g. Express Mode charges).
+      // deno-lint-ignore no-explicit-any
+      const shippingItems = shippingLines.map((sl: any) => ({
+        order_id: internalId,
+        product_name: sl.method_title || sl.method_id || "Shipping charges",
+        product_code: sl.method_id || "WOO-SHIPPING",
+        product_category: "Shipping",
+        quantity: 1,
+        unit_price: parseFloat(sl.total || "0") || 0,
+        sales_price_includes_gst: false,
+      })).filter((it: any) => it.unit_price > 0);
+      const items = [...productItems, ...shippingItems];
       const { error: itErr } = await supabase.from("order_items").insert(items);
       if (itErr) console.error("[woo-mirror] order_items insert err", itErr.message);
     }
