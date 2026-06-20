@@ -297,7 +297,7 @@ export function GenerateProformaDialog({
             }]);
           }
         } else {
-          setLines(items.map((it) => {
+          const productLines = items.map((it) => {
             const qty = Number(it.quantity) || 1;
             const unit = Number(it.unit_price) || 0;
             // Trust the SAC/HSN rule engine for the GST RATE (DB
