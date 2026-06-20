@@ -758,6 +758,12 @@ export function GenerateProformaDialog({
 
   if (!subject) return null;
 
+  const lineAmountLabel = lines.length > 0 && lines.every((l) => l.price_includes_gst === false)
+    ? 'Taxable (₹)'
+    : lines.length > 0 && lines.every((l) => l.price_includes_gst !== false)
+      ? 'Total incl. GST (₹)'
+      : 'Amount (₹)';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -918,7 +924,7 @@ export function GenerateProformaDialog({
                       <th className="text-left p-2 w-28">HSN/SAC</th>
                       <th className="text-right p-2 w-16">Qty</th>
                       <th className="text-right p-2 w-24">GST %</th>
-                      <th className="text-right p-2 w-32">Total (₹)</th>
+                      <th className="text-right p-2 w-32">{lineAmountLabel}</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
