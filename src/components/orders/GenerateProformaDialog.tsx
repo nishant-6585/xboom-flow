@@ -807,7 +807,7 @@ export function GenerateProformaDialog({
                       <th className="text-left p-2 w-28">HSN/SAC</th>
                       <th className="text-right p-2 w-16">Qty</th>
                       <th className="text-right p-2 w-24">GST %</th>
-                      <th className="text-right p-2 w-32">Total (₹, incl)</th>
+                      <th className="text-right p-2 w-32">Total (₹)</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
