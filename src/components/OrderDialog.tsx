@@ -2052,6 +2052,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 />
               )}
 
+              {/* Zoho Books linked invoice */}
+              <ZohoInvoiceCard orderNumber={order?.order_number} />
+
               {canEdit ? (
                 <div>
                   <InvoiceEmailControl
