@@ -170,8 +170,17 @@ Deno.serve(async (req) => {
         .eq("id", logId);
     }
 
+    // Auto-match newly synced invoices to internal orders (exact match only)
+    let matchResult: any = null;
+    try {
+      const { data: m } = await supabase.rpc("match_zoho_invoices_to_orders");
+      matchResult = m;
+    } catch (mErr) {
+      console.error("auto-match error:", mErr);
+    }
+
     return new Response(
-      JSON.stringify({ ok: true, records_synced: totalSynced }),
+      JSON.stringify({ ok: true, records_synced: totalSynced, match: matchResult }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
