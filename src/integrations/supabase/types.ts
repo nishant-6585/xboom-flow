@@ -3048,6 +3048,116 @@ export type Database = {
           },
         ]
       }
+      dev_report_issues: {
+        Row: {
+          category: string
+          code_snippet: string | null
+          created_at: string
+          file_path: string | null
+          id: string
+          line_number: number | null
+          message: string
+          report_id: string
+          resolution_status: string
+          resolved_at: string | null
+          severity: string
+          suggestion: string | null
+        }
+        Insert: {
+          category: string
+          code_snippet?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          line_number?: number | null
+          message: string
+          report_id: string
+          resolution_status?: string
+          resolved_at?: string | null
+          severity: string
+          suggestion?: string | null
+        }
+        Update: {
+          category?: string
+          code_snippet?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          line_number?: number | null
+          message?: string
+          report_id?: string
+          resolution_status?: string
+          resolved_at?: string | null
+          severity?: string
+          suggestion?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dev_report_issues_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "dev_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dev_reports: {
+        Row: {
+          branch: string
+          commit_range: string | null
+          commit_sha: string | null
+          created_at: string
+          critical_count: number
+          high_count: number
+          id: string
+          info_count: number
+          low_count: number
+          medium_count: number
+          repo: string
+          status: string
+          summary: string | null
+          total_issues: number
+          trigger_type: string
+          triggered_at: string
+        }
+        Insert: {
+          branch?: string
+          commit_range?: string | null
+          commit_sha?: string | null
+          created_at?: string
+          critical_count?: number
+          high_count?: number
+          id?: string
+          info_count?: number
+          low_count?: number
+          medium_count?: number
+          repo?: string
+          status?: string
+          summary?: string | null
+          total_issues?: number
+          trigger_type?: string
+          triggered_at?: string
+        }
+        Update: {
+          branch?: string
+          commit_range?: string | null
+          commit_sha?: string | null
+          created_at?: string
+          critical_count?: number
+          high_count?: number
+          id?: string
+          info_count?: number
+          low_count?: number
+          medium_count?: number
+          repo?: string
+          status?: string
+          summary?: string | null
+          total_issues?: number
+          trigger_type?: string
+          triggered_at?: string
+        }
+        Relationships: []
+      }
       domain_events: {
         Row: {
           created_at: string
