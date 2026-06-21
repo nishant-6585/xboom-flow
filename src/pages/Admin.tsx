@@ -1241,6 +1241,7 @@ const Admin = () => {
               <MyOperatorSettingsPanel />
               <ExotelSettingsPanel />
               <WooCommerceSyncPanel />
+              <ZohoBooksSettingsPanel />
             </div>
           </TabsContent>
 
