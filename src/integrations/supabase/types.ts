@@ -14914,6 +14914,162 @@ export type Database = {
         }
         Relationships: []
       }
+      zoho_books_invoices: {
+        Row: {
+          balance: number | null
+          created_time: string | null
+          currency_code: string | null
+          customer_id: string | null
+          customer_name: string | null
+          date: string | null
+          due_date: string | null
+          invoice_id: string
+          invoice_number: string | null
+          last_modified_time: string | null
+          organization_id: string
+          raw: Json | null
+          reference_number: string | null
+          status: string | null
+          synced_at: string
+          total: number | null
+        }
+        Insert: {
+          balance?: number | null
+          created_time?: string | null
+          currency_code?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          date?: string | null
+          due_date?: string | null
+          invoice_id: string
+          invoice_number?: string | null
+          last_modified_time?: string | null
+          organization_id: string
+          raw?: Json | null
+          reference_number?: string | null
+          status?: string | null
+          synced_at?: string
+          total?: number | null
+        }
+        Update: {
+          balance?: number | null
+          created_time?: string | null
+          currency_code?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          date?: string | null
+          due_date?: string | null
+          invoice_id?: string
+          invoice_number?: string | null
+          last_modified_time?: string | null
+          organization_id?: string
+          raw?: Json | null
+          reference_number?: string | null
+          status?: string | null
+          synced_at?: string
+          total?: number | null
+        }
+        Relationships: []
+      }
+      zoho_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          provider?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          provider?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      zoho_sync_log: {
+        Row: {
+          completed_at: string | null
+          entity: string
+          error_message: string | null
+          id: string
+          provider: string
+          records_synced: number | null
+          started_at: string
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          entity: string
+          error_message?: string | null
+          id?: string
+          provider: string
+          records_synced?: number | null
+          started_at?: string
+          status: string
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          entity?: string
+          error_message?: string | null
+          id?: string
+          provider?: string
+          records_synced?: number | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      zoho_tokens: {
+        Row: {
+          access_token: string
+          api_domain: string
+          connected_at: string
+          connected_by: string | null
+          expires_at: string
+          organization_id: string | null
+          provider: string
+          refresh_token: string
+          scope: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          api_domain: string
+          connected_at?: string
+          connected_by?: string | null
+          expires_at: string
+          organization_id?: string | null
+          provider: string
+          refresh_token: string
+          scope?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          api_domain?: string
+          connected_at?: string
+          connected_by?: string | null
+          expires_at?: string
+          organization_id?: string | null
+          provider?: string
+          refresh_token?: string
+          scope?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       campaign_performance: {
@@ -15917,6 +16073,18 @@ export type Database = {
           new_tasks: number
           overdue_tasks: number
           total_tasks: number
+        }[]
+      }
+      get_zoho_connection_status: {
+        Args: { p_provider?: string }
+        Returns: {
+          api_domain: string
+          connected: boolean
+          connected_at: string
+          connected_by: string
+          expires_at: string
+          organization_id: string
+          scope: string
         }[]
       }
       has_form_permission: {
