@@ -19,7 +19,7 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, ShieldOff, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History, Briefcase, FileQuestion, Package } from "lucide-react";
+import { Check, X, Users, ShieldCheck, ShieldOff, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History, Briefcase, FileQuestion, Package, Terminal } from "lucide-react";
 import { UserApprovalHistoryDialog } from "@/components/admin/UserApprovalHistoryDialog";
 import { ActionWithCommentDialog } from "@/components/admin/ActionWithCommentDialog";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
@@ -793,6 +793,10 @@ const Admin = () => {
                 <TabsTrigger value="kyc-emails" className="flex items-center gap-2" onClick={() => navigate("/admin/kyc-emails")}>
                   <Mail className="w-4 h-4" />
                   KYC Emails
+                </TabsTrigger>
+                <TabsTrigger value="dev-console" className="flex items-center gap-2" onClick={() => navigate("/admin/dev-console")}>
+                  <Terminal className="w-4 h-4" />
+                  Dev Console
                 </TabsTrigger>
               </>
             )}
