@@ -39,6 +39,7 @@ import { useOrderInvoices, OrderInvoice } from '@/hooks/useOrderInvoices';
 import { WooOrderStatusActions } from '@/components/orders/WooOrderStatusActions';
 import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDialog';
 import { InvoiceListCard } from '@/components/orders/InvoiceListCard';
+import { ZohoInvoiceCard } from '@/components/orders/ZohoInvoiceCard';
 import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
 import { sendInvoiceEmail } from '@/lib/invoiceEmail';
 import { KycInviteBadge } from '@/components/orders/KycInviteBadge';
@@ -2050,6 +2051,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   onDelete={(inv) => removeInvoice(inv)}
                 />
               )}
+
+              {/* Zoho Books linked invoice */}
+              <ZohoInvoiceCard orderNumber={order?.order_number} />
 
               {canEdit ? (
                 <div>

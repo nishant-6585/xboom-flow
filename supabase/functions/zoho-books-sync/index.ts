@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
   let userId: string | null = null;
 
@@ -170,8 +171,22 @@ Deno.serve(async (req) => {
         .eq("id", logId);
     }
 
+    // Auto-match newly synced invoices to internal orders (exact match only).
+    // Call via a user-scoped client so the RPC's has_role(auth.uid(),...) check passes.
+    let matchResult: any = null;
+    try {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader! } },
+      });
+      const { data: m, error: mErr } = await userClient.rpc("match_zoho_invoices_to_orders");
+      if (mErr) throw mErr;
+      matchResult = m;
+    } catch (mErr) {
+      console.error("auto-match error:", mErr);
+    }
+
     return new Response(
-      JSON.stringify({ ok: true, records_synced: totalSynced }),
+      JSON.stringify({ ok: true, records_synced: totalSynced, match: matchResult }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

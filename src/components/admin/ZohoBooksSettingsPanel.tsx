@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, ExternalLink, BookOpen } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router-dom";
 
 type Status = {
   connected: boolean;
@@ -176,6 +177,9 @@ export function ZohoBooksSettingsPanel() {
           )}
           <Button onClick={load} variant="ghost" size="sm">
             Refresh status
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/admin/zoho-invoices">Browse invoices & reconcile</Link>
           </Button>
         </div>
 
