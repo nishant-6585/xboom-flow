@@ -14926,6 +14926,10 @@ export type Database = {
           invoice_id: string
           invoice_number: string | null
           last_modified_time: string | null
+          linked_order_id: string | null
+          linked_order_number: string | null
+          match_method: string | null
+          matched_at: string | null
           organization_id: string
           raw: Json | null
           reference_number: string | null
@@ -14944,6 +14948,10 @@ export type Database = {
           invoice_id: string
           invoice_number?: string | null
           last_modified_time?: string | null
+          linked_order_id?: string | null
+          linked_order_number?: string | null
+          match_method?: string | null
+          matched_at?: string | null
           organization_id: string
           raw?: Json | null
           reference_number?: string | null
@@ -14962,6 +14970,10 @@ export type Database = {
           invoice_id?: string
           invoice_number?: string | null
           last_modified_time?: string | null
+          linked_order_id?: string | null
+          linked_order_number?: string | null
+          match_method?: string | null
+          matched_at?: string | null
           organization_id?: string
           raw?: Json | null
           reference_number?: string | null
@@ -14969,7 +14981,22 @@ export type Database = {
           synced_at?: string
           total?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "zoho_books_invoices_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zoho_books_invoices_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       zoho_oauth_states: {
         Row: {
@@ -16134,6 +16161,10 @@ export type Database = {
           with_company: number
         }[]
       }
+      link_zoho_invoice_manual: {
+        Args: { p_invoice_id: string; p_order_id: string }
+        Returns: undefined
+      }
       list_resume_access_failures: {
         Args: {
           _actor_role?: Database["public"]["Enums"]["app_role"]
@@ -16305,6 +16336,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      match_zoho_invoices_to_orders: { Args: never; Returns: Json }
       move_notification_to_dlq: {
         Args: { _notification_id: string }
         Returns: string
@@ -16423,6 +16455,10 @@ export type Database = {
       sync_profiles_to_employees: { Args: never; Returns: number }
       trip_notification_breaker: {
         Args: { _minutes?: number; _reason: string }
+        Returns: undefined
+      }
+      unlink_zoho_invoice: {
+        Args: { p_invoice_id: string }
         Returns: undefined
       }
       update_mfa_verified_at: {
@@ -16544,6 +16580,7 @@ export type Database = {
           reason: string
         }[]
       }
+      zoho_reconciliation_stats: { Args: never; Returns: Json }
     }
     Enums: {
       app_role:
