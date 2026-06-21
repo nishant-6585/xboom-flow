@@ -48,6 +48,7 @@ import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { WooCommerceSyncPanel } from "@/components/admin/WooCommerceSyncPanel";
 import { LeadSyncHealthPanel } from "@/components/admin/LeadSyncHealthPanel";
 import { MyOperatorSettingsPanel } from "@/components/admin/MyOperatorSettingsPanel";
+import { ZohoBooksSettingsPanel } from "@/components/admin/ZohoBooksSettingsPanel";
 import { ExotelSettingsPanel } from "@/components/admin/ExotelSettingsPanel";
 import AgentMappingPanel from "@/components/admin/AgentMappingPanel";
 import FeatureFlagsPanel from "@/components/admin/FeatureFlagsPanel";
