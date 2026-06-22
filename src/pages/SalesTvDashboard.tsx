@@ -525,6 +525,7 @@ const SCREEN_LABELS = [
   "Source Mix by Rep",
   "Target vs Achievement",
 ];
+SCREEN_LABELS.push("YTD Race");
 
 /* ============================================================
    Screen 9 — Target vs Achievement (MTD + YTD per salesperson)
