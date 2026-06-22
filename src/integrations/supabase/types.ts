@@ -2114,6 +2114,57 @@ export type Database = {
         }
         Relationships: []
       }
+      claim_audit_log: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string
+          error_code: string | null
+          event_type: string
+          id: string
+          metadata: Json
+          order_id: string | null
+          outcome: string | null
+          query_kind: string | null
+          query_length: number | null
+          reason_code: string | null
+          request_id: string | null
+          result_count: number | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          error_code?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          outcome?: string | null
+          query_kind?: string | null
+          query_length?: number | null
+          reason_code?: string | null
+          request_id?: string | null
+          result_count?: number | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          error_code?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          outcome?: string | null
+          query_kind?: string | null
+          query_length?: number | null
+          reason_code?: string | null
+          request_id?: string | null
+          result_count?: number | null
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           account_owner_id: string | null
