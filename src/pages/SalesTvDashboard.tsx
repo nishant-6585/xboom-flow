@@ -21,7 +21,7 @@ import { useSalesTargets } from "@/hooks/useSalesTargets";
 
 const ROTATE_MS = 30_000;
 const REFRESH_MS = 5 * 60_000;
-const SCREEN_COUNT = 9;
+const SCREEN_COUNT = 10;
 
 type RangePreset =
   | "today" | "yesterday"
@@ -246,6 +246,7 @@ export default function SalesTvDashboard() {
             {screen === 6 && <PipelineRaceScreen board={board} />}
             {screen === 7 && <SourceMixScreen dist={dist} />}
             {screen === 8 && <TargetVsAchievementScreen />}
+            {screen === 9 && <YtdRaceScreen />}
           </div>
         </main>
 
@@ -524,6 +525,136 @@ const SCREEN_LABELS = [
   "Source Mix by Rep",
   "Target vs Achievement",
 ];
+SCREEN_LABELS.push("YTD Race");
+
+/* ============================================================
+   Screen 10 — YTD Race (financial year to date leaderboard)
+   ============================================================ */
+function YtdRaceScreen() {
+  const now = new Date();
+  const fmt = (d: Date) => format(d, "yyyy-MM-dd");
+  const currentMonth = now.getMonth();
+  const fyStartYear = currentMonth >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const ytdStart = `${fyStartYear}-04-01`;
+  const ytdEnd = fmt(now);
+  const monthsInFy = ((currentMonth - 3 + 12) % 12) + 1;
+  const fyLabel = `FY ${String(fyStartYear).slice(2)}-${String(fyStartYear + 1).slice(2)}`;
+
+  const { targets } = useSalesTargets();
+  const { leaderboard } = useSalesLeaderboard(ytdStart, ytdEnd, false);
+
+  const ytdTargetByUser = new Map<string, number>();
+  for (const t of targets ?? []) {
+    if (t.target_period !== "monthly") continue;
+    const v = Number(t.revenue_target || 0);
+    if (!v) continue;
+    const cur = ytdTargetByUser.get(t.user_id) ?? 0;
+    // use the latest monthly target as standing monthly target
+    if (!cur) ytdTargetByUser.set(t.user_id, v * monthsInFy);
+  }
+
+  const rows = (leaderboard ?? [])
+    .filter((e) => !(e.user_name || "").toLowerCase().includes("vishal"))
+    .map((e) => {
+      const revenue = Number(e.total_order_value || 0);
+      const target = ytdTargetByUser.get(e.user_id) || 0;
+      const pct = target > 0 ? Math.round((revenue / target) * 100) : 0;
+      return {
+        userId: e.user_id,
+        name: e.user_name || "Unknown",
+        revenue,
+        orders: Number(e.orders_won || 0),
+        leads: Number(e.leads_handled || 0),
+        target,
+        pct,
+      };
+    })
+    .filter((r) => r.revenue > 0 || r.target > 0)
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const maxRev = Math.max(1, ...rows.map((r) => r.revenue));
+  const pctColor = (p: number) =>
+    p >= 100 ? "text-emerald-400" : p >= 50 ? "text-amber-400" : "text-rose-400";
+  const barColor = (p: number) =>
+    p >= 100 ? "from-emerald-400 to-teal-500"
+    : p >= 50 ? "from-amber-400 to-orange-500"
+    : "from-rose-400 to-pink-500";
+  const medal = (i: number) =>
+    i === 0 ? "from-yellow-300 to-amber-500" :
+    i === 1 ? "from-slate-200 to-slate-400" :
+    i === 2 ? "from-orange-400 to-amber-700" :
+    "from-white/20 to-white/5";
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <Trophy className="w-7 h-7 text-yellow-400" /> YTD Race
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">
+          {fyLabel} · Apr → {format(now, "MMM yyyy")} · {monthsInFy} month{monthsInFy > 1 ? "s" : ""} in
+        </p>
+      </div>
+      {rows.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-white/40 text-2xl">
+          No YTD data
+        </div>
+      ) : (
+        <div
+          className="flex-1 grid gap-3 min-h-0"
+          style={{ gridTemplateRows: `repeat(${rows.length}, minmax(0, 1fr))` }}
+        >
+          {rows.map((r, i) => {
+            const revFill = (r.revenue / maxRev) * 100;
+            return (
+              <div
+                key={r.userId}
+                className="rounded-2xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 px-5 py-3 flex items-center gap-5 shadow-xl min-h-0"
+              >
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${medal(i)} flex items-center justify-center font-black text-black text-xl shadow-lg shrink-0`}>
+                  {i + 1}
+                </div>
+                <div className="w-48 shrink-0">
+                  <div className="text-xl font-bold truncate">{r.name}</div>
+                  <div className="text-[11px] uppercase tracking-[2px] text-white/40">
+                    {r.orders} won · {r.leads} leads
+                  </div>
+                </div>
+                <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                  <div className="flex items-baseline justify-between tabular-nums">
+                    <span className="text-2xl font-black text-white">{fmtL(r.revenue)}</span>
+                    <span className="text-xs text-white/40">
+                      target {r.target > 0 ? fmtL(r.target) : "—"}
+                    </span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"
+                      style={{ width: `${revFill}%` }}
+                    />
+                  </div>
+                  {r.target > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                        <div
+                          className={`h-full bg-gradient-to-r ${barColor(r.pct)} rounded-full`}
+                          style={{ width: `${Math.min(100, r.pct)}%` }}
+                        />
+                      </div>
+                      <span className={`text-sm font-black tabular-nums ${pctColor(r.pct)} w-12 text-right`}>
+                        {r.pct}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ============================================================
    Screen 9 — Target vs Achievement (MTD + YTD per salesperson)
