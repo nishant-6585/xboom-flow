@@ -34,6 +34,37 @@ export interface OrderAttribution {
   attributed_at: string | null;
 }
 
+export interface AttributionLogEntry {
+  id: string;
+  order_id: string;
+  from_sales_person_id: string | null;
+  to_sales_person_id: string;
+  to_sales_person_name: string;
+  reason: string | null;
+  reason_custom: string | null;
+  changed_by: string | null;
+  changed_by_name: string | null;
+  source: 'direct' | 'approved_request';
+  created_at: string;
+}
+
+/** Full attribution change log for a given internal order. */
+export function useAttributionLog(orderId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['attribution-log', orderId],
+    enabled: !!orderId,
+    queryFn: async (): Promise<AttributionLogEntry[]> => {
+      const { data, error } = await supabase
+        .from('sales_attribution_log')
+        .select('*')
+        .eq('order_id', orderId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as AttributionLogEntry[];
+    },
+  });
+}
+
 const SYSTEM_USER_ID = 'a8050cc3-7d17-44ac-a083-d8023d505331';
 
 /** Look up an internal website order by external_id (woo_order_id) or internal id. */

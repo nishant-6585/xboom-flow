@@ -849,7 +849,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto !block">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
               <div>

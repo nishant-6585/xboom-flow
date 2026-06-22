@@ -12,6 +12,7 @@ import {
   useInternalOrderForAttribution,
   useMyAttributionRequest,
   useAttributionMutations,
+  useAttributionLog,
   SYSTEM_USER_ID,
 } from '@/hooks/useAttributionRequests';
 import { toast } from '@/hooks/use-toast';
@@ -142,6 +143,58 @@ export function OrderAttributionPanel({
           orderId={order.id}
         />
       )}
+
+      <AttributionLogList orderId={order.id} />
+    </div>
+  );
+}
+
+function AttributionLogList({ orderId }: { orderId: string }) {
+  const { data: log, isLoading } = useAttributionLog(orderId);
+  if (isLoading) return null;
+  if (!log || log.length === 0) return null;
+  return (
+    <div className="pt-2 border-t border-border/60">
+      <div className="text-xs font-medium text-muted-foreground mb-2">
+        Attribution history ({log.length})
+      </div>
+      <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+        {log.map((entry) => (
+          <li
+            key={entry.id}
+            className="text-xs rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">
+                → {entry.to_sales_person_name}
+              </span>
+              <span className="text-muted-foreground tabular-nums">
+                {new Date(entry.created_at).toLocaleString('en-IN', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
+              </span>
+            </div>
+            <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span>by {entry.changed_by_name ?? 'system'}</span>
+              <Badge
+                variant="outline"
+                className={
+                  entry.source === 'approved_request'
+                    ? 'h-4 px-1 text-[10px] border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                    : 'h-4 px-1 text-[10px] border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-400'
+                }
+              >
+                {entry.source === 'approved_request' ? 'approved request' : 'direct'}
+              </Badge>
+              <span>· {reasonLabel(entry.reason)}</span>
+              {entry.reason_custom && (
+                <span className="italic">— {entry.reason_custom}</span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
