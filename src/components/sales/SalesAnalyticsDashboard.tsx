@@ -158,6 +158,29 @@ export function SalesAnalyticsDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredPipeline]);
 
+  // Pipeline by Salesperson (managers only — for individual reps it's just themselves)
+  const pipelineBySalesperson = useMemo(() => {
+    const map = new Map<string, { name: string; value: number; count: number }>();
+
+    filteredPipeline
+      .filter(p => p.status !== 'won' && p.status !== 'lost')
+      .forEach(p => {
+        const id = p.sales_person_id || 'unassigned';
+        const name = p.sales_person_name || 'Unassigned';
+        const current = map.get(id) || { name, value: 0, count: 0 };
+        map.set(id, {
+          name,
+          value: current.value + (p.expected_price || 0),
+          count: current.count + 1,
+        });
+      });
+
+    return Array.from(map.entries())
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [filteredPipeline]);
+
   // Pipeline by Lead Temperature
   const pipelineByTemperature = useMemo(() => {
     const tempMap = { hot: 0, warm: 0, cold: 0 };
@@ -350,6 +373,26 @@ export function SalesAnalyticsDashboard() {
     setDetailDialogOpen(true);
   };
 
+  const handleSalespersonClick = (salesPersonId: string, salesPersonName: string) => {
+    const items: DetailItem[] = filteredPipeline
+      .filter(p => p.sales_person_id === salesPersonId && p.status !== 'won' && p.status !== 'lost')
+      .map(p => ({
+        id: p.id,
+        type: 'pipeline' as const,
+        customer_name: p.customer_name,
+        customer_company: p.customer_company,
+        product_name: p.product_name,
+        value: p.expected_price || 0,
+        date: p.created_at,
+        status: p.status,
+        temperature: p.lead_temperature,
+      }));
+
+    setDialogTitle(`${salesPersonName} Pipeline (${items.length})`);
+    setDialogItems(items);
+    setDetailDialogOpen(true);
+  };
+
   const loading = pipelineLoading || paymentsLoading || enquiriesLoading;
 
   if (loading) {
@@ -514,6 +557,60 @@ export function SalesAnalyticsDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pipeline by Salesperson */}
+      {isManager && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="w-5 h-5" />
+              Pipeline by Salesperson
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pipelineBySalesperson.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                No salesperson data available
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(300, pipelineBySalesperson.length * 40)}>
+                <BarChart data={pipelineBySalesperson} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    type="number"
+                    tickFormatter={formatCurrency}
+                    className="text-xs"
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={140}
+                    className="text-xs"
+                  />
+                  <Tooltip
+                    formatter={(value: number, _name: string, props: any) => [
+                      `${formatCurrency(value)} (${props?.payload?.count ?? 0} deals)`,
+                      'Pipeline',
+                    ]}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    fill="hsl(var(--primary))"
+                    radius={[0, 4, 4, 0]}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data: any) => handleSalespersonClick(data.id, data.name)}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
