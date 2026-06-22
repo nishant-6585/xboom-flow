@@ -49,6 +49,7 @@ import Candidates from "./pages/Candidates";
 import SecuritySettings from "./pages/SecuritySettings";
 import AuditLogs from "./pages/AuditLogs";
 import ResumeAccessAudit from "./pages/ResumeAccessAudit";
+import OrderPhoneAuditLog from "./pages/OrderPhoneAuditLog";
 import MyProfile from "./pages/MyProfile";
 import ChangePassword from "./pages/ChangePassword";
 import Preferences from "./pages/Preferences";
