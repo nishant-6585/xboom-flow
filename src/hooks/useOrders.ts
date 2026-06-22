@@ -671,8 +671,34 @@ export function useOrders() {
         .select('id')
         .maybeSingle();
 
-      if (error) throw error;
-      if (!data) throw new Error('No rows updated. Please check your permission for this order.');
+      if (error) {
+        const code = (error as any)?.code;
+        const msg = (error as any)?.message || '';
+        // Server-side phone validation rejects bad numbers via ERRCODE 22023
+        if (code === '22023' || /mobile number/i.test(msg)) {
+          const friendly =
+            msg.replace(/^.*mobile number/i, 'Mobile number') ||
+            'Invalid mobile number. Use 7–15 digits, with optional +, spaces or hyphens.';
+          throw new Error(friendly);
+        }
+        // RLS / permission denial
+        if (code === '42501' || /row-level security|permission denied/i.test(msg)) {
+          throw new Error(
+            'You do not have permission to update this order. Ask an admin to check your role, then retry.',
+          );
+        }
+        throw error;
+      }
+      if (!data) {
+        // PostgREST returns 0 rows on RLS-filtered updates without raising 42501.
+        // Treat as a permission/visibility issue and guide the user.
+        const hasPhoneEdit = Object.prototype.hasOwnProperty.call(updates, 'customer_phone');
+        throw new Error(
+          hasPhoneEdit
+            ? 'Could not save the mobile number — your role may not allow editing this order. Refresh and retry; if it persists, ask an admin to verify your access.'
+            : 'No rows updated. Your role may not permit this change — refresh and retry, or contact an admin.',
+        );
+      }
 
       const updatedAt = new Date().toISOString();
       queryClient.setQueryData<Order[]>(['orders', user?.id, role], (current = []) =>
