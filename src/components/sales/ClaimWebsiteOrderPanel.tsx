@@ -184,7 +184,7 @@ export function ClaimWebsiteOrderPanel() {
     e?.preventDefault();
     const q = query.trim();
     const v = validateQuery(q);
-    if (!v.ok) {
+    if (v.ok === false) {
       setQueryError(v.error);
       toast({ title: 'Invalid search', description: v.error, variant: 'destructive' });
       return;
