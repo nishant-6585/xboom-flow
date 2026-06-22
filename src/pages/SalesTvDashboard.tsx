@@ -536,18 +536,27 @@ function TargetVsAchievementScreen() {
   const { leaderboard: mtdBoard } = useSalesLeaderboard(mtdStart, mtdEnd, true);
   const { leaderboard: ytdBoard } = useSalesLeaderboard(ytdStart, ytdEnd, true);
 
-  // Find each user's monthly revenue target that covers the current calendar month
-  const monthlyTargetByUser = new Map<string, { name: string; target: number }>();
+  // Pick each user's most recent monthly revenue target as their standing monthly target.
+  // Prefer one covering the current month, else fall back to the latest monthly target on file.
+  const monthlyTargetByUser = new Map<string, { name: string; target: number; periodStart: string; covers: boolean }>();
   const monthStart = new Date(mtdStart);
   const monthEnd = new Date(mtdEnd);
   for (const t of targets ?? []) {
     if (t.target_period !== "monthly") continue;
-    const ps = new Date(t.period_start);
-    const pe = new Date(t.period_end);
-    if (ps > monthEnd || pe < monthStart) continue;
     const v = Number(t.revenue_target || 0);
     if (!v) continue;
-    monthlyTargetByUser.set(t.user_id, { name: t.user_name || "Unknown", target: v });
+    const ps = new Date(t.period_start);
+    const pe = new Date(t.period_end);
+    const covers = ps <= monthEnd && pe >= monthStart;
+    const cur = monthlyTargetByUser.get(t.user_id);
+    if (!cur || (covers && !cur.covers) || (covers === cur.covers && t.period_start > cur.periodStart)) {
+      monthlyTargetByUser.set(t.user_id, {
+        name: t.user_name || "Unknown",
+        target: v,
+        periodStart: t.period_start,
+        covers,
+      });
+    }
   }
 
   const mtdRevenueByUser = new Map<string, number>();
@@ -575,15 +584,13 @@ function TargetVsAchievementScreen() {
         ytdPct: ytdTarget > 0 ? Math.round((ytdAchieved / ytdTarget) * 100) : 0,
       };
     })
-    .sort((a, b) => b.mtdPct - a.mtdPct);
+    .sort((a, b) => b.ytdPct - a.ytdPct);
 
   const pctColor = (p: number) =>
     p >= 100 ? "text-emerald-400" : p >= 50 ? "text-amber-400" : "text-rose-400";
 
   const monthLabel = format(now, "MMM yyyy");
   const fyLabel = `FY ${String(fyStartYear).slice(2)}-${String(fyStartYear + 1).slice(2)}`;
-
-  const cols = cards.length <= 3 ? 3 : cards.length === 4 ? 4 : cards.length <= 6 ? 3 : 4;
 
   return (
     <div className="h-full flex flex-col gap-6">
@@ -601,22 +608,21 @@ function TargetVsAchievementScreen() {
         </div>
       ) : (
         <div
-          className="flex-1 grid gap-4 min-h-0"
-          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+          className="flex-1 grid gap-3 min-h-0"
+          style={{ gridTemplateRows: `repeat(${cards.length}, minmax(0, 1fr))` }}
         >
           {cards.map((c) => (
             <div
               key={c.userId}
-              className="rounded-3xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 p-5 flex flex-col gap-4 shadow-xl"
+              className="rounded-2xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 px-5 py-3 flex items-center gap-5 shadow-xl min-h-0"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center font-black text-white shadow-lg shadow-orange-500/30">
+              <div className="flex items-center gap-3 w-56 shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center font-black text-white text-xl shadow-lg shadow-orange-500/30">
                   {(c.name[0] || "?").toUpperCase()}
                 </div>
-                <div className="text-xl font-bold truncate flex-1">{c.name}</div>
+                <div className="text-xl font-bold truncate">{c.name}</div>
               </div>
-
-              <div className="flex-1 grid grid-rows-2 gap-3">
+              <div className="flex-1 grid grid-cols-2 gap-3 min-w-0">
                 <TargetBlock
                   label="MTD"
                   target={c.mtdTarget}
