@@ -16,7 +16,7 @@ export interface MissingPhoneOrder {
   total_sales_amount: number | null;
 }
 
-const PRIVILEGED_ROLES = new Set(['Admin', 'Finance', 'Operations']);
+const PRIVILEGED_ROLES = new Set(['admin', 'finance', 'supply_chain', 'sales_manager']);
 
 export function useOrdersMissingPhone() {
   const { user, role } = useAuth();
@@ -53,6 +53,32 @@ export function useOrdersMissingPhone() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleOrdersUpdated = () => {
+      void fetchOrders();
+    };
+
+    window.addEventListener('orders:updated', handleOrdersUpdated);
+
+    const channel = supabase
+      .channel('orders-missing-phone-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          void fetchOrders();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      window.removeEventListener('orders:updated', handleOrdersUpdated);
+      supabase.removeChannel(channel);
+    };
+  }, [fetchOrders, user]);
 
   return { orders, loading, refetch: fetchOrders };
 }
