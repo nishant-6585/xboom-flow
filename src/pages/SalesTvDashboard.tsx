@@ -167,7 +167,10 @@ export default function SalesTvDashboard() {
     else document.exitFullscreen?.();
   };
 
-  const board = leaderboard ?? [];
+  const filteredLeaderboard = (leaderboard ?? []).filter(
+    (e) => !e.user_name?.toLowerCase().includes("vishal"),
+  );
+  const board = filteredLeaderboard;
   const dist = distData?.data ?? [];
 
   return (
@@ -584,6 +587,7 @@ function TargetVsAchievementScreen() {
         ytdPct: ytdTarget > 0 ? Math.round((ytdAchieved / ytdTarget) * 100) : 0,
       };
     })
+    .filter((c) => !c.name?.toLowerCase().includes("vishal"))
     .sort((a, b) => b.ytdPct - a.ytdPct);
 
   const pctColor = (p: number) =>
