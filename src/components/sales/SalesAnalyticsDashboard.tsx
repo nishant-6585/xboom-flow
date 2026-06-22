@@ -21,6 +21,7 @@ import {
   Line,
   Area,
   AreaChart,
+  LabelList,
 } from 'recharts';
 import {
   MapPin,
