@@ -150,6 +150,7 @@ function AppInner() {
         <Route path="/profile/activity" element={<ProtectedRoute><MyActivity /></ProtectedRoute>} />
         <Route path="/admin/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         <Route path="/admin/resume-access-audit" element={<ProtectedRoute><ResumeAccessAudit /></ProtectedRoute>} />
+        <Route path="/admin/order-phone-audit" element={<ProtectedRoute><OrderPhoneAuditLog /></ProtectedRoute>} />
         <Route path="/payroll-reconciliation" element={<ProtectedRoute><PayrollReconciliation /></ProtectedRoute>} />
         <Route path="/daily-flow" element={<ProtectedRoute><DailyFlow /></ProtectedRoute>} />
         <Route path="/admin/ai-automation" element={<ProtectedRoute><AIAutomation /></ProtectedRoute>} />
