@@ -151,15 +151,19 @@ export function OrderAttributionPanel({
 
 function AttributionLogList({ orderId }: { orderId: string }) {
   const { data: log, isLoading } = useAttributionLog(orderId);
+  const [expanded, setExpanded] = useState(false);
+  const INITIAL = 3;
   if (isLoading) return null;
   if (!log || log.length === 0) return null;
+  const visible = expanded ? log : log.slice(0, INITIAL);
+  const remaining = log.length - visible.length;
   return (
     <div className="pt-2 border-t border-border/60">
       <div className="text-xs font-medium text-muted-foreground mb-2">
         Attribution history ({log.length})
       </div>
-      <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-        {log.map((entry) => (
+      <ul className={`space-y-1.5 pr-1 ${expanded ? 'max-h-64 overflow-y-auto' : ''}`}>
+        {visible.map((entry) => (
           <li
             key={entry.id}
             className="text-xs rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5"
@@ -195,6 +199,17 @@ function AttributionLogList({ orderId }: { orderId: string }) {
           </li>
         ))}
       </ul>
+      {log.length > INITIAL && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 mt-1.5 text-xs"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Show less' : `Show ${remaining} more`}
+        </Button>
+      )}
     </div>
   );
 }
