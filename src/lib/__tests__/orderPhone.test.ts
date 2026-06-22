@@ -30,7 +30,7 @@ describe("validateCustomerPhone", () => {
   it("rejects numbers shorter than 7 digits", () => {
     const r = validateCustomerPhone("12345");
     expect(r.valid).toBe(false);
-    if (!r.valid) expect(r.error).toMatch(/7 to 15 digits/);
+    expect(r.valid === false && r.error).toMatch(/7 to 15 digits/);
   });
 
   it("rejects numbers longer than 15 digits", () => {
