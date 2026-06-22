@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Award, UserPlus, Loader2 } from 'lucide-react';
+import { Award, UserPlus, Loader2, ArrowUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
 import {
@@ -152,20 +152,45 @@ export function OrderAttributionPanel({
 function AttributionLogList({ orderId }: { orderId: string }) {
   const { data: log, isLoading } = useAttributionLog(orderId);
   const [expanded, setExpanded] = useState(false);
+  const listRef = useRef<HTMLUListElement>(null);
+  const topRef = useRef<HTMLLIElement>(null);
   const INITIAL = 3;
   if (isLoading) return null;
   if (!log || log.length === 0) return null;
   const visible = expanded ? log : log.slice(0, INITIAL);
   const remaining = log.length - visible.length;
+  const jumpToLatest = () => {
+    if (!expanded) setExpanded(true);
+    requestAnimationFrame(() => {
+      if (listRef.current) listRef.current.scrollTop = 0;
+      topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
   return (
     <div className="pt-2 border-t border-border/60">
-      <div className="text-xs font-medium text-muted-foreground mb-2">
-        Attribution history ({log.length})
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-medium text-muted-foreground">
+          Attribution history ({log.length})
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-[11px] gap-1"
+          onClick={jumpToLatest}
+        >
+          <ArrowUp className="h-3 w-3" />
+          Jump to latest
+        </Button>
       </div>
-      <ul className={`space-y-1.5 pr-1 ${expanded ? 'max-h-64 overflow-y-auto' : ''}`}>
-        {visible.map((entry) => (
+      <ul
+        ref={listRef}
+        className={`space-y-1.5 pr-1 ${expanded ? 'max-h-64 overflow-y-auto' : ''}`}
+      >
+        {visible.map((entry, idx) => (
           <li
             key={entry.id}
+            ref={idx === 0 ? topRef : undefined}
             className="text-xs rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5"
           >
             <div className="flex items-center justify-between gap-2">
