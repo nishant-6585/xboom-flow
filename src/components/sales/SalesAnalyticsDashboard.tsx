@@ -158,6 +158,29 @@ export function SalesAnalyticsDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredPipeline]);
 
+  // Pipeline by Salesperson (managers only — for individual reps it's just themselves)
+  const pipelineBySalesperson = useMemo(() => {
+    const map = new Map<string, { name: string; value: number; count: number }>();
+
+    filteredPipeline
+      .filter(p => p.status !== 'won' && p.status !== 'lost')
+      .forEach(p => {
+        const id = p.sales_person_id || 'unassigned';
+        const name = p.sales_person_name || 'Unassigned';
+        const current = map.get(id) || { name, value: 0, count: 0 };
+        map.set(id, {
+          name,
+          value: current.value + (p.expected_price || 0),
+          count: current.count + 1,
+        });
+      });
+
+    return Array.from(map.entries())
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [filteredPipeline]);
+
   // Pipeline by Lead Temperature
   const pipelineByTemperature = useMemo(() => {
     const tempMap = { hot: 0, warm: 0, cold: 0 };
