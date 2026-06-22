@@ -627,60 +627,6 @@ export function SalesAnalyticsDashboard() {
         </Card>
       </div>
 
-      {/* Pipeline by Salesperson */}
-      {isManager && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Users className="w-5 h-5" />
-              Pipeline by Salesperson
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pipelineBySalesperson.length === 0 ? (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                No salesperson data available
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(300, pipelineBySalesperson.length * 40)}>
-                <BarChart data={pipelineBySalesperson} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    type="number"
-                    tickFormatter={formatCurrency}
-                    className="text-xs"
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={140}
-                    className="text-xs"
-                  />
-                  <Tooltip
-                    formatter={(value: number, _name: string, props: any) => [
-                      `${formatCurrency(value)} (${props?.payload?.count ?? 0} deals)`,
-                      'Pipeline',
-                    ]}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Bar
-                    dataKey="value"
-                    fill="hsl(var(--primary))"
-                    radius={[0, 4, 4, 0]}
-                    style={{ cursor: 'pointer' }}
-                    onClick={(data: any) => handleSalespersonClick(data.id, data.name)}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lead Temperature Distribution */}
