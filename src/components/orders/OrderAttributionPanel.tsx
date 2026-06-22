@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Award, UserPlus, Loader2, ArrowUp } from 'lucide-react';
+import { Award, UserPlus, Loader2, ArrowUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
 import {
@@ -152,6 +152,7 @@ export function OrderAttributionPanel({
 function AttributionLogList({ orderId }: { orderId: string }) {
   const { data: log, isLoading } = useAttributionLog(orderId);
   const [expanded, setExpanded] = useState(false);
+  const [openEntries, setOpenEntries] = useState<Record<string, boolean>>({});
   const listRef = useRef<HTMLUListElement>(null);
   const topRef = useRef<HTMLLIElement>(null);
   const INITIAL = 3;
@@ -187,42 +188,88 @@ function AttributionLogList({ orderId }: { orderId: string }) {
         ref={listRef}
         className={`space-y-1.5 pr-1 ${expanded ? 'max-h-64 overflow-y-auto' : ''}`}
       >
-        {visible.map((entry, idx) => (
-          <li
-            key={entry.id}
-            ref={idx === 0 ? topRef : undefined}
-            className="text-xs rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium">
-                → {entry.to_sales_person_name}
-              </span>
-              <span className="text-muted-foreground tabular-nums">
-                {new Date(entry.created_at).toLocaleString('en-IN', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}
-              </span>
-            </div>
-            <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span>by {entry.changed_by_name ?? 'system'}</span>
-              <Badge
-                variant="outline"
-                className={
-                  entry.source === 'approved_request'
-                    ? 'h-4 px-1 text-[10px] border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400'
-                    : 'h-4 px-1 text-[10px] border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-400'
+        {visible.map((entry, idx) => {
+          const isOpen = !!openEntries[entry.id];
+          const hasDetails = !!(entry.reason || entry.reason_custom);
+          return (
+            <li
+              key={entry.id}
+              ref={idx === 0 ? topRef : undefined}
+              className="text-xs rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5"
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  hasDetails &&
+                  setOpenEntries((m) => ({ ...m, [entry.id]: !m[entry.id] }))
                 }
+                className={`w-full text-left ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
+                aria-expanded={isOpen}
               >
-                {entry.source === 'approved_request' ? 'approved request' : 'direct'}
-              </Badge>
-              <span>· {reasonLabel(entry.reason)}</span>
-              {entry.reason_custom && (
-                <span className="italic">— {entry.reason_custom}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium flex items-center gap-1">
+                    {hasDetails && (
+                      isOpen
+                        ? <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        : <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    )}
+                    → {entry.to_sales_person_name}
+                  </span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {new Date(entry.created_at).toLocaleString('en-IN', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  </span>
+                </div>
+                <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span>by {entry.changed_by_name ?? 'system'}</span>
+                  <Badge
+                    variant="outline"
+                    className={
+                      entry.source === 'approved_request'
+                        ? 'h-4 px-1 text-[10px] border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                        : 'h-4 px-1 text-[10px] border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-400'
+                    }
+                  >
+                    {entry.source === 'approved_request' ? 'approved request' : 'direct'}
+                  </Badge>
+                  <span className="truncate max-w-[260px]">· {reasonLabel(entry.reason)}</span>
+                  {entry.reason_custom && !isOpen && (
+                    <span className="italic truncate max-w-[200px]">
+                      — {entry.reason_custom}
+                    </span>
+                  )}
+                </div>
+              </button>
+              {isOpen && hasDetails && (
+                <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
+                  {entry.reason && (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Reason
+                      </div>
+                      <div className="text-foreground whitespace-pre-wrap break-words">
+                        {reasonLabel(entry.reason)}
+                        <span className="text-muted-foreground"> ({entry.reason})</span>
+                      </div>
+                    </div>
+                  )}
+                  {entry.reason_custom && (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Notes
+                      </div>
+                      <div className="text-foreground whitespace-pre-wrap break-words">
+                        {entry.reason_custom}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
       {log.length > INITIAL && (
         <Button
