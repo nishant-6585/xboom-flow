@@ -122,7 +122,7 @@ export function useLeadDistribution(startDate: string, endDate: string) {
           .lte("created_at", endDateTime),
         supabase
           .from("user_roles")
-          .select("user_id, role, profiles:profiles!inner(name)")
+          .select("user_id, role")
           .in("role", ["sales", "sales_manager"] as any),
       ]);
 
@@ -131,13 +131,19 @@ export function useLeadDistribution(startDate: string, endDate: string) {
       if (errored?.error) throw errored.error;
 
       // Seed every sales executive so they appear with 0 counts when no leads exist
-      const seenUsers = new Set<string>();
-      (salesUsersRes.data as any[] | null)?.forEach((row) => {
-        if (!row?.user_id || seenUsers.has(row.user_id)) return;
-        seenUsers.add(row.user_id);
-        const profileName = Array.isArray(row.profiles) ? row.profiles[0]?.name : row.profiles?.name;
-        ensure(row.user_id, profileName);
-      });
+      const salesUserIds = Array.from(
+        new Set((salesUsersRes.data as any[] | null)?.map((r) => r.user_id).filter(Boolean) ?? [])
+      );
+      if (salesUserIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, name")
+          .in("user_id", salesUserIds);
+        const nameById = new Map<string, string>();
+        (profilesData ?? []).forEach((p: any) => nameById.set(p.user_id, p.name));
+        salesUserIds.forEach((uid) => ensure(uid, nameById.get(uid) ?? null));
+      }
+
 
       enquiriesRes.data?.forEach((row) => {
         const entry = ensure(row.sales_person_id, row.sales_person_name);
