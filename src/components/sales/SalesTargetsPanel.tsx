@@ -56,6 +56,85 @@ interface TargetRow {
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 
+interface InlineEditableTargetCellProps {
+  value: number | null;
+  isAdmin: boolean;
+  onSave: (value: number) => Promise<void>;
+  placeholder?: string;
+}
+
+function InlineEditableTargetCell({ value, isAdmin, onSave, placeholder = 'Not set' }: InlineEditableTargetCellProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string>(value != null ? String(value) : '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(value != null ? String(value) : '');
+  }, [value]);
+
+  const commit = async () => {
+    const num = Number(draft);
+    if (!Number.isFinite(num) || num < 0) {
+      toast.error('Enter a valid non-negative number');
+      setDraft(value != null ? String(value) : '');
+      setEditing(false);
+      return;
+    }
+    if (num === (value ?? 0)) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(num);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isAdmin) {
+    return value != null ? (
+      <span className="font-semibold">{formatCurrency(value)}</span>
+    ) : (
+      <span className="text-muted-foreground text-xs">{placeholder}</span>
+    );
+  }
+
+  if (editing) {
+    return (
+      <Input
+        type="number"
+        autoFocus
+        disabled={saving}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+          if (e.key === 'Escape') { setDraft(value != null ? String(value) : ''); setEditing(false); }
+        }}
+        className="h-8 text-center"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="w-full px-2 py-1 rounded hover:bg-muted/60 transition-colors text-center"
+      title="Click to edit"
+    >
+      {value != null ? (
+        <span className="font-semibold">{formatCurrency(value)}</span>
+      ) : (
+        <span className="text-muted-foreground text-xs">{placeholder}</span>
+      )}
+    </button>
+  );
+}
+
 export function SalesTargetsPanel() {
   const { user, role } = useAuth();
   const isAdmin = role === 'admin';
@@ -165,6 +244,54 @@ export function SalesTargetsPanel() {
     }
   };
 
+  const saveInlineField = async (
+    userId: string,
+    userName: string,
+    period: 'monthly' | 'quarterly',
+    existing: TargetRow | null,
+    field: 'revenue_target' | 'pipeline_target',
+    newValue: number,
+  ) => {
+    if (!user || !isAdmin) {
+      toast.error('Only admins can edit targets');
+      return;
+    }
+    try {
+      if (existing) {
+        const { error } = await supabase
+          .from('sales_targets')
+          .update({ [field]: newValue })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const now = new Date();
+        const periodStart = period === 'monthly'
+          ? format(startOfMonth(now), 'yyyy-MM-dd')
+          : format(startOfQuarter(now), 'yyyy-MM-dd');
+        const periodEnd = period === 'monthly'
+          ? format(endOfMonth(now), 'yyyy-MM-dd')
+          : format(endOfQuarter(now), 'yyyy-MM-dd');
+        const { error } = await supabase.from('sales_targets').insert({
+          user_id: userId,
+          user_name: userName,
+          target_period: period,
+          period_start: periodStart,
+          period_end: periodEnd,
+          revenue_target: field === 'revenue_target' ? newValue : 0,
+          orders_target: 0,
+          pipeline_target: field === 'pipeline_target' ? newValue : 0,
+          created_by: user.id,
+        });
+        if (error) throw error;
+      }
+      toast.success('Target saved');
+      await fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save target');
+      throw err;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -204,18 +331,18 @@ export function SalesTargetsPanel() {
                     
                     {/* Monthly */}
                     <TableCell className="text-center">
-                      {sp.monthly ? (
-                        <span className="font-semibold">{formatCurrency(sp.monthly.revenue_target)}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">Not set</span>
-                      )}
+                      <InlineEditableTargetCell
+                        value={sp.monthly ? sp.monthly.revenue_target : null}
+                        isAdmin={isAdmin}
+                        onSave={(v) => saveInlineField(sp.user_id, sp.name, 'monthly', sp.monthly, 'revenue_target', v)}
+                      />
                     </TableCell>
                     <TableCell className="text-center">
-                      {sp.monthly ? (
-                        <span className="font-semibold">{formatCurrency(sp.monthly.pipeline_target)}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">Not set</span>
-                      )}
+                      <InlineEditableTargetCell
+                        value={sp.monthly ? sp.monthly.pipeline_target : null}
+                        isAdmin={isAdmin}
+                        onSave={(v) => saveInlineField(sp.user_id, sp.name, 'monthly', sp.monthly, 'pipeline_target', v)}
+                      />
                     </TableCell>
                     <TableCell className="text-center">
                       {sp.monthly ? (
@@ -239,18 +366,18 @@ export function SalesTargetsPanel() {
 
                     {/* Quarterly */}
                     <TableCell className="text-center">
-                      {sp.quarterly ? (
-                        <span className="font-semibold">{formatCurrency(sp.quarterly.revenue_target)}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">Not set</span>
-                      )}
+                      <InlineEditableTargetCell
+                        value={sp.quarterly ? sp.quarterly.revenue_target : null}
+                        isAdmin={isAdmin}
+                        onSave={(v) => saveInlineField(sp.user_id, sp.name, 'quarterly', sp.quarterly, 'revenue_target', v)}
+                      />
                     </TableCell>
                     <TableCell className="text-center">
-                      {sp.quarterly ? (
-                        <span className="font-semibold">{formatCurrency(sp.quarterly.pipeline_target)}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">Not set</span>
-                      )}
+                      <InlineEditableTargetCell
+                        value={sp.quarterly ? sp.quarterly.pipeline_target : null}
+                        isAdmin={isAdmin}
+                        onSave={(v) => saveInlineField(sp.user_id, sp.name, 'quarterly', sp.quarterly, 'pipeline_target', v)}
+                      />
                     </TableCell>
                     <TableCell className="text-center">
                       {sp.quarterly ? (
