@@ -59,6 +59,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { LeadTemperature } from "@/hooks/useEnquiries";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth, startOfWeek, format } from "date-fns";
 
 interface SalesTeamMember {
@@ -98,6 +100,7 @@ const Index = () => {
   const [valueFilter, setValueFilter] = useState<string>("all");
   const [valueFilterDate, setValueFilterDate] = useState<Date | null>(null);
   const [leadFilter, setLeadFilter] = useState<"all" | LeadTemperature | "mega">("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [topStartDate, setTopStartDate] = useState<Date | undefined>(undefined);
   const [topEndDate, setTopEndDate] = useState<Date | undefined>(undefined);
   const clearTopDateFilter = () => {
@@ -195,6 +198,25 @@ const Index = () => {
       else if (leadFilter === "cold") matchesLead = e.lead_temperature === "cold";
       else if (leadFilter === "mega") matchesLead = e.is_mega_deal === true;
 
+      // Free-text search across common fields
+      let matchesSearch = true;
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        const haystack = [
+          e.customer_name,
+          e.customer_company,
+          e.product_name,
+          e.product_code,
+          e.product_category,
+          e.sales_person_name,
+          e.notes,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        matchesSearch = haystack.includes(q);
+      }
+
       return (
         matchesCategory &&
         matchesDate &&
@@ -203,7 +225,8 @@ const Index = () => {
         matchesLostReason &&
         matchesSlaStatus &&
         matchesValueFilter &&
-        matchesLead
+        matchesLead &&
+        matchesSearch
       );
     });
   }, [
@@ -218,6 +241,7 @@ const Index = () => {
     valueFilter,
     valueFilterDate,
     leadFilter,
+    searchQuery,
   ]);
 
   const clearDateFilter = () => {
