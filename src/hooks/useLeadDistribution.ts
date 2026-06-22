@@ -60,6 +60,7 @@ export function useLeadDistribution(startDate: string, endDate: string) {
       const ensure = (userId?: string | null, name?: string | null) => {
         const displayName = getDisplayName(userId, name);
         if (!displayName) return null;
+        if (displayName.toLowerCase().includes("vishal")) return null;
 
         const key = userId ? `user:${userId}` : `name:${displayName.toLowerCase()}`;
 
@@ -79,7 +80,7 @@ export function useLeadDistribution(startDate: string, endDate: string) {
 
       const endDateTime = `${endDate}T23:59:59`;
 
-      const [enquiriesRes, callsRes, formsRes, emailsRes, interaktRes, prospectsRes, pipelineRes] = await Promise.all([
+      const [enquiriesRes, callsRes, formsRes, emailsRes, interaktRes, prospectsRes, pipelineRes, salesUsersRes] = await Promise.all([
         supabase
           .from("enquiries")
           .select("sales_person_id, sales_person_name, created_at")
@@ -119,11 +120,24 @@ export function useLeadDistribution(startDate: string, endDate: string) {
           .select("sales_person_id, sales_person_name, created_at")
           .gte("created_at", startDate)
           .lte("created_at", endDateTime),
+        supabase
+          .from("user_roles")
+          .select("user_id, role, profiles:profiles!inner(name)")
+          .in("role", ["sales", "sales_manager"] as any),
       ]);
 
       const responses = [enquiriesRes, callsRes, formsRes, emailsRes, interaktRes, prospectsRes, pipelineRes];
       const errored = responses.find((res) => res.error);
       if (errored?.error) throw errored.error;
+
+      // Seed every sales executive so they appear with 0 counts when no leads exist
+      const seenUsers = new Set<string>();
+      (salesUsersRes.data as any[] | null)?.forEach((row) => {
+        if (!row?.user_id || seenUsers.has(row.user_id)) return;
+        seenUsers.add(row.user_id);
+        const profileName = Array.isArray(row.profiles) ? row.profiles[0]?.name : row.profiles?.name;
+        ensure(row.user_id, profileName);
+      });
 
       enquiriesRes.data?.forEach((row) => {
         const entry = ensure(row.sales_person_id, row.sales_person_name);
