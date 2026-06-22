@@ -513,6 +513,93 @@ const SCREEN_LABELS = [
   "Target vs Achievement",
 ];
 
+/* ============================================================
+   Screen 9 — Target vs Achievement
+   ============================================================ */
+function TargetVsAchievementScreen({
+  targets, start, end,
+}: {
+  targets: ReturnType<typeof useSalesTargets>["targets"];
+  start: string;
+  end: string;
+}) {
+  // Aggregate targets whose period overlaps the selected range, per user
+  const rangeStart = new Date(start);
+  const rangeEnd = new Date(end);
+  const overlapping = (targets ?? []).filter((t) => {
+    const ps = new Date(t.period_start);
+    const pe = new Date(t.period_end);
+    return ps <= rangeEnd && pe >= rangeStart;
+  });
+
+  const byUser = new Map<string, { name: string; target: number; achieved: number }>();
+  for (const t of overlapping) {
+    const cur = byUser.get(t.user_id) ?? { name: t.user_name || "Unknown", target: 0, achieved: 0 };
+    cur.target += Number(t.revenue_target || 0);
+    cur.achieved += Number(t.revenue_achieved || 0);
+    byUser.set(t.user_id, cur);
+  }
+
+  const rows = Array.from(byUser.values())
+    .map((r) => ({ ...r, pct: r.target > 0 ? Math.round((r.achieved / r.target) * 100) : 0 }))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 6);
+
+  const totalTarget = rows.reduce((s, r) => s + r.target, 0);
+  const totalAchieved = rows.reduce((s, r) => s + r.achieved, 0);
+  const teamPct = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0;
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <Target className="w-7 h-7 text-emerald-400" /> Target vs Achievement
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">
+          Team {teamPct}% · {fmtCr(totalAchieved)} of {fmtCr(totalTarget)} revenue target
+        </p>
+      </div>
+      <div className="flex-1 grid gap-3 min-h-0" style={{ gridTemplateRows: `repeat(${Math.max(rows.length, 1)}, minmax(0, 1fr))` }}>
+        {rows.length === 0 && (
+          <div className="flex items-center justify-center text-white/40 text-2xl">
+            No targets set for this period
+          </div>
+        )}
+        {rows.map((r) => {
+          const fillPct = Math.min(100, r.pct);
+          const overshoot = r.pct > 100;
+          const barColor = overshoot
+            ? "from-amber-300 via-emerald-400 to-emerald-500"
+            : r.pct >= 75
+              ? "from-emerald-400 to-teal-500"
+              : r.pct >= 50
+                ? "from-cyan-400 to-blue-500"
+                : "from-rose-400 to-pink-500";
+          return (
+            <div key={r.name} className="rounded-2xl bg-white/[0.04] border border-white/10 px-6 py-4 flex flex-col justify-center gap-2">
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold truncate">{r.name}</div>
+                <div className="flex items-baseline gap-3">
+                  <div className="text-4xl font-black tabular-nums text-emerald-300">{r.pct}%</div>
+                  <div className="text-sm text-white/50 tabular-nums">
+                    {fmtL(r.achieved)} / {fmtL(r.target)}
+                  </div>
+                </div>
+              </div>
+              <div className="h-3 rounded-full bg-white/5 overflow-hidden">
+                <div
+                  className={`h-full bg-gradient-to-r ${barColor} rounded-full transition-all`}
+                  style={{ width: `${fillPct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* -------------------- helpers -------------------- */
 const fmtCr = (n: number) => `₹${(n / 10000000).toFixed(2)} Cr`;
 const fmtL = (n: number) => `₹${(n / 100000).toFixed(1)} L`;
