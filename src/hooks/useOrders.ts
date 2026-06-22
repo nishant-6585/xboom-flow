@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { sendSlackNotification } from '@/hooks/useSlackSettings';
+import { mapOrderUpdateError } from '@/lib/orderPhone';
 
 export type OrderStatus = 'po_received' | 'payment_received' | 'partial_payment_received' | 'procurement_to_plan' | 'procurement_in_process' | 'procurement_done' | 'to_ship' | 'in_transit' | 'delivery_done' | 'cancelled';
 export type PaymentStatus = 'pending' | 'partial' | 'full';
@@ -671,8 +672,13 @@ export function useOrders() {
         .select('id')
         .maybeSingle();
 
-      if (error) throw error;
-      if (!data) throw new Error('No rows updated. Please check your permission for this order.');
+      const touchedPhone = Object.prototype.hasOwnProperty.call(updates, 'customer_phone');
+      if (error) {
+        throw new Error(mapOrderUpdateError(error as any, { touchedPhone }));
+      }
+      if (!data) {
+        throw new Error(mapOrderUpdateError(null, { touchedPhone }));
+      }
 
       const updatedAt = new Date().toISOString();
       queryClient.setQueryData<Order[]>(['orders', user?.id, role], (current = []) =>
