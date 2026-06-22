@@ -181,7 +181,20 @@ export default function DevConsole() {
         }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      toast.success("Fix workflow triggered — check TimoDesk GitHub for a PR in ~2 minutes");
+
+      // Mark all open issues as fixed in Supabase
+      const openIds = openIssues.map(i => i.id);
+      await supabase
+        .from("dev_report_issues")
+        .update({ resolution_status: "fixed", resolved_at: new Date().toISOString() })
+        .in("id", openIds);
+
+      // Update local state — remove fixed issues from view
+      setIssues(prev => prev.map(i =>
+        openIds.includes(i.id) ? { ...i, resolution_status: "fixed", resolved_at: new Date().toISOString() } : i
+      ));
+
+      toast.success("Fix workflow triggered — PR will appear on TimoDesk GitHub in ~2 minutes");
     } catch (e) {
       toast.error(`Failed to trigger fix: ${e}`);
     }
