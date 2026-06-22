@@ -502,12 +502,80 @@ export function SalesAnalyticsDashboard() {
                       borderRadius: '8px',
                     }}
                   />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(v: number) => formatCurrency(v)}
+                      className="fill-foreground text-xs"
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
+
+        {/* Pipeline by Salesperson — managers only */}
+        {isManager && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users className="w-5 h-5" />
+                Pipeline by Salesperson
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pipelineBySalesperson.length === 0 ? (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  No salesperson data available
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(300, pipelineBySalesperson.length * 40)}>
+                  <BarChart data={pipelineBySalesperson} layout="vertical" margin={{ right: 64 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis
+                      type="number"
+                      tickFormatter={formatCurrency}
+                      className="text-xs"
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={140}
+                      className="text-xs"
+                    />
+                    <Tooltip
+                      formatter={(value: number, _name: string, props: any) => [
+                        `${formatCurrency(value)} (${props?.payload?.count ?? 0} deals)`,
+                        'Pipeline',
+                      ]}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Bar
+                      dataKey="value"
+                      fill="hsl(var(--primary))"
+                      radius={[0, 4, 4, 0]}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data: any) => handleSalespersonClick(data.id, data.name)}
+                    >
+                      <LabelList
+                        dataKey="value"
+                        position="right"
+                        formatter={(v: number) => formatCurrency(v)}
+                        className="fill-foreground text-xs"
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Pipeline by Category */}
         <Card>
