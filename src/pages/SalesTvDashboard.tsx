@@ -167,9 +167,19 @@ export default function SalesTvDashboard() {
     else document.exitFullscreen?.();
   };
 
-  const filteredLeaderboard = (leaderboard ?? []).filter(
-    (e) => !e.user_name?.toLowerCase().includes("vishal"),
-  );
+  const EXCLUDED_NAME_FRAGMENTS = [
+    "vishal",
+    "fanad baig",
+    "charles",
+    "test user",
+    "baig umer saad ahmed",
+    "amit kumar",
+    "mohammad ijrail ali",
+  ];
+  const filteredLeaderboard = (leaderboard ?? []).filter((e) => {
+    const n = (e.user_name ?? "").toLowerCase();
+    return !EXCLUDED_NAME_FRAGMENTS.some((frag) => n.includes(frag));
+  });
   const board = filteredLeaderboard;
   const dist = distData?.data ?? [];
 
@@ -796,7 +806,7 @@ function LeaderboardScreen({ board }: { board: ReturnType<typeof useSalesLeaderb
         </h2>
         <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">Ranked by sales points</p>
       </div>
-      <div className="flex-1 grid gap-3 min-h-0 overflow-y-auto pr-1" style={{ gridAutoRows: 'minmax(0, 1fr)' }}>
+      <div className="flex-1 grid gap-3 min-h-0 overflow-y-auto pr-1" style={{ gridAutoRows: 'minmax(96px, auto)' }}>
         {ranked.length === 0 && (
           <div className="flex items-center justify-center text-white/40 text-2xl">No activity yet</div>
         )}
