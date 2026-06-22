@@ -240,6 +240,7 @@ export function useOrders() {
             customer_company,
             customer_email,
             customer_gst,
+            customer_phone,
             sales_person_id,
             sales_person_name,
             shipping_address,
@@ -287,7 +288,7 @@ export function useOrders() {
           lead_source: null,
           customer_email: order.customer_email || null,
           customer_gst: (order as any).customer_gst || null,
-          customer_phone: null,
+          customer_phone: (order as any).customer_phone || null,
           supplier_id: null,
           supplier_name: null,
           supplier_contact: null,
@@ -663,12 +664,26 @@ export function useOrders() {
       const currentOrder = orders.find(o => o.id === orderId);
       const oldStatus = currentOrder?.status;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('orders')
         .update(updates)
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select('id')
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('No rows updated. Please check your permission for this order.');
+
+      const updatedAt = new Date().toISOString();
+      queryClient.setQueryData<Order[]>(['orders', user?.id, role], (current = []) =>
+        current.map((order) =>
+          order.id === orderId
+            ? ({ ...order, ...updates, updated_at: updatedAt } as Order)
+            : order,
+        ),
+      );
+      await queryClient.invalidateQueries({ queryKey: ['orders', user?.id, role] });
+      window.dispatchEvent(new CustomEvent('orders:updated', { detail: { orderId } }));
 
       // Send Slack notification if status changed
       if (updates.status && oldStatus && updates.status !== oldStatus) {
