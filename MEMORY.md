@@ -8,7 +8,16 @@ Last updated: 2026-06-19
 
 ---
 
-## ⏳ PLANNED — Website-order salesperson attribution (+ request/approval)
+## ✅ DONE (2026-06-22) — Website-order salesperson attribution (+ request/approval)
+
+Built by Lovable (migration `20260622111109`). Verified by inspection (local node/icu4c breakage blocked running tsc this time):
+- Sync protection ✅ — `woo-mirror.ts` reads `sales_attribution_locked` and deletes both `sales_person_id` + `sales_person_name` from the update when locked (re-syncs won't wipe attribution).
+- RPCs ✅ — `_attribute_website_order_core` (shared) + `attribute_website_order` (direct, admin/sales_manager), `request_website_order_attribution` (rep, own order), `decide_attribution_request` (approve/reject).
+- Schema ✅ — `orders.sales_attribution_locked/reason/...`, `sales_attribution_log`, `sales_attribution_requests`.
+- UI ✅ — `OrderAttributionPanel`, `AttributionRequestsQueue` tab, `useAttributionRequests`.
+- (design details preserved below for reference)
+
+### Design reference — Website-order salesperson attribution
 
 Problem: website orders are mirrored into `orders` with `sales_person_id = SYSTEM_USER_ID` ("Website (Auto)"), so a rep who facilitated a remote/online sale gets no order credit. Prompt handed to Lovable.
 
