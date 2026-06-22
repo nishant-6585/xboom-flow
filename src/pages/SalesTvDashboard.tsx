@@ -554,14 +554,14 @@ function YtdRaceScreen() {
   }
 
   const rows = (leaderboard ?? [])
-    .filter((e) => !(e.name || "").toLowerCase().includes("vishal"))
+    .filter((e) => !(e.user_name || "").toLowerCase().includes("vishal"))
     .map((e) => {
       const revenue = Number(e.total_order_value || 0);
       const target = ytdTargetByUser.get(e.user_id) || 0;
       const pct = target > 0 ? Math.round((revenue / target) * 100) : 0;
       return {
         userId: e.user_id,
-        name: e.name || "Unknown",
+        name: e.user_name || "Unknown",
         revenue,
         orders: Number(e.orders_won || 0),
         leads: Number(e.leads_handled || 0),
