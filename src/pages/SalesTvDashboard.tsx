@@ -513,87 +513,164 @@ const SCREEN_LABELS = [
 ];
 
 /* ============================================================
-   Screen 9 — Target vs Achievement
+   Screen 9 — Target vs Achievement (MTD + YTD per salesperson)
    ============================================================ */
-function TargetVsAchievementScreen({
-  targets, start, end,
-}: {
-  targets: ReturnType<typeof useSalesTargets>["targets"];
-  start: string;
-  end: string;
-}) {
-  // Aggregate targets whose period overlaps the selected range, per user
-  const rangeStart = new Date(start);
-  const rangeEnd = new Date(end);
-  const overlapping = (targets ?? []).filter((t) => {
+function TargetVsAchievementScreen() {
+  const now = new Date();
+  const fmt = (d: Date) => format(d, "yyyy-MM-dd");
+
+  // MTD window: current calendar month
+  const mtdStart = fmt(startOfMonth(now));
+  const mtdEnd = fmt(endOfMonth(now));
+
+  // YTD window: financial year starts April 1
+  const currentMonth = now.getMonth(); // 0-indexed (Jan=0, Apr=3)
+  const fyStartYear = currentMonth >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const ytdStart = `${fyStartYear}-04-01`;
+  const ytdEnd = fmt(now);
+
+  // Months elapsed in FY (April -> current, inclusive)
+  const monthsInFy = ((currentMonth - 3 + 12) % 12) + 1;
+
+  const { targets } = useSalesTargets();
+  const { leaderboard: mtdBoard } = useSalesLeaderboard(mtdStart, mtdEnd, true);
+  const { leaderboard: ytdBoard } = useSalesLeaderboard(ytdStart, ytdEnd, true);
+
+  // Find each user's monthly revenue target that covers the current calendar month
+  const monthlyTargetByUser = new Map<string, { name: string; target: number }>();
+  const monthStart = new Date(mtdStart);
+  const monthEnd = new Date(mtdEnd);
+  for (const t of targets ?? []) {
+    if (t.target_period !== "monthly") continue;
     const ps = new Date(t.period_start);
     const pe = new Date(t.period_end);
-    return ps <= rangeEnd && pe >= rangeStart;
-  });
-
-  const byUser = new Map<string, { name: string; target: number; achieved: number }>();
-  for (const t of overlapping) {
-    const cur = byUser.get(t.user_id) ?? { name: t.user_name || "Unknown", target: 0, achieved: 0 };
-    cur.target += Number(t.revenue_target || 0);
-    cur.achieved += Number(t.revenue_achieved || 0);
-    byUser.set(t.user_id, cur);
+    if (ps > monthEnd || pe < monthStart) continue;
+    const v = Number(t.revenue_target || 0);
+    if (!v) continue;
+    monthlyTargetByUser.set(t.user_id, { name: t.user_name || "Unknown", target: v });
   }
 
-  const rows = Array.from(byUser.values())
-    .map((r) => ({ ...r, pct: r.target > 0 ? Math.round((r.achieved / r.target) * 100) : 0 }))
-    .sort((a, b) => b.pct - a.pct)
-    .slice(0, 6);
+  const mtdRevenueByUser = new Map<string, number>();
+  for (const e of mtdBoard ?? []) {
+    mtdRevenueByUser.set(e.user_id, Number(e.total_order_value || 0));
+  }
+  const ytdRevenueByUser = new Map<string, number>();
+  for (const e of ytdBoard ?? []) {
+    ytdRevenueByUser.set(e.user_id, Number(e.total_order_value || 0));
+  }
 
-  const totalTarget = rows.reduce((s, r) => s + r.target, 0);
-  const totalAchieved = rows.reduce((s, r) => s + r.achieved, 0);
-  const teamPct = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0;
+  const cards = Array.from(monthlyTargetByUser.entries())
+    .map(([userId, { name, target }]) => {
+      const mtdAchieved = mtdRevenueByUser.get(userId) || 0;
+      const ytdAchieved = ytdRevenueByUser.get(userId) || 0;
+      const ytdTarget = target * monthsInFy;
+      return {
+        userId,
+        name,
+        mtdTarget: target,
+        mtdAchieved,
+        mtdPct: target > 0 ? Math.round((mtdAchieved / target) * 100) : 0,
+        ytdTarget,
+        ytdAchieved,
+        ytdPct: ytdTarget > 0 ? Math.round((ytdAchieved / ytdTarget) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.mtdPct - a.mtdPct);
+
+  const pctColor = (p: number) =>
+    p >= 100 ? "text-emerald-400" : p >= 50 ? "text-amber-400" : "text-rose-400";
+
+  const monthLabel = format(now, "MMM yyyy");
+  const fyLabel = `FY ${String(fyStartYear).slice(2)}-${String(fyStartYear + 1).slice(2)}`;
+
+  const cols = cards.length <= 3 ? 3 : cards.length === 4 ? 4 : cards.length <= 6 ? 3 : 4;
 
   return (
     <div className="h-full flex flex-col gap-6">
       <div className="text-center">
         <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
-          <Target className="w-7 h-7 text-emerald-400" /> Target vs Achievement
+          <Target className="w-7 h-7 text-amber-400" /> Target vs Achievement
         </h2>
         <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">
-          Team {teamPct}% · {fmtCr(totalAchieved)} of {fmtCr(totalTarget)} revenue target
+          MTD · {monthLabel} &nbsp;·&nbsp; YTD · {fyLabel} (Apr → {format(now, "MMM")})
         </p>
       </div>
-      <div className="flex-1 grid gap-3 min-h-0" style={{ gridTemplateRows: `repeat(${Math.max(rows.length, 1)}, minmax(0, 1fr))` }}>
-        {rows.length === 0 && (
-          <div className="flex items-center justify-center text-white/40 text-2xl">
-            No targets set for this period
-          </div>
-        )}
-        {rows.map((r) => {
-          const fillPct = Math.min(100, r.pct);
-          const overshoot = r.pct > 100;
-          const barColor = overshoot
-            ? "from-amber-300 via-emerald-400 to-emerald-500"
-            : r.pct >= 75
-              ? "from-emerald-400 to-teal-500"
-              : r.pct >= 50
-                ? "from-cyan-400 to-blue-500"
-                : "from-rose-400 to-pink-500";
-          return (
-            <div key={r.name} className="rounded-2xl bg-white/[0.04] border border-white/10 px-6 py-4 flex flex-col justify-center gap-2">
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold truncate">{r.name}</div>
-                <div className="flex items-baseline gap-3">
-                  <div className="text-4xl font-black tabular-nums text-emerald-300">{r.pct}%</div>
-                  <div className="text-sm text-white/50 tabular-nums">
-                    {fmtL(r.achieved)} / {fmtL(r.target)}
-                  </div>
+      {cards.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-white/40 text-2xl">
+          No monthly revenue targets set
+        </div>
+      ) : (
+        <div
+          className="flex-1 grid gap-4 min-h-0"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        >
+          {cards.map((c) => (
+            <div
+              key={c.userId}
+              className="rounded-3xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 p-5 flex flex-col gap-4 shadow-xl"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center font-black text-white shadow-lg shadow-orange-500/30">
+                  {(c.name[0] || "?").toUpperCase()}
                 </div>
+                <div className="text-xl font-bold truncate flex-1">{c.name}</div>
               </div>
-              <div className="h-3 rounded-full bg-white/5 overflow-hidden">
-                <div
-                  className={`h-full bg-gradient-to-r ${barColor} rounded-full transition-all`}
-                  style={{ width: `${fillPct}%` }}
+
+              <div className="flex-1 grid grid-rows-2 gap-3">
+                <TargetBlock
+                  label="MTD"
+                  target={c.mtdTarget}
+                  achieved={c.mtdAchieved}
+                  pct={c.mtdPct}
+                  pctClass={pctColor(c.mtdPct)}
+                />
+                <TargetBlock
+                  label="YTD"
+                  target={c.ytdTarget}
+                  achieved={c.ytdAchieved}
+                  pct={c.ytdPct}
+                  pctClass={pctColor(c.ytdPct)}
                 />
               </div>
             </div>
-          );
-        })}
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TargetBlock({
+  label, target, achieved, pct, pctClass,
+}: {
+  label: string;
+  target: number;
+  achieved: number;
+  pct: number;
+  pctClass: string;
+}) {
+  const fillPct = Math.min(100, pct);
+  const barColor =
+    pct >= 100
+      ? "from-emerald-400 to-teal-500"
+      : pct >= 50
+        ? "from-amber-400 to-orange-500"
+        : "from-rose-400 to-pink-500";
+  return (
+    <div className="rounded-2xl bg-black/30 border border-white/5 px-4 py-3 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-[3px] font-bold text-white/60">{label}</span>
+        <span className={`text-3xl font-black tabular-nums ${pctClass}`}>{pct}%</span>
+      </div>
+      <div className="flex items-baseline justify-between text-sm text-white/70 tabular-nums">
+        <span>{fmtL(achieved)}</span>
+        <span className="text-white/40">of {fmtL(target)}</span>
+      </div>
+      <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+        <div
+          className={`h-full bg-gradient-to-r ${barColor} rounded-full transition-all`}
+          style={{ width: `${fillPct}%` }}
+        />
       </div>
     </div>
   );
