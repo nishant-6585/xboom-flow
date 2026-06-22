@@ -21,7 +21,7 @@ import { useSalesTargets } from "@/hooks/useSalesTargets";
 
 const ROTATE_MS = 30_000;
 const REFRESH_MS = 5 * 60_000;
-const SCREEN_COUNT = 9;
+const SCREEN_COUNT = 10;
 
 type RangePreset =
   | "today" | "yesterday"
@@ -246,6 +246,7 @@ export default function SalesTvDashboard() {
             {screen === 6 && <PipelineRaceScreen board={board} />}
             {screen === 7 && <SourceMixScreen dist={dist} />}
             {screen === 8 && <TargetVsAchievementScreen />}
+            {screen === 9 && <YtdRaceScreen />}
           </div>
         </main>
 
