@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { OrderAttributionPanel } from '@/components/orders/OrderAttributionPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1187,6 +1188,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   onTrackingNeeded={focusTrackingSection}
                 />
               </div>
+            )}
+
+            {isWebsiteOrder && (
+              <OrderAttributionPanel internalOrderId={order.id} isMirroredAndPaid />
             )}
 
             {/* Order Details - Customer Info */}

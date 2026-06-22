@@ -1,0 +1,330 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Award, UserPlus, Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useSalesUsers } from '@/hooks/useSalesUsers';
+import {
+  useInternalOrderForAttribution,
+  useMyAttributionRequest,
+  useAttributionMutations,
+  SYSTEM_USER_ID,
+} from '@/hooks/useAttributionRequests';
+import { toast } from '@/hooks/use-toast';
+
+export const ATTRIBUTION_REASONS: { value: string; label: string }[] = [
+  { value: 'remote_customer_paid_online', label: 'Remote customer — paid via website' },
+  { value: 'customer_preferred_online', label: 'Customer preferred to order online' },
+  { value: 'field_phone_sale_online', label: 'Field/phone sale completed online by rep' },
+  { value: 'other', label: 'Other (specify)' },
+];
+
+function reasonLabel(value?: string | null) {
+  if (!value) return '—';
+  return ATTRIBUTION_REASONS.find((r) => r.value === value)?.label ?? value;
+}
+
+interface Props {
+  /** Internal orders.id (when known) */
+  internalOrderId?: string | null;
+  /** Woo external_id, used to look up the mirrored internal order */
+  externalId?: string | null;
+  /** True when the website order has reached paid/processing+ */
+  isMirroredAndPaid?: boolean;
+}
+
+export function OrderAttributionPanel({
+  internalOrderId,
+  externalId,
+  isMirroredAndPaid = true,
+}: Props) {
+  const { role, user } = useAuth();
+  const { data: order } = useInternalOrderForAttribution({ internalOrderId, externalId });
+  const { data: myRequest } = useMyAttributionRequest(order?.id);
+  const isManager = role === 'admin' || role === 'sales_manager';
+  const isSalesRep = role === 'sales';
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
+
+  if (!order && !isMirroredAndPaid) {
+    return (
+      <div className="p-3 rounded-lg border border-dashed bg-muted/30 text-xs text-muted-foreground">
+        Salesperson attribution is available once this website order is paid/processing.
+      </div>
+    );
+  }
+  if (!order) return null;
+
+  const isAttributed =
+    !!order.sales_attribution_locked && order.sales_person_id && order.sales_person_id !== SYSTEM_USER_ID;
+
+  return (
+    <div className="p-4 rounded-lg border border-primary/20 bg-muted/40 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Award className="h-4 w-4 text-primary" />
+          <span className="font-medium text-sm">Sales attribution</span>
+        </div>
+        {isAttributed ? (
+          <Badge
+            variant="outline"
+            className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+            title={`By ${order.attributed_by_name ?? 'manager'} on ${
+              order.attributed_at ? new Date(order.attributed_at).toLocaleString('en-IN') : ''
+            }`}
+          >
+            Credited to {order.sales_person_name} · {reasonLabel(order.sales_attribution_reason)}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">Unattributed (Website Auto)</Badge>
+        )}
+      </div>
+
+      {myRequest && (
+        <div className="text-xs text-muted-foreground flex items-center gap-2">
+          Your request:
+          <Badge
+            variant="outline"
+            className={
+              myRequest.status === 'approved'
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                : myRequest.status === 'rejected'
+                  ? 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400'
+                  : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+            }
+          >
+            {myRequest.status}
+          </Badge>
+          {myRequest.decision_note && (
+            <span className="italic">— {myRequest.decision_note}</span>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {isManager && (
+          <Button size="sm" variant="default" onClick={() => setAssignOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            {isAttributed ? 'Re-assign salesperson' : 'Assign to salesperson'}
+          </Button>
+        )}
+        {isSalesRep && !isAttributed && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setRequestOpen(true)}
+            disabled={myRequest?.status === 'pending'}
+            className="gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            {myRequest?.status === 'pending' ? 'Request pending' : 'Request to claim this order'}
+          </Button>
+        )}
+      </div>
+
+      {isManager && order && (
+        <AssignDialog
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          orderId={order.id}
+          currentSalesPersonId={order.sales_person_id}
+        />
+      )}
+      {isSalesRep && order && user && (
+        <RequestDialog
+          open={requestOpen}
+          onOpenChange={setRequestOpen}
+          orderId={order.id}
+        />
+      )}
+    </div>
+  );
+}
+
+function ReasonFields({
+  reason,
+  setReason,
+  customReason,
+  setCustomReason,
+}: {
+  reason: string;
+  setReason: (v: string) => void;
+  customReason: string;
+  setCustomReason: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Reason</Label>
+        <Select value={reason} onValueChange={setReason}>
+          <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+          <SelectContent>
+            {ATTRIBUTION_REASONS.map((r) => (
+              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {reason === 'other' && (
+        <div className="space-y-1.5">
+          <Label>Please specify</Label>
+          <Textarea
+            value={customReason}
+            onChange={(e) => setCustomReason(e.target.value)}
+            placeholder="Briefly explain why this order should be credited to this rep"
+            rows={3}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AssignDialog({
+  open, onOpenChange, orderId, currentSalesPersonId,
+}: {
+  open: boolean;
+  onOpenChange: (b: boolean) => void;
+  orderId: string;
+  currentSalesPersonId: string | null;
+}) {
+  const { salesUsers } = useSalesUsers();
+  const { attribute } = useAttributionMutations();
+  const [salesPersonId, setSalesPersonId] = useState<string>('');
+  const [reason, setReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+
+  const canSubmit =
+    salesPersonId &&
+    reason &&
+    (reason !== 'other' || customReason.trim().length > 0);
+
+  const submit = async () => {
+    try {
+      await attribute.mutateAsync({
+        orderId,
+        salesPersonId,
+        reason,
+        reasonCustom: reason === 'other' ? customReason.trim() : null,
+      });
+      toast({ title: 'Order attributed', description: 'Credit assigned to salesperson.' });
+      onOpenChange(false);
+      setSalesPersonId(''); setReason(''); setCustomReason('');
+    } catch (e) {
+      toast({
+        title: 'Failed to assign',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Filter out the SYSTEM user from the picker — only real sales/sales_manager
+  const pickable = salesUsers.filter(
+    (u) => u.user_id !== SYSTEM_USER_ID && (u.role === 'sales' || u.role === 'sales_manager'),
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Assign salesperson</DialogTitle>
+          <DialogDescription>
+            Credit this website order to a salesperson. They will get the same points a normal order earns.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Salesperson</Label>
+            <Select value={salesPersonId} onValueChange={setSalesPersonId}>
+              <SelectTrigger><SelectValue placeholder="Pick a salesperson" /></SelectTrigger>
+              <SelectContent>
+                {pickable.map((u) => (
+                  <SelectItem key={u.user_id} value={u.user_id}>
+                    {u.name}{currentSalesPersonId === u.user_id ? ' (current)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <ReasonFields
+            reason={reason} setReason={setReason}
+            customReason={customReason} setCustomReason={setCustomReason}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={!canSubmit || attribute.isPending}>
+            {attribute.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Assign
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RequestDialog({
+  open, onOpenChange, orderId,
+}: {
+  open: boolean;
+  onOpenChange: (b: boolean) => void;
+  orderId: string;
+}) {
+  const { requestAttribution } = useAttributionMutations();
+  const [reason, setReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+
+  const canSubmit = reason && (reason !== 'other' || customReason.trim().length > 0);
+
+  const submit = async () => {
+    try {
+      await requestAttribution.mutateAsync({
+        orderId,
+        reason,
+        reasonCustom: reason === 'other' ? customReason.trim() : null,
+      });
+      toast({
+        title: 'Request submitted',
+        description: 'Your request was sent to admins/sales managers.',
+      });
+      onOpenChange(false);
+      setReason(''); setCustomReason('');
+    } catch (e) {
+      toast({
+        title: 'Failed to send request',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Request to claim this order</DialogTitle>
+          <DialogDescription>
+            Tell your manager why this website order should be credited to you. They will approve or reject.
+          </DialogDescription>
+        </DialogHeader>
+        <ReasonFields
+          reason={reason} setReason={setReason}
+          customReason={customReason} setCustomReason={setCustomReason}
+        />
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={!canSubmit || requestAttribution.isPending}>
+            {requestAttribution.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Send request
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

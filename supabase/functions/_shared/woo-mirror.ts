@@ -200,7 +200,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 
   const { data: existing, error: lookupErr } = await supabase
     .from("orders")
-    .select("id, status, source")
+    .select("id, status, source, sales_attribution_locked")
     .eq("external_id", String(orderId))
     .maybeSingle();
 
@@ -342,6 +342,12 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       orderRow.tracking_number = null;
       orderRow.tracking_url = null;
       orderRow.courier_name = null;
+    }
+    // If a manager/admin has attributed this order to a real rep, the Woo
+    // mirror must NOT overwrite that credit on re-syncs/webhooks.
+    if ((existing as { sales_attribution_locked?: boolean }).sales_attribution_locked) {
+      delete orderRow.sales_person_id;
+      delete orderRow.sales_person_name;
     }
     const { error: updErr } = await supabase
       .from("orders").update(orderRow).eq("id", existing.id);

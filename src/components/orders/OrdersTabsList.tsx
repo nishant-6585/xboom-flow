@@ -1,7 +1,7 @@
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import {
-  LayoutGrid, ShoppingBag, Globe, Target, BarChart3, Plus, RotateCcw, Phone, Trash2,
+  LayoutGrid, ShoppingBag, Globe, Target, BarChart3, Plus, RotateCcw, Phone, Trash2, Inbox,
 } from 'lucide-react';
 
 export interface OrdersTabsListProps {
@@ -16,13 +16,15 @@ export interface OrdersTabsListProps {
   canViewSupportCalls: boolean;
   isAdmin: boolean;
   sourceCounts?: { all: number; manual: number; website_auto: number };
+  attributionRequestsCount?: number;
+  canManageAttribution?: boolean;
 }
 
 export function OrdersTabsList(props: OrdersTabsListProps) {
   const {
     sourceFilter, filteredOrdersCount, wooTotalCount, shopifyTotalCount, refundCount,
     canViewPipelineAnalytics, canCreateOrder, canViewRefunds, canViewSupportCalls, isAdmin,
-    sourceCounts,
+    sourceCounts, attributionRequestsCount = 0, canManageAttribution = false,
   } = props;
 
   const allOrdersBadge = sourceCounts
@@ -58,6 +60,17 @@ export function OrdersTabsList(props: OrdersTabsListProps) {
         <Target className="h-4 w-4" />
         <span className="hidden sm:inline font-medium">Pipeline</span>
       </TabsTrigger>
+      {canManageAttribution && (
+        <TabsTrigger value="attribution_requests" className="gap-2">
+          <Inbox className="h-4 w-4" />
+          <span className="hidden sm:inline font-medium">Attribution</span>
+          {attributionRequestsCount > 0 && (
+            <Badge variant="destructive" className="ml-1 h-5 px-2 text-xs font-semibold">
+              {attributionRequestsCount}
+            </Badge>
+          )}
+        </TabsTrigger>
+      )}
       {canViewPipelineAnalytics && (
         <TabsTrigger value="pipeline_analytics" className="gap-2">
           <BarChart3 className="h-4 w-4" />
