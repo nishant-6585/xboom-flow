@@ -101,6 +101,7 @@ const Index = () => {
   const [valueFilterDate, setValueFilterDate] = useState<Date | null>(null);
   const [leadFilter, setLeadFilter] = useState<"all" | LeadTemperature | "mega">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [appliedSearch, setAppliedSearch] = useState<string>("");
   const [topStartDate, setTopStartDate] = useState<Date | undefined>(undefined);
   const [topEndDate, setTopEndDate] = useState<Date | undefined>(undefined);
   const clearTopDateFilter = () => {
@@ -200,7 +201,7 @@ const Index = () => {
 
       // Free-text search across common fields
       let matchesSearch = true;
-      const q = searchQuery.trim().toLowerCase();
+      const q = appliedSearch.trim().toLowerCase();
       if (q) {
         const haystack = [
           e.customer_name,
@@ -241,7 +242,7 @@ const Index = () => {
     valueFilter,
     valueFilterDate,
     leadFilter,
-    searchQuery,
+    appliedSearch,
   ]);
 
   const clearDateFilter = () => {
