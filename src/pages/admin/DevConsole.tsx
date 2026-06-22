@@ -14,7 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, ArrowLeft, Bug, ShieldAlert, Zap, Trash2, Layers, Paintbrush, ChevronRight } from "lucide-react";
+import { Loader2, RefreshCw, ArrowLeft, Bug, ShieldAlert, Zap, Trash2, Layers, Paintbrush, ChevronRight, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -91,6 +91,7 @@ export default function DevConsole() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("open");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [fixingAll, setFixingAll] = useState(false);
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
@@ -147,6 +148,44 @@ export default function DevConsole() {
       toast.success("Issue updated");
     }
     setUpdatingId(null);
+  }
+
+  async function fixAllIssues() {
+    const openIssues = issues.filter(i => i.resolution_status === "open");
+    if (openIssues.length === 0) { toast.info("No open issues to fix"); return; }
+    if (!confirm(`Trigger auto-fix for ${openIssues.length} open issues? This will create a PR on TimoDesk.`)) return;
+
+    setFixingAll(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trigger-fix-workflow`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            report_id: selectedReport?.id,
+            issues: openIssues.map(i => ({
+              file_path: i.file_path,
+              line_number: i.line_number,
+              severity: i.severity,
+              category: i.category,
+              message: i.message,
+              suggestion: i.suggestion,
+              code_snippet: i.code_snippet,
+            })),
+          }),
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast.success("Fix workflow triggered — check TimoDesk GitHub for a PR in ~2 minutes");
+    } catch (e) {
+      toast.error(`Failed to trigger fix: ${e}`);
+    }
+    setFixingAll(false);
   }
 
   useEffect(() => { loadReports(); }, []);
@@ -243,15 +282,30 @@ export default function DevConsole() {
       <Dialog open={!!selectedReport} onOpenChange={open => { if (!open) setSelectedReport(null); }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedReport?.repo}
-              <span className="text-sm font-normal text-muted-foreground">
-                {selectedReport && format(new Date(selectedReport.triggered_at), "d MMM yyyy, h:mm a")}
-              </span>
-            </DialogTitle>
-            {selectedReport?.summary && (
-              <p className="text-sm text-muted-foreground">{selectedReport.summary}</p>
-            )}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  {selectedReport?.repo}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {selectedReport && format(new Date(selectedReport.triggered_at), "d MMM yyyy, h:mm a")}
+                  </span>
+                </DialogTitle>
+                {selectedReport?.summary && (
+                  <p className="text-sm text-muted-foreground mt-1">{selectedReport.summary}</p>
+                )}
+              </div>
+              <Button
+                size="sm"
+                className="shrink-0 bg-orange-600 hover:bg-orange-700 text-white"
+                disabled={fixingAll || issues.filter(i => i.resolution_status === "open").length === 0}
+                onClick={fixAllIssues}
+              >
+                {fixingAll
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Triggering…</>
+                  : <><Wrench className="h-4 w-4 mr-2" />Fix All Issues ({issues.filter(i => i.resolution_status === "open").length} open)</>
+                }
+              </Button>
+            </div>
           </DialogHeader>
 
           {/* Filters */}
