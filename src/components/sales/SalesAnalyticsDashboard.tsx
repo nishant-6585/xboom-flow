@@ -373,6 +373,26 @@ export function SalesAnalyticsDashboard() {
     setDetailDialogOpen(true);
   };
 
+  const handleSalespersonClick = (salesPersonId: string, salesPersonName: string) => {
+    const items: DetailItem[] = filteredPipeline
+      .filter(p => p.sales_person_id === salesPersonId && p.status !== 'won' && p.status !== 'lost')
+      .map(p => ({
+        id: p.id,
+        type: 'pipeline' as const,
+        customer_name: p.customer_name,
+        customer_company: p.customer_company,
+        product_name: p.product_name,
+        value: p.expected_price || 0,
+        date: p.created_at,
+        status: p.status,
+        temperature: p.lead_temperature,
+      }));
+
+    setDialogTitle(`${salesPersonName} Pipeline (${items.length})`);
+    setDialogItems(items);
+    setDetailDialogOpen(true);
+  };
+
   const loading = pipelineLoading || paymentsLoading || enquiriesLoading;
 
   if (loading) {
