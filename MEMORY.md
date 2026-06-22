@@ -8,6 +8,21 @@ Last updated: 2026-06-19
 
 ---
 
+## ⏳ PLANNED — Website-order salesperson attribution (+ request/approval)
+
+Problem: website orders are mirrored into `orders` with `sales_person_id = SYSTEM_USER_ID` ("Website (Auto)"), so a rep who facilitated a remote/online sale gets no order credit. Prompt handed to Lovable.
+
+- **Credit source:** `orders.sales_person_id` (drives `get_sales_leaderboard` + `sales_points`). `assigned_to`/`assign_woo_lead` on `woocommerce_orders` is lead follow-up, NOT credit — left untouched.
+- **Direct path:** admin/sales_manager assign via `attribute_website_order` RPC → sets sales_person_id/name + `sales_attribution_locked` + reason (predefined+custom) + audit (`sales_attribution_log`); awards `sales_points` idempotently (no double-count).
+- **Request→approval path:** sales rep `request_website_order_attribution` (own order only) → `sales_attribution_requests` pending → admin/sales_manager `decide_attribution_request` (approve runs the attribution). Notifications via `notifications` (`attribution_request` / `attribution_decision`).
+- **⚠️ Sync protection (critical):** `woo-mirror.ts` `.update(orderRow)` currently forces `sales_person_id = SYSTEM_USER_ID` (lines ~299/347) → must NOT overwrite when `sales_attribution_locked = true`, else re-sync wipes the attribution.
+- **Leaderboard:** attributed website orders (locked) count for the rep even when "exclude website" is on.
+- **UI:** Website Orders tab + order dialog — managers "Assign to salesperson"; reps "Request to claim" with status badge; manager "Attribution Requests" approvals queue. Enable only for website orders with a mirrored internal order (paid+).
+- **Decisions:** reps request OWN attribution only; approvers = admin + sales_manager; predefined reasons (remote/paid online, preferred online, field-phone sale, Other).
+- Status: ⏳ prompt ready, not yet built.
+
+---
+
 ## 🟡 Proforma audit/reconciliation polish — A/B/C done, #4 deferred
 
 - **A ✅** (2026-06-19): "Review now" CTA on `proforma_stale` notifications → `/proforma-reconciliation?order_id=…` (page resolves order_id→order_number); line-level before→after diff in the audit trail.
