@@ -21,7 +21,7 @@ import { useSalesTargets } from "@/hooks/useSalesTargets";
 
 const ROTATE_MS = 30_000;
 const REFRESH_MS = 5 * 60_000;
-const SCREEN_COUNT = 10;
+const SCREEN_COUNT = 11;
 
 type RangePreset =
   | "today" | "yesterday"
@@ -247,6 +247,7 @@ export default function SalesTvDashboard() {
             {screen === 7 && <SourceMixScreen dist={dist} />}
             {screen === 8 && <TargetVsAchievementScreen />}
             {screen === 9 && <YtdRaceScreen />}
+            {screen === 10 && <FtdRaceScreen />}
           </div>
         </main>
 
@@ -526,6 +527,7 @@ const SCREEN_LABELS = [
   "Target vs Achievement",
 ];
 SCREEN_LABELS.push("YTD Race");
+SCREEN_LABELS.push("FTD · Today");
 
 /* ============================================================
    Screen 10 — YTD Race (financial year to date leaderboard)
