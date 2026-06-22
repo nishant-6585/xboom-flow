@@ -83,7 +83,7 @@ export function SalesAnalyticsDashboard() {
   const { payments, loading: paymentsLoading } = useExpectedPayments();
   const { enquiries, loading: enquiriesLoading } = useEnquiries();
   
-  const isManager = role === 'admin' || role === 'supply_chain';
+  const isManager = ['admin', 'supply_chain', 'sales_manager', 'finance'].includes(role ?? '');
 
   // Dialog state for detail drill-down
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
