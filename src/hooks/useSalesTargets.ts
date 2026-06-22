@@ -52,7 +52,9 @@ export function useSalesTargets() {
         .order('period_start', { ascending: false });
 
       if (error) throw error;
-      setTargets((data as SalesTarget[]) || []);
+      const all = (data as SalesTarget[]) || [];
+      // Exclude Vishal (case-insensitive) across all TV slides consuming this hook
+      setTargets(all.filter((t) => !(t.user_name || '').toLowerCase().includes('vishal')));
     } catch (error: any) {
       console.error('Error fetching sales targets:', error);
       toast.error('Failed to fetch sales targets');
