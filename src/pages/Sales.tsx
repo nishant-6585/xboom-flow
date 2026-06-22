@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv, FileText } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv, FileText, Award } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -39,6 +39,7 @@ import { MyLeadsPanel } from "@/components/sales/MyLeadsPanel";
 import { TeamAvailabilityPanel } from "@/components/sales/TeamAvailabilityPanel";
 import { QuotesPanel } from "@/components/sales/QuotesPanel";
 import { CalendarOff } from "lucide-react";
+import { ClaimWebsiteOrderPanel } from "@/components/sales/ClaimWebsiteOrderPanel";
 
 
 export default function Sales() {
@@ -198,6 +199,10 @@ export default function Sales() {
                   <ListTodo className="w-4 h-4" />
                   Tasks
                 </TabsTrigger>
+                <TabsTrigger value="claim_website_order" className={`${triggerBase} data-[state=active]:bg-violet-600 data-[state=active]:text-white`}>
+                  <Award className="w-4 h-4" />
+                  Claim Order
+                </TabsTrigger>
                 {canSeeAnalytics && (
                   <TabsTrigger value="source_performance" className={`${triggerBase} data-[state=active]:bg-indigo-600 data-[state=active]:text-white`}>
                     <BarChart3 className="w-4 h-4" />
@@ -269,6 +274,10 @@ export default function Sales() {
 
           <TabsContent value="tasks" className="space-y-6">
             <TasksPanel />
+          </TabsContent>
+
+          <TabsContent value="claim_website_order" className="space-y-6">
+            <ClaimWebsiteOrderPanel />
           </TabsContent>
 
           {canSeeAnalytics && (
