@@ -683,6 +683,7 @@ export function useOrders() {
         ),
       );
       await queryClient.invalidateQueries({ queryKey: ['orders', user?.id, role] });
+      window.dispatchEvent(new CustomEvent('orders:updated', { detail: { orderId } }));
 
       // Send Slack notification if status changed
       if (updates.status && oldStatus && updates.status !== oldStatus) {
