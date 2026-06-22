@@ -88,7 +88,6 @@ export default function SalesTvDashboard() {
   // Force include website-sourced data so TV totals match the Sales Arena dashboard
   const { leaderboard } = useSalesLeaderboard(start, end, true);
   const { data: distData } = useLeadDistribution(start, end);
-  const { targets } = useSalesTargets();
 
   // Clock
   useEffect(() => {
@@ -233,7 +232,7 @@ export default function SalesTvDashboard() {
             {screen === 5 && <RevenueRaceScreen board={board} />}
             {screen === 6 && <PipelineRaceScreen board={board} />}
             {screen === 7 && <SourceMixScreen dist={dist} />}
-            {screen === 8 && <TargetVsAchievementScreen targets={targets} start={start} end={end} />}
+            {screen === 8 && <TargetVsAchievementScreen />}
           </div>
         </main>
 
