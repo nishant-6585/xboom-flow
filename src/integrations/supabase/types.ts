@@ -8859,6 +8859,9 @@ export type Database = {
           actual_delivery: string | null
           additional_details: string | null
           amount_paid: number | null
+          attributed_at: string | null
+          attributed_by: string | null
+          attributed_by_name: string | null
           campaign_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -8924,6 +8927,9 @@ export type Database = {
           refund_status: string | null
           rto_marked_at: string | null
           rto_marked_by: string | null
+          sales_attribution_locked: boolean
+          sales_attribution_reason: string | null
+          sales_attribution_reason_custom: string | null
           sales_notes: string | null
           sales_person_id: string
           sales_person_name: string
@@ -8946,6 +8952,9 @@ export type Database = {
           actual_delivery?: string | null
           additional_details?: string | null
           amount_paid?: number | null
+          attributed_at?: string | null
+          attributed_by?: string | null
+          attributed_by_name?: string | null
           campaign_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -9011,6 +9020,9 @@ export type Database = {
           refund_status?: string | null
           rto_marked_at?: string | null
           rto_marked_by?: string | null
+          sales_attribution_locked?: boolean
+          sales_attribution_reason?: string | null
+          sales_attribution_reason_custom?: string | null
           sales_notes?: string | null
           sales_person_id: string
           sales_person_name: string
@@ -9033,6 +9045,9 @@ export type Database = {
           actual_delivery?: string | null
           additional_details?: string | null
           amount_paid?: number | null
+          attributed_at?: string | null
+          attributed_by?: string | null
+          attributed_by_name?: string | null
           campaign_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -9098,6 +9113,9 @@ export type Database = {
           refund_status?: string | null
           rto_marked_at?: string | null
           rto_marked_by?: string | null
+          sales_attribution_locked?: boolean
+          sales_attribution_reason?: string | null
+          sales_attribution_reason_custom?: string | null
           sales_notes?: string | null
           sales_person_id?: string
           sales_person_name?: string
@@ -12380,6 +12398,129 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      sales_attribution_log: {
+        Row: {
+          changed_by: string | null
+          changed_by_name: string | null
+          created_at: string
+          from_sales_person_id: string | null
+          id: string
+          order_id: string
+          reason: string | null
+          reason_custom: string | null
+          source: string
+          to_sales_person_id: string
+          to_sales_person_name: string
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_name?: string | null
+          created_at?: string
+          from_sales_person_id?: string | null
+          id?: string
+          order_id: string
+          reason?: string | null
+          reason_custom?: string | null
+          source: string
+          to_sales_person_id: string
+          to_sales_person_name: string
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_name?: string | null
+          created_at?: string
+          from_sales_person_id?: string | null
+          id?: string
+          order_id?: string
+          reason?: string | null
+          reason_custom?: string | null
+          source?: string
+          to_sales_person_id?: string
+          to_sales_person_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_attribution_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_attribution_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_attribution_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decided_by_name: string | null
+          decision_note: string | null
+          id: string
+          order_id: string
+          reason: string | null
+          reason_custom: string | null
+          requested_by: string
+          requested_by_name: string | null
+          requested_for_name: string | null
+          requested_for_sales_person_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_by_name?: string | null
+          decision_note?: string | null
+          id?: string
+          order_id: string
+          reason?: string | null
+          reason_custom?: string | null
+          requested_by: string
+          requested_by_name?: string | null
+          requested_for_name?: string | null
+          requested_for_sales_person_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_by_name?: string | null
+          decision_note?: string | null
+          id?: string
+          order_id?: string
+          reason?: string | null
+          reason_custom?: string | null
+          requested_by?: string
+          requested_by_name?: string | null
+          requested_for_name?: string | null
+          requested_for_sales_person_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_attribution_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_attribution_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_daily_activities: {
         Row: {
@@ -15714,6 +15855,18 @@ export type Database = {
       }
     }
     Functions: {
+      _attribute_website_order_core: {
+        Args: {
+          p_actor_id: string
+          p_actor_name: string
+          p_order_id: string
+          p_reason: string
+          p_reason_custom: string
+          p_sales_person_id: string
+          p_source: string
+        }
+        Returns: undefined
+      }
       _create_procurement_for_order: {
         Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: undefined
@@ -15750,6 +15903,15 @@ export type Database = {
       assign_orphan_leads_sweep: { Args: never; Returns: number }
       assign_woo_lead: {
         Args: { p_assignee: string; p_order_id: string }
+        Returns: undefined
+      }
+      attribute_website_order: {
+        Args: {
+          p_order_id: string
+          p_reason: string
+          p_reason_custom?: string
+          p_sales_person_id: string
+        }
         Returns: undefined
       }
       auto_assign_woo_leads: { Args: never; Returns: number }
@@ -15958,6 +16120,10 @@ export type Database = {
       current_portal_contact_can_manage: {
         Args: { _account_id: string }
         Returns: boolean
+      }
+      decide_attribution_request: {
+        Args: { p_approve: boolean; p_note?: string; p_request_id: string }
+        Returns: undefined
       }
       enqueue_order_notification: {
         Args: {
@@ -16410,6 +16576,9 @@ export type Database = {
           actual_delivery: string | null
           additional_details: string | null
           amount_paid: number | null
+          attributed_at: string | null
+          attributed_by: string | null
+          attributed_by_name: string | null
           campaign_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -16475,6 +16644,9 @@ export type Database = {
           refund_status: string | null
           rto_marked_at: string | null
           rto_marked_by: string | null
+          sales_attribution_locked: boolean
+          sales_attribution_reason: string | null
+          sales_attribution_reason_custom: string | null
           sales_notes: string | null
           sales_person_id: string
           sales_person_name: string
@@ -16578,6 +16750,10 @@ export type Database = {
       relink_companies: {
         Args: { _source_ids: string[]; _target_id: string }
         Returns: Json
+      }
+      request_website_order_attribution: {
+        Args: { p_order_id: string; p_reason: string; p_reason_custom?: string }
+        Returns: string
       }
       resolve_agent_user: {
         Args: { _agent_id: string; _agent_phone: string; _provider: string }

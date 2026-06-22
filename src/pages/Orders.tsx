@@ -20,6 +20,8 @@ import OrdersRefundsTab from '@/components/orders/tabs/OrdersRefundsTab';
 import OrdersAnalyticsTab from '@/components/orders/tabs/OrdersAnalyticsTab';
 import OrdersSupportCallsTab from '@/components/orders/tabs/OrdersSupportCallsTab';
 import OrdersDeletedTab from '@/components/orders/tabs/OrdersDeletedTab';
+import { AttributionRequestsQueue } from '@/components/orders/AttributionRequestsQueue';
+import { usePendingAttributionRequests } from '@/hooks/useAttributionRequests';
 
 import { useOrders, Order, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
@@ -226,6 +228,12 @@ export default function Orders() {
     refetchWooOrders, refetchWooSync, refetchWooNotifs,
   });
 
+  const canManageAttribution = role === 'admin' || role === 'sales_manager';
+  const { data: attributionRequests } = usePendingAttributionRequests();
+  const attributionRequestsCount = canManageAttribution
+    ? attributionRequests?.rows.length ?? 0
+    : 0;
+
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
       <Header />
@@ -275,6 +283,8 @@ export default function Orders() {
                 canViewRefunds={canViewRefunds}
                 canViewSupportCalls={canViewSupportCalls}
                 isAdmin={isAdmin}
+                canManageAttribution={canManageAttribution}
+                attributionRequestsCount={attributionRequestsCount}
               />
             </div>
 
@@ -380,6 +390,8 @@ export default function Orders() {
           />
 
           <OrdersPipelineTab enquiryIdFilter={enquiryIdFromUrl} />
+
+          {canManageAttribution && <AttributionRequestsQueue />}
 
           {canCreateOrder && (
             <OrdersNewOrderTab
