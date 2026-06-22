@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { useLeadDistribution } from "@/hooks/useLeadDistribution";
+import { useSalesTargets } from "@/hooks/useSalesTargets";
 
 /* ============================================================
    TV View — Auto-rotating Sales Scoreboard
@@ -20,7 +21,7 @@ import { useLeadDistribution } from "@/hooks/useLeadDistribution";
 
 const ROTATE_MS = 30_000;
 const REFRESH_MS = 5 * 60_000;
-const SCREEN_COUNT = 8;
+const SCREEN_COUNT = 9;
 
 type RangePreset =
   | "today" | "yesterday"
@@ -87,6 +88,7 @@ export default function SalesTvDashboard() {
   // Force include website-sourced data so TV totals match the Sales Arena dashboard
   const { leaderboard } = useSalesLeaderboard(start, end, true);
   const { data: distData } = useLeadDistribution(start, end);
+  const { targets } = useSalesTargets();
 
   // Clock
   useEffect(() => {
@@ -231,6 +233,7 @@ export default function SalesTvDashboard() {
             {screen === 5 && <RevenueRaceScreen board={board} />}
             {screen === 6 && <PipelineRaceScreen board={board} />}
             {screen === 7 && <SourceMixScreen dist={dist} />}
+            {screen === 8 && <TargetVsAchievementScreen targets={targets} start={start} end={end} />}
           </div>
         </main>
 
@@ -507,6 +510,7 @@ const SCREEN_LABELS = [
   "Revenue Race",
   "Pipeline Race",
   "Source Mix by Rep",
+  "Target vs Achievement",
 ];
 
 /* -------------------- helpers -------------------- */
