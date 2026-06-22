@@ -21,7 +21,7 @@ import { useSalesTargets } from "@/hooks/useSalesTargets";
 
 const ROTATE_MS = 30_000;
 const REFRESH_MS = 5 * 60_000;
-const SCREEN_COUNT = 10;
+const SCREEN_COUNT = 11;
 
 type RangePreset =
   | "today" | "yesterday"
@@ -247,6 +247,7 @@ export default function SalesTvDashboard() {
             {screen === 7 && <SourceMixScreen dist={dist} />}
             {screen === 8 && <TargetVsAchievementScreen />}
             {screen === 9 && <YtdRaceScreen />}
+            {screen === 10 && <FtdRaceScreen />}
           </div>
         </main>
 
@@ -526,6 +527,115 @@ const SCREEN_LABELS = [
   "Target vs Achievement",
 ];
 SCREEN_LABELS.push("YTD Race");
+SCREEN_LABELS.push("FTD · Today");
+
+/* ============================================================
+   Screen 11 — FTD (Today) per-rep snapshot
+   ============================================================ */
+function FtdRaceScreen() {
+  const now = new Date();
+  const today = format(now, "yyyy-MM-dd");
+  const { leaderboard } = useSalesLeaderboard(today, today, false);
+
+  const rows = (leaderboard ?? [])
+    .filter((e) => !(e.user_name || "").toLowerCase().includes("vishal"))
+    .map((e) => ({
+      userId: e.user_id,
+      name: e.user_name || "Unknown",
+      revenue: Number(e.total_order_value || 0),
+      orders: Number(e.orders_won || 0),
+      leads: Number(e.leads_handled || 0),
+      points: Number((e as any).total_points || 0),
+    }))
+    .filter((r) => r.revenue > 0 || r.orders > 0 || r.leads > 0 || r.points > 0)
+    .sort((a, b) => b.revenue - a.revenue || b.orders - a.orders);
+
+  const maxRev = Math.max(1, ...rows.map((r) => r.revenue));
+  const totalRev = rows.reduce((s, r) => s + r.revenue, 0);
+  const totalOrders = rows.reduce((s, r) => s + r.orders, 0);
+  const totalLeads = rows.reduce((s, r) => s + r.leads, 0);
+
+  const medal = (i: number) =>
+    i === 0 ? "from-yellow-300 to-amber-500" :
+    i === 1 ? "from-slate-200 to-slate-400" :
+    i === 2 ? "from-orange-400 to-amber-700" :
+    "from-white/20 to-white/5";
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white/90 flex items-center justify-center gap-3">
+          <TrendingUp className="w-7 h-7 text-cyan-400" /> FTD · Today
+        </h2>
+        <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">
+          {format(now, "EEEE, dd MMM yyyy")} · Live
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <SummaryTile label="Revenue" value={fmtL(totalRev)} accent="from-cyan-400 to-blue-500" />
+        <SummaryTile label="Orders Won" value={String(totalOrders)} accent="from-emerald-400 to-teal-500" />
+        <SummaryTile label="Leads Handled" value={String(totalLeads)} accent="from-amber-400 to-orange-500" />
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-white/40 text-2xl">
+          No activity yet today
+        </div>
+      ) : (
+        <div
+          className="flex-1 grid gap-3 min-h-0"
+          style={{ gridTemplateRows: `repeat(${rows.length}, minmax(0, 1fr))` }}
+        >
+          {rows.map((r, i) => {
+            const fill = (r.revenue / maxRev) * 100;
+            return (
+              <div
+                key={r.userId}
+                className="rounded-2xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 px-5 py-3 flex items-center gap-5 shadow-xl min-h-0"
+              >
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${medal(i)} flex items-center justify-center font-black text-black text-xl shadow-lg shrink-0`}>
+                  {i + 1}
+                </div>
+                <div className="w-48 shrink-0">
+                  <div className="text-xl font-bold truncate">{r.name}</div>
+                  <div className="text-[11px] uppercase tracking-[2px] text-white/40">
+                    {r.orders} won · {r.leads} leads
+                  </div>
+                </div>
+                <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                  <div className="flex items-baseline justify-between tabular-nums">
+                    <span className="text-2xl font-black text-white">{fmtL(r.revenue)}</span>
+                    {r.points > 0 && (
+                      <span className="text-xs text-amber-300/80">{r.points} pts</span>
+                    )}
+                  </div>
+                  <div className="h-2.5 rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"
+                      style={{ width: `${fill}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryTile({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div className="rounded-2xl bg-black/30 border border-white/10 px-5 py-3 flex flex-col gap-1">
+      <span className="text-[11px] uppercase tracking-[3px] font-bold text-white/50">{label}</span>
+      <span className={`text-3xl font-black tabular-nums bg-gradient-to-r ${accent} bg-clip-text text-transparent`}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 /* ============================================================
    Screen 10 — YTD Race (financial year to date leaderboard)
