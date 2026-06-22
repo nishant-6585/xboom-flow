@@ -59,6 +59,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { LeadTemperature } from "@/hooks/useEnquiries";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth, startOfWeek, format } from "date-fns";
 
 interface SalesTeamMember {
@@ -98,6 +100,7 @@ const Index = () => {
   const [valueFilter, setValueFilter] = useState<string>("all");
   const [valueFilterDate, setValueFilterDate] = useState<Date | null>(null);
   const [leadFilter, setLeadFilter] = useState<"all" | LeadTemperature | "mega">("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [topStartDate, setTopStartDate] = useState<Date | undefined>(undefined);
   const [topEndDate, setTopEndDate] = useState<Date | undefined>(undefined);
   const clearTopDateFilter = () => {
@@ -195,6 +198,25 @@ const Index = () => {
       else if (leadFilter === "cold") matchesLead = e.lead_temperature === "cold";
       else if (leadFilter === "mega") matchesLead = e.is_mega_deal === true;
 
+      // Free-text search across common fields
+      let matchesSearch = true;
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        const haystack = [
+          e.customer_name,
+          e.customer_company,
+          e.product_name,
+          e.product_code,
+          e.product_category,
+          e.sales_person_name,
+          e.notes,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        matchesSearch = haystack.includes(q);
+      }
+
       return (
         matchesCategory &&
         matchesDate &&
@@ -203,7 +225,8 @@ const Index = () => {
         matchesLostReason &&
         matchesSlaStatus &&
         matchesValueFilter &&
-        matchesLead
+        matchesLead &&
+        matchesSearch
       );
     });
   }, [
@@ -218,6 +241,7 @@ const Index = () => {
     valueFilter,
     valueFilterDate,
     leadFilter,
+    searchQuery,
   ]);
 
   const clearDateFilter = () => {
@@ -523,6 +547,27 @@ const Index = () => {
                 {/* Filters and View Toggle */}
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="search"
+                        placeholder="Search enquiries..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-8 pr-8"
+                      />
+                      {searchQuery && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSearchQuery("")}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                          aria-label="Clear search"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                     <div className="flex items-center gap-3">
                       <Filter className="w-4 h-4 text-muted-foreground" />
                       <Select value={categoryFilter} onValueChange={setCategoryFilter}>
