@@ -8735,6 +8735,60 @@ export type Database = {
         }
         Relationships: []
       }
+      order_phone_audit_log: {
+        Row: {
+          changed_by: string | null
+          changed_by_name: string | null
+          changed_by_role: string | null
+          created_at: string
+          id: string
+          new_phone: string | null
+          old_phone: string | null
+          order_id: string
+          order_number: string | null
+          source: string
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_name?: string | null
+          changed_by_role?: string | null
+          created_at?: string
+          id?: string
+          new_phone?: string | null
+          old_phone?: string | null
+          order_id: string
+          order_number?: string | null
+          source?: string
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_name?: string | null
+          changed_by_role?: string | null
+          created_at?: string
+          id?: string
+          new_phone?: string | null
+          old_phone?: string | null
+          order_id?: string
+          order_number?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_phone_audit_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_phone_audit_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_procurement_links: {
         Row: {
           created_at: string
