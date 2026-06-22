@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { OrderAttributionPanel } from '@/components/orders/OrderAttributionPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -647,8 +648,15 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
                   })}
                 </ul>
               )}
+             </section>
+
+            <section>
+              <OrderAttributionPanel
+                externalId={order.woo_order_id}
+                isMirroredAndPaid={order.payment_status === 'paid'}
+              />
             </section>
-          </div>
+           </div>
         </ScrollArea>
       </DialogContent>
     </Dialog>
