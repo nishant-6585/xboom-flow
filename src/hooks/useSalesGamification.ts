@@ -305,7 +305,54 @@ export function useSalesLeaderboard(
         });
       
       if (error) throw error;
-      return data as LeaderboardEntry[];
+      const rows = (data as LeaderboardEntry[]) ?? [];
+
+      // Fetch all sales-role users so reps with zero activity still appear
+      const { data: roleRows } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('role', ['sales', 'sales_manager'] as any);
+      const salesUserIds = Array.from(
+        new Set((roleRows as any[] | null)?.map((r) => r.user_id).filter(Boolean) ?? []),
+      );
+
+      const byId = new Map<string, LeaderboardEntry>();
+      rows.forEach((r) => {
+        if (r.user_id) byId.set(r.user_id, r);
+      });
+
+      const missingIds = salesUserIds.filter((uid) => !byId.has(uid));
+      if (missingIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, name')
+          .in('user_id', missingIds);
+        const nameById = new Map<string, string>();
+        (profilesData ?? []).forEach((p: any) => nameById.set(p.user_id, p.name));
+        missingIds.forEach((uid) => {
+          byId.set(uid, {
+            user_id: uid,
+            user_name: nameById.get(uid) ?? 'Unknown',
+            total_points: 0,
+            leads_handled: 0,
+            orders_won: 0,
+            pipeline_created: 0,
+            total_pipeline_value: 0,
+            total_order_value: 0,
+            rank: 0,
+          });
+        });
+      }
+
+      // Exclude Vishal (case-insensitive) and re-rank by total_points
+      const filtered = Array.from(byId.values()).filter(
+        (r) => !(r.user_name || '').toLowerCase().includes('vishal'),
+      );
+      filtered.sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
+      filtered.forEach((r, i) => {
+        r.rank = i + 1;
+      });
+      return filtered;
     },
     enabled: !!user,
   });
