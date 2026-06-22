@@ -780,14 +780,13 @@ function BigKpi({
    Screen 2 — Leaderboard
    ============================================================ */
 function LeaderboardScreen({ board }: { board: ReturnType<typeof useSalesLeaderboard>["leaderboard"] }) {
-  const top5 = [...(board ?? [])].sort((a, b) => b.total_points - a.total_points).slice(0, 5);
-  const accents = [
-    "from-amber-300 to-yellow-600 text-black",
-    "from-slate-200 to-slate-400 text-black",
-    "from-orange-400 to-amber-700 text-white",
-    "from-white/10 to-white/5 text-white",
-    "from-white/10 to-white/5 text-white",
-  ];
+  const ranked = [...(board ?? [])].sort((a, b) => b.total_points - a.total_points);
+  const accentFor = (i: number) => {
+    if (i === 0) return "from-amber-300 to-yellow-600 text-black";
+    if (i === 1) return "from-slate-200 to-slate-400 text-black";
+    if (i === 2) return "from-orange-400 to-amber-700 text-white";
+    return "from-white/10 to-white/5 text-white";
+  };
 
   return (
     <div className="h-full flex flex-col gap-6">
@@ -797,16 +796,16 @@ function LeaderboardScreen({ board }: { board: ReturnType<typeof useSalesLeaderb
         </h2>
         <p className="text-sm text-white/40 uppercase tracking-[4px] mt-2">Ranked by sales points</p>
       </div>
-      <div className="flex-1 grid grid-rows-5 gap-3 min-h-0">
-        {top5.length === 0 && (
+      <div className="flex-1 grid gap-3 min-h-0 overflow-y-auto pr-1" style={{ gridAutoRows: 'minmax(0, 1fr)' }}>
+        {ranked.length === 0 && (
           <div className="flex items-center justify-center text-white/40 text-2xl">No activity yet</div>
         )}
-        {top5.map((e, i) => (
+        {ranked.map((e, i) => (
           <div
             key={e.user_id}
             className="flex items-center gap-6 rounded-2xl bg-white/[0.04] border border-white/10 px-6 py-3"
           >
-            <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${accents[i]} flex items-center justify-center font-black text-5xl shadow-xl`}>
+            <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${accentFor(i)} flex items-center justify-center font-black text-5xl shadow-xl shrink-0`}>
               {i + 1}
             </div>
             <div className="flex-1 min-w-0">
