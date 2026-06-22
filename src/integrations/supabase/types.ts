@@ -16161,6 +16161,17 @@ export type Database = {
           webhook_topic: string
         }[]
       }
+      find_claimable_website_order: {
+        Args: { p_query: string }
+        Returns: {
+          customer_name_masked: string
+          order_date: string
+          order_id: string
+          order_number: string
+          product_name: string
+          total: number
+        }[]
+      }
       find_duplicate_enquiries: {
         Args: {
           p_customer_company: string
