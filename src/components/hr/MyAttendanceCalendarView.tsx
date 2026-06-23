@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO, isAfter, eachDayOfInterval, startOfMonth, endOfMonth, isWeekend as isWeekendFn, isFuture, isToday, isWithinInterval, getDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, Pencil, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, Pencil, Calendar as CalendarIcon, Plus } from 'lucide-react';
 import { AttendanceLog, LeaveRequest } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { useHolidays } from '@/hooks/useHolidays';
@@ -26,6 +26,7 @@ interface MyAttendanceCalendarViewProps {
   onRefresh?: () => void;
   yesterdayLog?: AttendanceLog | null;
   onCorrected?: () => void;
+  onApplyLeave?: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -51,7 +52,7 @@ function isCorrectionWindowOpen(log: AttendanceLog): boolean {
 }
 
 export function MyAttendanceCalendarView({
-  todayAttendance, weeklyHours, attendanceLogs, calendarMonth, onMonthChange, employeeId, onRefresh, yesterdayLog, onCorrected,
+  todayAttendance, weeklyHours, attendanceLogs, calendarMonth, onMonthChange, employeeId, onRefresh, yesterdayLog, onCorrected, onApplyLeave,
 }: MyAttendanceCalendarViewProps) {
   const { role } = useAuth();
   const isHROrAdmin = role === 'admin' || role === 'hr';
@@ -282,6 +283,11 @@ export function MyAttendanceCalendarView({
               </Select>
             </div>
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onMonthChange(new Date())}>Today</Button>
+            {onApplyLeave && (
+              <Button size="sm" className="h-8 text-xs gap-1" onClick={onApplyLeave}>
+                <Plus className="h-3.5 w-3.5" /> Apply for Leave
+              </Button>
+            )}
           </div>
 
           {/* Calendar Grid */}

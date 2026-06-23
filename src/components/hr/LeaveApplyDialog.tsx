@@ -87,11 +87,13 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
 
   const validateCompoffLeaveDate = (d: string) => {
     if (!d) return 'Pick your CompOff leave date.';
-    const today = new Date().toISOString().split('T')[0];
-    if (d <= today) return 'CompOff leave date must be in the future.';
     const day = new Date(d).getDay();
     if (day === 0 || day === 6) return 'CompOff leave must be on a working day.';
     if (holidayDateSet.has(d)) return 'CompOff leave cannot fall on a holiday.';
+    // Allow past dates up to 60 days back (e.g., to claim CompOff for a leave already taken)
+    const earliest = new Date();
+    earliest.setDate(earliest.getDate() - 60);
+    if (new Date(d) < earliest) return 'CompOff leave date cannot be older than 60 days.';
     return '';
   };
 
@@ -326,7 +328,7 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                     <Input
                       type="date"
                       value={compoffLeaveDate}
-                      min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                      min={new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0]}
                       onChange={(e) => {
                         setCompoffLeaveDate(e.target.value);
                         setCompoffError(validateCompoffLeaveDate(e.target.value));
