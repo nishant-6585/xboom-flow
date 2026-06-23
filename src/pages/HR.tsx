@@ -186,6 +186,7 @@ export default function HR() {
               onRefresh={() => { fetchYesterdayLog(); if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth); }}
               yesterdayLog={yesterdayLog}
               onCorrected={() => { fetchYesterdayLog(); if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth); }}
+              onApplyLeave={() => setLeaveDialogOpen(true)}
             />
           </TabsContent>
 
