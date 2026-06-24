@@ -419,6 +419,7 @@ export function ProcurementOrderDialog({
             orderProcurementRate={order.procurement_rate || undefined}
             procurementCurrency={procurementCurrency}
             suppliers={suppliers}
+            orderSupplierId={(order as any).supplier_id || null}
             onSupplierChange={(supplierId) => {
               if (!selectedSupplierId) {
                 setSelectedSupplierId(supplierId);
