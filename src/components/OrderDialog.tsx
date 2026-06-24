@@ -689,10 +689,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   };
 
   const refreshPricesFromPricelist = async () => {
-    if (!order || orderItems.length === 0) return;
+    if (!order) return;
     setRefreshingPrices(true);
     try {
-      const names = Array.from(new Set(orderItems.map((i) => i.product_name).filter(Boolean)));
+      // Legacy fallback: orders with no order_items rows — use the order header product_name
+      const usingHeader = orderItems.length === 0;
+      const names = usingHeader
+        ? (order.product_name ? [order.product_name] : [])
+        : Array.from(new Set(orderItems.map((i) => i.product_name).filter(Boolean)));
       if (names.length === 0) {
         toast.info('No products to refresh');
         return;
@@ -714,6 +718,37 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       let missing = 0;
       const changesByItem: Array<{ id: string; old: number | null; next: number; name: string }> = [];
 
+      if (usingHeader) {
+        const next = priceMap.get(order.product_name!);
+        if (next == null) {
+          missing = 1;
+        } else {
+          const qty = order.quantity || 1;
+          const oldSelling = (order as any).selling_price ?? null;
+          const oldTotal = (order as any).total_sales_amount ?? null;
+          const nextTotal = next * qty;
+          if (Number(oldSelling) === next && Number(oldTotal) === nextTotal) {
+            unchanged = 1;
+          } else {
+            const { data, error } = await supabase
+              .from('orders')
+              .update({ selling_price: next, total_sales_amount: nextTotal })
+              .eq('id', order.id)
+              .select('id')
+              .maybeSingle();
+            if (error) throw error;
+            if (!data) throw new Error('No rows updated (insufficient permission)');
+            if (user && profile) {
+              await recordChanges('orders', order.id, {
+                selling_price: { old: oldSelling, new: next },
+                total_sales_amount: { old: oldTotal, new: nextTotal },
+              }, profile.name || 'Unknown');
+            }
+            await onUpdate(order.id, { selling_price: next, total_sales_amount: nextTotal } as Partial<Order>);
+            updated = 1;
+          }
+        }
+      } else {
       for (const item of orderItems) {
         const next = priceMap.get(item.product_name);
         if (next == null) {
@@ -746,6 +781,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
       const refreshedItems = await fetchOrderItems(order.id);
       setOrderItems(refreshedItems);
+      }
 
       const parts: string[] = [];
       parts.push(`${updated} updated`);
