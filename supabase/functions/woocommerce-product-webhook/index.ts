@@ -8,6 +8,28 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-wc-webhook-topic, x-wc-webhook-signature, x-wc-webhook-source, xboom_secret",
 };
 
+// deno-lint-ignore no-explicit-any
+async function withStorefrontPrice(wcUrl: string | undefined, product: any): Promise<any> {
+  const wooId = Number(product?.id);
+  if (!wcUrl || !wooId || Number.isNaN(wooId)) return product;
+
+  try {
+    const base = wcUrl.replace(/\/$/, "");
+    const resp = await fetch(`${base}/wp-json/wc/store/v1/products/${wooId}`, {
+      headers: { "User-Agent": "Xboom-Workflow/1.0" },
+    });
+    if (!resp.ok) {
+      console.warn(`[woocommerce-product-webhook] Store API price probe failed: ${resp.status}`);
+      return product;
+    }
+    const storefront = await resp.json();
+    return { ...product, prices: storefront?.prices, permalink: storefront?.permalink || product?.permalink };
+  } catch (e) {
+    console.warn("[woocommerce-product-webhook] Store API price probe failed", e);
+    return product;
+  }
+}
+
 /**
  * Receives HMAC-verified WooCommerce PRODUCT webhooks (product.created /
  * product.updated / product.deleted) from xboom.in and syncs them into the
@@ -100,7 +122,8 @@ Deno.serve(async (req) => {
     }
 
     if (topic === "product.created" || topic === "product.updated") {
-      const result = await upsertWooProduct(supabase, payload, "woocommerce_webhook", pricesIncludeTax);
+      const productPayload = await withStorefrontPrice(wcUrl, payload);
+      const result = await upsertWooProduct(supabase, productPayload, "woocommerce_webhook", pricesIncludeTax);
       await supabase.from("woo_sync_logs").insert({
         event_type: "product_webhook_in",
         direction: "in",
