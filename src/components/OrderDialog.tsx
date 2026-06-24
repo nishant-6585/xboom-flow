@@ -103,6 +103,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const poInputRef = useRef<HTMLInputElement>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [refreshingPrices, setRefreshingPrices] = useState(false);
   const [escalationReason, setEscalationReason] = useState('');
   const [showEscalationForm, setShowEscalationForm] = useState(false);
   const [escalating, setEscalating] = useState(false);
@@ -684,6 +685,78 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setDeleteDialogOpen(false);
       setDeleteReason('');
       onOpenChange(false);
+    }
+  };
+
+  const refreshPricesFromPricelist = async () => {
+    if (!order || orderItems.length === 0) return;
+    setRefreshingPrices(true);
+    try {
+      const names = Array.from(new Set(orderItems.map((i) => i.product_name).filter(Boolean)));
+      if (names.length === 0) {
+        toast.info('No products to refresh');
+        return;
+      }
+      const { data: priceRows, error: priceErr } = await supabase
+        .from('pricelist')
+        .select('product_name, dealer_price, website_price, unit_price')
+        .in('product_name', names);
+      if (priceErr) throw priceErr;
+
+      const priceMap = new Map<string, number>();
+      (priceRows || []).forEach((row: any) => {
+        const next = row.dealer_price ?? row.website_price ?? row.unit_price;
+        if (next != null) priceMap.set(row.product_name, Number(next));
+      });
+
+      let updated = 0;
+      let unchanged = 0;
+      let missing = 0;
+      const changesByItem: Array<{ id: string; old: number | null; next: number; name: string }> = [];
+
+      for (const item of orderItems) {
+        const next = priceMap.get(item.product_name);
+        if (next == null) {
+          missing += 1;
+          continue;
+        }
+        if (Number(item.unit_price) === next) {
+          unchanged += 1;
+          continue;
+        }
+        const { data, error } = await supabase
+          .from('order_items')
+          .update({ unit_price: next })
+          .eq('id', item.id)
+          .select('id')
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error('No rows updated (insufficient permission)');
+        changesByItem.push({ id: item.id, old: item.unit_price ?? null, next, name: item.product_name });
+        updated += 1;
+      }
+
+      if (updated > 0 && user && profile) {
+        const changesRecord: Record<string, { old: any; new: any }> = {};
+        changesByItem.forEach((c) => {
+          changesRecord[`order_item.unit_price (${c.name})`] = { old: c.old, new: c.next };
+        });
+        await recordChanges('orders', order.id, changesRecord, profile.name || 'Unknown');
+      }
+
+      const refreshedItems = await fetchOrderItems(order.id);
+      setOrderItems(refreshedItems);
+
+      const parts: string[] = [];
+      parts.push(`${updated} updated`);
+      if (unchanged) parts.push(`${unchanged} unchanged`);
+      if (missing) parts.push(`${missing} not in pricelist`);
+      toast.success(`Prices refreshed — ${parts.join(', ')}`);
+    } catch (error: any) {
+      console.error('Error refreshing prices from pricelist:', error);
+      toast.error(error.message || 'Failed to refresh prices');
+    } finally {
+      setRefreshingPrices(false);
     }
   };
 
@@ -1412,6 +1485,18 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <span className="font-medium">Order Items ({orderItems.length})</span>
                   </div>
                   {canEditOrder && !editingOrderItems && (
+                    <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={refreshPricesFromPricelist}
+                      disabled={refreshingPrices || loading}
+                      className="h-8 gap-1"
+                      title="Refresh prices from current pricelist"
+                    >
+                      {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      Refresh Prices
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1437,6 +1522,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <Pencil className="h-4 w-4" />
                       Edit
                     </Button>
+                    </>
                   )}
                   {editingOrderItems && (
                     <div className="flex items-center gap-2">
