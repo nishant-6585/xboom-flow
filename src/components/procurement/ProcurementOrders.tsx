@@ -65,6 +65,8 @@ export function ProcurementOrders() {
   const [paymentRequestDialogOpen, setPaymentRequestDialogOpen] = useState(false);
   const [paymentRequestOrder, setPaymentRequestOrder] = useState<Order | null>(null);
   const [showUnplannedOnly, setShowUnplannedOnly] = useState(false);
+  const [procDateFrom, setProcDateFrom] = useState<Date | undefined>(undefined);
+  const [procDateTo, setProcDateTo] = useState<Date | undefined>(undefined);
 
   const getPriorityLabel = (priority: number | null) => {
     switch (priority) {
@@ -116,10 +118,21 @@ export function ProcurementOrders() {
       const matchesOrderNumber = orderNumberFilter === "all" || order.order_number === orderNumberFilter;
       
       const matchesUnplanned = !showUnplannedOnly || !order.procurement_date;
-      
-      return matchesSearch && matchesSupplier && matchesCategory && matchesPriority && matchesOrderNumber && matchesUnplanned;
+
+      let matchesProcDate = true;
+      if (procDateFrom || procDateTo) {
+        if (!order.procurement_date) {
+          matchesProcDate = false;
+        } else {
+          const pd = new Date(order.procurement_date);
+          if (procDateFrom && pd < new Date(procDateFrom.getFullYear(), procDateFrom.getMonth(), procDateFrom.getDate())) matchesProcDate = false;
+          if (procDateTo && pd > new Date(procDateTo.getFullYear(), procDateTo.getMonth(), procDateTo.getDate(), 23, 59, 59)) matchesProcDate = false;
+        }
+      }
+
+      return matchesSearch && matchesSupplier && matchesCategory && matchesPriority && matchesOrderNumber && matchesUnplanned && matchesProcDate;
     });
-  }, [orders, search, supplierFilter, categoryFilter, priorityFilter, orderNumberFilter, showUnplannedOnly]);
+  }, [orders, search, supplierFilter, categoryFilter, priorityFilter, orderNumberFilter, showUnplannedOnly, procDateFrom, procDateTo]);
 
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
@@ -287,6 +300,31 @@ export function ProcurementOrders() {
                 <SelectItem value="4">Low</SelectItem>
               </SelectContent>
             </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full sm:w-[150px] justify-start font-normal", !procDateFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {procDateFrom ? format(procDateFrom, 'dd MMM yy') : 'Proc. From'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={procDateFrom} onSelect={setProcDateFrom} initialFocus />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full sm:w-[150px] justify-start font-normal", !procDateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {procDateTo ? format(procDateTo, 'dd MMM yy') : 'Proc. To'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={procDateTo} onSelect={setProcDateTo} initialFocus />
+              </PopoverContent>
+            </Popover>
+            {(procDateFrom || procDateTo) && (
+              <Button variant="ghost" size="sm" onClick={() => { setProcDateFrom(undefined); setProcDateTo(undefined); }}>Clear dates</Button>
+            )}
           </div>
 
           <div className="rounded-md border overflow-x-auto">
