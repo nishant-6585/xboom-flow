@@ -115,6 +115,7 @@ export function useOrderPipelineAnalytics(params: {
         .select(
           "id, order_number, customer_name, status, total_sales_amount, created_at, updated_at, sales_person_name, order_date, priority, is_escalated"
         )
+        .is("deleted_at", null)
         .order("created_at", { ascending: true });
       if (startDate) q = q.gte("created_at", startDate.toISOString());
       if (endDate) q = q.lte("created_at", endDate.toISOString());
