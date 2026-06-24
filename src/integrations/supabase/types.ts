@@ -8935,6 +8935,7 @@ export type Database = {
           deleted_by_name: string | null
           delivery_charges: number | null
           discount_amount: number | null
+          dispatched_on: string | null
           enquiry_id: string | null
           escalated_at: string | null
           escalated_by: string | null
@@ -9028,6 +9029,7 @@ export type Database = {
           deleted_by_name?: string | null
           delivery_charges?: number | null
           discount_amount?: number | null
+          dispatched_on?: string | null
           enquiry_id?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
@@ -9121,6 +9123,7 @@ export type Database = {
           deleted_by_name?: string | null
           delivery_charges?: number | null
           discount_amount?: number | null
+          dispatched_on?: string | null
           enquiry_id?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
@@ -16663,6 +16666,7 @@ export type Database = {
           deleted_by_name: string | null
           delivery_charges: number | null
           discount_amount: number | null
+          dispatched_on: string | null
           enquiry_id: string | null
           escalated_at: string | null
           escalated_by: string | null
