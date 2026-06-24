@@ -103,6 +103,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const poInputRef = useRef<HTMLInputElement>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [refreshingPrices, setRefreshingPrices] = useState(false);
   const [escalationReason, setEscalationReason] = useState('');
   const [showEscalationForm, setShowEscalationForm] = useState(false);
   const [escalating, setEscalating] = useState(false);
