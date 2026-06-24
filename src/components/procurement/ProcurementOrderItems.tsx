@@ -34,6 +34,7 @@ interface ProcurementOrderItemsProps {
   suppliers?: Supplier[];
   onSupplierChange?: (supplierId: string) => void;
   orderProductData?: OrderProductData;
+  orderSupplierId?: string | null;
 }
 
 interface EditedItem {
@@ -67,6 +68,7 @@ export function ProcurementOrderItems({
   suppliers = [],
   onSupplierChange,
   orderProductData,
+  orderSupplierId,
 }: ProcurementOrderItemsProps) {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,7 +161,7 @@ export function ProcurementOrderItems({
           estimated_procurement_rate: (item as any).estimated_procurement_rate?.toString() || '',
           procurement_date: item.procurement_date || '',
           status: item.status || 'pending',
-          supplier_id: (item as any).supplier_id || '',
+          supplier_id: (item as any).supplier_id || orderSupplierId || '',
           quantity_procured: (item as any).quantity_procured?.toString() || '',
           fulfilled_from_stock: (item as any).fulfilled_from_stock || false,
           procurement_gst_percent: (item as any).procurement_gst_percent?.toString() || '0',
