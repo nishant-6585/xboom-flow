@@ -1027,6 +1027,19 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <OrderNumberBadge orderNumber={order.order_number} size="md" />
                     </>
                   )}
+                  {canEditOrder && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={refreshPricesFromPricelist}
+                      disabled={refreshingPrices || loading}
+                      className="ml-auto h-8 gap-1"
+                      title="Refresh prices from current pricelist"
+                    >
+                      {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      Refresh Prices
+                    </Button>
+                  )}
                 </DialogTitle>
                 <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}
