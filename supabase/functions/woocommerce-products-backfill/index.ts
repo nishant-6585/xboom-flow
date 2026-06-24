@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
             .eq("user_id", userData.user.id);
           authorized = (roles || []).some(
             // deno-lint-ignore no-explicit-any
-            (r: any) => r.role === "admin" || r.role === "supply_chain",
+            (r: any) => r.role === "admin" || r.role === "supply_chain" || r.role === "sales" || r.role === "sales_manager",
           );
         }
       }
