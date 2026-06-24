@@ -78,13 +78,20 @@ function mapAvailability(woo: Woo): string {
 }
 
 /**
- * Website price = the standard catalog price. We prefer `regular_price` for
- * stability (so a temporary sale doesn't churn the pricelist), falling back to
- * `price` — which also covers variable products where the parent `regular_price`
- * is blank and `price` holds the min variation price.
+ * Website price = the effective selling price shown on xboom.in. We prefer
+ * `sale_price` when the product is on sale, then `price` (Woo's active price,
+ * which also covers variable products where it equals the min variation
+ * price), and finally fall back to `regular_price`. This keeps the pricelist
+ * in sync with what customers actually see on the website.
  */
 function mapPrice(woo: Woo): number | null {
-  const candidate = woo?.regular_price || woo?.price || woo?.sale_price || "";
+  const onSale = woo?.on_sale === true;
+  const candidate =
+    (onSale && woo?.sale_price) ||
+    woo?.sale_price ||
+    woo?.price ||
+    woo?.regular_price ||
+    "";
   const n = parseFloat(String(candidate));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
