@@ -78,20 +78,28 @@ function mapAvailability(woo: Woo): string {
 }
 
 /**
- * Website price = the effective selling price shown on xboom.in. We prefer
- * `sale_price` when the product is on sale, then `price` (Woo's active price,
- * which also covers variable products where it equals the min variation
- * price), and finally fall back to `regular_price`. This keeps the pricelist
- * in sync with what customers actually see on the website.
+ * Website price = the effective selling price shown on xboom.in. The storefront
+ * Store API exposes the post-discount customer price under `prices`, while the
+ * admin REST API can still return a higher catalog/sale price when pricing
+ * plugins are involved. Prefer Store API prices, then admin sale/active price,
+ * and only finally fall back to regular_price.
  */
+function parseStoreApiPrice(value: unknown, minorUnit: unknown): number | null {
+  const n = parseFloat(String(value ?? ""));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const decimals = Number(minorUnit);
+  return Number.isFinite(decimals) && decimals > 0 ? n / 10 ** decimals : n;
+}
+
 function mapPrice(woo: Woo): number | null {
-  const onSale = woo?.on_sale === true;
-  const candidate =
-    (onSale && woo?.sale_price) ||
-    woo?.sale_price ||
-    woo?.price ||
-    woo?.regular_price ||
-    "";
+  const storePrices = woo?.prices;
+  const storefrontPrice =
+    parseStoreApiPrice(storePrices?.sale_price, storePrices?.currency_minor_unit) ??
+    parseStoreApiPrice(storePrices?.price, storePrices?.currency_minor_unit) ??
+    parseStoreApiPrice(storePrices?.regular_price, storePrices?.currency_minor_unit);
+  if (storefrontPrice) return storefrontPrice;
+
+  const candidate = woo?.sale_price || woo?.price || woo?.regular_price || "";
   const n = parseFloat(String(candidate));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
