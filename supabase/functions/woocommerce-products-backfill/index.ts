@@ -7,6 +7,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
+// deno-lint-ignore no-explicit-any
+async function withStorefrontPrices(base: string, products: any[]): Promise<any[]> {
+  const ids = products
+    .map((p) => Number(p?.id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  if (ids.length === 0) return products;
+
+  try {
+    const resp = await fetch(
+      `${base}/wp-json/wc/store/v1/products?include=${ids.join(",")}&per_page=${ids.length}`,
+      { headers: { "User-Agent": "Xboom-Workflow/1.0" } },
+    );
+    if (!resp.ok) {
+      console.warn(`[woocommerce-products-backfill] Store API price probe failed: ${resp.status}`);
+      return products;
+    }
+    const storefrontProducts = await resp.json();
+    if (!Array.isArray(storefrontProducts)) return products;
+
+    const byId = new Map(storefrontProducts.map((p) => [Number(p?.id), p]));
+    return products.map((product) => {
+      const storefront = byId.get(Number(product?.id));
+      return storefront
+        ? { ...product, prices: storefront.prices, permalink: storefront.permalink || product?.permalink }
+        : product;
+    });
+  } catch (e) {
+    console.warn("[woocommerce-products-backfill] Store API price probe failed", e);
+    return products;
+  }
+}
+
 /**
  * Pulls the full published WooCommerce product catalog from xboom.in via the
  * REST API and upserts each product into `pricelist`. Serves two callers:
@@ -109,12 +141,13 @@ Deno.serve(async (req) => {
 
       const products = await resp.json();
       if (!Array.isArray(products) || products.length === 0) break;
+      const productsWithStorefrontPrices = await withStorefrontPrices(base, products);
 
       // Process page in parallel batches to stay well under the 150s edge timeout.
       // Sequential was ~150ms/product × 1500 = >3 min; batched is ~10–20× faster.
       const BATCH = 20;
-      for (let i = 0; i < products.length; i += BATCH) {
-        const slice = products.slice(i, i + BATCH);
+      for (let i = 0; i < productsWithStorefrontPrices.length; i += BATCH) {
+        const slice = productsWithStorefrontPrices.slice(i, i + BATCH);
         const results = await Promise.allSettled(
           slice.map((p: unknown) =>
             upsertWooProduct(supabase, p, "woocommerce_backfill", pricesIncludeTax),
