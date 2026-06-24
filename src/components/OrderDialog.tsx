@@ -139,8 +139,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [trackingUrl, setTrackingUrl] = useState('');
   const [courierName, setCourierName] = useState('');
   const [committedTimeline, setCommittedTimeline] = useState('');
-  const [estimatedDelivery, setEstimatedDelivery] = useState('');
-  const [actualDelivery, setActualDelivery] = useState('');
+  const [dispatchedOn, setDispatchedOn] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
   const [salesNotes, setSalesNotes] = useState('');
@@ -259,8 +258,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setTrackingUrl(order.tracking_url || '');
       setCourierName((order as any).courier_name || '');
       setCommittedTimeline(order.committed_timeline || '');
-      setEstimatedDelivery(order.estimated_delivery || '');
-      setActualDelivery(order.actual_delivery || '');
+      setDispatchedOn(((order as any).dispatched_on as string) || '');
       setInternalNotes(order.internal_notes || '');
       setCustomerNotes(order.customer_notes || '');
       setSalesNotes(order.sales_notes || '');
@@ -510,8 +508,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       tracking_url: trackingUrl || null,
       courier_name: courierName || null,
       committed_timeline: committedTimeline || null,
-      estimated_delivery: estimatedDelivery || null,
-      actual_delivery: actualDelivery || null,
+      dispatched_on: dispatchedOn || null,
       internal_notes: internalNotes || null,
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
@@ -570,8 +567,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('tracking_url', order.tracking_url, trackingUrl || null);
     trackField('courier_name', (order as any).courier_name, courierName || null);
     trackField('committed_timeline', order.committed_timeline, committedTimeline || null);
-    trackField('estimated_delivery', order.estimated_delivery, estimatedDelivery || null);
-    trackField('actual_delivery', order.actual_delivery, actualDelivery || null);
+    trackField('dispatched_on', (order as any).dispatched_on, dispatchedOn || null);
     trackField('internal_notes', order.internal_notes, internalNotes || null);
     trackField('customer_notes', order.customer_notes, customerNotes || null);
     trackField('sales_notes', order.sales_notes, salesNotes || null);
@@ -635,7 +631,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   tracking_carrier: courierName || undefined,
                   tracking_number: trackingNumber || undefined,
                   tracking_url: trackingUrl || undefined,
-                  expected_delivery: estimatedDelivery || undefined,
+                  expected_delivery: undefined,
                 },
               },
             );
@@ -1185,7 +1181,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     carrier: courierName || (order as any).courier_name || null,
                     number: trackingNumber || order.tracking_number || null,
                     url: trackingUrl || order.tracking_url || null,
-                    expected: estimatedDelivery || null,
+                    expected: null,
                   }}
                   onTrackingNeeded={focusTrackingSection}
                 />
@@ -1940,22 +1936,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="inline_estimated_delivery">Estimated Delivery</Label>
+                    <Label htmlFor="inline_dispatched_on">Dispatched On</Label>
                     <Input
-                      id="inline_estimated_delivery"
+                      id="inline_dispatched_on"
                       type="date"
-                      value={estimatedDelivery}
-                      onChange={e => setEstimatedDelivery(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="inline_actual_delivery">Actual Delivery</Label>
-                    <Input
-                      id="inline_actual_delivery"
-                      type="date"
-                      value={actualDelivery}
-                      onChange={e => setActualDelivery(e.target.value)}
+                      value={dispatchedOn}
+                      onChange={e => setDispatchedOn(e.target.value)}
                       disabled={loading}
                     />
                   </div>
@@ -1986,18 +1972,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       )}
                     </div>
                   )}
-                  {(estimatedDelivery || order.estimated_delivery) && (
+                  {(dispatchedOn || (order as any).dispatched_on) && (
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Est. Delivery:</span>
-                      <span>{format(new Date(estimatedDelivery || order.estimated_delivery!), 'dd MMM yyyy')}</span>
-                    </div>
-                  )}
-                  {(actualDelivery || order.actual_delivery) && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Delivered:</span>
-                      <span>{format(new Date(actualDelivery || order.actual_delivery!), 'dd MMM yyyy')}</span>
+                      <span className="text-muted-foreground">Dispatched On:</span>
+                      <span>{format(new Date(dispatchedOn || (order as any).dispatched_on), 'dd MMM yyyy')}</span>
                     </div>
                   )}
                   {(trackingUrl || order.tracking_url) && !(trackingNumber || order.tracking_number) && (
@@ -2014,7 +1993,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       </a>
                     </div>
                   )}
-                  {!trackingNumber && !order.tracking_number && !courierName && !(order as any).courier_name && !(trackingUrl || order.tracking_url) && !estimatedDelivery && !order.estimated_delivery && (
+                  {!trackingNumber && !order.tracking_number && !courierName && !(order as any).courier_name && !(trackingUrl || order.tracking_url) && !dispatchedOn && !(order as any).dispatched_on && (
                     <p className="text-sm text-muted-foreground">No tracking information yet</p>
                   )}
                 </div>
