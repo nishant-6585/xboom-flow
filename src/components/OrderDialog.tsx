@@ -161,7 +161,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [regenerateTarget, setRegenerateTarget] = useState<OrderInvoice | null>(null);
   // Proforma can be generated regardless of payment status (full/partial/none).
   // Payment approval is NOT required to issue a proforma invoice.
-  const canGenerateProforma = isAdmin || isFinance || isSupplyChain;
+  const canGenerateProforma = isAdmin || isFinance || isSupplyChain || isSales;
   const canBypassInvoiceEmail = isAdmin || isFinance;
   const [invoiceEmailState, setInvoiceEmailState] = useState<InvoiceEmailState>(defaultEmailState(''));
   // (PO number is auto-extracted from the uploaded PO document; no manual editing)
