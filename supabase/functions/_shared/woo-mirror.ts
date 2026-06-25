@@ -200,7 +200,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 
   const { data: existing, error: lookupErr } = await supabase
     .from("orders")
-    .select("id, status, source, sales_attribution_locked")
+    .select("id, status, source, sales_attribution_locked, manual_overrides")
     .eq("external_id", String(orderId))
     .maybeSingle();
 
@@ -348,6 +348,17 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     if ((existing as { sales_attribution_locked?: boolean }).sales_attribution_locked) {
       delete orderRow.sales_person_id;
       delete orderRow.sales_person_name;
+    }
+    // Respect manual edits made in the internal ERP. Any field listed in
+    // `manual_overrides` is preserved exactly as the operator set it, so
+    // the next Woo webhook / backfill does not silently revert it.
+    const overrides = (existing as { manual_overrides?: string[] | null }).manual_overrides;
+    if (Array.isArray(overrides) && overrides.length > 0) {
+      for (const field of overrides) {
+        if (typeof field === "string" && field in orderRow) {
+          delete orderRow[field];
+        }
+      }
     }
     const { error: updErr } = await supabase
       .from("orders").update(orderRow).eq("id", existing.id);
