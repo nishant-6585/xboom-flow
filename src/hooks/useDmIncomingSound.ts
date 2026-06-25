@@ -32,29 +32,51 @@ export function useDmIncomingSound() {
 
   useEffect(() => {
     if (!uid) return;
-    const channel = supabase
-      .channel(`dm-incoming-${uid}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "dm_messages" },
-        (payload) => {
-          const row: any = payload.new;
-          if (!row || row.sender_id === uid) return;
-          // Throttle to avoid stacked chimes when a burst lands
-          const now = Date.now();
-          if (now - lastPlayedRef.current < 800) return;
-          lastPlayedRef.current = now;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const handleInsert = (payload: any) => {
+      const row = payload?.new;
+      if (!row || row.sender_id === uid) return;
+      const now = Date.now();
+      if (now - lastPlayedRef.current < 800) return;
+      lastPlayedRef.current = now;
+      // eslint-disable-next-line no-console
+      console.log("[DM] incoming message — playing chime", row.id);
+      void playNotificationSound("hot_lead");
+    };
+
+    const connect = () => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(`dm-incoming-${uid}-${Date.now()}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "dm_messages" },
+          handleInsert
+        )
+        .subscribe((status) => {
           // eslint-disable-next-line no-console
-          console.log("[DM] incoming message — playing chime", row.id);
-          void playNotificationSound("hot_lead");
-        }
-      )
-      .subscribe((status) => {
-        // eslint-disable-next-line no-console
-        console.log("[DM] incoming-sound channel status:", status);
-      });
+          console.log("[DM] incoming-sound channel status:", status);
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            if (cancelled) return;
+            if (channel) {
+              supabase.removeChannel(channel);
+              channel = null;
+            }
+            if (retryTimer) clearTimeout(retryTimer);
+            retryTimer = setTimeout(connect, 2000);
+          }
+        });
+    };
+
+    connect();
+
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [uid, playNotificationSound]);
 }
