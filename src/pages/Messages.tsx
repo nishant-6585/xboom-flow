@@ -89,7 +89,9 @@ export default function Messages() {
   const active = threads.find((t) => t.id === threadId);
   const activeOtherId =
     active?.other_user_id ??
-    (pendingOther?.threadId === threadId ? pendingOther.otherUserId : undefined);
+    (pendingOther && threadId && pendingOther.threadId === threadId
+      ? pendingOther.otherUserId
+      : undefined);
 
   const openChat = async (otherId: string, existingThreadId: string | null) => {
     if (existingThreadId) {
