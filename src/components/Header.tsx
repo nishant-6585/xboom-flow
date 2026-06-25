@@ -10,6 +10,7 @@ import { NotificationPanel } from "@/components/NotificationPanel";
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PomodoroTimer } from "@/components/header/PomodoroTimer";
+import { MessagesNavButton } from "@/components/messages/MessagesNavButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -183,6 +184,7 @@ export function Header() {
               </kbd>
             </Button>
             <ErrorBoundary fallback={null}><AttendanceWidget /></ErrorBoundary>
+            <ErrorBoundary fallback={null}><MessagesNavButton /></ErrorBoundary>
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
@@ -257,6 +259,7 @@ export function Header() {
 
           {/* Mobile right */}
           <div className="flex sm:hidden items-center gap-2">
+            <ErrorBoundary fallback={null}><MessagesNavButton /></ErrorBoundary>
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
