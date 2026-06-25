@@ -12,6 +12,19 @@ export function useNotificationSound() {
     return audioContextRef.current;
   }, []);
 
+  const primeAudio = useCallback(async () => {
+    try {
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') await ctx.resume();
+      // play a silent buffer to fully unlock on iOS/Safari
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch {}
+  }, [getAudioContext]);
+
   const playNotificationSound = useCallback(async (type: SoundType = 'hot_lead') => {
     try {
       const audioContext = getAudioContext();
@@ -85,5 +98,5 @@ export function useNotificationSound() {
     }
   }, [getAudioContext]);
 
-  return { playNotificationSound };
+  return { playNotificationSound, primeAudio };
 }
