@@ -10,36 +10,25 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 export function useDmIncomingSound() {
   const { user } = useAuth();
   const uid = user?.id;
-  const { playNotificationSound } = useNotificationSound();
+  const { playNotificationSound, primeAudio } = useNotificationSound();
   const lastPlayedRef = useRef<number>(0);
 
-  // Prime the AudioContext on the first user gesture so later programmatic
-  // playback (triggered by an incoming realtime event) is allowed by the
-  // browser autoplay policy.
   useEffect(() => {
-    const prime = () => {
-      try {
-        const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
-        if (!Ctx) return;
-        const ctx = new Ctx();
-        ctx.resume().catch(() => {});
-        // Play a silent buffer to fully unlock on iOS/Safari
-        const buffer = ctx.createBuffer(1, 1, 22050);
-        const src = ctx.createBufferSource();
-        src.buffer = buffer;
-        src.connect(ctx.destination);
-        src.start(0);
-      } catch {}
-      window.removeEventListener("pointerdown", prime);
-      window.removeEventListener("keydown", prime);
+    const handler = () => {
+      void primeAudio();
+      window.removeEventListener("pointerdown", handler);
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("click", handler);
     };
-    window.addEventListener("pointerdown", prime, { once: true });
-    window.addEventListener("keydown", prime, { once: true });
+    window.addEventListener("pointerdown", handler, { once: true });
+    window.addEventListener("keydown", handler, { once: true });
+    window.addEventListener("click", handler, { once: true });
     return () => {
-      window.removeEventListener("pointerdown", prime);
-      window.removeEventListener("keydown", prime);
+      window.removeEventListener("pointerdown", handler);
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("click", handler);
     };
-  }, []);
+  }, [primeAudio]);
 
   useEffect(() => {
     if (!uid) return;
