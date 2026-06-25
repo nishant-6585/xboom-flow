@@ -361,9 +361,11 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       }
     }
     // Procurement guard: if the operator has manually set the order status
-    // from the Procurement dialog, do NOT let Woo status changes overwrite it.
+    // or supplier from the Procurement dialog, do NOT let Woo overwrite them.
     if ((existing as { procurement_edited?: boolean }).procurement_edited) {
       delete orderRow.status;
+      delete orderRow.supplier_id;
+      delete orderRow.supplier_name;
     }
     const { error: updErr } = await supabase
       .from("orders").update(orderRow).eq("id", existing.id);
