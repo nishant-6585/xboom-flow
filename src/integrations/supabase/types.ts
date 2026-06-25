@@ -8954,6 +8954,7 @@ export type Database = {
           lead_source: string | null
           lost_reason: string | null
           lost_reason_notes: string | null
+          manual_overrides: string[]
           order_date: string | null
           order_number: string | null
           order_outcome: string | null
@@ -9048,6 +9049,7 @@ export type Database = {
           lead_source?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
+          manual_overrides?: string[]
           order_date?: string | null
           order_number?: string | null
           order_outcome?: string | null
@@ -9142,6 +9144,7 @@ export type Database = {
           lead_source?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
+          manual_overrides?: string[]
           order_date?: string | null
           order_number?: string | null
           order_outcome?: string | null
@@ -16685,6 +16688,7 @@ export type Database = {
           lead_source: string | null
           lost_reason: string | null
           lost_reason_notes: string | null
+          manual_overrides: string[]
           order_date: string | null
           order_number: string | null
           order_outcome: string | null
