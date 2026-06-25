@@ -420,7 +420,7 @@ export function useOrders() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['orders', user?.id, role] });
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
         }
       )
       .subscribe();
@@ -689,7 +689,7 @@ export function useOrders() {
             : order,
         ),
       );
-      await queryClient.invalidateQueries({ queryKey: ['orders', user?.id, role] });
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
       window.dispatchEvent(new CustomEvent('orders:updated', { detail: { orderId } }));
 
       // Send Slack notification if status changed
