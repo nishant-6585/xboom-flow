@@ -259,6 +259,7 @@ export function Header() {
 
           {/* Mobile right */}
           <div className="flex sm:hidden items-center gap-2">
+            <ErrorBoundary fallback={null}><MessagesNavButton /></ErrorBoundary>
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
