@@ -175,6 +175,8 @@ function AppInner() {
         <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
         <Route path="/spare-parts" element={<ProtectedRoute><SpareParts /></ProtectedRoute>} />
         <Route path="/kyc" element={<ProtectedRoute><KycVerification /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+        <Route path="/messages/:threadId" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
 
         {/* ===== B2B Customer Portal ===== */}
         <Route
