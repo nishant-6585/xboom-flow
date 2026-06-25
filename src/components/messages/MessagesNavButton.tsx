@@ -2,9 +2,11 @@ import { Link } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDmThreads } from "@/hooks/useDmThreads";
+import { useDmIncomingSound } from "@/hooks/useDmIncomingSound";
 
 export function MessagesNavButton() {
   const { totalUnread } = useDmThreads();
+  useDmIncomingSound();
   return (
     <Button asChild variant="ghost" size="icon" className="relative h-9 w-9">
       <Link to="/messages" aria-label="Messages">
