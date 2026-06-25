@@ -69,6 +69,7 @@ import DroneOperations from "./pages/DroneOperations";
 import SpareParts from "./pages/SpareParts";
 import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
+import Messages from "./pages/Messages";
 import CompanyCleanup from "./pages/CompanyCleanup";
 import PortalCustomers from "./pages/PortalCustomers";
 import KycVerification from "./pages/KycVerification";
