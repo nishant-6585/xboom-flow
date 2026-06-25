@@ -242,23 +242,36 @@ export function ProcurementOrderDialog({
         changes.po_number = { old: (order as any).po_number, new: poNumber || null };
       }
 
-      // Also update supplier_id
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          ...updates,
-          supplier_id: selectedSupplierId || null,
-        })
-        .eq('id', order.id);
+      // Lock manually-edited fields on website orders so the WooCommerce
+      // mirror does not silently revert them on the next webhook / backfill.
+      const isWebsite = ((order as any).source || 'manual') === 'website';
+      const existingOverrides: string[] = Array.isArray((order as any).manual_overrides)
+        ? (order as any).manual_overrides
+        : [];
+      const editedFieldKeys = Object.keys(changes);
+      const merged = isWebsite
+        ? Array.from(new Set([...existingOverrides, ...editedFieldKeys]))
+        : existingOverrides;
 
-      if (error) throw error;
+      const persisted: Record<string, any> = {
+        ...updates,
+        supplier_id: selectedSupplierId || null,
+      };
+      if (isWebsite && merged.length !== existingOverrides.length) {
+        persisted.manual_overrides = merged;
+      }
+
+      // Route through useOrders.updateOrder so the React Query cache gets
+      // an optimistic update + invalidation. The previous direct
+      // supabase.update bypassed the cache and relied on realtime races.
+      const ok = await onUpdate(order.id, persisted as Partial<Order>);
+      if (!ok) throw new Error('Update failed');
 
       // Record edit history
       if (Object.keys(changes).length > 0) {
         await recordChanges('orders', order.id, changes, profile?.name || 'Unknown');
       }
 
-      toast.success('Order updated successfully');
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error updating order:', error);
