@@ -314,7 +314,9 @@ export function LeadTemperatureAnalytics({
                     outerRadius={90}
                     paddingAngle={3}
                     dataKey="value"
-                    onClick={(data) => onFilterClick?.(data.filter)}
+                    onClick={(data: { filter?: 'hot' | 'warm' | 'cold' }) => {
+                      if (data?.filter) onFilterClick?.(data.filter);
+                    }}
                     className="cursor-pointer"
                   >
                     {distributionData.map((entry, index) => (
