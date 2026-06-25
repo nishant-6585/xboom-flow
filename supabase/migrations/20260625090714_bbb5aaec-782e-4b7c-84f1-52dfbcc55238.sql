@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS procurement_edited boolean NOT NULL DEFAULT false;

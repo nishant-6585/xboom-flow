@@ -8969,6 +8969,7 @@ export type Database = {
           priority: number | null
           procurement_currency: string | null
           procurement_date: string | null
+          procurement_edited: boolean
           procurement_rate: number | null
           product_category: string | null
           product_code: string
@@ -9064,6 +9065,7 @@ export type Database = {
           priority?: number | null
           procurement_currency?: string | null
           procurement_date?: string | null
+          procurement_edited?: boolean
           procurement_rate?: number | null
           product_category?: string | null
           product_code: string
@@ -9159,6 +9161,7 @@ export type Database = {
           priority?: number | null
           procurement_currency?: string | null
           procurement_date?: string | null
+          procurement_edited?: boolean
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string
@@ -16703,6 +16706,7 @@ export type Database = {
           priority: number | null
           procurement_currency: string | null
           procurement_date: string | null
+          procurement_edited: boolean
           procurement_rate: number | null
           product_category: string | null
           product_code: string

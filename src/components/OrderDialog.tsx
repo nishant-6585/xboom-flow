@@ -585,6 +585,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('refund_reason', order.refund_reason, isRefundRequested ? (refundReason || null) : (finalStatus === 'cancelled' ? cancellationReason : null));
     trackField('refund_status', order.refund_status, (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null);
 
+    // When the status of a website order is manually changed, set
+    // procurement_edited = true so the Woo mirror stops overwriting it
+    // on subsequent webhook / backfill syncs.
+    if (
+      (order as any).source === 'website' &&
+      changes['status'] &&
+      !(order as any).procurement_edited
+    ) {
+      (updates as any).procurement_edited = true;
+    }
+
     const success = await onUpdate(order.id, updates);
     
     // Record edit history
