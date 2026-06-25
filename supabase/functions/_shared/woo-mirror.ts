@@ -200,7 +200,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 
   const { data: existing, error: lookupErr } = await supabase
     .from("orders")
-    .select("id, status, source, sales_attribution_locked, manual_overrides")
+    .select("id, status, source, sales_attribution_locked, manual_overrides, procurement_edited")
     .eq("external_id", String(orderId))
     .maybeSingle();
 
@@ -359,6 +359,11 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
           delete orderRow[field];
         }
       }
+    }
+    // Procurement guard: if the operator has manually set the order status
+    // from the Procurement dialog, do NOT let Woo status changes overwrite it.
+    if ((existing as { procurement_edited?: boolean }).procurement_edited) {
+      delete orderRow.status;
     }
     const { error: updErr } = await supabase
       .from("orders").update(orderRow).eq("id", existing.id);
