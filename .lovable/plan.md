@@ -1,49 +1,84 @@
-## Problem
+## Diagnosis (no code changes)
 
-Order **143055** is a mirrored WooCommerce order:
-- `source = 'website'`, `status = 'in_transit'`, `payment_status = 'pending'`, `amount_paid = 0`, `total_sales_amount = 139,280`.
+### 1. Does the order exist in `orders`?
 
-In `src/hooks/useOrdersFiltering.ts`, website-mirror orders are only shown in **All Orders** (and counted in the unified rows) when `isWebsiteMirrorPaid(o)` is true:
+Yes. Direct DB query confirms a single row:
+
+```
+order_number     : 143055
+id               : b196ab49-994e-4991-aee6-c379bc2931bb
+source           : website
+status           : in_transit
+payment_status   : pending
+total_sales_amount: 139,280.00
+amount_paid      : 0.00
+deleted_at       : null
+order_date       : 2026-06-22
+external_id      : 143055
+procurement_edited: true
+sales_person_id  : a8050cc3-... (Vinay Rawat's rep)
+```
+
+So it is in the main `orders` table — not a separate Woo-only table.
+
+### 2. WooCommerce sync — separate table?
+
+There are two surfaces:
+- `woocommerce_orders` — raw live feed from the Woo API (`useWooCommerceOrders`). Used for the "Website" tab and for live rows that haven't been mirrored yet.
+- `orders` with `source = 'website'` — the mirror written by `woo-mirror` edge function. Used everywhere else (Procurement, Orders → All Orders, Sales, analytics).
+
+143055 has been mirrored (row exists in `orders`), so it should flow through the unified path.
+
+### 3. Where it gets filtered out
+
+Two layers:
+
+**Layer A — `useOrders.ts` (passes 143055 through):**
+```ts
+const WEBSITE_ORDER_CUTOFF = new Date('2026-04-30T00:00:00Z').getTime();
+const orders = rawOrders.filter((o) => {
+  if (o?.deleted_at) return false;                       // OK — null
+  if ((o?.source || 'manual') !== 'website') return true;
+  const status = (o?.status || '').toLowerCase();
+  if (status === 'po_received' || status === 'cancelled') return false; // not our status
+  const refDate = o.order_date || o.created_at;
+  return new Date(refDate).getTime() >= WEBSITE_ORDER_CUTOFF; // 2026-06-22 ≥ 2026-04-30 OK
+});
+```
+143055 survives this layer. So Procurement (which consumes this list) sees it.
+
+**Layer B — `useOrdersFiltering.ts` (drops 143055). This is the root cause.**
 
 ```ts
 const isWebsiteMirrorPaid = (o) =>
   o.payment_status === 'full' || (total > 0 && paid >= total);
+
+const filteredOrders = a.orders.filter(o => {
+  ...
+  if (a.sourceFilter === 'manual')        return !isWebsite;
+  if (a.sourceFilter === 'website_auto')  return isWebsite && isWebsiteMirrorPaid(o);
+  return !isWebsite || isWebsiteMirrorPaid(o);   // 'all' branch
+});
 ```
 
-Because no payment has been recorded against 143055 yet, it is dropped from the Orders list and Sales views, even though procurement has already moved it to `in_transit`. Procurement reads orders without this paid-only gate, so it still appears there.
+For website-source rows, **All Orders and Website (Auto) both require `isWebsiteMirrorPaid` to be true.**
 
-The mirrored Woo live-feed branch also can't rescue it: the row is in `mirroredWooIds` (so it's skipped to avoid duplicates), and the underlying Woo payment status is `pending`.
+143055 has `payment_status = 'pending'` and `amount_paid = 0`, so `isWebsiteMirrorPaid` returns `false`. The row is dropped from `filteredOrders` and from `unifiedRows`, and never reaches the table. Searching "143055" returns 0 results because the search runs against `filteredOrders`, not the unfiltered list.
 
-## Fix
+The live-Woo fallback branch in the same hook cannot rescue it either:
+- The Woo row's `woo_order_id = 143055` is in `mirroredWooIds` (because the mirror exists), so it is explicitly skipped to avoid duplicates.
+- Even if it weren't, that branch also requires `payment_status === 'paid'`, which the Woo row isn't.
 
-In `src/hooks/useOrdersFiltering.ts`, broaden the inclusion rule for website-mirror orders so any row that has progressed past the initial "PO received" stage is treated as visible, regardless of payment status:
+### 4. Why Procurement still shows it
 
-```ts
-const POST_PROCUREMENT_STATUSES = new Set([
-  'procurement_to_plan',
-  'procurement_in_process',
-  'procurement_done',
-  'to_ship',
-  'in_transit',
-  'delivery_done',
-]);
+Procurement reads orders by a different path (joined via `inventory_procurements` / `order_procurement_links`) without going through `useOrdersFiltering`, so the paid-only gate doesn't apply there.
 
-const isWebsiteMirrorVisible = (o: Order) =>
-  isWebsiteMirrorPaid(o) || POST_PROCUREMENT_STATUSES.has((o.status || '').toLowerCase());
-```
+### 5. Why Sales also hides it
 
-Replace the three call sites that currently use `isWebsiteMirrorPaid`:
-1. `filteredOrders` filter (line ~87/88) — `website_auto` and `all` branches.
-2. `websiteAutoCount` loop (line ~191) and the `websiteMirrorPaidIds` collection used to suppress duplicate Woo live rows.
+`src/pages/Sales.tsx` does not run its own website-source filter; it consumes the same orders surface as Orders. Once `useOrdersFiltering` drops the row from `filteredOrders` / `unifiedRows`, downstream Sales views inherit the omission.
 
-Rationale: payment can lag fulfilment for website orders (manual reconciliation, partial captures). Once Procurement has taken action, the order is operationally a real order and must appear in **Orders → All Orders**, **Website (Auto)**, and any downstream views that consume `filteredOrders` / `unifiedRows`.
+### Root cause (one line)
 
-No DB change. No schema change. No change to Procurement (already correct). Sales page consumes the same `orders` collection, so this fix surfaces 143055 there too.
+`useOrdersFiltering.ts` requires website-mirror orders to be fully paid before showing them. 143055 is `in_transit` but still `payment_status = pending`, so the Orders and Sales lists silently exclude it; Procurement uses a different query and is unaffected.
 
-## Verification
-
-- Open **Orders → All Orders**, search "143055" → row appears with status In Transit.
-- Switch source filter to **Website (Auto)** → row still appears; counts in the source dropdown include it.
-- Switch to **Manual** → row is hidden (correct).
-- Record a payment on 143055 → still visible (paid path), no duplicate.
-- Spot-check a website order still in `po_received` with no payment → remains hidden (unchanged behaviour, already lives in "Website Pending Payment" tab).
+No code changes are made in this plan — diagnosis only, per the request.
