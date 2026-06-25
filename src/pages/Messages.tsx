@@ -8,6 +8,7 @@ import { MessageSquare, Search, Loader2, Megaphone, X, Send } from "lucide-react
 import { useDmThreads, openOrCreateThread } from "@/hooks/useDmThreads";
 import { ChatWindow } from "@/components/messages/ChatWindow";
 import { useAuth } from "@/hooks/useAuth";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -22,6 +23,7 @@ export default function Messages() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { threads } = useDmThreads();
+  const onlineUsers = useOnlinePresence();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -240,6 +242,7 @@ export default function Messages() {
                   .slice(0, 2)
                   .join("")
                   .toUpperCase();
+                const isOnline = onlineUsers.has(p.id);
                 return (
                   <button
                     key={p.id}
@@ -258,12 +261,26 @@ export default function Messages() {
                     {broadcastMode && (
                       <Checkbox checked={isSelected} className="shrink-0" />
                     )}
-                    <div className="h-10 w-10 rounded-full bg-primary/15 text-primary grid place-items-center text-sm font-medium shrink-0">
-                      {initials || "?"}
+                    <div className="relative shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-primary/15 text-primary grid place-items-center text-sm font-medium">
+                        {initials || "?"}
+                      </div>
+                      <span
+                        title={isOnline ? "Online" : "Offline"}
+                        className={cn(
+                          "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background",
+                          isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"
+                        )}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="font-medium truncate">{p.name}</div>
+                        <div className="font-medium truncate flex items-center gap-1.5">
+                          {p.name}
+                          <span className={cn("text-[10px] font-normal", isOnline ? "text-emerald-600" : "text-muted-foreground")}>
+                            {isOnline ? "online" : "offline"}
+                          </span>
+                        </div>
                         {p.last_message_at && (
                           <div className="text-[10px] text-muted-foreground shrink-0">
                             {formatDistanceToNow(new Date(p.last_message_at), { addSuffix: false })}
