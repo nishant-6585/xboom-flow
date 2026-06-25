@@ -3209,6 +3209,68 @@ export type Database = {
         }
         Relationships: []
       }
+      dm_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          sender_id: string
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id: string
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "dm_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dm_threads: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string
+          last_message_preview: string | null
+          user_a: string
+          user_b: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          user_a: string
+          user_b: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          user_a?: string
+          user_b?: string
+        }
+        Relationships: []
+      }
       domain_events: {
         Row: {
           created_at: string
@@ -16356,6 +16418,7 @@ export type Database = {
       }
       get_my_portal_account_id: { Args: never; Returns: string }
       get_next_proforma_number: { Args: never; Returns: string }
+      get_or_create_dm_thread: { Args: { other_user: string }; Returns: string }
       get_order_profits:
         | {
             Args: { p_order_ids: string[] }
