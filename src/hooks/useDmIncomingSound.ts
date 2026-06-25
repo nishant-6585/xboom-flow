@@ -13,6 +13,34 @@ export function useDmIncomingSound() {
   const { playNotificationSound } = useNotificationSound();
   const lastPlayedRef = useRef<number>(0);
 
+  // Prime the AudioContext on the first user gesture so later programmatic
+  // playback (triggered by an incoming realtime event) is allowed by the
+  // browser autoplay policy.
+  useEffect(() => {
+    const prime = () => {
+      try {
+        const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        ctx.resume().catch(() => {});
+        // Play a silent buffer to fully unlock on iOS/Safari
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(ctx.destination);
+        src.start(0);
+      } catch {}
+      window.removeEventListener("pointerdown", prime);
+      window.removeEventListener("keydown", prime);
+    };
+    window.addEventListener("pointerdown", prime, { once: true });
+    window.addEventListener("keydown", prime, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", prime);
+      window.removeEventListener("keydown", prime);
+    };
+  }, []);
+
   useEffect(() => {
     if (!uid) return;
     const channel = supabase
@@ -27,10 +55,15 @@ export function useDmIncomingSound() {
           const now = Date.now();
           if (now - lastPlayedRef.current < 800) return;
           lastPlayedRef.current = now;
-          playNotificationSound("hot_lead");
+          // eslint-disable-next-line no-console
+          console.log("[DM] incoming message — playing chime", row.id);
+          void playNotificationSound("hot_lead");
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // eslint-disable-next-line no-console
+        console.log("[DM] incoming-sound channel status:", status);
+      });
     return () => {
       supabase.removeChannel(channel);
     };
