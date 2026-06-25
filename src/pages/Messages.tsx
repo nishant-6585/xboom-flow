@@ -159,7 +159,7 @@ export default function Messages() {
       <div className="container mx-auto p-4">
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-0 border rounded-lg overflow-hidden h-[calc(100vh-160px)] bg-card">
           {/* Thread list */}
-          <aside className={cn("border-r flex flex-col", threadId && "hidden md:flex")}>
+          <aside className={cn("border-r flex flex-col min-h-0 h-full overflow-hidden", threadId && "hidden md:flex")}>
             <div className="p-3 border-b">
               <div className="font-semibold flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export default function Messages() {
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
               {isLoading && (
                 <div className="p-4 text-sm text-muted-foreground flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading people…
