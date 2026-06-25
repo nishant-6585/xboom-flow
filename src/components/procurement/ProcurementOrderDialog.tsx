@@ -260,9 +260,9 @@ export function ProcurementOrderDialog({
       if (isWebsite && merged.length !== existingOverrides.length) {
         persisted.manual_overrides = merged;
       }
-      // Mark website order as procurement-edited so the Woo mirror stops
-      // overwriting status/supplier_id/supplier_name on subsequent syncs.
-      if (isWebsite && !(order as any).procurement_edited) {
+      // Mark order as procurement-edited so the Woo mirror stops
+      // overwriting status/supplier/procurement fields on subsequent syncs.
+      if (!(order as any).procurement_edited) {
         persisted.procurement_edited = true;
       }
 
