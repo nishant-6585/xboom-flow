@@ -366,6 +366,9 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       delete orderRow.status;
       delete orderRow.supplier_id;
       delete orderRow.supplier_name;
+      delete orderRow.procurement_rate;
+      delete orderRow.procurement_currency;
+      delete orderRow.procurement_date;
     }
     const { error: updErr } = await supabase
       .from("orders").update(orderRow).eq("id", existing.id);
