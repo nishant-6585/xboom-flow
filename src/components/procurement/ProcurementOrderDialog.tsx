@@ -260,6 +260,11 @@ export function ProcurementOrderDialog({
       if (isWebsite && merged.length !== existingOverrides.length) {
         persisted.manual_overrides = merged;
       }
+      // Mark website order as procurement-edited so the Woo mirror stops
+      // overwriting status/supplier_id/supplier_name on subsequent syncs.
+      if (isWebsite && !(order as any).procurement_edited) {
+        persisted.procurement_edited = true;
+      }
 
       // Route through useOrders.updateOrder so the React Query cache gets
       // an optimistic update + invalidation. The previous direct
