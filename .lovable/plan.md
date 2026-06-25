@@ -1,39 +1,49 @@
-# Plan: Internal Direct Messaging (1:1) for All Users
+## Problem
 
-Add a Slack-style 1:1 chat available to every authenticated user, with persistent threaded history (one thread per pair of users).
+Order **143055** is a mirrored WooCommerce order:
+- `source = 'website'`, `status = 'in_transit'`, `payment_status = 'pending'`, `amount_paid = 0`, `total_sales_amount = 139,280`.
 
-## Database (new migration)
+In `src/hooks/useOrdersFiltering.ts`, website-mirror orders are only shown in **All Orders** (and counted in the unified rows) when `isWebsiteMirrorPaid(o)` is true:
 
-1. `public.dm_threads`
-   - `id uuid PK`, `user_a uuid`, `user_b uuid` (sorted so `user_a < user_b` to enforce a single thread per pair), `last_message_at timestamptz`, `created_at`.
-   - Unique index on `(user_a, user_b)`.
-2. `public.dm_messages`
-   - `id uuid PK`, `thread_id uuid FK -> dm_threads`, `sender_id uuid`, `body text`, `created_at`, `read_at timestamptz`.
-   - Index on `(thread_id, created_at desc)`.
-3. RPC `public.get_or_create_dm_thread(other_user uuid)` (SECURITY DEFINER) — normalizes the pair, returns thread id.
-4. RLS (both tables): only the two participants can SELECT / INSERT. Sender-only UPDATE on `dm_messages` (for read receipts the recipient updates own `read_at` via RPC).
-5. GRANTs to `authenticated` + `service_role`; enable Realtime on `dm_messages` and `dm_threads`.
+```ts
+const isWebsiteMirrorPaid = (o) =>
+  o.payment_status === 'full' || (total > 0 && paid >= total);
+```
 
-## Frontend
+Because no payment has been recorded against 143055 yet, it is dropped from the Orders list and Sales views, even though procurement has already moved it to `in_transit`. Procurement reads orders without this paid-only gate, so it still appears there.
 
-Route: `/messages` and `/messages/:threadId` (React Router, derives active thread from URL — per chat-agent-ui-contract).
+The mirrored Woo live-feed branch also can't rescue it: the row is in `mirroredWooIds` (so it's skipped to avoid duplicates), and the underlying Woo payment status is `pending`.
 
-Components:
-- `src/pages/Messages.tsx` — two-pane layout.
-- `src/components/messages/ThreadList.tsx` — left sidebar: list of existing threads (other user's name/avatar, last message preview, unread badge), plus "New chat" button that opens a user picker (uses `useSalesUsers`/profiles) and navigates to the created thread route.
-- `src/components/messages/ChatWindow.tsx` — keyed by `threadId`; loads messages ordered by `created_at`, renders bubbles (user vs other), auto-scrolls, marks recipient messages read on view.
-- `src/components/messages/MessageComposer.tsx` — textarea + send; optimistic insert; Enter to send, Shift+Enter newline; stays focused.
+## Fix
 
-Hooks:
-- `useDmThreads()` — list current user's threads with last message + unread count; realtime invalidation on `dm_messages` insert.
-- `useDmMessages(threadId)` — fetch + realtime subscribe (cleanup on unmount).
-- `useSendDmMessage(threadId)` — mutation with React Query optimistic update.
+In `src/hooks/useOrdersFiltering.ts`, broaden the inclusion rule for website-mirror orders so any row that has progressed past the initial "PO received" stage is treated as visible, regardless of payment status:
 
-Navigation:
-- Add "Messages" entry to the main sidebar (visible to all authenticated users) with an unread-count badge fed by `useDmThreads`.
+```ts
+const POST_PROCUREMENT_STATUSES = new Set([
+  'procurement_to_plan',
+  'procurement_in_process',
+  'procurement_done',
+  'to_ship',
+  'in_transit',
+  'delivery_done',
+]);
 
-## Out of scope
-Group channels, file attachments, message editing/deletion, typing indicators, push notifications. (Can be follow-ups.)
+const isWebsiteMirrorVisible = (o: Order) =>
+  isWebsiteMirrorPaid(o) || POST_PROCUREMENT_STATUSES.has((o.status || '').toLowerCase());
+```
+
+Replace the three call sites that currently use `isWebsiteMirrorPaid`:
+1. `filteredOrders` filter (line ~87/88) — `website_auto` and `all` branches.
+2. `websiteAutoCount` loop (line ~191) and the `websiteMirrorPaidIds` collection used to suppress duplicate Woo live rows.
+
+Rationale: payment can lag fulfilment for website orders (manual reconciliation, partial captures). Once Procurement has taken action, the order is operationally a real order and must appear in **Orders → All Orders**, **Website (Auto)**, and any downstream views that consume `filteredOrders` / `unifiedRows`.
+
+No DB change. No schema change. No change to Procurement (already correct). Sales page consumes the same `orders` collection, so this fix surfaces 143055 there too.
 
 ## Verification
-- Two browsers / accounts: open `/messages`, start a chat with each other, send messages, confirm realtime delivery, reload `/messages/:id` restores history, unread badge clears on view.
+
+- Open **Orders → All Orders**, search "143055" → row appears with status In Transit.
+- Switch source filter to **Website (Auto)** → row still appears; counts in the source dropdown include it.
+- Switch to **Manual** → row is hidden (correct).
+- Record a payment on 143055 → still visible (paid path), no duplicate.
+- Spot-check a website order still in `po_received` with no payment → remains hidden (unchanged behaviour, already lives in "Website Pending Payment" tab).
