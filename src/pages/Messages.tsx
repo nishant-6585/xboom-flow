@@ -194,9 +194,21 @@ export default function Messages() {
               </div>
               {broadcastMode && (
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {selected.size} selected
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={rows.length > 0 && selected.size === rows.length}
+                      onCheckedChange={(v) => {
+                        if (v) setSelected(new Set(rows.map((r) => r.id)));
+                        else setSelected(new Set());
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {selected.size === rows.length && rows.length > 0
+                        ? "Unselect all"
+                        : "Select all"}{" "}
+                      · {selected.size} selected
+                    </span>
+                  </div>
                   <Button
                     size="sm"
                     className="h-7 px-2 text-xs"
