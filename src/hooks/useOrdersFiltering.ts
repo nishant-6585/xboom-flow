@@ -54,6 +54,22 @@ const isWebsiteMirrorPaid = (o: Order) => {
   return o.payment_status === 'full' || (total > 0 && paid >= total);
 };
 
+// Website-mirror orders that have moved past the initial "PO received" stage
+// should be visible in Orders/Sales views even if payment is still pending,
+// because Procurement has already taken operational action on them.
+const POST_PROCUREMENT_STATUSES = new Set([
+  'procurement_to_plan',
+  'procurement_in_process',
+  'procurement_done',
+  'to_ship',
+  'in_transit',
+  'delivery_done',
+]);
+
+const isWebsiteMirrorVisible = (o: Order) =>
+  isWebsiteMirrorPaid(o) ||
+  POST_PROCUREMENT_STATUSES.has(((o.status as string) || '').toLowerCase());
+
 export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
   const passesManualOrderFilters = (o: Order) => {
     if (a.enquiryIdFromUrl && a.activeTab === 'list') return o.enquiry_id === a.enquiryIdFromUrl;
@@ -84,8 +100,8 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     if (!passesManualOrderFilters(o)) return false;
     const isWebsite = isWebsiteMirror(o);
     if (a.sourceFilter === 'manual') return !isWebsite;
-    if (a.sourceFilter === 'website_auto') return isWebsite && isWebsiteMirrorPaid(o);
-    return !isWebsite || isWebsiteMirrorPaid(o);
+    if (a.sourceFilter === 'website_auto') return isWebsite && isWebsiteMirrorVisible(o);
+    return !isWebsite || isWebsiteMirrorVisible(o);
   });
 
   const filteredShopifyOrders = a.shopifyOrders.filter(o => {
@@ -188,7 +204,7 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
   for (const o of a.orders) {
     if (!passesManualOrderFilters(o)) continue;
     if (!isWebsiteMirror(o)) continue;
-    if (!isWebsiteMirrorPaid(o)) continue;
+    if (!isWebsiteMirrorVisible(o)) continue;
     websiteAutoCount++;
     const ext = String(o.external_id || '');
     if (ext) websiteMirrorPaidIds.add(ext);
