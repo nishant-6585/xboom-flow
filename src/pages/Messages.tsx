@@ -303,7 +303,7 @@ export default function Messages() {
           </aside>
 
           {/* Chat */}
-          <section className={cn("flex flex-col", !threadId && "hidden md:flex")}>
+          <section className={cn("flex flex-col min-h-0 h-full overflow-hidden", !threadId && "hidden md:flex")}>
             {threadId && activeOtherId ? (
               <ChatWindow key={threadId} threadId={threadId} otherUserId={activeOtherId} />
             ) : threadId ? (
