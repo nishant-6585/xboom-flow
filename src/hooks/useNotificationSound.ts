@@ -12,13 +12,13 @@ export function useNotificationSound() {
     return audioContextRef.current;
   }, []);
 
-  const playNotificationSound = useCallback((type: SoundType = 'hot_lead') => {
+  const playNotificationSound = useCallback(async (type: SoundType = 'hot_lead') => {
     try {
       const audioContext = getAudioContext();
       
       // Resume context if suspended (browser autoplay policy)
       if (audioContext.state === 'suspended') {
-        audioContext.resume();
+        try { await audioContext.resume(); } catch {}
       }
 
       const now = audioContext.currentTime;
