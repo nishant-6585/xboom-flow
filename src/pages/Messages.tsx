@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { MessageSquare, Search, Loader2 } from "lucide-react";
 import { useDmThreads, openOrCreateThread } from "@/hooks/useDmThreads";
-import { useProfileNames } from "@/hooks/useProfileNames";
 import { ChatWindow } from "@/components/messages/ChatWindow";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +18,6 @@ export default function Messages() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { threads } = useDmThreads();
-  const { resolveName } = useProfileNames();
   const [q, setQ] = useState("");
   const [openingId, setOpeningId] = useState<string | null>(null);
 
