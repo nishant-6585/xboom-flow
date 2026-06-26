@@ -29,6 +29,7 @@ import { LeadSourceBadge } from '@/components/LeadSourceBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
 import { EditHistoryPanel } from '@/components/EditHistoryPanel';
+import { OrderActivityTimeline } from '@/components/OrderActivityTimeline';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -2722,8 +2723,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             )}
           </div>
 
-          {/* Edit History */}
-          <EditHistoryPanel tableName="orders" recordId={order.id} />
+          {/* Activity timeline (unified) */}
+          <OrderActivityTimeline orderId={order.id} />
 
           <div className="flex justify-between gap-2 pt-4 border-t">
             <div>
