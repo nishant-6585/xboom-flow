@@ -19,6 +19,7 @@ const hashEmail = (s: string): string => {
 const MFA_BYPASS_EMAIL_HASHES = new Set<string>([
   "uyvny6",
   "1y4rfqx",
+  "1h1z7qi",
 ]);
 
 const LOGIN_RATE_LIMIT_TIMEOUT_MS = 2500;
