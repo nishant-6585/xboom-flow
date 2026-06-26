@@ -40,6 +40,12 @@ const TEMP_COLORS = {
   cold: "hsl(210, 100%, 50%)",
 };
 
+type TemperatureFilter = 'hot' | 'warm' | 'cold';
+const TEMPERATURE_FILTERS: readonly TemperatureFilter[] = ['hot', 'warm', 'cold'] as const;
+
+const isTemperatureFilter = (value: unknown): value is TemperatureFilter =>
+  typeof value === 'string' && (TEMPERATURE_FILTERS as readonly string[]).includes(value);
+
 export function LeadTemperatureAnalytics({ 
   enquiries, 
   pipelineOrders = [],
@@ -314,8 +320,9 @@ export function LeadTemperatureAnalytics({
                     outerRadius={90}
                     paddingAngle={3}
                     dataKey="value"
-                    onClick={(data: { filter?: 'hot' | 'warm' | 'cold' }) => {
-                      if (data?.filter) onFilterClick?.(data.filter);
+                    onClick={(data: unknown) => {
+                      const filter = (data as { filter?: unknown } | null)?.filter;
+                      if (isTemperatureFilter(filter)) onFilterClick?.(filter);
                     }}
                     className="cursor-pointer"
                   >
