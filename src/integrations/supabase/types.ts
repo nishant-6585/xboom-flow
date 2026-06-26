@@ -16419,6 +16419,17 @@ export type Database = {
       get_my_portal_account_id: { Args: never; Returns: string }
       get_next_proforma_number: { Args: never; Returns: string }
       get_or_create_dm_thread: { Args: { other_user: string }; Returns: string }
+      get_order_activity_timeline: {
+        Args: { p_order_id: string }
+        Returns: {
+          action: string
+          actor: string
+          details: string
+          event_id: string
+          event_type: string
+          occurred_at: string
+        }[]
+      }
       get_order_profits:
         | {
             Args: { p_order_ids: string[] }
