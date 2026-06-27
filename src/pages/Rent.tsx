@@ -8,6 +8,7 @@ import { useBuybackDrones } from "@/hooks/useBuybackDrones";
 import { RentalStatsCards } from "@/components/rent/RentalStatsCards";
 import { RentalsTable } from "@/components/rent/RentalsTable";
 import { RentDroneFormDialog } from "@/components/buyback/RentDroneFormDialog";
+import { BuybackStatsCards } from "@/components/buyback/BuybackStatsCards";
 import { EmptyState, DataErrorState } from "@/components/data-states";
 import { useTableExport } from "@/hooks/useTableExport";
 import { WebsiteEnquiriesTable } from "@/components/WebsiteEnquiriesTable";
@@ -66,16 +67,19 @@ export default function Rent() {
             message={rentalsQuery.error instanceof Error ? rentalsQuery.error.message : undefined}
             onRetry={() => rentalsQuery.refetch()}
           />
-        ) : rentals.length === 0 ? (
-          <EmptyState
-            icon={CalendarClock}
-            title="No rentals yet"
-            description="Put a buyback drone on rent to start tracking rentals here."
-          />
         ) : (
           <>
+            <BuybackStatsCards drones={drones} />
             <RentalStatsCards rentals={rentals} />
-            <RentalsTable rentals={rentals} />
+            {rentals.length === 0 ? (
+              <EmptyState
+                icon={CalendarClock}
+                title="No rentals yet"
+                description="Put a buyback drone on rent to start tracking rentals here."
+              />
+            ) : (
+              <RentalsTable rentals={rentals} />
+            )}
           </>
         )}
 
