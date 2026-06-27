@@ -54,15 +54,13 @@ export function RepairStageActionPanel({ repair }: Props) {
   const allowed =
     role === "admin" || role === "supply_chain" || role === "it";
 
-  const validNext = getNextValidStages(repair.repair_stage);
-  const forwardOptions = validNext.filter(
-    (s) => s !== "cancelled" && s !== "returned_unrepaired",
+  // Show ALL stages (except the current one and `cancelled`, which has its own
+  // dedicated action). Backend RPC still enforces permission + audit logging.
+  const stageOptions = REPAIR_STAGES.filter(
+    (s) => s !== repair.repair_stage && s !== "cancelled",
   );
-  const terminalOptions = validNext.filter((s) => s === "returned_unrepaired");
 
-  const [target, setTarget] = useState<RepairStage | "">(
-    (forwardOptions[0] as RepairStage | undefined) ?? "",
-  );
+  const [target, setTarget] = useState<RepairStage | "">("");
   const [notes, setNotes] = useState("");
   const [advancing, setAdvancing] = useState(false);
 
@@ -145,19 +143,19 @@ export function RepairStageActionPanel({ repair }: Props) {
           )}
         </div>
 
-        {allowed && forwardOptions.length > 0 && (
+        {allowed && stageOptions.length > 0 && (
           <div className="space-y-2">
-            <Label className="text-xs">Move to next stage</Label>
+            <Label className="text-xs">Change stage</Label>
             <div className="flex flex-col sm:flex-row gap-2">
               <Select
                 value={target || undefined}
                 onValueChange={(v) => setTarget(v as RepairStage)}
               >
                 <SelectTrigger className="sm:w-56">
-                  <SelectValue placeholder="Select next stage" />
+                  <SelectValue placeholder="Select stage" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[...forwardOptions, ...terminalOptions].map((s) => (
+                  {stageOptions.map((s) => (
                     <SelectItem key={s} value={s}>
                       {getRepairStageLabel(s)}
                     </SelectItem>
