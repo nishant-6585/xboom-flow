@@ -4,6 +4,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { BuybackStatsCards } from "@/components/buyback/BuybackStatsCards";
 import { BuybackFormDialog } from "@/components/buyback/BuybackFormDialog";
 import { ResaleFormDialog } from "@/components/buyback/ResaleFormDialog";
+import { RentDroneFormDialog } from "@/components/buyback/RentDroneFormDialog";
 import { BuybackDroneTable } from "@/components/buyback/BuybackDroneTable";
 import { useBuybackDrones } from "@/hooks/useBuybackDrones";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +40,7 @@ export default function Buyback() {
               Export
             </Button>
             <BuybackFormDialog />
+            <RentDroneFormDialog inStockDrones={inStockDrones} />
             <ResaleFormDialog inStockDrones={inStockDrones} />
           </div>
         </div>
