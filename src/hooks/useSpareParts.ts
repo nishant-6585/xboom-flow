@@ -147,3 +147,90 @@ export function useSparePartTransactions(partId?: string) {
 
   return { list, adjust };
 }
+
+export interface SparePartSale {
+  id: string;
+  part_id: string;
+  quantity: number;
+  sale_price: number;
+  total_amount: number;
+  buyer_name: string | null;
+  buyer_phone: string | null;
+  sale_date: string;
+  notes: string | null;
+  sold_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SparePartSaleInput {
+  part_id: string;
+  quantity: number;
+  sale_price: number;
+  buyer_name?: string | null;
+  buyer_phone?: string | null;
+  sale_date?: string;
+  notes?: string | null;
+}
+
+export function useSparePartSales() {
+  const qc = useQueryClient();
+
+  const list = useQuery({
+    queryKey: ["spare_parts_sales"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("spare_parts_sales" as never)
+        .select("*")
+        .order("sale_date", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data as unknown as SparePartSale[]) ?? [];
+    },
+  });
+
+  const create = useMutation({
+    mutationFn: async (payload: SparePartSaleInput) => {
+      const { data: u } = await supabase.auth.getUser();
+      const qty = Number(payload.quantity);
+      const price = Number(payload.sale_price);
+      const total = qty * price;
+
+      const { error: saleErr } = await supabase
+        .from("spare_parts_sales" as never)
+        .insert({
+          part_id: payload.part_id,
+          quantity: qty,
+          sale_price: price,
+          total_amount: total,
+          buyer_name: payload.buyer_name ?? null,
+          buyer_phone: payload.buyer_phone ?? null,
+          sale_date: payload.sale_date ?? new Date().toISOString().slice(0, 10),
+          notes: payload.notes ?? null,
+          sold_by: u.user?.id ?? null,
+        } as never);
+      if (saleErr) throw saleErr;
+
+      const { error: txErr } = await supabase
+        .from("spare_parts_transactions" as never)
+        .insert({
+          part_id: payload.part_id,
+          change_type: "REMOVE",
+          quantity_change: qty,
+          reason: "SALE",
+          notes: payload.buyer_name ? `Sold to ${payload.buyer_name}` : "Sale recorded",
+          created_by: u.user?.id ?? null,
+        } as never);
+      if (txErr) throw txErr;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["spare_parts_sales"] });
+      qc.invalidateQueries({ queryKey: ["spare_parts"] });
+      qc.invalidateQueries({ queryKey: ["spare_parts_transactions"] });
+      toast.success("Sale recorded");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return { list, create };
+}
