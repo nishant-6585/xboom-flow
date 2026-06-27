@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Download, MoreHorizontal, Eye, Pencil, Trash2, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Download, MoreHorizontal, Eye, Pencil, Trash2, ArrowUpDown, ShoppingCart, History } from "lucide-react";
 import { format } from "date-fns";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +39,8 @@ import { SparePartViewDialog, StatusBadge } from "@/components/spare-parts/Spare
 import { SparePartsKpiCards } from "@/components/spare-parts/SparePartsKpiCards";
 import { LowStockAlertsWidget } from "@/components/spare-parts/LowStockAlertsWidget";
 import { PartsUsedInRepairs } from "@/components/spare-parts/PartsUsedInRepairs";
+import { SellSparePartDialog } from "@/components/spare-parts/SellSparePartDialog";
+import { SparePartsSalesHistoryDialog } from "@/components/spare-parts/SparePartsSalesHistoryDialog";
 import { exportSparePartsCsv } from "@/lib/sparePartsExport";
 
 type SortKey = "recent" | "margin_desc" | "stock_asc";
@@ -55,6 +57,9 @@ export default function SpareParts() {
   const [formOpen, setFormOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  const [sellOpen, setSellOpen] = useState(false);
+  const [sellDefaultPartId, setSellDefaultPartId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [selected, setSelected] = useState<SparePart | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -112,6 +117,20 @@ export default function SpareParts() {
             <Button variant="outline" onClick={() => exportSparePartsCsv(filtered, canSeePricing)}>
               <Download className="w-4 h-4 mr-2" /> Export CSV
             </Button>
+            <Button variant="outline" onClick={() => setHistoryOpen(true)}>
+              <History className="w-4 h-4 mr-2" /> Sales History
+            </Button>
+            {canEdit && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSellDefaultPartId(null);
+                  setSellOpen(true);
+                }}
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" /> Sell Spare Part
+              </Button>
+            )}
             {canEdit && (
               <Button
                 onClick={() => {
@@ -239,6 +258,12 @@ export default function SpareParts() {
                                     <ArrowUpDown className="w-4 h-4 mr-2" /> Adjust Quantity
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
+                                    disabled={p.quantity <= 0}
+                                    onClick={() => { setSellDefaultPartId(p.id); setSellOpen(true); }}
+                                  >
+                                    <ShoppingCart className="w-4 h-4 mr-2" /> Sell
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
                                     className="text-destructive"
                                     onClick={() => setDeleteId(p.id)}
                                   >
@@ -270,6 +295,14 @@ export default function SpareParts() {
       {canEdit && (
         <AdjustQuantityDialog open={adjustOpen} onOpenChange={setAdjustOpen} part={selected} />
       )}
+      {canEdit && (
+        <SellSparePartDialog
+          open={sellOpen}
+          onOpenChange={setSellOpen}
+          defaultPartId={sellDefaultPartId}
+        />
+      )}
+      <SparePartsSalesHistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
       <SparePartViewDialog
         open={viewOpen}
         onOpenChange={setViewOpen}

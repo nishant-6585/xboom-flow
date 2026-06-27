@@ -13488,6 +13488,59 @@ export type Database = {
           },
         ]
       }
+      spare_parts_sales: {
+        Row: {
+          buyer_name: string | null
+          buyer_phone: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          part_id: string
+          quantity: number
+          sale_date: string
+          sale_price: number
+          sold_by: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          buyer_name?: string | null
+          buyer_phone?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          part_id: string
+          quantity: number
+          sale_date?: string
+          sale_price: number
+          sold_by?: string | null
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          buyer_name?: string | null
+          buyer_phone?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          part_id?: string
+          quantity?: number
+          sale_date?: string
+          sale_price?: number
+          sold_by?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spare_parts_sales_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "spare_parts_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spare_parts_transactions: {
         Row: {
           change_type: Database["public"]["Enums"]["spare_part_change_type"]
