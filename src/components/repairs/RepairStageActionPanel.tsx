@@ -57,7 +57,7 @@ export function RepairStageActionPanel({ repair }: Props) {
   // Show ALL stages (except the current one and `cancelled`, which has its own
   // dedicated action). Backend RPC still enforces permission + audit logging.
   const stageOptions = REPAIR_STAGES.filter(
-    (s) => s !== repair.repair_stage && s !== "cancelled",
+    (s) => s.value !== repair.repair_stage && s.value !== "cancelled",
   );
 
   const [target, setTarget] = useState<RepairStage | "">("");
@@ -156,8 +156,8 @@ export function RepairStageActionPanel({ repair }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {stageOptions.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {getRepairStageLabel(s)}
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
