@@ -13,7 +13,7 @@ interface Props {
 }
 
 const categories = ["All", "Mini", "Air", "Mavic", "FPV", "Enterprise", "Other"];
-const statuses = ["All", "In Stock", "Sold Out"];
+const statuses = ["All", "In Stock", "On Rent", "Sold Out"];
 
 export function BuybackDroneTable({ drones }: Props) {
   const [search, setSearch] = useState("");
@@ -88,7 +88,16 @@ export function BuybackDroneTable({ drones }: Props) {
                     {d.selling_price ? `₹${d.selling_price.toLocaleString("en-IN")}` : "—"}
                   </TableCell>
                   <TableCell>
-                    <Badge className={d.stock_status === "In Stock" ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-orange-500/10 text-orange-600 border-orange-500/20"} variant="outline">
+                    <Badge
+                      className={
+                        d.stock_status === "In Stock"
+                          ? "bg-green-500/10 text-green-600 border-green-500/20"
+                          : d.stock_status === "On Rent"
+                            ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                            : "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                      }
+                      variant="outline"
+                    >
                       {d.stock_status}
                     </Badge>
                   </TableCell>

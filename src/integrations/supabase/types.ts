@@ -12021,6 +12021,68 @@ export type Database = {
           },
         ]
       }
+      rental_records: {
+        Row: {
+          actual_return_date: string | null
+          created_at: string
+          created_by: string | null
+          drone_id: string
+          expected_return_date: string | null
+          id: string
+          notes: string | null
+          rental_end_date: string | null
+          rental_fee: number
+          rental_start_date: string
+          renter_contact: string
+          renter_name: string
+          security_deposit: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actual_return_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          drone_id: string
+          expected_return_date?: string | null
+          id?: string
+          notes?: string | null
+          rental_end_date?: string | null
+          rental_fee?: number
+          rental_start_date: string
+          renter_contact: string
+          renter_name: string
+          security_deposit?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actual_return_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          drone_id?: string
+          expected_return_date?: string | null
+          id?: string
+          notes?: string | null
+          rental_end_date?: string | null
+          rental_fee?: number
+          rental_start_date?: string
+          renter_contact?: string
+          renter_name?: string
+          security_deposit?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_records_drone_id_fkey"
+            columns: ["drone_id"]
+            isOneToOne: false
+            referencedRelation: "buyback_drones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       repair_stage_history: {
         Row: {
           changed_at: string
