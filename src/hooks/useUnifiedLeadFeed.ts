@@ -10,6 +10,7 @@ export const LEAD_SOURCES = [
   "myoperator",
   "elevenlabs",
   "email",
+  "facebook",
 ] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
@@ -53,6 +54,7 @@ const COUNTS_KEY = "unified-lead-counts";
 // fire change events).
 const SOURCE_TABLES: { source: LeadSource; table: string; filter?: string }[] = [
   { source: "website", table: "leads" },
+  { source: "facebook", table: "leads", filter: "form_type=eq.Facebook Leads" },
   { source: "forms", table: "form_leads" },
   { source: "google_ads", table: "google_ads_leads" },
   { source: "interakt", table: "interakt_leads" },
@@ -162,6 +164,7 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
         myoperator: 0,
         elevenlabs: 0,
         email: 0,
+        facebook: 0,
       };
       for (const row of ((data ?? []) as unknown as { source: LeadSource }[])) {
         if (row.source in bySource) bySource[row.source]++;
@@ -183,4 +186,5 @@ export const SOURCE_META: Record<
   myoperator: { label: "MyOperator", chipClass: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" },
   elevenlabs: { label: "ElevenLabs", chipClass: "bg-pink-500/15 text-pink-700 dark:text-pink-300" },
   email: { label: "Email", chipClass: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
+  facebook: { label: "Facebook Leads", chipClass: "bg-blue-600/15 text-blue-700 dark:text-blue-300" },
 };
