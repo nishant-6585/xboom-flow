@@ -45,6 +45,7 @@ const SOURCE_TO_TAB: Record<LeadSource, string> = {
   myoperator: "myoperator",
   elevenlabs: "elevenlabs",
   email: "emails",
+  facebook: "leads",
 };
 
 function lastSeenKey(userId: string | undefined) {
