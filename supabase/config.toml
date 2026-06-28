@@ -158,3 +158,6 @@ verify_jwt = false
 
 [functions.send-invoice-email]
 verify_jwt = false
+
+[functions.facebook-leads-webhook]
+verify_jwt = false
