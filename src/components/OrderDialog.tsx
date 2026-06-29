@@ -45,6 +45,8 @@ import { ZohoInvoiceCard } from '@/components/orders/ZohoInvoiceCard';
 import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
 import { sendInvoiceEmail } from '@/lib/invoiceEmail';
 import { KycInviteBadge } from '@/components/orders/KycInviteBadge';
+import { CompanyOwnerPicker } from '@/components/crm/CompanyOwnerPicker';
+import { useSalesUsers } from '@/hooks/useSalesUsers';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -1480,7 +1482,16 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Sales:</span>
-                      <span className="font-medium">{order.sales_person_name}</span>
+                      {isAdmin ? (
+                        <ReassignSalespersonControl
+                          orderId={order.id}
+                          currentId={order.sales_person_id ?? null}
+                          currentName={order.sales_person_name ?? null}
+                          onUpdate={onUpdate}
+                        />
+                      ) : (
+                        <span className="font-medium">{order.sales_person_name}</span>
+                      )}
                     </div>
                   )}
                   {(committedTimeline || order.committed_timeline) && (
@@ -2899,5 +2910,52 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function ReassignSalespersonControl({
+  orderId,
+  currentId,
+  currentName,
+  onUpdate,
+}: {
+  orderId: string;
+  currentId: string | null;
+  currentName: string | null;
+  onUpdate: (orderId: string, updates: Partial<Order>) => Promise<boolean>;
+}) {
+  const { salesUsers } = useSalesUsers();
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = async (userId: string | null) => {
+    if (userId === currentId) return;
+    const selected = userId ? salesUsers.find((u) => u.user_id === userId) : null;
+    setSaving(true);
+    try {
+      const ok = await onUpdate(orderId, {
+        sales_person_id: userId,
+        sales_person_name: selected?.name ?? null,
+      } as Partial<Order>);
+      if (ok) {
+        toast.success(
+          selected ? `Reassigned to ${selected.name}` : 'Salesperson unassigned',
+        );
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to reassign salesperson');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <CompanyOwnerPicker
+        ownerId={currentId}
+        ownerName={currentName}
+        onChange={handleChange}
+      />
+      {saving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+    </div>
   );
 }
