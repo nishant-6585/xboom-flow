@@ -45,6 +45,8 @@ import { ZohoInvoiceCard } from '@/components/orders/ZohoInvoiceCard';
 import { InvoiceEmailControl, defaultEmailState, validateEmailState, InvoiceEmailState } from '@/components/orders/InvoiceEmailControl';
 import { sendInvoiceEmail } from '@/lib/invoiceEmail';
 import { KycInviteBadge } from '@/components/orders/KycInviteBadge';
+import { CompanyOwnerPicker } from '@/components/crm/CompanyOwnerPicker';
+import { useSalesUsers } from '@/hooks/useSalesUsers';
 
 interface OrderDialogProps {
   order: Order | null;
