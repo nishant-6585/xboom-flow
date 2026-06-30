@@ -102,7 +102,7 @@ function mapShopifyToShopifyOrder(
     payment_status: mapPaymentStatus(payload.financial_status as string),
     fulfillment_status: String(payload.fulfillment_status || "unfulfilled"),
     financial_status: String(payload.financial_status || ""),
-    order_status: String(payload.status || "open"),
+    order_status: deriveOrderStatus(payload),
     currency: String(payload.currency || "INR"),
     line_items: lineItems,
     internal_notes: `Shopify Order #${payload.order_number}\nItems: ${lineItemsSummary}`,
@@ -128,6 +128,20 @@ function mapPaymentStatus(financialStatus: string | undefined): string {
     default:
       return "pending";
   }
+}
+
+// Derive Shopify-style order_status from the order payload.
+// The Shopify Order resource does NOT reliably return a top-level `status`
+// field — it exposes `cancelled_at` and `closed_at` instead. Relying on
+// `payload.status` would overwrite a just-cancelled order back to "open"
+// when the orders/updated webhook arrives.
+function deriveOrderStatus(payload: Record<string, unknown>): string {
+  if (payload.cancelled_at) return "cancelled";
+  if (payload.closed_at) return "closed";
+  const s = payload.status ? String(payload.status).toLowerCase() : "";
+  if (s === "cancelled" || s === "canceled") return "cancelled";
+  if (s === "closed") return "closed";
+  return "open";
 }
 
 // ─── Inventory Sync ─────────────────────────────────────────────────────────
