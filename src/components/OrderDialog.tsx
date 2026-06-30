@@ -92,6 +92,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const canEdit = isSupplyChain || isAdmin || isFinance || isSales;
   const isOwnOrder = isSales && order?.sales_person_id === user?.id;
   const canEditSalesFields = canEdit;
+  const { salesUsers } = useSalesUsers();
   // Combined edit permission - all roles with canEdit can edit all fields
   const canEditOrder = canEdit;
   const canDelete = isAdmin;
