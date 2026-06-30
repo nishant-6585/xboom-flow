@@ -322,6 +322,12 @@ export function TallyDashboard() {
         setOrderItems(itemsRes.data || []);
         setInvoices(invoicesRes.data || []);
         setSuppliers(suppliersRes.data || []);
+        // Zoho Books invoices already linked to internal orders via match RPC
+        const { data: zohoData } = await supabase
+          .from("zoho_books_invoices")
+          .select("invoice_number, linked_order_id")
+          .not("linked_order_id", "is", null);
+        setZohoInvoices((zohoData as ZohoInvoiceLink[]) || []);
         setPrimaryModes(((modesRes.data as unknown) as TallyPrimaryMode[]) || []);
 
         // Enrich inventory links with procurement details
