@@ -556,7 +556,9 @@ export function TallyDashboard() {
       // Invoice number(s) — split tax invoices vs proforma invoices
       const taxInvs = invs.filter(i => i.document_type !== "proforma");
       const proformaInvs = invs.filter(i => i.document_type === "proforma");
-      const invoiceNumber = [...new Set(taxInvs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
+      const localTaxNumbers = taxInvs.map(i => i.invoice_number).filter(Boolean) as string[];
+      const zohoNumbers = zohoInvoicesByOrder.get(o.id) || [];
+      const invoiceNumber = [...new Set([...localTaxNumbers, ...zohoNumbers])].join(", ") || "—";
       const proformaNumber = [...new Set(proformaInvs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
 
       // PO number: prefer PO uploaded on the order itself, fall back to linked procurement POs
