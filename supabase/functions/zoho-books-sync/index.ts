@@ -171,73 +171,92 @@ Deno.serve(async (req) => {
         .eq("id", logId);
     }
 
-    // Backfill custom fields (e.g. cf_order_number / cf_order_id) by fetching
-    // invoice detail for rows that don't already have them. Zoho's list API
-    // returns only custom fields marked "show in list view", so most invoices
-    // need a detail fetch to capture the Order Number custom field.
-    let detailEnriched = 0;
-    try {
-      const { data: missing } = await supabase
+    // Run the slow detail-enrichment + auto-match in the background so the
+    // HTTP response returns within the client's invoke timeout (~60s). Without
+    // this, the function can take 90s+ and the browser reports "Sync failed"
+    // even though the server succeeded.
+    const backgroundWork = (async () => {
+      let detailEnriched = 0;
+      try {
+        const { data: missing } = await supabase
         .from("zoho_books_invoices")
         .select("invoice_id, raw")
         .is("linked_order_id", null)
         .order("last_modified_time", { ascending: false })
-        .limit(500);
-      const targets = (missing ?? []).filter((r: any) => {
-        const raw = r.raw ?? {};
-        return !raw.cf_order_id && !raw.cf_order_number;
-      });
-      const concurrency = 6;
-      let idx = 0;
-      async function worker() {
-        while (idx < targets.length) {
-          const my = idx++;
-          const inv = targets[my];
-          try {
-            const detailResp = await fetch(
-              `${token.api_domain}/books/v3/invoices/${inv.invoice_id}` +
-                `?organization_id=${encodeURIComponent(token.organization_id!)}`,
-              { headers: { Authorization: `Zoho-oauthtoken ${token.access_token}` } },
-            );
-            if (!detailResp.ok) continue;
-            const detailJson = await detailResp.json();
-            const fullInv = detailJson?.invoice;
-            if (!fullInv) continue;
-            await supabase
-              .from("zoho_books_invoices")
-              .update({
-                raw: fullInv,
-                reference_number: fullInv.reference_number ?? null,
-                synced_at: new Date().toISOString(),
-              })
-              .eq("invoice_id", inv.invoice_id);
-            detailEnriched += 1;
-          } catch (err) {
-            console.error("detail fetch failed", inv.invoice_id, err);
+          .limit(500);
+        const targets = (missing ?? []).filter((r: any) => {
+          const raw = r.raw ?? {};
+          return !raw.cf_order_id && !raw.cf_order_number;
+        });
+        const concurrency = 6;
+        let idx = 0;
+        async function worker() {
+          while (idx < targets.length) {
+            const my = idx++;
+            const inv = targets[my];
+            try {
+              const detailResp = await fetch(
+                `${token.api_domain}/books/v3/invoices/${inv.invoice_id}` +
+                  `?organization_id=${encodeURIComponent(token.organization_id!)}`,
+                { headers: { Authorization: `Zoho-oauthtoken ${token.access_token}` } },
+              );
+              if (!detailResp.ok) continue;
+              const detailJson = await detailResp.json();
+              const fullInv = detailJson?.invoice;
+              if (!fullInv) continue;
+              await supabase
+                .from("zoho_books_invoices")
+                .update({
+                  raw: fullInv,
+                  reference_number: fullInv.reference_number ?? null,
+                  synced_at: new Date().toISOString(),
+                })
+                .eq("invoice_id", inv.invoice_id);
+              detailEnriched += 1;
+            } catch (err) {
+              console.error("detail fetch failed", inv.invoice_id, err);
+            }
           }
         }
+        await Promise.all(Array.from({ length: concurrency }, () => worker()));
+      } catch (enrichErr) {
+        console.error("detail enrichment error:", enrichErr);
       }
-      await Promise.all(Array.from({ length: concurrency }, () => worker()));
-    } catch (enrichErr) {
-      console.error("detail enrichment error:", enrichErr);
-    }
 
-    // Auto-match newly synced invoices to internal orders (exact match only).
-    // Call via a user-scoped client so the RPC's has_role(auth.uid(),...) check passes.
-    let matchResult: any = null;
-    try {
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader! } },
-      });
-      const { data: m, error: mErr } = await userClient.rpc("match_zoho_invoices_to_orders");
-      if (mErr) throw mErr;
-      matchResult = m;
-    } catch (mErr) {
-      console.error("auto-match error:", mErr);
+      // Auto-match newly synced invoices to internal orders (exact match only).
+      try {
+        const userClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader! } },
+        });
+        const { error: mErr } = await userClient.rpc("match_zoho_invoices_to_orders");
+        if (mErr) throw mErr;
+      } catch (mErr) {
+        console.error("auto-match error:", mErr);
+      }
+
+      try {
+        await supabase.from("zoho_sync_log").insert({
+          provider: "zoho_books",
+          entity: "invoices_enrichment",
+          status: "success",
+          records_synced: detailEnriched,
+          completed_at: new Date().toISOString(),
+          triggered_by: userId,
+        });
+      } catch (_) { /* ignore */ }
+    })();
+
+    // @ts-ignore - EdgeRuntime is provided by Supabase Edge runtime
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(backgroundWork);
+    } else {
+      // Fallback (local dev): don't block the response.
+      backgroundWork.catch((e) => console.error("background work error:", e));
     }
 
     return new Response(
-      JSON.stringify({ ok: true, records_synced: totalSynced, detail_enriched: detailEnriched, match: matchResult }),
+      JSON.stringify({ ok: true, records_synced: totalSynced, background: "enrichment_and_match_running" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
