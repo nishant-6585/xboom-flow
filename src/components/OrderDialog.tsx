@@ -1427,6 +1427,20 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       placeholder="customer@example.com"
                     />
                   </div>
+                  {isAdmin && (
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Salesperson</Label>
+                      <CompanyOwnerPicker
+                        ownerId={salesPersonId}
+                        ownerName={salesPersonName}
+                        onChange={(userId) => {
+                          setSalesPersonId(userId);
+                          const selected = salesUsers.find((u) => u.user_id === userId);
+                          setSalesPersonName(selected?.name ?? null);
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="inline_committed_timeline">Committed Timeline</Label>
                     <Input
