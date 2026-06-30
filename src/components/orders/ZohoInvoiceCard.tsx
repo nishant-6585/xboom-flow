@@ -33,7 +33,7 @@ export function ZohoInvoiceCard({ orderNumber }: { orderNumber?: string | null }
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       if (!token) throw new Error("Not signed in");
-      const projectUrl = (supabase as any).supabaseUrl as string;
+      const projectUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const resp = await fetch(
         `${projectUrl}/functions/v1/zoho-invoice-pdf?invoice_id=${encodeURIComponent(invoiceId)}&mode=${mode}`,
         { headers: { Authorization: `Bearer ${token}` } },
