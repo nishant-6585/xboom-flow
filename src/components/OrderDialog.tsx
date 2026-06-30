@@ -563,6 +563,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('customer_gst', (order as any).customer_gst, customerGst || null);
     trackField('customer_phone', (order as any).customer_phone, customerPhone || null);
     trackField('customer_email', (order as any).customer_email, customerEmail || null);
+    trackField('sales_person_id', order.sales_person_id, salesPersonId);
+    trackField('sales_person_name', order.sales_person_name, salesPersonName);
     trackField('shipping_address', order.shipping_address, shippingAddress || null);
     trackField('supplier_name', order.supplier_name, supplierName || null);
     trackField('supplier_contact', order.supplier_contact, supplierContact || null);
