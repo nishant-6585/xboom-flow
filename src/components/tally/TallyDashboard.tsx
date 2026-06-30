@@ -211,6 +211,7 @@ export function TallyDashboard() {
   const [procurements, setProcurements] = useState<TallyProcurement[]>([]);
   const [orderItems, setOrderItems] = useState<TallyOrderItem[]>([]);
   const [invoices, setInvoices] = useState<TallyInvoice[]>([]);
+  const [zohoInvoices, setZohoInvoices] = useState<ZohoInvoiceLink[]>([]);
   const [suppliers, setSuppliers] = useState<TallySupplier[]>([]);
   const [invLinks, setInvLinks] = useState<TallyInventoryLink[]>([]);
   const [primaryModes, setPrimaryModes] = useState<TallyPrimaryMode[]>([]);
