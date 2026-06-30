@@ -90,6 +90,11 @@ interface TallyInvoice {
   document_type: string | null;
 }
 
+interface ZohoInvoiceLink {
+  invoice_number: string | null;
+  linked_order_id: string | null;
+}
+
 interface TallyInventoryLink {
   id: string;
   order_id: string;
@@ -206,6 +211,7 @@ export function TallyDashboard() {
   const [procurements, setProcurements] = useState<TallyProcurement[]>([]);
   const [orderItems, setOrderItems] = useState<TallyOrderItem[]>([]);
   const [invoices, setInvoices] = useState<TallyInvoice[]>([]);
+  const [zohoInvoices, setZohoInvoices] = useState<ZohoInvoiceLink[]>([]);
   const [suppliers, setSuppliers] = useState<TallySupplier[]>([]);
   const [invLinks, setInvLinks] = useState<TallyInventoryLink[]>([]);
   const [primaryModes, setPrimaryModes] = useState<TallyPrimaryMode[]>([]);
@@ -316,6 +322,12 @@ export function TallyDashboard() {
         setOrderItems(itemsRes.data || []);
         setInvoices(invoicesRes.data || []);
         setSuppliers(suppliersRes.data || []);
+        // Zoho Books invoices already linked to internal orders via match RPC
+        const { data: zohoData } = await supabase
+          .from("zoho_books_invoices")
+          .select("invoice_number, linked_order_id")
+          .not("linked_order_id", "is", null);
+        setZohoInvoices((zohoData as ZohoInvoiceLink[]) || []);
         setPrimaryModes(((modesRes.data as unknown) as TallyPrimaryMode[]) || []);
 
         // Enrich inventory links with procurement details
@@ -399,6 +411,18 @@ export function TallyDashboard() {
     });
     return map;
   }, [invoices]);
+
+  const zohoInvoicesByOrder = useMemo(() => {
+    const map = new Map<string, string[]>();
+    zohoInvoices.forEach((z) => {
+      if (z.linked_order_id && z.invoice_number) {
+        const arr = map.get(z.linked_order_id) || [];
+        arr.push(z.invoice_number);
+        map.set(z.linked_order_id, arr);
+      }
+    });
+    return map;
+  }, [zohoInvoices]);
 
   const invLinksByOrder = useMemo(() => {
     const map = new Map<string, TallyInventoryLink[]>();
@@ -532,7 +556,9 @@ export function TallyDashboard() {
       // Invoice number(s) — split tax invoices vs proforma invoices
       const taxInvs = invs.filter(i => i.document_type !== "proforma");
       const proformaInvs = invs.filter(i => i.document_type === "proforma");
-      const invoiceNumber = [...new Set(taxInvs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
+      const localTaxNumbers = taxInvs.map(i => i.invoice_number).filter(Boolean) as string[];
+      const zohoNumbers = zohoInvoicesByOrder.get(o.id) || [];
+      const invoiceNumber = [...new Set([...localTaxNumbers, ...zohoNumbers])].join(", ") || "—";
       const proformaNumber = [...new Set(proformaInvs.map(i => i.invoice_number).filter(Boolean))].join(", ") || "—";
 
       // PO number: prefer PO uploaded on the order itself, fall back to linked procurement POs
@@ -602,7 +628,7 @@ export function TallyDashboard() {
         primaryPaymentMode,
       };
     });
-  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, suppliersMap, invLinksByOrder, primaryModeByOrder]);
+  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, zohoInvoicesByOrder, suppliersMap, invLinksByOrder, primaryModeByOrder]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
