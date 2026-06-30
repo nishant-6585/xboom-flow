@@ -1,0 +1,1 @@
+ALTER VIEW public.unified_lead_feed SET (security_invoker = on);
