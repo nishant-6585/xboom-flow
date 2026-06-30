@@ -412,6 +412,18 @@ export function TallyDashboard() {
     return map;
   }, [invoices]);
 
+  const zohoInvoicesByOrder = useMemo(() => {
+    const map = new Map<string, string[]>();
+    zohoInvoices.forEach((z) => {
+      if (z.linked_order_id && z.invoice_number) {
+        const arr = map.get(z.linked_order_id) || [];
+        arr.push(z.invoice_number);
+        map.set(z.linked_order_id, arr);
+      }
+    });
+    return map;
+  }, [zohoInvoices]);
+
   const invLinksByOrder = useMemo(() => {
     const map = new Map<string, TallyInventoryLink[]>();
     invLinks.forEach((l) => {
