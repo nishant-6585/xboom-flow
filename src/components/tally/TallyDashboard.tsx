@@ -628,7 +628,7 @@ export function TallyDashboard() {
         primaryPaymentMode,
       };
     });
-  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, suppliersMap, invLinksByOrder, primaryModeByOrder]);
+  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, zohoInvoicesByOrder, suppliersMap, invLinksByOrder, primaryModeByOrder]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
