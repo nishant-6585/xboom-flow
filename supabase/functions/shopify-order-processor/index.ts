@@ -102,7 +102,7 @@ function mapShopifyToShopifyOrder(
     payment_status: mapPaymentStatus(payload.financial_status as string),
     fulfillment_status: String(payload.fulfillment_status || "unfulfilled"),
     financial_status: String(payload.financial_status || ""),
-    order_status: String(payload.status || "open"),
+    order_status: deriveOrderStatus(payload),
     currency: String(payload.currency || "INR"),
     line_items: lineItems,
     internal_notes: `Shopify Order #${payload.order_number}\nItems: ${lineItemsSummary}`,
