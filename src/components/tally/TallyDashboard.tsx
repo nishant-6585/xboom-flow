@@ -90,6 +90,11 @@ interface TallyInvoice {
   document_type: string | null;
 }
 
+interface ZohoInvoiceLink {
+  invoice_number: string | null;
+  linked_order_id: string | null;
+}
+
 interface TallyInventoryLink {
   id: string;
   order_id: string;
