@@ -290,6 +290,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setCustomerGst((order as any).customer_gst || '');
       setCustomerPhone((order as any).customer_phone || '');
       setCustomerEmail((order as any).customer_email || '');
+      setSalesPersonId(order.sales_person_id ?? null);
+      setSalesPersonName(order.sales_person_name ?? null);
       setInvoiceEmailState(defaultEmailState((order as any).customer_email || ''));
       setEscalationReason('');
       setShowEscalationForm(false);
