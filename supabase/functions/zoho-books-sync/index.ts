@@ -171,6 +171,57 @@ Deno.serve(async (req) => {
         .eq("id", logId);
     }
 
+    // Backfill custom fields (e.g. cf_order_number / cf_order_id) by fetching
+    // invoice detail for rows that don't already have them. Zoho's list API
+    // returns only custom fields marked "show in list view", so most invoices
+    // need a detail fetch to capture the Order Number custom field.
+    let detailEnriched = 0;
+    try {
+      const { data: missing } = await supabase
+        .from("zoho_books_invoices")
+        .select("invoice_id, raw")
+        .is("linked_order_id", null)
+        .order("last_modified_time", { ascending: false })
+        .limit(500);
+      const targets = (missing ?? []).filter((r: any) => {
+        const raw = r.raw ?? {};
+        return !raw.cf_order_id && !raw.cf_order_number;
+      });
+      const concurrency = 6;
+      let idx = 0;
+      async function worker() {
+        while (idx < targets.length) {
+          const my = idx++;
+          const inv = targets[my];
+          try {
+            const detailResp = await fetch(
+              `${token.api_domain}/books/v3/invoices/${inv.invoice_id}` +
+                `?organization_id=${encodeURIComponent(token.organization_id!)}`,
+              { headers: { Authorization: `Zoho-oauthtoken ${token.access_token}` } },
+            );
+            if (!detailResp.ok) continue;
+            const detailJson = await detailResp.json();
+            const fullInv = detailJson?.invoice;
+            if (!fullInv) continue;
+            await supabase
+              .from("zoho_books_invoices")
+              .update({
+                raw: fullInv,
+                reference_number: fullInv.reference_number ?? null,
+                synced_at: new Date().toISOString(),
+              })
+              .eq("invoice_id", inv.invoice_id);
+            detailEnriched += 1;
+          } catch (err) {
+            console.error("detail fetch failed", inv.invoice_id, err);
+          }
+        }
+      }
+      await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    } catch (enrichErr) {
+      console.error("detail enrichment error:", enrichErr);
+    }
+
     // Auto-match newly synced invoices to internal orders (exact match only).
     // Call via a user-scoped client so the RPC's has_role(auth.uid(),...) check passes.
     let matchResult: any = null;
@@ -186,7 +237,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, records_synced: totalSynced, match: matchResult }),
+      JSON.stringify({ ok: true, records_synced: totalSynced, detail_enriched: detailEnriched, match: matchResult }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
