@@ -186,6 +186,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerGst, setCustomerGst] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [salesPersonId, setSalesPersonId] = useState<string | null>(null);
+  const [salesPersonName, setSalesPersonName] = useState<string | null>(null);
 
   // Live Woo status (only populated for website-sourced orders). Lets us
   // render the WooOrderStatusActions control inside the manual dialog so
