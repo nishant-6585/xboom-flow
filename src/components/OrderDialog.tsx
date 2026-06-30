@@ -502,6 +502,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_gst: customerGst || null,
       customer_phone: customerPhone || null,
       customer_email: customerEmail || null,
+      sales_person_id: salesPersonId,
+      sales_person_name: salesPersonName,
       shipping_address: shippingAddress || null,
       supplier_name: supplierName || null,
       supplier_contact: supplierContact || null,
