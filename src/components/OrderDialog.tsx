@@ -92,6 +92,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const canEdit = isSupplyChain || isAdmin || isFinance || isSales;
   const isOwnOrder = isSales && order?.sales_person_id === user?.id;
   const canEditSalesFields = canEdit;
+  const { salesUsers } = useSalesUsers();
   // Combined edit permission - all roles with canEdit can edit all fields
   const canEditOrder = canEdit;
   const canDelete = isAdmin;
@@ -186,6 +187,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerGst, setCustomerGst] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [salesPersonId, setSalesPersonId] = useState<string | null>(null);
+  const [salesPersonName, setSalesPersonName] = useState<string | null>(null);
 
   // Live Woo status (only populated for website-sourced orders). Lets us
   // render the WooOrderStatusActions control inside the manual dialog so
@@ -288,6 +291,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setCustomerGst((order as any).customer_gst || '');
       setCustomerPhone((order as any).customer_phone || '');
       setCustomerEmail((order as any).customer_email || '');
+      setSalesPersonId(order.sales_person_id ?? null);
+      setSalesPersonName(order.sales_person_name ?? null);
       setInvoiceEmailState(defaultEmailState((order as any).customer_email || ''));
       setEscalationReason('');
       setShowEscalationForm(false);
@@ -498,6 +503,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_gst: customerGst || null,
       customer_phone: customerPhone || null,
       customer_email: customerEmail || null,
+      sales_person_id: salesPersonId,
+      sales_person_name: salesPersonName,
       shipping_address: shippingAddress || null,
       supplier_name: supplierName || null,
       supplier_contact: supplierContact || null,
@@ -557,6 +564,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('customer_gst', (order as any).customer_gst, customerGst || null);
     trackField('customer_phone', (order as any).customer_phone, customerPhone || null);
     trackField('customer_email', (order as any).customer_email, customerEmail || null);
+    trackField('sales_person_id', order.sales_person_id, salesPersonId);
+    trackField('sales_person_name', order.sales_person_name, salesPersonName);
     trackField('shipping_address', order.shipping_address, shippingAddress || null);
     trackField('supplier_name', order.supplier_name, supplierName || null);
     trackField('supplier_contact', order.supplier_contact, supplierContact || null);
@@ -1418,6 +1427,20 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       placeholder="customer@example.com"
                     />
                   </div>
+                  {isAdmin && (
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Salesperson</Label>
+                      <CompanyOwnerPicker
+                        ownerId={salesPersonId}
+                        ownerName={salesPersonName}
+                        onChange={(userId) => {
+                          setSalesPersonId(userId);
+                          const selected = salesUsers.find((u) => u.user_id === userId);
+                          setSalesPersonName(selected?.name ?? null);
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="inline_committed_timeline">Committed Timeline</Label>
                     <Input
@@ -1482,16 +1505,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Sales:</span>
-                      {isAdmin ? (
-                        <ReassignSalespersonControl
-                          orderId={order.id}
-                          currentId={order.sales_person_id ?? null}
-                          currentName={order.sales_person_name ?? null}
-                          onUpdate={onUpdate}
-                        />
-                      ) : (
-                        <span className="font-medium">{order.sales_person_name}</span>
-                      )}
+                      <span className="font-medium">{salesPersonName || order.sales_person_name}</span>
                     </div>
                   )}
                   {(committedTimeline || order.committed_timeline) && (
@@ -2910,52 +2924,5 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function ReassignSalespersonControl({
-  orderId,
-  currentId,
-  currentName,
-  onUpdate,
-}: {
-  orderId: string;
-  currentId: string | null;
-  currentName: string | null;
-  onUpdate: (orderId: string, updates: Partial<Order>) => Promise<boolean>;
-}) {
-  const { salesUsers } = useSalesUsers();
-  const [saving, setSaving] = useState(false);
-
-  const handleChange = async (userId: string | null) => {
-    if (userId === currentId) return;
-    const selected = userId ? salesUsers.find((u) => u.user_id === userId) : null;
-    setSaving(true);
-    try {
-      const ok = await onUpdate(orderId, {
-        sales_person_id: userId,
-        sales_person_name: selected?.name ?? null,
-      } as Partial<Order>);
-      if (ok) {
-        toast.success(
-          selected ? `Reassigned to ${selected.name}` : 'Salesperson unassigned',
-        );
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to reassign salesperson');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <CompanyOwnerPicker
-        ownerId={currentId}
-        ownerName={currentName}
-        onChange={handleChange}
-      />
-      {saving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-    </div>
   );
 }
