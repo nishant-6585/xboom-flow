@@ -1429,7 +1429,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   </div>
                   {isAdmin && (
                     <div className="space-y-2 md:col-span-2">
-                      <Label>Salesperson</Label>
+                      <Label htmlFor="inline_salesperson">Salesperson</Label>
                       <CompanyOwnerPicker
                         ownerId={salesPersonId}
                         ownerName={salesPersonName}
@@ -1438,6 +1438,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                           const selected = salesUsers.find((u) => u.user_id === userId);
                           setSalesPersonName(selected?.name ?? null);
                         }}
+                        variant="field"
+                        disabled={loading}
                       />
                     </div>
                   )}

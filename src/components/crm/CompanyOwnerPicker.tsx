@@ -3,7 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
-import { User, X, Search, Check } from 'lucide-react';
+import { User, X, Search, Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -12,9 +12,12 @@ interface Props {
   onChange: (userId: string | null) => void;
   size?: 'sm' | 'md';
   align?: 'start' | 'center' | 'end';
+  /** Render as a full-width form field instead of a compact chip. */
+  variant?: 'chip' | 'field';
+  disabled?: boolean;
 }
 
-export function CompanyOwnerPicker({ ownerId, ownerName, onChange, size = 'sm', align = 'start' }: Props) {
+export function CompanyOwnerPicker({ ownerId, ownerName, onChange, size = 'sm', align = 'start', variant = 'chip', disabled }: Props) {
   const { salesUsers, isLoading } = useSalesUsers();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -32,29 +35,38 @@ export function CompanyOwnerPicker({ ownerId, ownerName, onChange, size = 'sm', 
     setOpen(false);
   };
 
+  const isField = variant === 'field';
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
+          disabled={disabled}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 hover:border-primary/60 hover:bg-muted/40 transition-colors',
-            size === 'sm' ? 'px-2 py-1 text-xs' : 'px-2.5 py-1.5 text-sm'
+            'inline-flex items-center gap-1.5 rounded-md transition-colors',
+            isField
+              ? 'h-10 w-full justify-between border border-input bg-background px-3 py-2 text-sm hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50'
+              : 'border border-dashed border-border/60 px-2 py-1 hover:border-primary/60 hover:bg-muted/40',
+            size === 'sm' && !isField ? 'text-xs' : 'text-sm'
           )}
           title="Click to assign owner"
         >
-          <User className="h-3 w-3 text-muted-foreground" />
-          {ownerId && ownerName ? (
-            <span className="font-medium text-foreground truncate max-w-[140px]">{ownerName}</span>
-          ) : (
-            <span className="italic text-muted-foreground">Unassigned</span>
-          )}
+          <span className="flex items-center gap-1.5 min-w-0">
+            <User className={cn('shrink-0 text-muted-foreground', isField ? 'h-4 w-4' : 'h-3 w-3')} />
+            {ownerId && ownerName ? (
+              <span className="font-medium text-foreground truncate">{ownerName}</span>
+            ) : (
+              <span className="italic text-muted-foreground">{isField ? 'Select salesperson' : 'Unassigned'}</span>
+            )}
+          </span>
+          {isField && <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />}
         </button>
       </PopoverTrigger>
       <PopoverContent
         align={align}
-        className="w-64 p-2"
+        className={cn('p-2', isField ? 'w-72' : 'w-64')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative mb-2">
