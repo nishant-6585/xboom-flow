@@ -424,13 +424,13 @@ const Index = () => {
                   <div>
                     <DashboardNoticesWidget />
                     <div className="mt-4">
+                      <OnLeaveTodayWidget />
+                    </div>
+                    <div className="mt-4">
                       <MonthlyPulseWidget />
                     </div>
                     <div className="mt-4">
                       <HolidayCalendarWidget />
-                    </div>
-                    <div className="mt-4">
-                      <OnLeaveTodayWidget />
                     </div>
                   </div>
                 </div>
