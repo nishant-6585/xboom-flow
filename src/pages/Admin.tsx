@@ -273,6 +273,38 @@ const Admin = () => {
     }
   };
 
+  const fetchResetEmailLog = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("password_reset_email_log")
+        .select("id, recipient_email, from_address, status, provider, provider_message_id, error_message, context, created_at")
+        .order("created_at", { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      setResetEmailLog((data || []) as PasswordResetEmailLogEntry[]);
+    } catch (error) {
+      console.error("Error fetching password reset email log:", error);
+    }
+  };
+
+  const handleResendResetEmail = async (entryId: string, email: string) => {
+    setResendResetLoading(entryId);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-password-reset-email", {
+        body: { email },
+      });
+      if (error) throw new Error((data as any)?.error || error.message || "Failed to resend");
+      if (data && (data as any).error) throw new Error((data as any).error);
+      toast({ title: "Password reset email sent", description: `Resent to ${email} from hr@xboom.in` });
+      fetchResetEmailLog();
+    } catch (err: any) {
+      toast({ title: "Failed to resend", description: err?.message || "Unknown error", variant: "destructive" });
+      fetchResetEmailLog();
+    } finally {
+      setResendResetLoading(null);
+    }
+  };
+
   const handleApproveInvitation = async (invitationId: string, name: string, email: string, comment: string) => {
     setActionLoading(invitationId);
     try {
