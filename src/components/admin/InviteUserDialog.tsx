@@ -235,6 +235,11 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Role: {getRoleLabel(formData.role)}</span>
                 </div>
+                {autoSendResult && (
+                  <div className={`text-xs rounded-md px-2 py-1.5 ${autoSendResult.ok ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+                    {autoSendResult.ok ? "✓ " : "✗ "}{autoSendResult.message}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
