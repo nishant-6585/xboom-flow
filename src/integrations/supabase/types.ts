@@ -16439,6 +16439,10 @@ export type Database = {
         }[]
       }
       count_admins: { Args: never; Returns: number }
+      create_order_escalation_notification: {
+        Args: { p_order_id: string; p_reason: string }
+        Returns: undefined
+      }
       create_security_alert: {
         Args: {
           p_alert_type: string
