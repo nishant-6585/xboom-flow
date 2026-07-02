@@ -169,6 +169,7 @@ const Admin = () => {
       fetchApprovedUsers();
       fetchInvitations();
       fetchOrgData();
+      fetchInviteEmailLog();
     }
   }, [role, isApproved]);
 
