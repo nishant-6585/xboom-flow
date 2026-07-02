@@ -48,10 +48,18 @@ export function ProvisionalCheckoutBanner({ yesterdayLog, onCorrected }: Provisi
     const correctedDate = subDays(new Date(), 1);
     correctedDate.setHours(hours, minutes, 0, 0);
 
-    // Validate: must be after check_in_time
-    if (yesterdayLog.check_in_time && correctedDate <= new Date(yesterdayLog.check_in_time)) {
-      toast.error('Checkout time must be after check-in time');
-      return;
+    // Overnight support: if the entered time falls before check-in, treat it
+    // as the next calendar day (e.g. worked past midnight).
+    if (yesterdayLog.check_in_time) {
+      const checkInDt = new Date(yesterdayLog.check_in_time);
+      if (correctedDate <= checkInDt) {
+        correctedDate.setDate(correctedDate.getDate() + 1);
+      }
+      const diffHours = (correctedDate.getTime() - checkInDt.getTime()) / (1000 * 60 * 60);
+      if (diffHours > 24) {
+        toast.error('Shift duration cannot exceed 24 hours');
+        return;
+      }
     }
 
     // Validate: cannot be in the future

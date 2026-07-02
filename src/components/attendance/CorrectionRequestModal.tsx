@@ -90,9 +90,16 @@ export function CorrectionRequestModal({
     if (hasCheckOutChange) {
       const corrected = buildCorrectedDate(newCheckOutTime);
       const effectiveCheckIn = hasCheckInChange ? buildCorrectedDate(newCheckInTime) : (log.check_in_time ? new Date(log.check_in_time) : null);
+      // Overnight support: roll checkout to next day when earlier than check-in.
       if (effectiveCheckIn && corrected <= effectiveCheckIn) {
-        toast.error('Checkout time must be after check-in time');
-        return;
+        corrected.setDate(corrected.getDate() + 1);
+      }
+      if (effectiveCheckIn) {
+        const diffHours = (corrected.getTime() - effectiveCheckIn.getTime()) / (1000 * 60 * 60);
+        if (diffHours > 24) {
+          toast.error('Shift duration cannot exceed 24 hours');
+          return;
+        }
       }
       if (corrected > now) {
         toast.error('Checkout time cannot be in the future');
