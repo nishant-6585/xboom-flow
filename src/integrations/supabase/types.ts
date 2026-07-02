@@ -9709,6 +9709,51 @@ export type Database = {
         }
         Relationships: []
       }
+      password_reset_email_log: {
+        Row: {
+          context: string | null
+          created_at: string
+          error_message: string | null
+          from_address: string
+          id: string
+          provider: string
+          provider_message_id: string | null
+          recipient_email: string
+          recipient_user_id: string | null
+          status: string
+          triggered_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          error_message?: string | null
+          from_address: string
+          id?: string
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email: string
+          recipient_user_id?: string | null
+          status: string
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          error_message?: string | null
+          from_address?: string
+          id?: string
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email?: string
+          recipient_user_id?: string | null
+          status?: string
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_marker_grants: {
         Row: {
           granted_at: string
