@@ -290,6 +290,7 @@ const Admin = () => {
 
       fetchInvitations();
       fetchApprovedUsers();
+      fetchInviteEmailLog();
     } catch (error: any) {
       console.error("Error approving invitation:", error);
       toast({
