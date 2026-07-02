@@ -54,9 +54,18 @@ export function ProvisionalCorrectionModal({
     const correctedDate = new Date(logDate);
     correctedDate.setHours(hours, minutes, 0, 0);
 
-    if (log.check_in_time && correctedDate <= new Date(log.check_in_time)) {
-      toast.error('Checkout time must be after check-in time');
-      return;
+    // Overnight support: if checkout time falls before check-in on the same
+    // date, treat it as the next calendar day.
+    if (log.check_in_time) {
+      const checkInDt = new Date(log.check_in_time);
+      if (correctedDate <= checkInDt) {
+        correctedDate.setDate(correctedDate.getDate() + 1);
+      }
+      const diffHours = (correctedDate.getTime() - checkInDt.getTime()) / (1000 * 60 * 60);
+      if (diffHours > 24) {
+        toast.error('Shift duration cannot exceed 24 hours');
+        return;
+      }
     }
 
     if (correctedDate > new Date()) {
