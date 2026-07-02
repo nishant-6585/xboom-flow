@@ -798,23 +798,11 @@ export function useOrders() {
 
       if (updateError) throw updateError;
 
-      // Get order details for notification
-      const { data: orderData } = await supabase
-        .from('orders')
-        .select('product_name, customer_name, customer_company')
-        .eq('id', orderId)
-        .single();
-
-      // Create notification for admin and supply chain
-      const { error: notifError } = await supabase
-        .from('notifications')
-        .insert({
-          order_id: orderId,
-          type: 'order_escalation',
-          title: 'Order Escalated - Priority 1',
-          message: `Order for ${orderData?.customer_name || 'Unknown'} (${orderData?.customer_company || 'Unknown'}) - ${orderData?.product_name || 'Unknown'} has been escalated. Reason: ${reason}`,
-          target_role: null, // null means visible to all relevant roles (admin, supply_chain)
-        });
+      // Create escalation notification via SECURITY DEFINER RPC (validates caller server-side)
+      const { error: notifError } = await supabase.rpc('create_order_escalation_notification', {
+        p_order_id: orderId,
+        p_reason: reason,
+      });
 
       if (notifError) {
         console.error('Error creating notification:', notifError);
