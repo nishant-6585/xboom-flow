@@ -66,6 +66,16 @@ export function HRAttendanceEditModal({
     return dt;
   };
 
+  // Overnight support: if checkout appears before check-in on the same date,
+  // treat it as the next calendar day (e.g. checkout at 00:30 for a 09:56 check-in).
+  const buildCheckoutDateTime = (timeStr: string, checkInDt: Date) => {
+    const dt = buildDateTime(timeStr);
+    if (dt <= checkInDt) {
+      dt.setDate(dt.getDate() + 1);
+    }
+    return dt;
+  };
+
   const handleSave = async () => {
     if (!user || !profile) return;
     if (!reason.trim()) {
@@ -82,9 +92,10 @@ export function HRAttendanceEditModal({
       }
       const ciDt = buildDateTime(checkInTime);
       if (checkOutTime) {
-        const coDt = buildDateTime(checkOutTime);
-        if (coDt <= ciDt) {
-          toast.error('Check-out time must be after check-in time');
+        const coDt = buildCheckoutDateTime(checkOutTime, ciDt);
+        const diffHours = (coDt.getTime() - ciDt.getTime()) / (1000 * 60 * 60);
+        if (diffHours > 24) {
+          toast.error('Shift duration cannot exceed 24 hours');
           return;
         }
       }
@@ -93,8 +104,11 @@ export function HRAttendanceEditModal({
     setSaving(true);
     try {
       const userName = profile.name || 'HR User';
-      const checkInISO = needsTimes ? buildDateTime(checkInTime).toISOString() : null;
-      const checkOutISO = needsTimes && checkOutTime ? buildDateTime(checkOutTime).toISOString() : null;
+      const ciDt = needsTimes ? buildDateTime(checkInTime) : null;
+      const checkInISO = ciDt ? ciDt.toISOString() : null;
+      const checkOutISO = needsTimes && checkOutTime && ciDt
+        ? buildCheckoutDateTime(checkOutTime, ciDt).toISOString()
+        : null;
 
       let workingHours: number | null = null;
       if (checkInISO && checkOutISO) {
