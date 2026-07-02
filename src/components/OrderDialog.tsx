@@ -189,6 +189,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [customerEmail, setCustomerEmail] = useState('');
   const [salesPersonId, setSalesPersonId] = useState<string | null>(null);
   const [salesPersonName, setSalesPersonName] = useState<string | null>(null);
+  const [editingSalesPerson, setEditingSalesPerson] = useState(false);
+  const [savingSalesPerson, setSavingSalesPerson] = useState(false);
 
   // Live Woo status (only populated for website-sourced orders). Lets us
   // render the WooOrderStatusActions control inside the manual dialog so
@@ -1507,7 +1509,67 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Sales:</span>
-                      <span className="font-medium">{salesPersonName || order.sales_person_name}</span>
+                      {editingSalesPerson && isAdmin ? (
+                        <>
+                          <Select
+                            value={salesPersonId ?? undefined}
+                            disabled={savingSalesPerson}
+                            onValueChange={async (newId) => {
+                              const selected = salesUsers.find((u) => u.user_id === newId);
+                              if (!selected || !order?.id) return;
+                              setSavingSalesPerson(true);
+                              const { error } = await supabase
+                                .from('orders')
+                                .update({ sales_person_id: selected.user_id, sales_person_name: selected.name })
+                                .eq('id', order.id);
+                              setSavingSalesPerson(false);
+                              if (error) {
+                                toast.error(`Failed to reassign salesperson: ${error.message}`);
+                                return;
+                              }
+                              setSalesPersonId(selected.user_id);
+                              setSalesPersonName(selected.name);
+                              toast.success(`Salesperson reassigned to ${selected.name}`);
+                              setEditingSalesPerson(false);
+                            }}
+                          >
+                            <SelectTrigger className="h-7 w-56 text-sm">
+                              <SelectValue placeholder="Select salesperson" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {salesUsers.map((u) => (
+                                <SelectItem key={u.user_id} value={u.user_id}>
+                                  {u.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            disabled={savingSalesPerson}
+                            onClick={() => setEditingSalesPerson(false)}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-medium">{salesPersonName || order.sales_person_name}</span>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => setEditingSalesPerson(true)}
+                              title="Reassign salesperson"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                   {(committedTimeline || order.committed_timeline) && (
