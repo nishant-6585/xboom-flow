@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, UserPlus, Copy, Check, Link, Mail } from "lucide-react";
@@ -26,6 +27,8 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
     role: "sales" as string,
     department: "General" as string,
   });
+  const [autoSendEmail, setAutoSendEmail] = useState(true);
+  const [autoSendResult, setAutoSendResult] = useState<{ ok: boolean; message: string } | null>(null);
   const { toast } = useToast();
 
   const signupUrl = `${window.location.origin}/auth`;
@@ -53,6 +56,8 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
     setInviteSent(false);
     setCopied(false);
     setFormData({ name: "", email: "", role: "sales", department: "General" });
+    setAutoSendResult(null);
+    setAutoSendEmail(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,6 +152,26 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
 
       setInviteSent(true);
       onUserInvited();
+
+      if (autoSendEmail && invitation?.id) {
+        try {
+          const { data: sendData, error: sendError } = await supabase.functions.invoke(
+            "send-invite-email",
+            { body: { invitation_id: invitation.id } }
+          );
+          if (sendError || sendData?.error) {
+            const msg = sendData?.error || sendError?.message || "Failed to send invite email";
+            setAutoSendResult({ ok: false, message: msg });
+            toast({ title: "Invite email failed", description: msg, variant: "destructive" });
+          } else {
+            setAutoSendResult({ ok: true, message: `Sent to ${formData.email} from hr@xboom.in` });
+            toast({ title: "Invite email sent", description: `Sent to ${formData.email} from hr@xboom.in` });
+          }
+        } catch (e: any) {
+          setAutoSendResult({ ok: false, message: e?.message || "Failed to send invite email" });
+          toast({ title: "Invite email failed", description: e?.message || "Unknown error", variant: "destructive" });
+        }
+      }
     } catch (error: any) {
       console.error("Error creating invitation:", error);
       toast({
@@ -210,6 +235,11 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Role: {getRoleLabel(formData.role)}</span>
                 </div>
+                {autoSendResult && (
+                  <div className={`text-xs rounded-md px-2 py-1.5 ${autoSendResult.ok ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+                    {autoSendResult.ok ? "✓ " : "✗ "}{autoSendResult.message}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -306,6 +336,22 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="flex items-start gap-2 rounded-md border border-border bg-secondary/40 p-3">
+                  <Checkbox
+                    id="autoSendEmail"
+                    checked={autoSendEmail}
+                    onCheckedChange={(v) => setAutoSendEmail(Boolean(v))}
+                    disabled={loading}
+                  />
+                  <div className="grid gap-0.5">
+                    <Label htmlFor="autoSendEmail" className="cursor-pointer">
+                      Automatically send branded invite email
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Sends a set-password link from <strong>hr@xboom.in</strong> via Resend.
+                    </p>
+                  </div>
                 </div>
               </div>
               <DialogFooter>

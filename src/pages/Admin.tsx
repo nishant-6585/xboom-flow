@@ -92,6 +92,18 @@ interface UserInvitation {
   invited_at: string;
 }
 
+interface InviteEmailLogEntry {
+  id: string;
+  invitation_id: string | null;
+  recipient_email: string;
+  from_address: string;
+  status: "queued" | "sent" | "failed";
+  provider: string;
+  provider_message_id: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
 const Admin = () => {
   const { user, profile, role, roles, isApproved } = useAuth();
   const isFinanceOnly = !roles.includes("admin") && roles.includes("finance");
@@ -104,6 +116,8 @@ const Admin = () => {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
+  const [inviteEmailLog, setInviteEmailLog] = useState<InviteEmailLogEntry[]>([]);
+  const [resendEmailLoading, setResendEmailLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
   const [invitationsLoading, setInvitationsLoading] = useState(true);
@@ -155,6 +169,7 @@ const Admin = () => {
       fetchApprovedUsers();
       fetchInvitations();
       fetchOrgData();
+      fetchInviteEmailLog();
     }
   }, [role, isApproved]);
 
@@ -211,6 +226,38 @@ const Admin = () => {
     }
   };
 
+  const fetchInviteEmailLog = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("invitation_email_log")
+        .select("id, invitation_id, recipient_email, from_address, status, provider, provider_message_id, error_message, created_at")
+        .order("created_at", { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      setInviteEmailLog((data || []) as InviteEmailLogEntry[]);
+    } catch (error) {
+      console.error("Error fetching invite email log:", error);
+    }
+  };
+
+  const handleResendInviteEmail = async (invitationId: string, email: string) => {
+    setResendEmailLoading(invitationId);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-invite-email", {
+        body: { invitation_id: invitationId },
+      });
+      if (error) throw new Error(data?.error || error.message || "Failed to send invite email");
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Invite email sent", description: `Sent to ${email} from hr@xboom.in` });
+      fetchInviteEmailLog();
+    } catch (err: any) {
+      toast({ title: "Failed to send invite email", description: err?.message || "Unknown error", variant: "destructive" });
+      fetchInviteEmailLog();
+    } finally {
+      setResendEmailLoading(null);
+    }
+  };
+
   const handleApproveInvitation = async (invitationId: string, name: string, email: string, comment: string) => {
     setActionLoading(invitationId);
     try {
@@ -243,6 +290,7 @@ const Admin = () => {
 
       fetchInvitations();
       fetchApprovedUsers();
+      fetchInviteEmailLog();
     } catch (error: any) {
       console.error("Error approving invitation:", error);
       toast({
@@ -903,6 +951,24 @@ const Admin = () => {
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                               Invited
                             </Badge>
+                            {(() => {
+                              const latest = inviteEmailLog.find(l => l.invitation_id === invitation.id);
+                              if (!latest) return null;
+                              const cls = latest.status === "sent"
+                                ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                : latest.status === "failed"
+                                ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+                              return (
+                                <Badge
+                                  variant="outline"
+                                  className={cls}
+                                  title={latest.status === "failed" ? (latest.error_message || "Failed") : `Email ${latest.status}`}
+                                >
+                                  Email: {latest.status}
+                                </Badge>
+                              );
+                            })()}
                           </div>
                           <p className="text-sm text-muted-foreground">{invitation.email}</p>
                           <p className="text-xs text-muted-foreground">
@@ -910,6 +976,20 @@ const Admin = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={resendEmailLoading === invitation.id}
+                            onClick={() => handleResendInviteEmail(invitation.id, invitation.email)}
+                            title="Send branded invite email from hr@xboom.in"
+                          >
+                            {resendEmailLoading === invitation.id
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Mail className="w-4 h-4" />}
+                            <span className="ml-1 hidden sm:inline">
+                              {inviteEmailLog.some(l => l.invitation_id === invitation.id && l.status === "sent") ? "Resend" : "Send email"}
+                            </span>
+                          </Button>
                           <ActionWithCommentDialog
                             trigger={
                               <Button size="sm" disabled={actionLoading === invitation.id}>
@@ -946,6 +1026,67 @@ const Admin = () => {
             </Card>
 
             {/* Pending Registrations */}
+            {/* Invite email log */}
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5" /> Invite Email Log
+                </CardTitle>
+                <CardDescription>
+                  Branded password-reset / invite emails sent from <strong>hr@xboom.in</strong> via Resend.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {inviteEmailLog.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No invite emails have been sent yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {inviteEmailLog.map((entry) => {
+                      const cls = entry.status === "sent"
+                        ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : entry.status === "failed"
+                        ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        : "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+                      return (
+                        <div key={entry.id} className="flex items-start justify-between gap-3 p-3 rounded-md border border-border bg-secondary/30">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm truncate">{entry.recipient_email}</span>
+                              <Badge variant="outline" className={cls}>{entry.status}</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(entry.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              From {entry.from_address}
+                              {entry.provider_message_id ? ` · id ${entry.provider_message_id}` : ""}
+                            </p>
+                            {entry.status === "failed" && entry.error_message && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-1 break-words">
+                                {entry.error_message}
+                              </p>
+                            )}
+                          </div>
+                          {entry.invitation_id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={resendEmailLoading === entry.invitation_id}
+                              onClick={() => handleResendInviteEmail(entry.invitation_id!, entry.recipient_email)}
+                            >
+                              {resendEmailLoading === entry.invitation_id
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : "Resend"}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="glass">
               <CardHeader>
                 <CardTitle>Pending Registrations</CardTitle>

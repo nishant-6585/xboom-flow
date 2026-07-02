@@ -172,25 +172,43 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- STEP 3: Send password reset email (non-critical, don't rollback if this fails) ---
+    // --- STEP 3: Send branded invite email via Resend (non-critical) ---
+    let inviteEmailSent = false;
+    let inviteEmailError: string | null = null;
     if (!isExistingUser) {
-      const siteUrl = Deno.env.get("SITE_URL") || "https://xboom-flow.lovable.app";
-      const anonKeyForReset = Deno.env.get("SUPABASE_ANON_KEY")!;
-      const resetClient = createClient(supabaseUrl, anonKeyForReset);
-      const { error: resetError } = await resetClient.auth.resetPasswordForEmail(invitation.email, {
-        redirectTo: `${siteUrl}/auth`,
-      });
-      if (resetError) {
-        console.warn("Password reset email failed (non-critical):", resetError.message);
+      try {
+        const inviteResp = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: authHeader,
+            apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
+          },
+          body: JSON.stringify({ invitation_id }),
+        });
+        const inviteBody = await inviteResp.json().catch(() => ({}));
+        if (!inviteResp.ok) {
+          inviteEmailError = inviteBody?.error || `HTTP ${inviteResp.status}`;
+          console.warn("Branded invite email failed (non-critical):", inviteEmailError);
+        } else {
+          inviteEmailSent = true;
+        }
+      } catch (e: any) {
+        inviteEmailError = e?.message || "invoke failed";
+        console.warn("Branded invite email invoke failed:", inviteEmailError);
       }
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: isExistingUser 
-        ? "Existing user approved successfully" 
-        : "User created and approved. Password reset email has been sent.",
+    return new Response(JSON.stringify({
+      success: true,
+      message: isExistingUser
+        ? "Existing user approved successfully"
+        : (inviteEmailSent
+            ? "User created and approved. Branded invite email sent."
+            : "User created and approved. Invite email could not be sent — check email log."),
       is_existing_user: isExistingUser,
+      invite_email_sent: inviteEmailSent,
+      invite_email_error: inviteEmailError,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

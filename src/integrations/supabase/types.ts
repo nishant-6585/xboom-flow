@@ -6832,6 +6832,59 @@ export type Database = {
           },
         ]
       }
+      invitation_email_log: {
+        Row: {
+          context: string
+          created_at: string
+          error_message: string | null
+          from_address: string
+          id: string
+          invitation_id: string | null
+          provider: string
+          provider_message_id: string | null
+          recipient_email: string
+          status: string
+          triggered_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          context?: string
+          created_at?: string
+          error_message?: string | null
+          from_address: string
+          id?: string
+          invitation_id?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email: string
+          status?: string
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          context?: string
+          created_at?: string
+          error_message?: string | null
+          from_address?: string
+          id?: string
+          invitation_id?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email?: string
+          status?: string
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitation_email_log_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "user_invitations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_audit_logs: {
         Row: {
           action: string
