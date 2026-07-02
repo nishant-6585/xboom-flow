@@ -74,22 +74,33 @@ Deno.serve(async (req) => {
   let userId: string | null = null;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Unauthorized");
-    const { data: userData, error: userErr } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (userErr || !userData?.user) throw new Error("Unauthorized");
-    userId = userData.user.id;
+    const cronSecret = req.headers.get("x-cron-secret");
+    const expectedZoho = Deno.env.get("ZOHO_SYNC_CRON_SECRET");
+    const expectedGeneric = Deno.env.get("CRON_SECRET");
+    const isCronCall =
+      !!cronSecret &&
+      ((expectedZoho && cronSecret === expectedZoho) ||
+        (expectedGeneric && cronSecret === expectedGeneric));
 
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const allowed = roles?.some((r: { role: string }) =>
-      ["admin", "finance"].includes(r.role),
-    );
-    if (!allowed) throw new Error("Admin or Finance role required");
+    let authHeader = req.headers.get("Authorization");
+
+    if (!isCronCall) {
+      if (!authHeader) throw new Error("Unauthorized");
+      const { data: userData, error: userErr } = await supabase.auth.getUser(
+        authHeader.replace("Bearer ", ""),
+      );
+      if (userErr || !userData?.user) throw new Error("Unauthorized");
+      userId = userData.user.id;
+
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      const allowed = roles?.some((r: { role: string }) =>
+        ["admin", "finance"].includes(r.role),
+      );
+      if (!allowed) throw new Error("Admin or Finance role required");
+    }
 
     const token = await getValidToken(supabase);
     if (!token.organization_id) throw new Error("No Zoho organization_id stored");
@@ -225,10 +236,12 @@ Deno.serve(async (req) => {
 
       // Auto-match newly synced invoices to internal orders (exact match only).
       try {
-        const userClient = createClient(supabaseUrl, anonKey, {
-          global: { headers: { Authorization: authHeader! } },
-        });
-        const { error: mErr } = await userClient.rpc("match_zoho_invoices_to_orders");
+        const rpcClient = isCronCall || !authHeader
+          ? supabase
+          : createClient(supabaseUrl, anonKey, {
+              global: { headers: { Authorization: authHeader } },
+            });
+        const { error: mErr } = await rpcClient.rpc("match_zoho_invoices_to_orders");
         if (mErr) throw mErr;
       } catch (mErr) {
         console.error("auto-match error:", mErr);
