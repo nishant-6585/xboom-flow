@@ -1137,6 +1137,70 @@ const Admin = () => {
               </CardContent>
             </Card>
 
+            {/* Password reset email log */}
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <KeyRound className="w-5 h-5" /> Password Reset Email Log
+                </CardTitle>
+                <CardDescription>
+                  Reset emails sent from <strong>hr@xboom.in</strong> via Resend. Retry failed sends here.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {resetEmailLog.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No password reset emails have been sent yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {resetEmailLog.map((entry) => {
+                      const cls = entry.status === "sent"
+                        ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : entry.status === "failed"
+                        ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        : "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+                      return (
+                        <div key={entry.id} className="flex items-start justify-between gap-3 p-3 rounded-md border border-border bg-secondary/30">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm truncate">{entry.recipient_email}</span>
+                              <Badge variant="outline" className={cls}>{entry.status}</Badge>
+                              {entry.context && (
+                                <Badge variant="outline" className="text-xs">{entry.context}</Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(entry.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              From {entry.from_address}
+                              {entry.provider_message_id ? ` · id ${entry.provider_message_id}` : ""}
+                            </p>
+                            {entry.status === "failed" && entry.error_message && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-1 break-words">
+                                {entry.error_message}
+                              </p>
+                            )}
+                          </div>
+                          {entry.status !== "sent" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={resendResetLoading === entry.id}
+                              onClick={() => handleResendResetEmail(entry.id, entry.recipient_email)}
+                            >
+                              {resendResetLoading === entry.id
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : "Retry"}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="glass">
               <CardHeader>
                 <CardTitle>Pending Registrations</CardTitle>
