@@ -332,6 +332,22 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-start gap-2 rounded-md border border-border bg-secondary/40 p-3">
+                  <Checkbox
+                    id="autoSendEmail"
+                    checked={autoSendEmail}
+                    onCheckedChange={(v) => setAutoSendEmail(Boolean(v))}
+                    disabled={loading}
+                  />
+                  <div className="grid gap-0.5">
+                    <Label htmlFor="autoSendEmail" className="cursor-pointer">
+                      Automatically send branded invite email
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Sends a set-password link from <strong>hr@xboom.in</strong> via Resend.
+                    </p>
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
