@@ -529,6 +529,7 @@ const Admin = () => {
         title: "Password Reset Email Sent",
         description: `Branded reset link sent to ${email} from hr@xboom.in`,
       });
+      fetchResetEmailLog();
     } catch (error: any) {
       console.error("Error sending password reset:", error);
       toast({
@@ -536,6 +537,7 @@ const Admin = () => {
         description: error.message || "Failed to send password reset email",
         variant: "destructive",
       });
+      fetchResetEmailLog();
     } finally {
       setResetLoading(null);
     }
