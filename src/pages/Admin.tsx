@@ -1026,6 +1026,67 @@ const Admin = () => {
             </Card>
 
             {/* Pending Registrations */}
+            {/* Invite email log */}
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5" /> Invite Email Log
+                </CardTitle>
+                <CardDescription>
+                  Branded password-reset / invite emails sent from <strong>hr@xboom.in</strong> via Resend.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {inviteEmailLog.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No invite emails have been sent yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {inviteEmailLog.map((entry) => {
+                      const cls = entry.status === "sent"
+                        ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : entry.status === "failed"
+                        ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        : "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+                      return (
+                        <div key={entry.id} className="flex items-start justify-between gap-3 p-3 rounded-md border border-border bg-secondary/30">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm truncate">{entry.recipient_email}</span>
+                              <Badge variant="outline" className={cls}>{entry.status}</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(entry.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              From {entry.from_address}
+                              {entry.provider_message_id ? ` · id ${entry.provider_message_id}` : ""}
+                            </p>
+                            {entry.status === "failed" && entry.error_message && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-1 break-words">
+                                {entry.error_message}
+                              </p>
+                            )}
+                          </div>
+                          {entry.invitation_id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={resendEmailLoading === entry.invitation_id}
+                              onClick={() => handleResendInviteEmail(entry.invitation_id!, entry.recipient_email)}
+                            >
+                              {resendEmailLoading === entry.invitation_id
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : "Resend"}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="glass">
               <CardHeader>
                 <CardTitle>Pending Registrations</CardTitle>
