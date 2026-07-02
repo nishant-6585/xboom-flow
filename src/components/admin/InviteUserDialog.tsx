@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, UserPlus, Copy, Check, Link, Mail } from "lucide-react";
@@ -26,6 +27,8 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
     role: "sales" as string,
     department: "General" as string,
   });
+  const [autoSendEmail, setAutoSendEmail] = useState(true);
+  const [autoSendResult, setAutoSendResult] = useState<{ ok: boolean; message: string } | null>(null);
   const { toast } = useToast();
 
   const signupUrl = `${window.location.origin}/auth`;
@@ -53,6 +56,8 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
     setInviteSent(false);
     setCopied(false);
     setFormData({ name: "", email: "", role: "sales", department: "General" });
+    setAutoSendResult(null);
+    setAutoSendEmail(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,6 +152,26 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
 
       setInviteSent(true);
       onUserInvited();
+
+      if (autoSendEmail && invitation?.id) {
+        try {
+          const { data: sendData, error: sendError } = await supabase.functions.invoke(
+            "send-invite-email",
+            { body: { invitation_id: invitation.id } }
+          );
+          if (sendError || sendData?.error) {
+            const msg = sendData?.error || sendError?.message || "Failed to send invite email";
+            setAutoSendResult({ ok: false, message: msg });
+            toast({ title: "Invite email failed", description: msg, variant: "destructive" });
+          } else {
+            setAutoSendResult({ ok: true, message: `Sent to ${formData.email} from hr@xboom.in` });
+            toast({ title: "Invite email sent", description: `Sent to ${formData.email} from hr@xboom.in` });
+          }
+        } catch (e: any) {
+          setAutoSendResult({ ok: false, message: e?.message || "Failed to send invite email" });
+          toast({ title: "Invite email failed", description: e?.message || "Unknown error", variant: "destructive" });
+        }
+      }
     } catch (error: any) {
       console.error("Error creating invitation:", error);
       toast({
