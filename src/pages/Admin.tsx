@@ -92,6 +92,18 @@ interface UserInvitation {
   invited_at: string;
 }
 
+interface InviteEmailLogEntry {
+  id: string;
+  invitation_id: string | null;
+  recipient_email: string;
+  from_address: string;
+  status: "queued" | "sent" | "failed";
+  provider: string;
+  provider_message_id: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
 const Admin = () => {
   const { user, profile, role, roles, isApproved } = useAuth();
   const isFinanceOnly = !roles.includes("admin") && roles.includes("finance");
@@ -104,6 +116,8 @@ const Admin = () => {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
+  const [inviteEmailLog, setInviteEmailLog] = useState<InviteEmailLogEntry[]>([]);
+  const [resendEmailLoading, setResendEmailLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
   const [invitationsLoading, setInvitationsLoading] = useState(true);
@@ -208,6 +222,38 @@ const Admin = () => {
       console.error("Error fetching invitations:", error);
     } finally {
       setInvitationsLoading(false);
+    }
+  };
+
+  const fetchInviteEmailLog = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("invitation_email_log")
+        .select("id, invitation_id, recipient_email, from_address, status, provider, provider_message_id, error_message, created_at")
+        .order("created_at", { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      setInviteEmailLog((data || []) as InviteEmailLogEntry[]);
+    } catch (error) {
+      console.error("Error fetching invite email log:", error);
+    }
+  };
+
+  const handleResendInviteEmail = async (invitationId: string, email: string) => {
+    setResendEmailLoading(invitationId);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-invite-email", {
+        body: { invitation_id: invitationId },
+      });
+      if (error) throw new Error(data?.error || error.message || "Failed to send invite email");
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Invite email sent", description: `Sent to ${email} from hr@xboom.in` });
+      fetchInviteEmailLog();
+    } catch (err: any) {
+      toast({ title: "Failed to send invite email", description: err?.message || "Unknown error", variant: "destructive" });
+      fetchInviteEmailLog();
+    } finally {
+      setResendEmailLoading(null);
     }
   };
 
