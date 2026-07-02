@@ -75,9 +75,12 @@ Deno.serve(async (req) => {
 
   try {
     const cronSecret = req.headers.get("x-cron-secret");
-    const expectedCronSecret = Deno.env.get("ZOHO_SYNC_CRON_SECRET");
+    const expectedZoho = Deno.env.get("ZOHO_SYNC_CRON_SECRET");
+    const expectedGeneric = Deno.env.get("CRON_SECRET");
     const isCronCall =
-      !!cronSecret && !!expectedCronSecret && cronSecret === expectedCronSecret;
+      !!cronSecret &&
+      ((expectedZoho && cronSecret === expectedZoho) ||
+        (expectedGeneric && cronSecret === expectedGeneric));
 
     let authHeader = req.headers.get("Authorization");
 
