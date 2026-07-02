@@ -104,6 +104,18 @@ interface InviteEmailLogEntry {
   created_at: string;
 }
 
+interface PasswordResetEmailLogEntry {
+  id: string;
+  recipient_email: string;
+  from_address: string;
+  status: "queued" | "sent" | "failed";
+  provider: string;
+  provider_message_id: string | null;
+  error_message: string | null;
+  context: string | null;
+  created_at: string;
+}
+
 const Admin = () => {
   const { user, profile, role, roles, isApproved } = useAuth();
   const isFinanceOnly = !roles.includes("admin") && roles.includes("finance");
@@ -118,6 +130,8 @@ const Admin = () => {
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
   const [inviteEmailLog, setInviteEmailLog] = useState<InviteEmailLogEntry[]>([]);
   const [resendEmailLoading, setResendEmailLoading] = useState<string | null>(null);
+  const [resetEmailLog, setResetEmailLog] = useState<PasswordResetEmailLogEntry[]>([]);
+  const [resendResetLoading, setResendResetLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
   const [invitationsLoading, setInvitationsLoading] = useState(true);
@@ -170,6 +184,7 @@ const Admin = () => {
       fetchInvitations();
       fetchOrgData();
       fetchInviteEmailLog();
+      fetchResetEmailLog();
     }
   }, [role, isApproved]);
 
