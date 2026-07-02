@@ -471,15 +471,16 @@ const Admin = () => {
   const handleResetPassword = async (email: string, userName: string) => {
     setResetLoading(email);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
-      });
-
+      const { data, error } = await supabase.functions.invoke(
+        "send-password-reset-email",
+        { body: { email, name: userName } }
+      );
       if (error) throw error;
+      if (data && (data as any).error) throw new Error((data as any).error);
 
       toast({
         title: "Password Reset Email Sent",
-        description: `A password reset link has been sent to ${email}`,
+        description: `Branded reset link sent to ${email} from hr@xboom.in`,
       });
     } catch (error: any) {
       console.error("Error sending password reset:", error);
