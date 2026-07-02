@@ -16607,6 +16607,19 @@ export type Database = {
           total_working_hours: number
         }[]
       }
+      get_employees_on_leave_today: {
+        Args: never
+        Returns: {
+          department: string
+          designation: string
+          employee_id: string
+          employee_name: string
+          end_date: string
+          is_half_day: boolean
+          leave_type: string
+          start_date: string
+        }[]
+      }
       get_gmail_integrations_safe: {
         Args: never
         Returns: {
