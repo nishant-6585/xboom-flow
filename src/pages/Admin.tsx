@@ -951,6 +951,24 @@ const Admin = () => {
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                               Invited
                             </Badge>
+                            {(() => {
+                              const latest = inviteEmailLog.find(l => l.invitation_id === invitation.id);
+                              if (!latest) return null;
+                              const cls = latest.status === "sent"
+                                ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                : latest.status === "failed"
+                                ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+                              return (
+                                <Badge
+                                  variant="outline"
+                                  className={cls}
+                                  title={latest.status === "failed" ? (latest.error_message || "Failed") : `Email ${latest.status}`}
+                                >
+                                  Email: {latest.status}
+                                </Badge>
+                              );
+                            })()}
                           </div>
                           <p className="text-sm text-muted-foreground">{invitation.email}</p>
                           <p className="text-xs text-muted-foreground">
@@ -958,6 +976,20 @@ const Admin = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={resendEmailLoading === invitation.id}
+                            onClick={() => handleResendInviteEmail(invitation.id, invitation.email)}
+                            title="Send branded invite email from hr@xboom.in"
+                          >
+                            {resendEmailLoading === invitation.id
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Mail className="w-4 h-4" />}
+                            <span className="ml-1 hidden sm:inline">
+                              {inviteEmailLog.some(l => l.invitation_id === invitation.id && l.status === "sent") ? "Resend" : "Send email"}
+                            </span>
+                          </Button>
                           <ActionWithCommentDialog
                             trigger={
                               <Button size="sm" disabled={actionLoading === invitation.id}>
