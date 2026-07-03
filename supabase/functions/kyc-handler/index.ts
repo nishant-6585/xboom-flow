@@ -46,7 +46,7 @@ async function sendEmailWithRetry(
   const outcome = await sendWithRetry(() => sendEmailOnce(to, subject, html) as Promise<SendResult>);
   return { ok: outcome.ok, error: outcome.error, attempts: outcome.attempt_count };
 }
-const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
+const FROM_ADDRESS = "Xboom <notifications@xboom.in>";
 const PORTAL_BASE = "https://xboomflow.com";
 
 const corsHeaders = {
