@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionPolicy } from "@/hooks/useSessionPolicy";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
@@ -18,6 +18,7 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
   const { user, loading, isApproved, signOut, profile, mfaStatus, refreshMfaStatus, refreshProfile } = useAuth();
   const [retrying, setRetrying] = useState(false);
   const retryAttemptedRef = useRef(false);
+  const location = useLocation();
 
   // Only activate session policy and activity tracking after full authentication (including MFA)
   const isFullyAuthenticated = !!user && isApproved && mfaStatus !== "enrollment_required" && mfaStatus !== "verification_required";
@@ -50,7 +51,7 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth" replace state={{ from: location }} />;
   }
 
   // Check if user is approved (if required)
