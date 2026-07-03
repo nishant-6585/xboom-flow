@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,7 @@ const Auth = () => {
 
   const { signIn, signUp, user, loading: authLoading, mfaStatus } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   // Live clock
@@ -97,8 +98,13 @@ const Auth = () => {
       return;
     }
 
-    navigate("/", { replace: true });
-  }, [authLoading, isForgotPassword, isResetPassword, mfaStatus, navigate, user]);
+    const state = location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null;
+    const fromPath = state?.from?.pathname;
+    const target = fromPath && fromPath !== "/auth"
+      ? `${fromPath}${state?.from?.search ?? ""}${state?.from?.hash ?? ""}`
+      : "/";
+    navigate(target, { replace: true });
+  }, [authLoading, isForgotPassword, isResetPassword, mfaStatus, navigate, user, location.state]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; name?: string; confirmPassword?: string } = {};
