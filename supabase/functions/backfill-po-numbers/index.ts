@@ -27,6 +27,15 @@ Deno.serve(async (req) => {
     const { data: u } = await supabase.auth.getUser(auth);
     if (!u?.user) return json({ error: "Unauthorized" }, 401);
 
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", u.user.id);
+    const allowed = new Set(["admin", "finance", "supply_chain"]);
+    if (!roles?.some((r: { role: string }) => allowed.has(r.role))) {
+      return json({ error: "Forbidden" }, 403);
+    }
+
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get("limit") ?? "8", 10);
     const { data: orders, error } = await supabase
