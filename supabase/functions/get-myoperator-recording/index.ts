@@ -33,6 +33,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Restrict to roles that legitimately need call recordings
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    const allowed = new Set(['admin', 'sales', 'sales_manager', 'hr']);
+    if (!roles?.some((r: { role: string }) => allowed.has(r.role))) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get file parameter (this is the _fn value from MyOperator payload)
     const reqUrl = new URL(req.url);
     const file = reqUrl.searchParams.get('file');
