@@ -37,7 +37,7 @@ const COLORS = [
   "#00C49F",
 ];
 
-export function PricelistAnalytics({ items, onFilterClick }: PricelistAnalyticsProps) {
+export function PricelistAnalytics({ items, onFilterClick, canManage }: PricelistAnalyticsProps) {
   const stats = useMemo(() => {
     const total = items.length;
     const withWebsitePrice = items.filter((i) => i.website_price && i.website_price > 0).length;
