@@ -96,9 +96,9 @@ serve(async (req) => {
             <h2 style="margin:0 0 12px">Please confirm your order</h2>
             <p>Hi ${escapeHtml(customerName)},</p>
             <p>Thank you for your order <strong>${escapeHtml(orderNumber)}</strong> with Xboom.</p>
-            <p>Because this order includes items that ship as a larger consignment, we need
-            you to confirm the order before we dispatch. Please log into your Xboom customer
-            portal and click <em>Confirm your order</em>.</p>
+            <p>Because this order includes a drone, we need you to confirm the order
+            before we dispatch. Please log into your Xboom customer portal and click
+            <em>Confirm your order</em>.</p>
             <p style="text-align:center;margin:28px 0">
               <a href="${link}" style="background:#111;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600">
                 Confirm your order
