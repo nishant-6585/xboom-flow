@@ -1024,6 +1024,22 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                           </div>
                         )}
                         <input ref={invoiceInputRef} type="file" accept=".pdf,image/*" onChange={handleInvoiceFileChange} className="hidden" />
+                        <div className="flex items-start gap-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
+                          <Checkbox
+                            id="generate-proforma"
+                            checked={generateProforma}
+                            onCheckedChange={(v) => setGenerateProforma(v === true)}
+                            className="mt-0.5"
+                          />
+                          <div className="space-y-0.5">
+                            <Label htmlFor="generate-proforma" className="text-sm font-medium cursor-pointer">
+                              Generate Proforma Invoice
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Opens the proforma editor right after the order is created.
+                            </p>
+                          </div>
+                        </div>
                       </div>
 
                       {/* PO */}
