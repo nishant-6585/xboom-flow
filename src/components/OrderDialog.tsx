@@ -14,6 +14,7 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { DeliveryProofCard } from '@/components/orders/DeliveryProofCard';
 import { useEditHistory } from '@/hooks/useEditHistory';
 import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
 import { useSuppliers } from '@/hooks/useSuppliers';
