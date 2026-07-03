@@ -16722,6 +16722,15 @@ export type Database = {
           occurred_at: string
         }[]
       }
+      get_order_confirmation_details: {
+        Args: { p_order_id: string }
+        Returns: {
+          confirmation_status: string
+          confirmed_at: string
+          contact_email: string
+          contact_name: string
+        }[]
+      }
       get_order_profits:
         | {
             Args: { p_order_ids: string[] }
