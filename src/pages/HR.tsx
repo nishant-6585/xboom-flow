@@ -58,6 +58,7 @@ export default function HR() {
   const [activeTab, setActiveTab] = useState(tabFromUrl || "home");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [hrLeaveDialogOpen, setHRLeaveDialogOpen] = useState(false);
+  const [leavePrefillDate, setLeavePrefillDate] = useState<string | undefined>(undefined);
   const [leaveFilter, setLeaveFilter] = useState('all');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [yesterdayLog, setYesterdayLog] = useState<AttendanceLog | null>(null);
@@ -186,7 +187,10 @@ export default function HR() {
               onRefresh={() => { fetchYesterdayLog(); if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth); }}
               yesterdayLog={yesterdayLog}
               onCorrected={() => { fetchYesterdayLog(); if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth); }}
-              onApplyLeave={() => setLeaveDialogOpen(true)}
+              onApplyLeave={(prefillDate) => {
+                setLeavePrefillDate(prefillDate);
+                setLeaveDialogOpen(true);
+              }}
             />
           </TabsContent>
 
@@ -267,7 +271,15 @@ export default function HR() {
         </Tabs>
       </main>
 
-      <LeaveApplyDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} onSubmit={applyLeave} />
+      <LeaveApplyDialog
+        open={leaveDialogOpen}
+        onOpenChange={(o) => {
+          setLeaveDialogOpen(o);
+          if (!o) setLeavePrefillDate(undefined);
+        }}
+        onSubmit={applyLeave}
+        prefillDate={leavePrefillDate}
+      />
       {isHROrAdmin && (
         <HRLeaveApplyDialog
           open={hrLeaveDialogOpen}
