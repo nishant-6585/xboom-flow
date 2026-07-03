@@ -104,6 +104,7 @@ Deno.serve(async (req) => {
     const wcUrl = Deno.env.get("WC_SITE_URL");
     const wcKey = Deno.env.get("WC_CONSUMER_KEY");
     const wcSecret = Deno.env.get("WC_CONSUMER_SECRET");
+    let weightUnit: string | undefined = undefined;
     if (wcUrl && wcKey && wcSecret) {
       try {
         const base = wcUrl.replace(/\/$/, "");
@@ -116,14 +117,22 @@ Deno.serve(async (req) => {
           const s = await settingResp.json();
           pricesIncludeTax = String(s?.value || "").toLowerCase() === "yes";
         }
+        const wuResp = await fetch(
+          `${base}/wp-json/wc/v3/settings/products/woocommerce_weight_unit`,
+          { headers: { Authorization: `Basic ${auth}` } },
+        );
+        if (wuResp.ok) {
+          const s = await wuResp.json();
+          weightUnit = String(s?.value || "kg").toLowerCase();
+        }
       } catch (e) {
-        console.warn("[woocommerce-product-webhook] tax setting probe failed", e);
+        console.warn("[woocommerce-product-webhook] store setting probe failed", e);
       }
     }
 
     if (topic === "product.created" || topic === "product.updated") {
       const productPayload = await withStorefrontPrice(wcUrl, payload);
-      const result = await upsertWooProduct(supabase, productPayload, "woocommerce_webhook", pricesIncludeTax);
+      const result = await upsertWooProduct(supabase, productPayload, "woocommerce_webhook", pricesIncludeTax, weightUnit);
       await supabase.from("woo_sync_logs").insert({
         event_type: "product_webhook_in",
         direction: "in",
