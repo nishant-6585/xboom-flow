@@ -617,7 +617,7 @@ export default function Pricelist() {
                       <TableBody>
                         {paginatedItems.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={canManage ? 15 : 12} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={canManage ? 16 : 12} className="text-center py-8 text-muted-foreground">
                               No products found
                             </TableCell>
                           </TableRow>
