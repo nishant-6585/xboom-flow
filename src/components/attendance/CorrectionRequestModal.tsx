@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAttendanceCorrectionRequests } from '@/hooks/useAttendanceCorrectionRequests';
+import { supabase } from '@/integrations/supabase/client';
 
 type CorrectionMode = 'checkout' | 'checkin' | 'both';
 
@@ -19,6 +20,11 @@ interface CorrectionRequestModalProps {
   onOpenChange: (open: boolean) => void;
   onSubmitted: () => void | Promise<void>;
   mode?: CorrectionMode;
+  /**
+   * When true, the `log` object is a client-side placeholder (no DB row exists).
+   * The row will be created on submit only; cancelling has no side effects.
+   */
+  isVirtual?: boolean;
 }
 
 export function CorrectionRequestModal({
@@ -27,6 +33,7 @@ export function CorrectionRequestModal({
   onOpenChange,
   onSubmitted,
   mode = 'both',
+  isVirtual = false,
 }: CorrectionRequestModalProps) {
   const { submitRequest } = useAttendanceCorrectionRequests();
 
@@ -110,8 +117,26 @@ export function CorrectionRequestModal({
 
     setSaving(true);
     try {
+      let attendanceLogId = log.id;
+
+      if (isVirtual) {
+        // Create the attendance_logs stub lazily so Cancel produces no DB writes.
+        const { data: created, error: createErr } = await supabase
+          .from('attendance_logs')
+          .insert({
+            employee_id: log.employee_id,
+            date: log.date,
+            status: 'present',
+            source: 'regularization',
+          })
+          .select()
+          .single();
+        if (createErr) throw createErr;
+        attendanceLogId = created.id;
+      }
+
       await submitRequest({
-        attendance_log_id: log.id,
+        attendance_log_id: attendanceLogId,
         employee_id: log.employee_id,
         current_check_in_time: log.check_in_time,
         current_check_out_time: log.check_out_time,
