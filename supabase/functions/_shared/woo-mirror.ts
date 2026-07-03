@@ -409,19 +409,58 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     await supabase.from("order_items").delete().eq("order_id", internalId);
     const shippingLines = Array.isArray(payload?.shipping_lines) ? payload.shipping_lines : [];
     if (lineItems.length > 0 || shippingLines.length > 0) {
+      // Look up pricelist weights for the SKUs in this order so we can
+      // snapshot weight_grams onto order_items.
       // deno-lint-ignore no-explicit-any
-      const productItems = lineItems.map((li: any) => ({
-        order_id: internalId,
-        product_name: li.name || "Item",
-        product_code: li.sku || null,
-        product_category: "Consumer Drones",
-        quantity: li.quantity || 1,
-        unit_price: parseFloat(li.price || li.subtotal || "0") || 0,
-        // Woo line_items use store base prices. For xboom.in (and any store
-        // with woocommerce_prices_include_tax=no), the per-line unit price is
-        // GST-EXCLUSIVE — flag it so proforma generation computes tax on top.
-        sales_price_includes_gst: false,
-      }));
+      const skus = Array.from(new Set(
+        lineItems.map((li: any) => (li?.sku || "").toString().trim()).filter(Boolean)
+      ));
+      // deno-lint-ignore no-explicit-any
+      const names = Array.from(new Set(
+        lineItems.map((li: any) => (li?.name || "").toString().trim()).filter(Boolean)
+      ));
+      const weightByCode = new Map<string, number>();
+      const weightByName = new Map<string, number>();
+      if (skus.length > 0) {
+        const { data: pw } = await supabase
+          .from("pricelist").select("woo_sku, weight_grams").in("woo_sku", skus);
+        for (const row of pw || []) {
+          if (row?.woo_sku && row?.weight_grams != null) {
+            weightByCode.set(String(row.woo_sku), Number(row.weight_grams));
+          }
+        }
+      }
+      if (names.length > 0) {
+        const { data: pn } = await supabase
+          .from("pricelist").select("product_name, weight_grams").in("product_name", names);
+        for (const row of pn || []) {
+          if (row?.product_name && row?.weight_grams != null) {
+            weightByName.set(String(row.product_name).toLowerCase(), Number(row.weight_grams));
+          }
+        }
+      }
+      // deno-lint-ignore no-explicit-any
+      const productItems = lineItems.map((li: any) => {
+        const sku = (li?.sku || "").toString().trim();
+        const nameKey = (li?.name || "").toString().trim().toLowerCase();
+        // Prefer Woo's own line-item weight; fallback to pricelist match.
+        const liWeight = parseFloat(String(li?.weight ?? "").trim());
+        let grams: number | null = null;
+        if (Number.isFinite(liWeight) && liWeight > 0) grams = liWeight; // Woo returns line weight already in the store unit; treat as grams only if numeric > 0 AND the store unit isn't kg. Safer: use pricelist first.
+        // Prefer pricelist snapshot (already normalized to grams).
+        if (sku && weightByCode.has(sku)) grams = weightByCode.get(sku)!;
+        else if (weightByName.has(nameKey)) grams = weightByName.get(nameKey)!;
+        return {
+          order_id: internalId,
+          product_name: li.name || "Item",
+          product_code: li.sku || null,
+          product_category: "Consumer Drones",
+          quantity: li.quantity || 1,
+          unit_price: parseFloat(li.price || li.subtotal || "0") || 0,
+          sales_price_includes_gst: false,
+          weight_grams: grams,
+        };
+      });
       // Woo shipping_lines totals are also GST-EXCLUSIVE and are part of the
       // customer-paid order total. Mirror them as order_items so proformas
       // reconcile with paid website orders (e.g. Express Mode charges).
@@ -439,6 +478,22 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       const { error: itErr } = await supabase.from("order_items").insert(items);
       if (itErr) console.error("[woo-mirror] order_items insert err", itErr.message);
     }
+
+    // Weight-gated customer confirmation: the trigger has already flipped
+    // confirmation_status to 'pending' on the orders row if any line item
+    // was > 249 g. Kick off email + SMS to the customer.
+    try {
+      const { data: freshOrder } = await supabase
+        .from("orders")
+        .select("id, order_number, customer_name, customer_email, customer_phone, confirmation_status")
+        .eq("id", internalId)
+        .maybeSingle();
+      if (freshOrder && freshOrder.confirmation_status === "pending") {
+        await requestCustomerConfirmation(supabase, freshOrder);
+      }
+    } catch (e) {
+      console.error("[woo-mirror] confirmation dispatch failed", e);
+    }
   }
 
   await supabase.from("woo_sync_logs").insert({
@@ -446,6 +501,105 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     event_type: eventType, direction: "in", status: "success",
     woo_status: wooStatus,
   });
+}
+
+/**
+ * Ask the customer to confirm a heavy order.
+ *   - Email via Resend (branded, deep link to /portal/confirm)
+ *   - SMS enqueued into order_notifications (worker: send-order-sms-msg91)
+ *   - Always resilient: send failures are logged, never thrown.
+ */
+// deno-lint-ignore no-explicit-any
+export async function requestCustomerConfirmation(supabase: any, order: any): Promise<void> {
+  const orderId = order?.id;
+  const orderNumber = order?.order_number || orderId;
+  const customerName = order?.customer_name || "Customer";
+  const customerEmail: string | null = order?.customer_email || null;
+  const customerPhone: string | null = order?.customer_phone || null;
+  const link = `https://xboomflow.com/portal/confirm`;
+
+  // ---- Email via Resend ---------------------------------------------------
+  if (customerEmail) {
+    try {
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      if (RESEND_API_KEY) {
+        const html = `
+          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
+            <h2 style="margin:0 0 12px">Please confirm your order</h2>
+            <p>Hi ${escapeHtml(customerName)},</p>
+            <p>Thank you for your order <strong>${escapeHtml(orderNumber)}</strong> with Xboom.</p>
+            <p>Because this order includes items that ship as a larger consignment, we need you
+            to confirm the order before we dispatch. Please log into your Xboom customer portal
+            and click <em>Confirm your order</em>.</p>
+            <p style="text-align:center;margin:28px 0">
+              <a href="${link}" style="background:#111;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600">
+                Confirm your order
+              </a>
+            </p>
+            <p style="color:#555;font-size:13px">Or open this link: <br/>
+              <a href="${link}">${link}</a>
+            </p>
+            <p style="color:#888;font-size:12px;margin-top:32px">Xboom · Order ${escapeHtml(orderNumber)}</p>
+          </div>`;
+        const resp = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
+          body: JSON.stringify({
+            from: "Xboom Orders <orders@xboomflow.com>",
+            to: [customerEmail],
+            subject: `Action required: confirm your Xboom order ${orderNumber}`,
+            html,
+          }),
+        });
+        const emailOk = resp.ok;
+        await supabase.from("order_notifications").insert({
+          order_ref: orderId, order_source: "internal",
+          order_number: orderNumber, status_trigger: "confirmation_request",
+          channel: "email", phone: null,
+          template_name: "confirmation_request_email",
+          payload: { customer_name: customerName, order_number: orderNumber, link },
+          status: emailOk ? "sent" : "failed",
+          sent_at: emailOk ? new Date().toISOString() : null,
+          error_message: emailOk ? null : `resend http ${resp.status}`,
+          provider: "resend",
+        });
+      } else {
+        console.warn("[woo-mirror] RESEND_API_KEY missing, skipping confirmation email");
+      }
+    } catch (e) {
+      console.error("[woo-mirror] confirmation email failed", e);
+      await supabase.from("order_notifications").insert({
+        order_ref: orderId, order_source: "internal",
+        order_number: orderNumber, status_trigger: "confirmation_request",
+        channel: "email", template_name: "confirmation_request_email",
+        payload: { customer_name: customerName, order_number: orderNumber, link },
+        status: "failed", error_message: e instanceof Error ? e.message : String(e),
+        provider: "resend",
+      });
+    }
+  }
+
+  // ---- SMS via MSG91 queue ------------------------------------------------
+  if (customerPhone) {
+    try {
+      await supabase.from("order_notifications").insert({
+        order_ref: orderId, order_source: "internal",
+        order_number: orderNumber, status_trigger: "confirmation_request",
+        channel: "sms", phone: customerPhone,
+        template_name: "confirmation_request",
+        payload: { customer_name: customerName, order_number: orderNumber, link },
+        provider: "msg91",
+      });
+    } catch (e) {
+      console.error("[woo-mirror] confirmation SMS enqueue failed", e);
+    }
+  }
+}
+
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 }
 
 /**
