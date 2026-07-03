@@ -38,6 +38,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Require admin or IT role — this dispatches a code-modifying CI workflow.
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id);
+    const roleList = (roles || []).map((r: { role: string }) => r.role);
+    if (!roleList.includes("admin") && !roleList.includes("it")) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const githubToken = Deno.env.get("GITHUB_TOKEN");
     const githubRepo = Deno.env.get("GITHUB_REPO");
     if (!githubToken || !githubRepo) {
