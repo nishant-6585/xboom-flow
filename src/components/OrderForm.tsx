@@ -436,6 +436,16 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       handleClearInvoiceFile();
       handleClearPoFiles();
       setCurrentStep(1);
+    };
+
+    if (success) {
+      if (generateProforma && createdOrder) {
+        setCreatedOrderForProforma(createdOrder);
+        setProformaDialogOpen(true);
+        setPendingReset(() => doReset);
+      } else {
+        doReset();
+      }
     }
   };
 
