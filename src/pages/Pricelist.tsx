@@ -169,6 +169,7 @@ export default function Pricelist() {
         case "website_price": return it.website_price ?? null;
         case "dealer_price": return it.dealer_price ?? null;
         case "cost_price": return it.cost_price ?? null;
+        case "weight_grams": return it.weight_grams ?? null;
         case "margin":
           return it.dealer_price && it.cost_price
             ? ((it.dealer_price - it.cost_price) / it.dealer_price) * 100
