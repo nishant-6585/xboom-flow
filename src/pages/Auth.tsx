@@ -102,7 +102,7 @@ const Auth = () => {
     if (authLoading || !user || isResetPassword || isForgotPassword) return;
 
     if (mfaStatus === "verification_required") {
-      navigate("/mfa-verify", { replace: true });
+      navigate("/mfa-verify", { replace: true, state: location.state });
       return;
     }
 
