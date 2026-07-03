@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource } from '@/hooks/useOrders';
+import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource, Order } from '@/hooks/useOrders';
 import { Loader2, Package, ImageIcon, X, Upload, FileText, Plus, Users, CreditCard, Truck, MessageSquare, Check, ChevronRight, ChevronLeft, ShoppingCart } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
@@ -20,6 +20,8 @@ import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
+import { Checkbox } from '@/components/ui/checkbox';
+import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDialog';
 
 const KNOWN_COURIER_HOSTS = COURIER_NAMES
   .map((cn) => {
@@ -63,7 +65,7 @@ export interface OrderFormInitialData {
 }
 
 interface OrderFormProps {
-  onSubmit: (data: OrderFormData, paymentFiles?: File[], orderItems?: OrderItemFormData[], invoiceFile?: File, poFiles?: File[]) => Promise<boolean>;
+  onSubmit: (data: OrderFormData, paymentFiles?: File[], orderItems?: OrderItemFormData[], invoiceFile?: File, poFiles?: File[]) => Promise<Order | boolean | null>;
   enquiries?: Enquiry[];
   suppliers?: Supplier[];
   showProcurementRate?: boolean;
