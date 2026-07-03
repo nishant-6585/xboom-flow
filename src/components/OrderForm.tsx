@@ -603,6 +603,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   );
 
   const formBody = (
+    <>
     <form onSubmit={handleSubmit}>
       <StepIndicator />
           
