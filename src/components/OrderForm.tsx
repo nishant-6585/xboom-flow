@@ -135,6 +135,10 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   const [invoicePreview, setInvoicePreview] = useState<string | null>(null);
   const [poFiles, setPoFiles] = useState<FileWithPreview[]>([]);
   const [loading, setLoading] = useState(false);
+  const [generateProforma, setGenerateProforma] = useState(false);
+  const [createdOrderForProforma, setCreatedOrderForProforma] = useState<Order | null>(null);
+  const [proformaDialogOpen, setProformaDialogOpen] = useState(false);
+  const [pendingReset, setPendingReset] = useState<null | (() => void)>(null);
   const [orderItems, setOrderItems] = useState<OrderItemFormData[]>([
     {
       product_name: initialData?.product_name || '',
