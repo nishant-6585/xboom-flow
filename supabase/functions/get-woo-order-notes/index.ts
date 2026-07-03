@@ -45,6 +45,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Restrict to internal roles that legitimately need WooCommerce order notes
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const allowed = new Set(["admin", "sales", "sales_manager", "supply_chain", "finance"]);
+    if (!roles?.some((r: { role: string }) => allowed.has(r.role))) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body = await req.json().catch(() => ({}));
     const wooOrderId = String(body?.woo_order_id ?? "").trim();
     if (!/^\d{1,12}$/.test(wooOrderId)) {
