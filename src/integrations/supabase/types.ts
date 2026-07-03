@@ -17307,6 +17307,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submit_delivery_proof: {
+        Args: { p_order_id: string; p_url: string }
+        Returns: undefined
+      }
       sync_profiles_to_employees: { Args: never; Returns: number }
       trip_notification_breaker: {
         Args: { _minutes?: number; _reason: string }
