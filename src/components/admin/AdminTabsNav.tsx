@@ -39,6 +39,7 @@ const TABS: TabDef[] = [
   { value: "portal-rfqs", label: "Portal RFQs", icon: FileQuestion, to: "/admin/portal-rfqs" },
   { value: "portal-orders", label: "Portal Orders", icon: Package, to: "/admin/portal-orders" },
   { value: "portal-dispatch", label: "Dispatch Queue", icon: Briefcase, to: "/admin/portal-dispatch" },
+  { value: "portal-tickets", label: "Portal Tickets", icon: MessageSquare, to: "/admin/portal-tickets" },
   { value: "kyc-emails", label: "KYC Emails", icon: Mail, to: "/admin/kyc-emails", financeOk: true },
 ];
 
