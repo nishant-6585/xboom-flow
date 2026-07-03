@@ -90,6 +90,7 @@ import PortalActivate from "@/portal/pages/PortalActivate";
 import PortalDashboard from "@/portal/pages/PortalDashboard";
 import PortalOrders from "@/portal/pages/PortalOrders";
 import PortalOrderDetail from "@/portal/pages/PortalOrderDetail";
+import PortalConfirm from "@/portal/pages/PortalConfirm";
 import PortalDocuments from "@/portal/pages/PortalDocuments";
 import PortalRfqs from "@/portal/pages/PortalRfqs";
 import PortalTickets from "@/portal/pages/PortalTickets";
@@ -208,6 +209,14 @@ function AppInner() {
                   element={
                     <PortalProtectedRoute>
                       <PortalOrderDetail />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="confirm"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalConfirm />
                     </PortalProtectedRoute>
                   }
                 />
