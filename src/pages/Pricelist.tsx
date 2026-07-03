@@ -114,6 +114,8 @@ export default function Pricelist() {
     marketing_collateral_url: "",
     marketing_collateral_name: "",
   });
+  // weight_grams lives outside the shared reset defaults so we can leave
+  // it undefined (rather than 0) to avoid overwriting existing values.
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canManage = role === "admin" || role === "supply_chain";
@@ -346,6 +348,7 @@ export default function Pricelist() {
       notes: item.notes || "",
       marketing_collateral_url: item.marketing_collateral_url || "",
       marketing_collateral_name: item.marketing_collateral_name || "",
+      weight_grams: item.weight_grams ?? undefined,
     });
     setEditDialogOpen(true);
   };
@@ -372,6 +375,7 @@ export default function Pricelist() {
       notes: "",
       marketing_collateral_url: "",
       marketing_collateral_name: "",
+      weight_grams: undefined,
     });
   };
 
