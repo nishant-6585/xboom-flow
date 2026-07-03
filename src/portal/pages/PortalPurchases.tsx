@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { useMyKyc } from "@/hooks/useKyc";
+import { usePortalOrders } from "@/portal/hooks/usePortalOrders";
 
 type PurchaseRow = {
   order_id: string;
@@ -244,7 +245,7 @@ export default function PortalPurchases() {
   return (
     <PortalLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">My Purchases</h1>
+        <h1 className="text-2xl font-semibold">My Orders</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Every order you've placed with xboom, with tracking and delivery status.
         </p>
@@ -365,8 +366,47 @@ export default function PortalPurchases() {
               );
             })}
           </div>
+
+          <BusinessOrdersSection />
         </>
       )}
     </PortalLayout>
+  );
+}
+
+function BusinessOrdersSection() {
+  const { data: b2b, isLoading } = usePortalOrders();
+  if (isLoading) return null;
+  if (!b2b || b2b.length === 0) return null;
+  return (
+    <div className="mt-10">
+      <div className="mb-3">
+        <h2 className="text-lg font-semibold">Business Orders (quotes & pipeline)</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          B2B pipeline orders raised via quotes and RFQs.
+        </p>
+      </div>
+      <div className="space-y-3">
+        {b2b.map((o) => (
+          <Link key={o.id} to={`/portal/orders/${o.id}`} className="block">
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="py-4 px-5 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold">{o.order_number}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    State: {o.current_state}
+                    {o.customer_facing_eta ? ` · ETA ${formatDate(o.customer_facing_eta)}` : ""}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs text-muted-foreground">Total</div>
+                  <div className="font-semibold">{formatINR(o.total)}</div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }

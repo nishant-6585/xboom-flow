@@ -78,6 +78,7 @@ import PortalOrdersAdmin from "./pages/admin/PortalOrdersAdmin";
 import PortalOrderCreate from "./pages/admin/PortalOrderCreate";
 import PortalDispatchQueue from "./pages/admin/PortalDispatchQueue";
 import AdminPortalDashboard from "./pages/admin/PortalDashboard";
+import PortalTicketsAdmin from "./pages/admin/PortalTicketsAdmin";
 import KycEmailLogs from "./pages/admin/KycEmailLogs";
 import ZohoInvoices from "./pages/admin/ZohoInvoices";
 import DevConsole from "./pages/admin/DevConsole";
@@ -88,7 +89,6 @@ import PortalLogin from "@/portal/pages/PortalLogin";
 import PortalSetPassword from "@/portal/pages/PortalSetPassword";
 import PortalActivate from "@/portal/pages/PortalActivate";
 import PortalDashboard from "@/portal/pages/PortalDashboard";
-import PortalOrders from "@/portal/pages/PortalOrders";
 import PortalOrderDetail from "@/portal/pages/PortalOrderDetail";
 import PortalConfirm from "@/portal/pages/PortalConfirm";
 import PortalPurchases from "@/portal/pages/PortalPurchases";
@@ -164,6 +164,7 @@ function AppInner() {
         <Route path="/admin/portal-orders/new" element={<ProtectedRoute><PortalOrderCreate /></ProtectedRoute>} />
         <Route path="/admin/portal-dispatch" element={<ProtectedRoute><PortalDispatchQueue /></ProtectedRoute>} />
         <Route path="/admin/portal-dashboard" element={<ProtectedRoute><AdminPortalDashboard /></ProtectedRoute>} />
+        <Route path="/admin/portal-tickets" element={<ProtectedRoute><PortalTicketsAdmin /></ProtectedRoute>} />
         <Route path="/admin/kyc-emails" element={<ProtectedRoute><KycEmailLogs /></ProtectedRoute>} />
         <Route path="/admin/zoho-invoices" element={<ProtectedRoute><ZohoInvoices /></ProtectedRoute>} />
         <Route path="/admin/dev-console" element={<ProtectedRoute><DevConsole /></ProtectedRoute>} />
@@ -201,7 +202,7 @@ function AppInner() {
                   path="orders"
                   element={
                     <PortalProtectedRoute>
-                      <PortalOrders />
+                      <Navigate to="/portal/purchases" replace />
                     </PortalProtectedRoute>
                   }
                 />

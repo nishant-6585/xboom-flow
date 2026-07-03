@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
   // 1) First-response breaches: open tickets, no first_response_at, due passed
   const { data: frBreaches } = await admin
     .from("portal_tickets")
-    .select("id, ticket_number, subject, priority, account_id, assigned_to, sla_first_response_due_at, account:portal_accounts(company_name, assigned_rep_id)")
+    .select("id, ticket_number, subject, priority, ticket_type, account_id, assigned_to, sla_first_response_due_at, account:portal_accounts(company_name, assigned_rep_id)")
     .is("first_response_at", null)
     .lt("sla_first_response_due_at", now)
     .not("status", "in", "(resolved,closed)")
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   // 2) Resolution breaches: not resolved, due passed
   const { data: resBreaches } = await admin
     .from("portal_tickets")
-    .select("id, ticket_number, subject, priority, account_id, assigned_to, sla_resolution_due_at, account:portal_accounts(company_name, assigned_rep_id)")
+    .select("id, ticket_number, subject, priority, ticket_type, account_id, assigned_to, sla_resolution_due_at, account:portal_accounts(company_name, assigned_rep_id)")
     .is("resolved_at", null)
     .lt("sla_resolution_due_at", now)
     .not("status", "in", "(resolved,closed)")
@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
     ticket_number: string;
     subject: string;
     priority: string;
+    ticket_type: string;
     assigned_to: string | null;
     account: { company_name: string; assigned_rep_id: string | null } | null;
   };
@@ -105,6 +106,28 @@ Deno.serve(async (req) => {
       .select("user_id")
       .eq("role", "admin");
     for (const r of (adminRoles ?? []) as Array<{ user_id: string }>) userIds.push(r.user_id);
+
+    // Service requests: also loop in supply_chain + sales_manager
+    if (row.ticket_type === "service_request") {
+      const { data: extras } = await admin
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["supply_chain", "sales_manager"]);
+      for (const r of (extras ?? []) as Array<{ user_id: string }>) userIds.push(r.user_id);
+
+      // In-app notifications (never block on email)
+      const label = kind === "first_response" ? "First response" : "Resolution";
+      for (const uid of [...new Set(userIds)]) {
+        try {
+          await admin.from("notifications").insert({
+            user_id: uid,
+            type: "portal_service_request_sla",
+            title: `[SLA breach] ${label} — ${row.ticket_number}`,
+            message: `${row.subject} (${row.account?.company_name ?? "—"})`,
+          });
+        } catch { /* ignore */ }
+      }
+    }
 
     const emails: string[] = [];
     for (const uid of [...new Set(userIds)]) {

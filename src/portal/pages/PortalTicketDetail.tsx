@@ -115,11 +115,36 @@ export default function PortalTicketDetail() {
                 <span className="font-mono text-xs text-muted-foreground">{data.ticket.ticket_number}</span>
                 <TicketStatusBadge status={data.ticket.status} />
                 <TicketPriorityBadge priority={data.ticket.priority} />
+                {data.ticket.ticket_type === "service_request" && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                    Service request · 12h SLA
+                  </span>
+                )}
               </div>
               <h1 className="text-xl sm:text-2xl font-semibold mt-1">{data.ticket.subject}</h1>
               <p className="text-xs text-muted-foreground mt-1">Raised {formatDateTime(data.ticket.created_at)}</p>
             </div>
           </div>
+
+          {data.ticket.related_order_id && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Linked purchase</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                <div className="font-medium">{data.ticket.related_order_number ?? "Order"}</div>
+                {data.ticket.related_product_name && (
+                  <div className="text-muted-foreground mt-0.5">{data.ticket.related_product_name}</div>
+                )}
+                <Link
+                  to="/portal/purchases"
+                  className="text-xs text-primary hover:underline mt-2 inline-block"
+                >
+                  View in My Orders →
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-2">

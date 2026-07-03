@@ -9037,6 +9037,7 @@ export type Database = {
           cancelled_by: string | null
           committed_timeline: string | null
           company_id: string | null
+          confirmation_source: string | null
           confirmation_status: string
           confirmed_at: string | null
           confirmed_by_contact: string | null
@@ -9145,6 +9146,7 @@ export type Database = {
           cancelled_by?: string | null
           committed_timeline?: string | null
           company_id?: string | null
+          confirmation_source?: string | null
           confirmation_status?: string
           confirmed_at?: string | null
           confirmed_by_contact?: string | null
@@ -9253,6 +9255,7 @@ export type Database = {
           cancelled_by?: string | null
           committed_timeline?: string | null
           company_id?: string | null
+          confirmation_source?: string | null
           confirmation_status?: string
           confirmed_at?: string | null
           confirmed_by_contact?: string | null
@@ -11159,12 +11162,16 @@ export type Database = {
           priority: string
           product_id: string | null
           raised_by_contact_id: string | null
+          related_order_id: string | null
+          related_order_number: string | null
+          related_product_name: string | null
           resolved_at: string | null
           sla_first_response_due_at: string | null
           sla_resolution_due_at: string | null
           status: string
           subject: string
           ticket_number: string
+          ticket_type: string
           updated_at: string
         }
         Insert: {
@@ -11179,12 +11186,16 @@ export type Database = {
           priority?: string
           product_id?: string | null
           raised_by_contact_id?: string | null
+          related_order_id?: string | null
+          related_order_number?: string | null
+          related_product_name?: string | null
           resolved_at?: string | null
           sla_first_response_due_at?: string | null
           sla_resolution_due_at?: string | null
           status?: string
           subject: string
           ticket_number: string
+          ticket_type?: string
           updated_at?: string
         }
         Update: {
@@ -11199,12 +11210,16 @@ export type Database = {
           priority?: string
           product_id?: string | null
           raised_by_contact_id?: string | null
+          related_order_id?: string | null
+          related_order_number?: string | null
+          related_product_name?: string | null
           resolved_at?: string | null
           sla_first_response_due_at?: string | null
           sla_resolution_due_at?: string | null
           status?: string
           subject?: string
           ticket_number?: string
+          ticket_type?: string
           updated_at?: string
         }
         Relationships: [
@@ -17081,6 +17096,7 @@ export type Database = {
           cancelled_by: string | null
           committed_timeline: string | null
           company_id: string | null
+          confirmation_source: string | null
           confirmation_status: string
           confirmed_at: string | null
           confirmed_by_contact: string | null
