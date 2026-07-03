@@ -83,9 +83,9 @@ export default function PortalConfirm() {
           <CardContent className="py-4 flex items-start gap-3">
             <ShieldAlert className="h-5 w-5 text-amber-600 mt-0.5" />
             <div className="flex-1">
-              <p className="font-medium text-amber-900">Complete KYC first</p>
+              <p className="font-medium text-amber-900">Complete KYC to confirm your order</p>
               <p className="text-sm text-amber-800 mt-1">
-                You need to submit your KYC (Aadhaar) before you can confirm your order.
+                Submitting your KYC will automatically confirm these pending orders — no extra step needed.
               </p>
             </div>
             <Button asChild variant="default" className="bg-amber-600 hover:bg-amber-700 text-white">
