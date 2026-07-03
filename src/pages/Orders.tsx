@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -130,10 +130,13 @@ export default function Orders() {
   }, [tabFromUrl]);
 
   // Deep-link: open a specific order when ?order_id=<uuid> is present
+  const openedOrderIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!orderIdFromUrl || !orders.length) return;
+    if (openedOrderIdRef.current === orderIdFromUrl) return;
     const found = orders.find(o => o.id === orderIdFromUrl);
     if (found) {
+      openedOrderIdRef.current = orderIdFromUrl;
       setSelectedOrder(found);
       setDialogOpen(true);
     }
@@ -436,7 +439,16 @@ export default function Orders() {
         <OrderDialog
           order={(selectedOrder ? (orders.find(o => o.id === selectedOrder.id) ?? selectedOrder) : null)}
           open={dialogOpen}
-          onOpenChange={setDialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) {
+              if (searchParams.has('order_id')) {
+                const next = new URLSearchParams(searchParams);
+                next.delete('order_id');
+                setSearchParams(next, { replace: true });
+              }
+            }
+          }}
           onUpdate={updateOrder}
           onDelete={deleteOrder}
           onEscalate={escalateOrder}
