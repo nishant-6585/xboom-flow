@@ -275,7 +275,7 @@ async function onboardOrder(
   }
   const { data: order, error } = await admin
     .from("orders")
-    .select("id, order_number, customer_name, customer_email, customer_company, sales_person_id, sales_person_name, source")
+    .select("id, order_number, customer_name, customer_email, customer_company, sales_person_id, sales_person_name, source, confirmation_status, requires_confirmation")
     .eq("id", orderId)
     .maybeSingle();
   if (error) return json({ error: error.message }, 500);
@@ -450,6 +450,31 @@ async function onboardOrder(
 
   // Onboarding + KYC email
   const kycLink = `${PORTAL_BASE}/portal/kyc`;
+  const confirmLink = `${PORTAL_BASE}/portal/confirm`;
+  const needsConfirmation =
+    (order as any).confirmation_status === "pending" ||
+    ((order as any).requires_confirmation === true &&
+      (order as any).confirmation_status !== "confirmed");
+
+  const stepsHtml = needsConfirmation
+    ? `<ol style="margin:0;padding-left:18px;font-size:14px;color:#334155;line-height:1.7;">
+         <li>Set your password using the button below.</li>
+         <li>Complete mandatory KYC (Aadhaar) verification.</li>
+         <li>Confirm your order at <a href="${confirmLink}" style="color:#0f172a;text-decoration:underline;">${confirmLink}</a>.</li>
+       </ol>
+       <p style="margin:10px 0 0;font-size:13px;color:#b45309;">
+         KYC completion and order confirmation are required before we start processing your order.
+       </p>`
+    : `<ol style="margin:0;padding-left:18px;font-size:14px;color:#334155;line-height:1.7;">
+         <li>Set your password using the button below.</li>
+         <li>Sign in and head to <strong>KYC Verification</strong>.</li>
+         <li>Enter your 12-digit Aadhaar number and upload your Aadhaar card.</li>
+       </ol>`;
+
+  const confirmButtonHtml = needsConfirmation
+    ? `<p style="margin:0 0 22px;">${btn(confirmLink, "Confirm my order")}</p>`
+    : "";
+
   const html = shell(
     "Customer Portal",
     `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;">Thank you for your order, ${esc(order.customer_name || "")}!</h1>
@@ -461,14 +486,11 @@ async function onboardOrder(
      </p>
      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 22px;">
        <p style="margin:0 0 10px;font-weight:600;color:#0f172a;font-size:14px;">Getting started</p>
-       <ol style="margin:0;padding-left:18px;font-size:14px;color:#334155;line-height:1.7;">
-         <li>Set your password using the button below.</li>
-         <li>Sign in and head to <strong>KYC Verification</strong>.</li>
-         <li>Enter your 12-digit Aadhaar number and upload your Aadhaar card.</li>
-       </ol>
+       ${stepsHtml}
      </div>
      <p style="margin:0 0 14px;">${btn(setupLink, "Set my password")}</p>
      <p style="margin:0 0 22px;">${btn(kycLink, "Upload KYC documents")}</p>
+     ${confirmButtonHtml}
      <p style="margin:0;font-size:12px;color:#94a3b8;">Order processing may require KYC approval. If you have questions, just reply to this email.</p>`,
   );
 
@@ -487,6 +509,34 @@ async function onboardOrder(
     attempt_count: sendRes.attempts,
     sent_by: opts.triggeredBy ?? null,
   });
+
+  // If this onboarding email also carried the order-confirmation ask, log it
+  // against order_notifications so the customer-comms audit trail is complete
+  // and downstream code doesn't send a duplicate confirmation email.
+  if (needsConfirmation) {
+    try {
+      await admin.from("order_notifications").insert({
+        order_ref: order.id,
+        order_source: "internal",
+        order_number: order.order_number,
+        status_trigger: "confirmation_request",
+        channel: "email",
+        template_name: "confirmation_request_email",
+        payload: {
+          customer_name: order.customer_name,
+          order_number: order.order_number,
+          link: confirmLink,
+          delivered_via: "onboarding_email",
+        },
+        status: sendRes.ok ? "sent" : "failed",
+        sent_at: sendRes.ok ? new Date().toISOString() : null,
+        error_message: sendRes.ok ? null : sendRes.error,
+        provider: "resend",
+      });
+    } catch (logErr) {
+      console.error("[kyc-handler] order_notifications log failed", logErr);
+    }
+  }
 
   await admin.from("kyc_audit_log").insert({
     account_id: acctId,
