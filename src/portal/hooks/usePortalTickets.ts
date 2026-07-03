@@ -6,6 +6,7 @@ import { notifyPortal } from "@/portal/lib/portalNotify";
 export type TicketStatus = "open" | "in_progress" | "awaiting_customer" | "resolved" | "closed";
 export type TicketPriority = "low" | "medium" | "high" | "critical";
 export type TicketCategory = "technical" | "documentation" | "spare_parts" | "training" | "billing" | "other";
+export type TicketType = "general" | "service_request";
 
 export interface PortalTicket {
   id: string;
@@ -20,6 +21,12 @@ export interface PortalTicket {
   updated_at: string;
   first_response_at: string | null;
   resolved_at: string | null;
+  ticket_type: TicketType;
+  related_order_id: string | null;
+  related_order_number: string | null;
+  related_product_name: string | null;
+  sla_first_response_due_at: string | null;
+  sla_resolution_due_at: string | null;
 }
 
 export interface PortalTicketMessage {
@@ -54,7 +61,7 @@ export function usePortalTickets() {
     queryFn: async (): Promise<PortalTicket[]> => {
       const { data, error } = await supabase
         .from("portal_tickets")
-        .select("id, ticket_number, subject, description, category, priority, status, order_id, created_at, updated_at, first_response_at, resolved_at")
+        .select("id, ticket_number, subject, description, category, priority, status, order_id, created_at, updated_at, first_response_at, resolved_at, ticket_type, related_order_id, related_order_number, related_product_name, sla_first_response_due_at, sla_resolution_due_at")
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return ((data ?? []) as unknown) as PortalTicket[];
@@ -71,7 +78,7 @@ export function usePortalTicket(ticketId: string | undefined) {
       const [t, m] = await Promise.all([
         supabase
           .from("portal_tickets")
-          .select("id, ticket_number, subject, description, category, priority, status, order_id, created_at, updated_at, first_response_at, resolved_at")
+          .select("id, ticket_number, subject, description, category, priority, status, order_id, created_at, updated_at, first_response_at, resolved_at, ticket_type, related_order_id, related_order_number, related_product_name, sla_first_response_due_at, sla_resolution_due_at")
           .eq("id", ticketId)
           .maybeSingle(),
         supabase
@@ -97,6 +104,10 @@ export interface NewTicketInput {
   priority: TicketPriority;
   order_id: string | null;
   attachments: { name: string; path: string; size?: number }[];
+  ticket_type?: TicketType;
+  related_order_id?: string | null;
+  related_order_number?: string | null;
+  related_product_name?: string | null;
 }
 
 export function useCreateTicket() {
@@ -115,6 +126,10 @@ export function useCreateTicket() {
           category: input.category,
           priority: input.priority,
           order_id: input.order_id,
+          ticket_type: input.ticket_type ?? "general",
+          related_order_id: input.related_order_id ?? null,
+          related_order_number: input.related_order_number ?? null,
+          related_product_name: input.related_product_name ?? null,
         } as never)
         .select("id, ticket_number")
         .single();
