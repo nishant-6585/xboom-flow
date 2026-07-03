@@ -52,6 +52,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Scale,
 } from "lucide-react";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { toast } from "sonner";
@@ -136,7 +137,7 @@ export default function Pricelist() {
       const matchesAvailability = availabilityFilter === "all" || 
         (availabilityFilter === "_blank" ? (!item.availability || item.availability.trim() === "") : item.availability === availabilityFilter);
       
-      // Price filter logic
+      // Price / weight filter logic
       let matchesPrice = true;
       if (priceFilter === "with_price") {
         matchesPrice = (item.website_price && item.website_price > 0) || (item.dealer_price && item.dealer_price > 0);
@@ -148,6 +149,8 @@ export default function Pricelist() {
         matchesPrice = !!(item.dealer_price && item.dealer_price > 0);
       } else if (priceFilter === "cost") {
         matchesPrice = !!(item.cost_price && item.cost_price > 0);
+      } else if (priceFilter === "missing_weight") {
+        matchesPrice = !item.weight_grams || item.weight_grams <= 0;
       }
       
       return matchesSearch && matchesCategory && matchesBrand && matchesAvailability && matchesPrice;
@@ -166,6 +169,7 @@ export default function Pricelist() {
         case "website_price": return it.website_price ?? null;
         case "dealer_price": return it.dealer_price ?? null;
         case "cost_price": return it.cost_price ?? null;
+        case "weight_grams": return it.weight_grams ?? null;
         case "margin":
           return it.dealer_price && it.cost_price
             ? ((it.dealer_price - it.cost_price) / it.dealer_price) * 100
@@ -409,8 +413,15 @@ export default function Pricelist() {
       case "website": return "Website Price";
       case "dealer": return "Dealer Price";
       case "cost": return "Cost Price";
+      case "missing_weight": return "Missing Weight";
       default: return "";
     }
+  };
+
+  const isMissingWeightFilter = priceFilter === "missing_weight";
+
+  const toggleMissingWeight = () => {
+    setPriceFilter((current) => (current === "missing_weight" ? "all" : "missing_weight"));
   };
 
   const toggleSort = (key: string) => {
@@ -547,13 +558,26 @@ export default function Pricelist() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {canManage && (
+                    <Button
+                      type="button"
+                      variant={isMissingWeightFilter ? "default" : "outline"}
+                      size="sm"
+                      onClick={toggleMissingWeight}
+                      className="shrink-0"
+                      title="Show only products missing weight"
+                    >
+                      <Scale className="w-4 h-4 mr-2" />
+                      Missing weight
+                    </Button>
+                  )}
                 </div>
 
-                {/* Active price filter indicator */}
+                {/* Active filter indicator */}
                 {priceFilter !== "all" && (
                   <div className="flex items-center gap-2 mb-4">
                     <Badge variant="secondary" className="flex items-center gap-1">
-                      Price Filter: {getPriceFilterLabel(priceFilter)}
+                      Filter: {getPriceFilterLabel(priceFilter)}
                       <button
                         onClick={() => setPriceFilter("all")}
                         className="ml-1 hover:text-destructive"
@@ -580,6 +604,7 @@ export default function Pricelist() {
                           <SortableHead k="website_price">Website Price</SortableHead>
                           <SortableHead k="dealer_price">Dealer Price</SortableHead>
                           {canManage && <SortableHead k="cost_price">Cost Price</SortableHead>}
+                          {canManage && <SortableHead k="weight_grams">Weight (g)</SortableHead>}
                           {canManage && <SortableHead k="margin">Margin</SortableHead>}
                           <TableHead>Lead Time</TableHead>
                           <SortableHead k="availability">Availability</SortableHead>
@@ -592,7 +617,7 @@ export default function Pricelist() {
                       <TableBody>
                         {paginatedItems.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={canManage ? 15 : 12} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={canManage ? 16 : 12} className="text-center py-8 text-muted-foreground">
                               No products found
                             </TableCell>
                           </TableRow>
@@ -672,6 +697,15 @@ export default function Pricelist() {
                                     </span>
                                   ) : (
                                     <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                              )}
+                              {canManage && (
+                                <TableCell>
+                                  {item.weight_grams && item.weight_grams > 0 ? (
+                                    <span className="font-medium">{item.weight_grams.toLocaleString()} g</span>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
                                   )}
                                 </TableCell>
                               )}
@@ -839,7 +873,7 @@ export default function Pricelist() {
           </TabsContent>
 
           <TabsContent value="analytics" forceMount className="data-[state=inactive]:hidden mt-0 data-[state=active]:mt-2">
-            <PricelistAnalytics items={items} onFilterClick={handleAnalyticsFilterClick} />
+            <PricelistAnalytics items={items} onFilterClick={handleAnalyticsFilterClick} canManage={canManage} />
           </TabsContent>
         </Tabs>
 

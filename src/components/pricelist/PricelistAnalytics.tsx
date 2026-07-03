@@ -14,13 +14,14 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Package, DollarSign, AlertCircle, CheckCircle } from "lucide-react";
+import { Package, DollarSign, AlertCircle, CheckCircle, Scale } from "lucide-react";
 
-export type PriceFilterType = "all" | "with_price" | "missing_price" | "website" | "dealer" | "cost";
+export type PriceFilterType = "all" | "with_price" | "missing_price" | "website" | "dealer" | "cost" | "missing_weight";
 
 interface PricelistAnalyticsProps {
   items: PricelistItem[];
   onFilterClick?: (filter: PriceFilterType, category?: string) => void;
+  canManage?: boolean;
 }
 
 const COLORS = [
@@ -36,7 +37,7 @@ const COLORS = [
   "#00C49F",
 ];
 
-export function PricelistAnalytics({ items, onFilterClick }: PricelistAnalyticsProps) {
+export function PricelistAnalytics({ items, onFilterClick, canManage }: PricelistAnalyticsProps) {
   const stats = useMemo(() => {
     const total = items.length;
     const withWebsitePrice = items.filter((i) => i.website_price && i.website_price > 0).length;
@@ -46,6 +47,7 @@ export function PricelistAnalytics({ items, onFilterClick }: PricelistAnalyticsP
       (i) => (i.website_price && i.website_price > 0) || (i.dealer_price && i.dealer_price > 0)
     ).length;
     const missingAllPrices = total - withAnyPrice;
+    const missingWeight = items.filter((i) => !i.weight_grams || i.weight_grams <= 0).length;
 
     return {
       total,
@@ -54,9 +56,11 @@ export function PricelistAnalytics({ items, onFilterClick }: PricelistAnalyticsP
       withCostPrice,
       withAnyPrice,
       missingAllPrices,
+      missingWeight,
       websitePricePercent: total > 0 ? ((withWebsitePrice / total) * 100).toFixed(1) : "0",
       dealerPricePercent: total > 0 ? ((withDealerPrice / total) * 100).toFixed(1) : "0",
       costPricePercent: total > 0 ? ((withCostPrice / total) * 100).toFixed(1) : "0",
+      missingWeightPercent: total > 0 ? ((missingWeight / total) * 100).toFixed(1) : "0",
     };
   }, [items]);
 
@@ -127,7 +131,7 @@ export function PricelistAnalytics({ items, onFilterClick }: PricelistAnalyticsP
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className={`grid gap-4 grid-cols-2 ${canManage ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
         <Card 
           className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
           onClick={() => handleCardClick("all")}
@@ -173,6 +177,24 @@ export function PricelistAnalytics({ items, onFilterClick }: PricelistAnalyticsP
             </p>
           </CardContent>
         </Card>
+
+        {canManage && (
+          <Card
+            className="cursor-pointer transition-all hover:shadow-md hover:border-orange-500/50"
+            onClick={() => handleCardClick("missing_weight")}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Missing Weight</CardTitle>
+              <Scale className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{stats.missingWeight}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.total > 0 ? stats.missingWeightPercent : 0}% missing
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
