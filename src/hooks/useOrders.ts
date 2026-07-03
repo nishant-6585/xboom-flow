@@ -436,10 +436,10 @@ export function useOrders() {
     orderItems?: { product_name: string; product_code?: string; product_category: string; quantity: number; unit_price?: number; procurement_rate?: number; notes?: string; }[],
     invoiceFile?: File,
     poFiles?: File[]
-  ): Promise<boolean> => {
+  ): Promise<Order | null> => {
     if (!user) {
       toast.error('You must be logged in to create orders');
-      return false;
+      return null;
     }
 
     try {
