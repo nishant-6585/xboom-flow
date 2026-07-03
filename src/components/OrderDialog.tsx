@@ -184,6 +184,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [isRto, setIsRto] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
+  const [deliveryMode, setDeliveryMode] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerGst, setCustomerGst] = useState('');
