@@ -1153,6 +1153,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Weight-gated customer confirmation status */}
+            <OrderConfirmationStatusBanner order={order} canResend={isAdmin || isSales} />
+
             {/* Escalation Banner */}
             {order.is_escalated && (
               <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
