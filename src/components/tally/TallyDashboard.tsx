@@ -322,12 +322,24 @@ export function TallyDashboard() {
         setOrderItems(itemsRes.data || []);
         setInvoices(invoicesRes.data || []);
         setSuppliers(suppliersRes.data || []);
-        // Zoho Books invoices already linked to internal orders via match RPC
-        const { data: zohoData } = await supabase
-          .from("zoho_books_invoices")
-          .select("invoice_number, linked_order_id")
-          .not("linked_order_id", "is", null);
-        setZohoInvoices((zohoData as ZohoInvoiceLink[]) || []);
+        // Zoho Books invoices already linked to internal orders via match RPC.
+        // Page through results — the Data API caps a single response at 1000 rows,
+        // and we can have several thousand linked invoices.
+        const zohoAll: ZohoInvoiceLink[] = [];
+        const pageSize = 1000;
+        for (let from = 0; ; from += pageSize) {
+          const { data: zohoPage, error: zohoErr } = await supabase
+            .from("zoho_books_invoices")
+            .select("invoice_number, linked_order_id")
+            .not("linked_order_id", "is", null)
+            .order("invoice_id", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (zohoErr) break;
+          const batch = (zohoPage as ZohoInvoiceLink[]) || [];
+          zohoAll.push(...batch);
+          if (batch.length < pageSize) break;
+        }
+        setZohoInvoices(zohoAll);
         setPrimaryModes(((modesRes.data as unknown) as TallyPrimaryMode[]) || []);
 
         // Enrich inventory links with procurement details
