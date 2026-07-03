@@ -702,6 +702,15 @@ export default function Pricelist() {
                               )}
                               {canManage && (
                                 <TableCell>
+                                  {item.weight_grams && item.weight_grams > 0 ? (
+                                    <span className="font-medium">{item.weight_grams.toLocaleString()} g</span>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                              )}
+                              {canManage && (
+                                <TableCell>
                                   {item.dealer_price && item.cost_price ? (
                                     <span className={`font-medium ${
                                       ((item.dealer_price - item.cost_price) / item.dealer_price) * 100 >= 20 
