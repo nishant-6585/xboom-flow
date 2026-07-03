@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User, ExternalLink,
+  IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User, ExternalLink, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComp } from "@/components/ui/calendar";
@@ -282,9 +282,10 @@ export function TallyDashboard() {
     return false; // Read-only in tally context
   }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
       const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes, linksRes] = await Promise.all([
           supabase
             .from("orders")
@@ -354,14 +355,33 @@ export function TallyDashboard() {
           rawLinks.forEach(l => { l.procurement = procMap.get(l.inventory_procurement_id); });
         }
         setInvLinks(rawLinks);
-      } catch (err) {
-        console.error("Error fetching tally data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    } catch (err) {
+      console.error("Error fetching tally data:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const t = toast.loading("Refreshing tally… syncing Zoho invoices");
+    try {
+      const { error: syncErr } = await supabase.functions.invoke("zoho-books-sync", { body: {} });
+      if (syncErr) {
+        toast.error(`Zoho sync failed: ${syncErr.message}`, { id: t });
+      } else {
+        toast.success("Zoho invoices synced", { id: t });
+      }
+      await fetchData();
+    } catch (err: any) {
+      toast.error(err?.message || "Refresh failed", { id: t });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchData, refreshing]);
 
   // Unique salesperson list
   const salesPersons = useMemo(() => {
@@ -1031,9 +1051,21 @@ export function TallyDashboard() {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="text-lg">Order-Procurement Tally</CardTitle>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search order, customer, invoice, supplier, GST..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search order, customer, invoice, supplier, GST..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                title="Re-fetch Zoho invoices and refresh tally totals"
+              >
+                <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+                {refreshing ? "Refreshing…" : "Refresh tally"}
+              </Button>
             </div>
           </div>
         </CardHeader>
