@@ -381,10 +381,13 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     setLoading(true);
     const paymentFilesArray = paymentFiles.length > 0 ? paymentFiles.map(f => f.file) : undefined;
     const poFilesArray = poFiles.length > 0 ? poFiles.map(f => f.file) : undefined;
-    const success = await onSubmit(updatedFormData, paymentFilesArray, validItems, invoiceFile || undefined, poFilesArray);
+    const result = await onSubmit(updatedFormData, paymentFilesArray, validItems, invoiceFile || undefined, poFilesArray);
     setLoading(false);
 
-    if (success) {
+    const success = !!result;
+    const createdOrder = (result && typeof result === 'object') ? (result as Order) : null;
+
+    const doReset = () => {
       setFormData({
         product_name: '',
         product_category: 'Consumer Drones',
