@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Package, DollarSign, AlertCircle, CheckCircle } from "lucide-react";
+import { Package, DollarSign, AlertCircle, CheckCircle, Scale } from "lucide-react";
 
 export type PriceFilterType = "all" | "with_price" | "missing_price" | "website" | "dealer" | "cost";
 
