@@ -54,6 +54,7 @@ export default function Orders() {
 
   const enquiryIdFromUrl = searchParams.get('enquiry_id');
   const tabFromUrl = searchParams.get('tab');
+  const orderIdFromUrl = searchParams.get('order_id');
   const preSelectEnquiryId = searchParams.get('preSelectEnquiry');
 
   const [activeTab, setActiveTab] = useState(tabFromUrl === 'pipeline' ? 'pipeline' : tabFromUrl === 'new' ? 'new' : 'list');
@@ -127,6 +128,16 @@ export default function Orders() {
     if (tabFromUrl === 'pipeline') setActiveTab('pipeline');
     else if (tabFromUrl === 'new') setActiveTab('new');
   }, [tabFromUrl]);
+
+  // Deep-link: open a specific order when ?order_id=<uuid> is present
+  useEffect(() => {
+    if (!orderIdFromUrl || !orders.length) return;
+    const found = orders.find(o => o.id === orderIdFromUrl);
+    if (found) {
+      setSelectedOrder(found);
+      setDialogOpen(true);
+    }
+  }, [orderIdFromUrl, orders]);
 
   // Derived: roles + counts
   const canCreateOrder = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';

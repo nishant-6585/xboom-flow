@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,26 @@ interface Props {
 export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
   const status: string = order?.confirmation_status || "not_required";
   const [sending, setSending] = useState(false);
+  const [confirmedBy, setConfirmedBy] = useState<{ name: string | null; email: string | null } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    if (status !== "confirmed" || !order?.id) {
+      setConfirmedBy(null);
+      return;
+    }
+    (async () => {
+      const { data, error } = await (supabase as any).rpc("get_order_confirmation_details", {
+        p_order_id: order.id,
+      });
+      if (!alive || error) return;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) setConfirmedBy({ name: row.contact_name ?? null, email: row.contact_email ?? null });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [status, order?.id]);
 
   const resend = async () => {
     setSending(true);
@@ -48,13 +68,22 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
   }
 
   if (status === "confirmed") {
+    const who = confirmedBy?.name || confirmedBy?.email || "Customer";
+    const when = order.confirmed_at
+      ? format(new Date(order.confirmed_at), "dd MMM yyyy, HH:mm")
+      : null;
     return (
-      <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50 flex items-center gap-2 text-sm">
-        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-        <span className="text-emerald-900 font-medium">
-          Customer confirmed this order
-          {order.confirmed_at ? ` on ${format(new Date(order.confirmed_at), "dd MMM yyyy, HH:mm")}` : ""}
-        </span>
+      <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50 flex items-start gap-2 text-sm">
+        <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5" />
+        <div className="text-emerald-900">
+          <div className="font-medium">
+            Confirmed by {who}
+            {when ? ` on ${when}` : ""}
+          </div>
+          {confirmedBy?.email && confirmedBy?.name && (
+            <div className="text-xs text-emerald-800/80">{confirmedBy.email}</div>
+          )}
+        </div>
       </div>
     );
   }

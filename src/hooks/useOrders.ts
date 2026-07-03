@@ -272,7 +272,10 @@ export function useOrders() {
             order_date,
             source,
             external_id,
-            deleted_at
+            deleted_at,
+            confirmation_status,
+            requires_confirmation,
+            confirmed_at
           `)
           .order('created_at', { ascending: false })
           .limit(5000);
