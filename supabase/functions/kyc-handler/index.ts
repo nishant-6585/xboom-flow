@@ -459,11 +459,11 @@ async function onboardOrder(
   const stepsHtml = needsConfirmation
     ? `<ol style="margin:0;padding-left:18px;font-size:14px;color:#334155;line-height:1.7;">
          <li>Set your password using the button below.</li>
-         <li>Complete mandatory KYC (Aadhaar) verification.</li>
-         <li>Confirm your order at <a href="${confirmLink}" style="color:#0f172a;text-decoration:underline;">${confirmLink}</a>.</li>
+         <li>Sign in and open <strong>KYC Verification</strong>.</li>
+         <li>Complete KYC — this also confirms your order automatically.</li>
        </ol>
        <p style="margin:10px 0 0;font-size:13px;color:#b45309;">
-         KYC completion and order confirmation are required before we start processing your order.
+         Submitting your KYC will auto-confirm this order and we'll start processing right away.
        </p>`
     : `<ol style="margin:0;padding-left:18px;font-size:14px;color:#334155;line-height:1.7;">
          <li>Set your password using the button below.</li>
