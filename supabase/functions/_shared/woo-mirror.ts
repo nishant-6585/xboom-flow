@@ -421,21 +421,30 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       ));
       const weightByCode = new Map<string, number>();
       const weightByName = new Map<string, number>();
+      const categoryByCode = new Map<string, string>();
+      const categoryByName = new Map<string, string>();
       if (skus.length > 0) {
         const { data: pw } = await supabase
-          .from("pricelist").select("woo_sku, weight_grams").in("woo_sku", skus);
+          .from("pricelist").select("woo_sku, weight_grams, product_category").in("woo_sku", skus);
         for (const row of pw || []) {
           if (row?.woo_sku && row?.weight_grams != null) {
             weightByCode.set(String(row.woo_sku), Number(row.weight_grams));
+          }
+          if (row?.woo_sku && row?.product_category) {
+            categoryByCode.set(String(row.woo_sku), String(row.product_category));
           }
         }
       }
       if (names.length > 0) {
         const { data: pn } = await supabase
-          .from("pricelist").select("product_name, weight_grams").in("product_name", names);
+          .from("pricelist").select("product_name, weight_grams, product_category").in("product_name", names);
         for (const row of pn || []) {
-          if (row?.product_name && row?.weight_grams != null) {
-            weightByName.set(String(row.product_name).toLowerCase(), Number(row.weight_grams));
+          const key = row?.product_name ? String(row.product_name).toLowerCase() : null;
+          if (key && row?.weight_grams != null) {
+            weightByName.set(key, Number(row.weight_grams));
+          }
+          if (key && row?.product_category) {
+            categoryByName.set(key, String(row.product_category));
           }
         }
       }
@@ -450,11 +459,17 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
         let grams: number | null = null;
         if (sku && weightByCode.has(sku)) grams = weightByCode.get(sku)!;
         else if (weightByName.has(nameKey)) grams = weightByName.get(nameKey)!;
+        // Resolve real product_category from pricelist. Fall back to
+        // 'Uncategorized' so unmatched accessories/shipping don't false-
+        // trigger the drone-based customer-confirmation flow.
+        let category = "Uncategorized";
+        if (sku && categoryByCode.has(sku)) category = categoryByCode.get(sku)!;
+        else if (categoryByName.has(nameKey)) category = categoryByName.get(nameKey)!;
         return {
           order_id: internalId,
           product_name: li.name || "Item",
           product_code: li.sku || null,
-          product_category: "Consumer Drones",
+          product_category: category,
           quantity: li.quantity || 1,
           unit_price: parseFloat(li.price || li.subtotal || "0") || 0,
           sales_price_includes_gst: false,
