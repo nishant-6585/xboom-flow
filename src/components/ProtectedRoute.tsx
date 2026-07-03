@@ -19,6 +19,7 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
   const [retrying, setRetrying] = useState(false);
   const retryAttemptedRef = useRef(false);
   const location = useLocation();
+  const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
   // Only activate session policy and activity tracking after full authentication (including MFA)
   const isFullyAuthenticated = !!user && isApproved && mfaStatus !== "enrollment_required" && mfaStatus !== "verification_required";
@@ -51,7 +52,7 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace state={{ from: location }} />;
+    return <Navigate to={`/auth?redirect=${encodeURIComponent(returnTo)}`} replace state={{ from: location }} />;
   }
 
   // Check if user is approved (if required)

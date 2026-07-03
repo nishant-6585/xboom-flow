@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { MFAVerification } from "@/components/auth/MFAVerification";
 import { Navigate } from "react-router-dom";
@@ -7,13 +7,23 @@ import { Loader2 } from "lucide-react";
 const MFAVerify = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user, loading, signOut, refreshMfaStatus, mfaStatus } = useAuth();
 
   const state = location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null;
+  const redirectParam = searchParams.get("redirect");
+  const storedRedirect = typeof window !== "undefined" ? window.sessionStorage.getItem("xboom_post_auth_redirect") : null;
   const fromPath = state?.from?.pathname;
-  const target = fromPath && fromPath !== "/auth" && fromPath !== "/mfa-verify"
-    ? `${fromPath}${state?.from?.search ?? ""}${state?.from?.hash ?? ""}`
-    : "/";
+  const stateTarget = fromPath ? `${fromPath}${state?.from?.search ?? ""}${state?.from?.hash ?? ""}` : null;
+  const isSafeTarget = (value: string | null | undefined) =>
+    !!value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/auth") && !value.startsWith("/mfa-verify");
+  const target = isSafeTarget(redirectParam)
+    ? redirectParam
+    : isSafeTarget(stateTarget)
+      ? stateTarget
+      : isSafeTarget(storedRedirect)
+        ? storedRedirect!
+        : "/";
 
   if (loading) {
     return (
@@ -30,6 +40,7 @@ const MFAVerify = () => {
 
   // Already verified — go to dashboard
   if (mfaStatus !== "verification_required" && mfaStatus !== "enrollment_required") {
+    sessionStorage.removeItem("xboom_post_auth_redirect");
     return <Navigate to={target} replace />;
   }
 
@@ -43,6 +54,7 @@ const MFAVerify = () => {
     <MFAVerification
       onVerified={async () => {
         await refreshMfaStatus();
+        sessionStorage.removeItem("xboom_post_auth_redirect");
         navigate(target, { replace: true });
       }}
       onCancel={signOut}

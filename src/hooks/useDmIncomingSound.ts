@@ -59,12 +59,16 @@ export function useDmIncomingSound() {
         .subscribe((status) => {
           // eslint-disable-next-line no-console
           console.log("[DM] incoming-sound channel status:", status);
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
             if (cancelled) return;
-            if (channel) {
-              supabase.removeChannel(channel);
-              channel = null;
-            }
+            const staleChannel = channel;
+            channel = null;
+            if (staleChannel) void supabase.removeChannel(staleChannel);
+            if (retryTimer) clearTimeout(retryTimer);
+            retryTimer = setTimeout(connect, 2000);
+          }
+          if (status === "CLOSED" && !cancelled) {
+            channel = null;
             if (retryTimer) clearTimeout(retryTimer);
             retryTimer = setTimeout(connect, 2000);
           }

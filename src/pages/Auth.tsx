@@ -38,10 +38,24 @@ const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<
 
 type ReturnLocationState = { from?: { pathname?: string; search?: string; hash?: string } } | null;
 
-const getPostAuthTarget = (state: ReturnLocationState) => {
+const POST_AUTH_REDIRECT_KEY = "xboom_post_auth_redirect";
+
+const isSafeReturnPath = (value: string | null | undefined) =>
+  !!value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/auth") && !value.startsWith("/mfa-verify");
+
+const getPostAuthTarget = (state: ReturnLocationState, redirectParam?: string | null) => {
+  if (isSafeReturnPath(redirectParam)) return redirectParam;
+
   const fromPath = state?.from?.pathname;
-  if (!fromPath || fromPath === "/auth" || fromPath === "/mfa-verify") return "/";
-  return `${fromPath}${state?.from?.search ?? ""}${state?.from?.hash ?? ""}`;
+  const stateTarget = fromPath ? `${fromPath}${state?.from?.search ?? ""}${state?.from?.hash ?? ""}` : null;
+  if (isSafeReturnPath(stateTarget)) return stateTarget;
+
+  if (typeof window !== "undefined") {
+    const storedTarget = window.sessionStorage.getItem(POST_AUTH_REDIRECT_KEY);
+    if (isSafeReturnPath(storedTarget)) return storedTarget;
+  }
+
+  return "/";
 };
 
 const Auth = () => {
@@ -66,12 +80,19 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const redirectParam = searchParams.get("redirect");
+  const postAuthTarget = getPostAuthTarget(location.state as ReturnLocationState, redirectParam);
 
   // Live clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!isSafeReturnPath(postAuthTarget) || postAuthTarget === "/") return;
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, postAuthTarget);
+  }, [postAuthTarget]);
 
   // Check for password reset flow on mount
   useEffect(() => {
@@ -102,13 +123,13 @@ const Auth = () => {
     if (authLoading || !user || isResetPassword || isForgotPassword) return;
 
     if (mfaStatus === "verification_required") {
-      navigate("/mfa-verify", { replace: true, state: location.state });
+      navigate(`/mfa-verify?redirect=${encodeURIComponent(postAuthTarget)}`, { replace: true, state: location.state });
       return;
     }
 
-    const state = location.state as ReturnLocationState;
-    navigate(getPostAuthTarget(state), { replace: true });
-  }, [authLoading, isForgotPassword, isResetPassword, mfaStatus, navigate, user, location.state]);
+    sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY);
+    navigate(postAuthTarget, { replace: true });
+  }, [authLoading, isForgotPassword, isResetPassword, mfaStatus, navigate, user, location.state, postAuthTarget]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; name?: string; confirmPassword?: string } = {};
@@ -316,13 +337,15 @@ const Auth = () => {
 
           if (hasMfaPending) {
             // Never navigate through dashboard while second factor is still pending
-            navigate("/mfa-verify", { replace: true, state: location.state });
+            sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, postAuthTarget);
+            navigate(`/mfa-verify?redirect=${encodeURIComponent(postAuthTarget)}`, { replace: true, state: location.state });
           } else {
             toast({
               title: "Welcome back!",
               description: "You have successfully logged in.",
             });
-            navigate(getPostAuthTarget(location.state as ReturnLocationState), { replace: true });
+            sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY);
+            navigate(postAuthTarget, { replace: true });
           }
         }
       } else {
