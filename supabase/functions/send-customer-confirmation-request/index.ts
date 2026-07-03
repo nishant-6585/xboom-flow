@@ -39,12 +39,13 @@ serve(async (req) => {
     // Gate non-service-role callers to admin/sales/sales_manager.
     if (!isServiceRole) {
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+      const bearerToken = auth.replace(/^Bearer\s+/i, "").trim();
       const anonClient = createClient(
         SUPABASE_URL,
         anonKey,
         { global: { headers: { Authorization: auth } } },
       );
-      const { data: userRes, error: userErr } = await anonClient.auth.getUser();
+      const { data: userRes, error: userErr } = await anonClient.auth.getUser(bearerToken);
       const uid = userRes?.user?.id;
       if (!uid) {
         console.warn("[send-customer-confirmation-request] unauthorized", {
