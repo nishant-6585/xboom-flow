@@ -60,7 +60,20 @@ function mapCategory(woo: Woo): string {
     : "";
   if (!raw) return "Consumer Drones";
   const match = KNOWN_CATEGORIES.find((c) => c.toLowerCase() === raw.toLowerCase());
-  return match || raw;
+  if (match) return match;
+
+  // Canonicalize drone-like Woo categories so downstream drone detection
+  // (mark_order_requires_confirmation → is_drone_category) matches reliably.
+  // Mirrors the SQL helper: contains "drone" AND not an accessory/spare/etc.
+  const lower = raw.toLowerCase();
+  const isDroneish = /drone/.test(lower)
+    && !/(component|accessor|part|spare|batter|propeller|repair|service|show|payload|software|guide|parachute|filter|cable|controller|charging|hub|dock|gimbal)/.test(lower);
+  if (isDroneish) {
+    if (/(agri|agriculture|farm|crop)/.test(lower)) return "Agriculture Drones";
+    if (/(enterprise|industrial|survey|mapping|inspection|matrice|dock)/.test(lower)) return "Enterprise Drones";
+    return "Consumer Drones";
+  }
+  return raw;
 }
 
 function mapAvailability(woo: Woo): string {
