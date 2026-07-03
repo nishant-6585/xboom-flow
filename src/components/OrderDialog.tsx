@@ -84,6 +84,7 @@ const isWonOutcome = (o: string | null | undefined) => o === 'won' || o === 'OW'
 
 export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
   const { role, user, profile } = useAuth();
+  const queryClient = useQueryClient();
   const { fetchOrderItems } = useOrderItems();
   const { suppliers } = useSuppliers();
   const { recordChanges } = useEditHistory();
