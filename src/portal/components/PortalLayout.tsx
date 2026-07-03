@@ -1,11 +1,12 @@
 import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, FileText, MessageSquare, FileQuestion, Settings, LogOut, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Package, FileText, MessageSquare, FileQuestion, Settings, LogOut, ShieldCheck, ShoppingBag } from "lucide-react";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
   { to: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/portal/purchases", label: "My Purchases", icon: ShoppingBag },
   { to: "/portal/orders", label: "Orders", icon: Package },
   { to: "/portal/kyc", label: "KYC Verification", icon: ShieldCheck },
   { to: "/portal/documents", label: "Documents", icon: FileText },

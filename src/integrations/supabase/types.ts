@@ -9055,6 +9055,14 @@ export type Database = {
           deleted_by: string | null
           deleted_by_name: string | null
           delivery_charges: number | null
+          delivery_mode: string | null
+          delivery_proof_reject_reason: string | null
+          delivery_proof_reviewed_at: string | null
+          delivery_proof_reviewed_by: string | null
+          delivery_proof_status: string | null
+          delivery_proof_uploaded_at: string | null
+          delivery_proof_uploaded_by: string | null
+          delivery_proof_url: string | null
           discount_amount: number | null
           dispatched_on: string | null
           enquiry_id: string | null
@@ -9155,6 +9163,14 @@ export type Database = {
           deleted_by?: string | null
           deleted_by_name?: string | null
           delivery_charges?: number | null
+          delivery_mode?: string | null
+          delivery_proof_reject_reason?: string | null
+          delivery_proof_reviewed_at?: string | null
+          delivery_proof_reviewed_by?: string | null
+          delivery_proof_status?: string | null
+          delivery_proof_uploaded_at?: string | null
+          delivery_proof_uploaded_by?: string | null
+          delivery_proof_url?: string | null
           discount_amount?: number | null
           dispatched_on?: string | null
           enquiry_id?: string | null
@@ -9255,6 +9271,14 @@ export type Database = {
           deleted_by?: string | null
           deleted_by_name?: string | null
           delivery_charges?: number | null
+          delivery_mode?: string | null
+          delivery_proof_reject_reason?: string | null
+          delivery_proof_reviewed_at?: string | null
+          delivery_proof_reviewed_by?: string | null
+          delivery_proof_status?: string | null
+          delivery_proof_uploaded_at?: string | null
+          delivery_proof_uploaded_by?: string | null
+          delivery_proof_url?: string | null
           discount_amount?: number | null
           dispatched_on?: string | null
           enquiry_id?: string | null
@@ -16258,6 +16282,10 @@ export type Database = {
           uname: string
         }[]
       }
+      approve_delivery_proof: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       approve_invitation_atomic: {
         Args: {
           p_admin_name: string
@@ -16709,6 +16737,23 @@ export type Database = {
         }[]
       }
       get_my_portal_account_id: { Args: never; Returns: string }
+      get_my_purchases: {
+        Args: never
+        Returns: {
+          actual_delivery: string
+          confirmation_status: string
+          courier_name: string
+          order_date: string
+          order_id: string
+          order_number: string
+          product_name: string
+          quantity: number
+          status: string
+          total_sales_amount: number
+          tracking_number: string
+          tracking_url: string
+        }[]
+      }
       get_next_proforma_number: { Args: never; Returns: string }
       get_or_create_dm_thread: { Args: { other_user: string }; Returns: string }
       get_order_activity_timeline: {
@@ -17054,6 +17099,14 @@ export type Database = {
           deleted_by: string | null
           deleted_by_name: string | null
           delivery_charges: number | null
+          delivery_mode: string | null
+          delivery_proof_reject_reason: string | null
+          delivery_proof_reviewed_at: string | null
+          delivery_proof_reviewed_by: string | null
+          delivery_proof_status: string | null
+          delivery_proof_uploaded_at: string | null
+          delivery_proof_uploaded_by: string | null
+          delivery_proof_url: string | null
           discount_amount: number | null
           dispatched_on: string | null
           enquiry_id: string | null
@@ -17205,6 +17258,10 @@ export type Database = {
             }
             Returns: string
           }
+      reject_delivery_proof: {
+        Args: { p_order_id: string; p_reason: string }
+        Returns: undefined
+      }
       relink_companies: {
         Args: { _source_ids: string[]; _target_id: string }
         Returns: Json
@@ -17250,6 +17307,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submit_delivery_proof: {
+        Args: { p_order_id: string; p_url: string }
+        Returns: undefined
+      }
       sync_profiles_to_employees: { Args: never; Returns: number }
       trip_notification_breaker: {
         Args: { _minutes?: number; _reason: string }

@@ -14,6 +14,8 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
+import { DeliveryProofCard } from '@/components/orders/DeliveryProofCard';
 import { useEditHistory } from '@/hooks/useEditHistory';
 import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -82,6 +84,7 @@ const isWonOutcome = (o: string | null | undefined) => o === 'won' || o === 'OW'
 
 export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
   const { role, user, profile } = useAuth();
+  const queryClient = useQueryClient();
   const { fetchOrderItems } = useOrderItems();
   const { suppliers } = useSuppliers();
   const { recordChanges } = useEditHistory();
@@ -183,6 +186,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [isRto, setIsRto] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
+  const [deliveryMode, setDeliveryMode] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerGst, setCustomerGst] = useState('');
@@ -289,6 +293,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setIsRto(order.is_rto || false);
       setCancellationReason(order.cancellation_reason || '');
       setOrderDate(order.order_date ? new Date(order.order_date) : new Date(order.created_at));
+      setDeliveryMode(((order as any).delivery_mode as string) || null);
       setCustomerName(order.customer_name || '');
       setCustomerCompany(order.customer_company || '');
       setCustomerGst((order as any).customer_gst || '');
@@ -479,6 +484,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       return;
     }
 
+    // Office-pickup delivery requires an approved (or at least uploaded) proof photo
+    // before the order can be marked delivered.
+    if (
+      status === 'delivery_done' &&
+      deliveryMode === 'office_pickup' &&
+      !(order as any).delivery_proof_url
+    ) {
+      toast.error('Upload the customer-receiving proof photo before marking this office-pickup order as delivered.');
+      return;
+    }
+
     // Validate tracking URL is a proper http(s) link
     if (trackingUrl && !isValidHttpUrl(trackingUrl)) {
       toast.error('Tracking URL must be a valid link starting with http:// or https://');
@@ -550,6 +566,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       cancelled_at: finalStatus === 'cancelled' && order.status !== 'cancelled' ? new Date().toISOString() : order.cancelled_at,
       cancelled_by: finalStatus === 'cancelled' && order.status !== 'cancelled' ? user?.id : order.cancelled_by,
     } as Partial<Order>;
+
+    // Persist delivery mode when it changed on the card
+    if (deliveryMode !== ((order as any).delivery_mode ?? null)) {
+      (updates as any).delivery_mode = deliveryMode;
+    }
 
     // Track changes for edit history — compare every editable field
     const changes: Record<string, { old: any; new: any }> = {};
@@ -1326,6 +1347,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </div>
               )}
             </div>
+
+            {/* Delivery mode + office/showroom proof (staff-only). Customers
+                never see this card. */}
+            {canEditSalesFields && (
+              <DeliveryProofCard
+                orderId={order.id}
+                orderNumber={order.order_number}
+                deliveryMode={deliveryMode}
+                onDeliveryModeChange={(m) => setDeliveryMode(m)}
+                proofUrl={(order as any).delivery_proof_url ?? null}
+                proofStatus={(order as any).delivery_proof_status ?? null}
+                proofUploadedAt={(order as any).delivery_proof_uploaded_at ?? null}
+                proofReviewedAt={(order as any).delivery_proof_reviewed_at ?? null}
+                proofRejectReason={(order as any).delivery_proof_reject_reason ?? null}
+                onChanged={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
+              />
+            )}
 
             {/* WooCommerce sync — only for website-sourced orders. Lets the
                 user push the order to any Woo status (Processing, Shipped,
