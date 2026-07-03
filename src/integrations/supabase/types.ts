@@ -8654,6 +8654,7 @@ export type Database = {
           status: string
           supplier_id: string | null
           unit_price: number | null
+          weight_grams: number | null
         }
         Insert: {
           created_at?: string
@@ -8678,6 +8679,7 @@ export type Database = {
           status?: string
           supplier_id?: string | null
           unit_price?: number | null
+          weight_grams?: number | null
         }
         Update: {
           created_at?: string
@@ -8702,6 +8704,7 @@ export type Database = {
           status?: string
           supplier_id?: string | null
           unit_price?: number | null
+          weight_grams?: number | null
         }
         Relationships: [
           {
@@ -9034,6 +9037,9 @@ export type Database = {
           cancelled_by: string | null
           committed_timeline: string | null
           company_id: string | null
+          confirmation_status: string
+          confirmed_at: string | null
+          confirmed_by_contact: string | null
           courier_name: string | null
           created_at: string
           created_by: string
@@ -9094,6 +9100,7 @@ export type Database = {
           refund_requested_at: string | null
           refund_requested_by: string | null
           refund_status: string | null
+          requires_confirmation: boolean
           rto_marked_at: string | null
           rto_marked_by: string | null
           sales_attribution_locked: boolean
@@ -9130,6 +9137,9 @@ export type Database = {
           cancelled_by?: string | null
           committed_timeline?: string | null
           company_id?: string | null
+          confirmation_status?: string
+          confirmed_at?: string | null
+          confirmed_by_contact?: string | null
           courier_name?: string | null
           created_at?: string
           created_by: string
@@ -9190,6 +9200,7 @@ export type Database = {
           refund_requested_at?: string | null
           refund_requested_by?: string | null
           refund_status?: string | null
+          requires_confirmation?: boolean
           rto_marked_at?: string | null
           rto_marked_by?: string | null
           sales_attribution_locked?: boolean
@@ -9226,6 +9237,9 @@ export type Database = {
           cancelled_by?: string | null
           committed_timeline?: string | null
           company_id?: string | null
+          confirmation_status?: string
+          confirmed_at?: string | null
+          confirmed_by_contact?: string | null
           courier_name?: string | null
           created_at?: string
           created_by?: string
@@ -9286,6 +9300,7 @@ export type Database = {
           refund_requested_at?: string | null
           refund_requested_by?: string | null
           refund_status?: string | null
+          requires_confirmation?: boolean
           rto_marked_at?: string | null
           rto_marked_by?: string | null
           sales_attribution_locked?: boolean
@@ -11224,6 +11239,7 @@ export type Database = {
           website_price: number | null
           website_price_includes_gst: boolean
           website_synced_at: string | null
+          weight_grams: number | null
           woo_product_id: number | null
           woo_sku: string | null
           woo_stock_status: string | null
@@ -11252,6 +11268,7 @@ export type Database = {
           website_price?: number | null
           website_price_includes_gst?: boolean
           website_synced_at?: string | null
+          weight_grams?: number | null
           woo_product_id?: number | null
           woo_sku?: string | null
           woo_stock_status?: string | null
@@ -11280,6 +11297,7 @@ export type Database = {
           website_price?: number | null
           website_price_includes_gst?: boolean
           website_synced_at?: string | null
+          weight_grams?: number | null
           woo_product_id?: number | null
           woo_sku?: string | null
           woo_stock_status?: string | null
@@ -16206,6 +16224,29 @@ export type Database = {
         Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: undefined
       }
+      _current_portal_contact: {
+        Args: never
+        Returns: {
+          account_id: string
+          auth_user_id: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          invited_at: string | null
+          is_active: boolean
+          last_login_at: string | null
+          phone: string | null
+          role: string
+          whatsapp_number: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "portal_contacts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       _deduct_parts_for_repair: {
         Args: { _repair: Database["public"]["Tables"]["repairs"]["Row"] }
         Returns: undefined
@@ -16438,6 +16479,15 @@ export type Database = {
           pending_backlog: number
         }[]
       }
+      confirm_my_order: {
+        Args: { p_order_id: string }
+        Returns: {
+          confirmation_status: string
+          confirmed_at: string
+          ok: boolean
+          order_id: string
+        }[]
+      }
       count_admins: { Args: never; Returns: number }
       create_order_escalation_notification: {
         Args: { p_order_id: string; p_reason: string }
@@ -16644,6 +16694,18 @@ export type Database = {
           product_name: string
           reorder_point: number
           safety_stock: number
+        }[]
+      }
+      get_my_confirmable_orders: {
+        Args: never
+        Returns: {
+          confirmation_status: string
+          confirmed_at: string
+          order_date: string
+          order_id: string
+          order_number: string
+          product_name: string
+          total_sales_amount: number
         }[]
       }
       get_my_portal_account_id: { Args: never; Returns: string }
@@ -16960,6 +17022,9 @@ export type Database = {
           cancelled_by: string | null
           committed_timeline: string | null
           company_id: string | null
+          confirmation_status: string
+          confirmed_at: string | null
+          confirmed_by_contact: string | null
           courier_name: string | null
           created_at: string
           created_by: string
@@ -17020,6 +17085,7 @@ export type Database = {
           refund_requested_at: string | null
           refund_requested_by: string | null
           refund_status: string | null
+          requires_confirmation: boolean
           rto_marked_at: string | null
           rto_marked_by: string | null
           sales_attribution_locked: boolean
