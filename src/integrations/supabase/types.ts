@@ -16911,6 +16911,10 @@ export type Database = {
       invoke_woocommerce_orders_reconcile: { Args: never; Returns: number }
       invoke_woocommerce_products_backfill: { Args: never; Returns: number }
       is_drone_category: { Args: { cat: string }; Returns: boolean }
+      is_drone_product: {
+        Args: { p_category: string; p_name: string }
+        Returns: boolean
+      }
       is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_kyc_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_reporting_manager: {
