@@ -88,7 +88,6 @@ import PortalLogin from "@/portal/pages/PortalLogin";
 import PortalSetPassword from "@/portal/pages/PortalSetPassword";
 import PortalActivate from "@/portal/pages/PortalActivate";
 import PortalDashboard from "@/portal/pages/PortalDashboard";
-import PortalOrders from "@/portal/pages/PortalOrders";
 import PortalOrderDetail from "@/portal/pages/PortalOrderDetail";
 import PortalConfirm from "@/portal/pages/PortalConfirm";
 import PortalPurchases from "@/portal/pages/PortalPurchases";
