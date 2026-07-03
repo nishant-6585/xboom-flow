@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, AlertCircle, ShieldCheck, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { callEdgeFunction } from "@/lib/callEdgeFunction";
 
 interface Props {
   order: any;
@@ -45,10 +46,7 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
   const resend = async () => {
     setSending(true);
     try {
-      const { error } = await supabase.functions.invoke("send-customer-confirmation-request", {
-        body: { order_id: order.id },
-      });
-      if (error) throw error;
+      await callEdgeFunction("send-customer-confirmation-request", { body: { order_id: order.id } });
       toast.success("Confirmation request sent to the customer.");
     } catch (e: any) {
       toast.error(e?.message || "Failed to send confirmation request");

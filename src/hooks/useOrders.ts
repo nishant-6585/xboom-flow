@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { sendSlackNotification } from '@/hooks/useSlackSettings';
 import { mapOrderUpdateError } from '@/lib/orderPhone';
+import { callEdgeFunction } from '@/lib/callEdgeFunction';
 
 export type OrderStatus = 'po_received' | 'payment_received' | 'partial_payment_received' | 'procurement_to_plan' | 'procurement_in_process' | 'procurement_done' | 'to_ship' | 'in_transit' | 'delivery_done' | 'cancelled';
 export type PaymentStatus = 'pending' | 'partial' | 'full';
@@ -605,11 +606,9 @@ export function useOrders() {
             .eq('id', orderData.id)
             .maybeSingle();
           if (freshOrder?.confirmation_status === 'pending') {
-            supabase.functions.invoke('send-customer-confirmation-request', {
+            callEdgeFunction('send-customer-confirmation-request', {
               body: { order_id: orderData.id },
-            }).then(({ error }) => {
-              if (error) console.warn('confirmation request send failed', error);
-            });
+            }).catch((error) => console.warn('confirmation request send failed', error));
           }
         } catch (e) {
           console.warn('confirmation dispatch check failed', e);
