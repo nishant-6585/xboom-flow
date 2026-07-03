@@ -1242,6 +1242,26 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
             </div>
           </div>
         </form>
+    {createdOrderForProforma && (
+      <GenerateProformaDialog
+        order={createdOrderForProforma}
+        open={proformaDialogOpen}
+        onOpenChange={(o) => {
+          setProformaDialogOpen(o);
+          if (!o) {
+            const reset = pendingReset;
+            setPendingReset(null);
+            setCreatedOrderForProforma(null);
+            setGenerateProforma(false);
+            if (reset) reset();
+          }
+        }}
+        onGenerated={() => {
+          // Dialog stays open showing success; closing triggers reset above.
+        }}
+      />
+    )}
+    </>
   );
 
   if (embedded) {
