@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
