@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { format, parseISO, isAfter, eachDayOfInterval, startOfMonth, endOfMonth, isWeekend as isWeekendFn, isFuture, isToday, isWithinInterval, getDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, Pencil, Calendar as CalendarIcon, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, Pencil, Calendar as CalendarIcon, Plus, ClipboardEdit, CalendarPlus } from 'lucide-react';
 import { AttendanceLog, LeaveRequest } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { useHolidays } from '@/hooks/useHolidays';
@@ -26,7 +27,7 @@ interface MyAttendanceCalendarViewProps {
   onRefresh?: () => void;
   yesterdayLog?: AttendanceLog | null;
   onCorrected?: () => void;
-  onApplyLeave?: () => void;
+  onApplyLeave?: (prefillDate?: string) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -58,10 +59,9 @@ export function MyAttendanceCalendarView({
   const isHROrAdmin = role === 'admin' || role === 'hr';
   const { getHoliday } = useHolidays(calendarMonth.getFullYear());
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
-  const [stubLogId, setStubLogId] = useState<string | null>(null);
-  const [shouldCleanupStub, setShouldCleanupStub] = useState(false);
-  const [creatingStub, setCreatingStub] = useState(false);
-  const submittedStubRef = useRef(false);
+  const [correctionIsVirtual, setCorrectionIsVirtual] = useState(false);
+  // Chooser: shown when user clicks a date with no attendance log
+  const [chooserDate, setChooserDate] = useState<Date | null>(null);
 
   const [approvedLeaves, setApprovedLeaves] = useState<LeaveRequest[]>([]);
   useEffect(() => {
@@ -165,25 +165,38 @@ export function MyAttendanceCalendarView({
 
     if (log) {
       setCorrectionLog(log);
+      setCorrectionIsVirtual(false);
     } else if (!approvedLeave) {
-      // Create a stub for regularization
-      setCreatingStub(true);
-      try {
-        const dateStr = format(day, 'yyyy-MM-dd');
-        const { data, error } = await supabase.from('attendance_logs').insert({
-          employee_id: employeeId, date: dateStr, status: 'present', source: 'regularization',
-        }).select().single();
-        if (error) throw error;
-        submittedStubRef.current = false;
-        setStubLogId(data.id);
-        setShouldCleanupStub(true);
-        setCorrectionLog(data as AttendanceLog);
-      } catch (e: any) {
-        toast.error(e.message || 'Failed to create attendance record');
-      } finally {
-        setCreatingStub(false);
-      }
+      // No log yet — let user choose between regularizing or applying for leave.
+      setChooserDate(day);
     }
+  };
+
+  const startRegularizeForDate = (day: Date) => {
+    if (!employeeId) return;
+    const dateStr = format(day, 'yyyy-MM-dd');
+    // Build a client-only placeholder log; the DB row is created on submit inside the modal.
+    const virtualLog: AttendanceLog = {
+      id: `virtual-${dateStr}`,
+      employee_id: employeeId,
+      date: dateStr,
+      status: 'present',
+      check_in_time: null,
+      check_out_time: null,
+      working_hours: 0,
+      total_break_minutes: 0,
+      is_provisional_checkout: false,
+      notes: null,
+    } as unknown as AttendanceLog;
+    setChooserDate(null);
+    setCorrectionIsVirtual(true);
+    setCorrectionLog(virtualLog);
+  };
+
+  const startApplyLeaveForDate = (day: Date) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    setChooserDate(null);
+    onApplyLeave?.(dateStr);
   };
 
   // CSV Export
@@ -284,7 +297,7 @@ export function MyAttendanceCalendarView({
             </div>
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onMonthChange(new Date())}>Today</Button>
             {onApplyLeave && (
-              <Button size="sm" className="h-8 text-xs gap-1" onClick={onApplyLeave}>
+              <Button size="sm" className="h-8 text-xs gap-1" onClick={() => onApplyLeave()}>
                 <Plus className="h-3.5 w-3.5" /> Apply for Leave
               </Button>
             )}
@@ -315,7 +328,6 @@ export function MyAttendanceCalendarView({
                         isTodayDay && 'ring-2 ring-inset ring-primary',
                         !info.dayIsFuture && employeeId && 'cursor-pointer',
                         info.dayIsFuture && 'opacity-50 cursor-default',
-                        creatingStub && 'pointer-events-none',
                       )}
                       onClick={() => handleDateClick(day)}
                       disabled={info.dayIsFuture || !employeeId}
@@ -347,8 +359,8 @@ export function MyAttendanceCalendarView({
                       info.log ? `${info.status} — Click to regularize` :
                       info.approvedLeave ? `On Leave — ${LEAVE_TYPE_LABELS[info.approvedLeave.leave_type] || info.approvedLeave.leave_type}` :
                       info.holiday ? `Holiday — ${info.holiday.name}` :
-                      info.isWeekendDay ? 'Weekend — Click to mark attendance' :
-                      'Click to regularize'}
+                      info.isWeekendDay ? 'Weekend — Click for options' :
+                      'Click to regularize or apply for leave'}
                   </TooltipContent>
                 </Tooltip>
               );
@@ -454,7 +466,6 @@ export function MyAttendanceCalendarView({
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              disabled={creatingStub}
                               onClick={() => handleDateClick(day)}
                             >
                               <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
@@ -476,35 +487,65 @@ export function MyAttendanceCalendarView({
         <CorrectionRequestModal
           log={correctionLog}
           open={!!correctionLog}
-          onOpenChange={async (open) => {
+          onOpenChange={(open) => {
             if (!open) {
-              if (shouldCleanupStub && stubLogId && correctionLog && correctionLog.id === stubLogId) {
-                const { data: existingRequest } = await supabase
-                  .from('attendance_correction_requests')
-                  .select('id')
-                  .eq('attendance_log_id', stubLogId)
-                  .maybeSingle();
-                if (!existingRequest && !submittedStubRef.current) {
-                  await supabase.from('attendance_logs').delete().eq('id', stubLogId);
-                  onRefresh?.();
-                }
-              }
-              submittedStubRef.current = false;
+              // Cancel = no DB writes. Virtual logs never touched the DB.
               setCorrectionLog(null);
-              setStubLogId(null);
-              setShouldCleanupStub(false);
+              setCorrectionIsVirtual(false);
             }
           }}
           mode="both"
+          isVirtual={correctionIsVirtual}
           onSubmitted={() => {
-            submittedStubRef.current = true;
-            setShouldCleanupStub(false);
             setCorrectionLog(null);
-            setStubLogId(null);
+            setCorrectionIsVirtual(false);
             onRefresh?.();
           }}
         />
       )}
+
+      {/* Action chooser dialog for empty dates */}
+      <Dialog open={!!chooserDate} onOpenChange={(open) => { if (!open) setChooserDate(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {chooserDate ? format(chooserDate, 'EEEE, dd MMM yyyy') : ''}
+            </DialogTitle>
+            <DialogDescription>
+              What would you like to do for this date?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Button
+              variant="outline"
+              className="justify-start gap-2 h-auto py-3"
+              onClick={() => chooserDate && startRegularizeForDate(chooserDate)}
+            >
+              <ClipboardEdit className="h-4 w-4 text-amber-600" />
+              <div className="text-left">
+                <div className="text-sm font-medium">Regularize Attendance</div>
+                <div className="text-xs text-muted-foreground">Submit a check-in / check-out correction to HR</div>
+              </div>
+            </Button>
+            {onApplyLeave && (
+              <Button
+                variant="outline"
+                className="justify-start gap-2 h-auto py-3"
+                onClick={() => chooserDate && startApplyLeaveForDate(chooserDate)}
+              >
+                <CalendarPlus className="h-4 w-4 text-primary" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Apply for Leave</div>
+                  <div className="text-xs text-muted-foreground">Request leave for this date</div>
+                </div>
+              </Button>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setChooserDate(null)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
