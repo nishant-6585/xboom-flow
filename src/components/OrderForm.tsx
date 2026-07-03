@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource } from '@/hooks/useOrders';
+import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource, Order } from '@/hooks/useOrders';
 import { Loader2, Package, ImageIcon, X, Upload, FileText, Plus, Users, CreditCard, Truck, MessageSquare, Check, ChevronRight, ChevronLeft, ShoppingCart } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
@@ -20,6 +20,8 @@ import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
+import { Checkbox } from '@/components/ui/checkbox';
+import { GenerateProformaDialog } from '@/components/orders/GenerateProformaDialog';
 
 const KNOWN_COURIER_HOSTS = COURIER_NAMES
   .map((cn) => {
@@ -63,7 +65,7 @@ export interface OrderFormInitialData {
 }
 
 interface OrderFormProps {
-  onSubmit: (data: OrderFormData, paymentFiles?: File[], orderItems?: OrderItemFormData[], invoiceFile?: File, poFiles?: File[]) => Promise<boolean>;
+  onSubmit: (data: OrderFormData, paymentFiles?: File[], orderItems?: OrderItemFormData[], invoiceFile?: File, poFiles?: File[]) => Promise<Order | boolean | null>;
   enquiries?: Enquiry[];
   suppliers?: Supplier[];
   showProcurementRate?: boolean;
@@ -133,6 +135,10 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   const [invoicePreview, setInvoicePreview] = useState<string | null>(null);
   const [poFiles, setPoFiles] = useState<FileWithPreview[]>([]);
   const [loading, setLoading] = useState(false);
+  const [generateProforma, setGenerateProforma] = useState(false);
+  const [createdOrderForProforma, setCreatedOrderForProforma] = useState<Order | null>(null);
+  const [proformaDialogOpen, setProformaDialogOpen] = useState(false);
+  const [pendingReset, setPendingReset] = useState<null | (() => void)>(null);
   const [orderItems, setOrderItems] = useState<OrderItemFormData[]>([
     {
       product_name: initialData?.product_name || '',
@@ -375,10 +381,13 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     setLoading(true);
     const paymentFilesArray = paymentFiles.length > 0 ? paymentFiles.map(f => f.file) : undefined;
     const poFilesArray = poFiles.length > 0 ? poFiles.map(f => f.file) : undefined;
-    const success = await onSubmit(updatedFormData, paymentFilesArray, validItems, invoiceFile || undefined, poFilesArray);
+    const result = await onSubmit(updatedFormData, paymentFilesArray, validItems, invoiceFile || undefined, poFilesArray);
     setLoading(false);
 
-    if (success) {
+    const success = !!result;
+    const createdOrder = (result && typeof result === 'object') ? (result as Order) : null;
+
+    const doReset = () => {
       setFormData({
         product_name: '',
         product_category: 'Consumer Drones',
@@ -427,6 +436,16 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       handleClearInvoiceFile();
       handleClearPoFiles();
       setCurrentStep(1);
+    };
+
+    if (success) {
+      if (generateProforma && createdOrder) {
+        setCreatedOrderForProforma(createdOrder);
+        setProformaDialogOpen(true);
+        setPendingReset(() => doReset);
+      } else {
+        doReset();
+      }
     }
   };
 
@@ -584,6 +603,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   );
 
   const formBody = (
+    <>
     <form onSubmit={handleSubmit}>
       <StepIndicator />
           
@@ -1004,6 +1024,22 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                           </div>
                         )}
                         <input ref={invoiceInputRef} type="file" accept=".pdf,image/*" onChange={handleInvoiceFileChange} className="hidden" />
+                        <div className="flex items-start gap-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
+                          <Checkbox
+                            id="generate-proforma"
+                            checked={generateProforma}
+                            onCheckedChange={(v) => setGenerateProforma(v === true)}
+                            className="mt-0.5"
+                          />
+                          <div className="space-y-0.5">
+                            <Label htmlFor="generate-proforma" className="text-sm font-medium cursor-pointer">
+                              Generate Proforma Invoice
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Opens the proforma editor right after the order is created.
+                            </p>
+                          </div>
+                        </div>
                       </div>
 
                       {/* PO */}
@@ -1222,6 +1258,26 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
             </div>
           </div>
         </form>
+    {createdOrderForProforma && (
+      <GenerateProformaDialog
+        order={createdOrderForProforma}
+        open={proformaDialogOpen}
+        onOpenChange={(o) => {
+          setProformaDialogOpen(o);
+          if (!o) {
+            const reset = pendingReset;
+            setPendingReset(null);
+            setCreatedOrderForProforma(null);
+            setGenerateProforma(false);
+            if (reset) reset();
+          }
+        }}
+        onGenerated={() => {
+          // Dialog stays open showing success; closing triggers reset above.
+        }}
+      />
+    )}
+    </>
   );
 
   if (embedded) {

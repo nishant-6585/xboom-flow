@@ -436,10 +436,10 @@ export function useOrders() {
     orderItems?: { product_name: string; product_code?: string; product_category: string; quantity: number; unit_price?: number; procurement_rate?: number; notes?: string; }[],
     invoiceFile?: File,
     poFiles?: File[]
-  ): Promise<boolean> => {
+  ): Promise<Order | null> => {
     if (!user) {
       toast.error('You must be logged in to create orders');
-      return false;
+      return null;
     }
 
     try {
@@ -448,7 +448,7 @@ export function useOrders() {
       let invoiceUrl = formData.invoice_url;
       if (invoiceFile) {
         const invValidation = validateFile(invoiceFile, 'invoices');
-        if (!invValidation.valid) { toast.error(invValidation.error); return false; }
+        if (!invValidation.valid) { toast.error(invValidation.error); return null; }
         const fileExt = invoiceFile.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
@@ -710,11 +710,11 @@ export function useOrders() {
           }).catch((e) => console.error('kyc onboarding failed:', e));
         }
       } catch (e) { console.error('kyc onboarding invoke error:', e); }
-      return true;
+      return orderData as Order;
     } catch (error: any) {
       console.error('Error creating order:', error);
       toast.error(error.message || 'Failed to create order');
-      return false;
+      return null;
     }
   };
 
