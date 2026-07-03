@@ -88,8 +88,24 @@ serve(async (req) => {
     const link = `https://xboomflow.com/portal/confirm`;
     const result: Record<string, unknown> = { email: null, sms: null };
 
+    // Decide whether to send a standalone confirmation email.
+    //  - Existing portal customer (already has an activated auth user) → yes, they
+    //    won't receive the onboarding email so this is their only nudge.
+    //  - Brand-new customer → NO. kyc-handler's onboardOrder folds the confirmation
+    //    ask into the single onboarding email so we don't double-mail them.
+    let hasExistingPortalUser = false;
+    if (order.customer_email) {
+      const { data: existingContact } = await admin
+        .from("portal_contacts")
+        .select("auth_user_id")
+        .ilike("email", order.customer_email)
+        .not("auth_user_id", "is", null)
+        .maybeSingle();
+      hasExistingPortalUser = !!existingContact?.auth_user_id;
+    }
+
     // ----- Email via Resend -----
-    if (order.customer_email && RESEND_API_KEY) {
+    if (order.customer_email && RESEND_API_KEY && hasExistingPortalUser) {
       try {
         const html = `
           <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
@@ -111,7 +127,7 @@ serve(async (req) => {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
           body: JSON.stringify({
-            from: "Xboom Orders <orders@xboomflow.com>",
+            from: "Xboom <notifications@xboom.in>",
             to: [order.customer_email],
             subject: `Action required: confirm your Xboom order ${orderNumber}`,
             html,
@@ -145,6 +161,19 @@ serve(async (req) => {
       }
     } else if (!order.customer_email) {
       result.email = "no_email";
+    } else if (!hasExistingPortalUser) {
+      // New customer: onboarding email (sent by kyc-handler) carries the
+      // confirmation ask, so we skip and log it for the audit trail.
+      result.email = "sent_via_onboarding";
+      await admin.from("order_notifications").insert({
+        order_ref: order.id, order_source: "internal",
+        order_number: orderNumber, status_trigger: "confirmation_request",
+        channel: "email", template_name: "confirmation_request_email",
+        payload: { customer_name: customerName, order_number: orderNumber, link, delivered_via: "onboarding_email" },
+        status: "skipped",
+        error_message: "sent_via_onboarding",
+        provider: "resend",
+      });
     } else {
       result.email = "no_resend_key";
     }
