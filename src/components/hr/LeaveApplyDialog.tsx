@@ -40,6 +40,7 @@ interface LeaveApplyDialogProps {
       holiday_name?: string | null;
     };
   }) => Promise<boolean>;
+  prefillDate?: string;
 }
 
 const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
@@ -52,7 +53,7 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: 'compoff', label: 'Compensatory Off (CompOff)' },
 ];
 
-export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps>(({ open, onOpenChange, onSubmit }, ref) => {
+export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps>(({ open, onOpenChange, onSubmit, prefillDate }, ref) => {
   const [step, setStep] = useState(1);
   const [leaveType, setLeaveType] = useState<LeaveType>('EL');
   const [startDate, setStartDate] = useState('');
@@ -124,6 +125,15 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
     };
     fetchBalance();
   }, [open, user, leaveType]);
+
+  // Prefill start/end date when dialog opens from calendar click
+  useEffect(() => {
+    if (open && prefillDate) {
+      setStartDate(prefillDate);
+      setEndDate(prefillDate);
+      setCompoffLeaveDate(prefillDate);
+    }
+  }, [open, prefillDate]);
 
   const handleSubmit = async () => {
     if (isCompOff) {
