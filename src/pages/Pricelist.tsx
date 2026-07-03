@@ -52,6 +52,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Scale,
 } from "lucide-react";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { toast } from "sonner";
