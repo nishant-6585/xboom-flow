@@ -443,11 +443,11 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       const productItems = lineItems.map((li: any) => {
         const sku = (li?.sku || "").toString().trim();
         const nameKey = (li?.name || "").toString().trim().toLowerCase();
-        // Prefer Woo's own line-item weight; fallback to pricelist match.
-        const liWeight = parseFloat(String(li?.weight ?? "").trim());
+        // Pricelist rows already normalize weight to grams (via woo-product-map),
+        // so match by SKU first and product_name as fallback. We intentionally
+        // do NOT trust the raw Woo line-item `weight` value here because the
+        // store unit (kg/g/lb/oz) isn't included on line items.
         let grams: number | null = null;
-        if (Number.isFinite(liWeight) && liWeight > 0) grams = liWeight; // Woo returns line weight already in the store unit; treat as grams only if numeric > 0 AND the store unit isn't kg. Safer: use pricelist first.
-        // Prefer pricelist snapshot (already normalized to grams).
         if (sku && weightByCode.has(sku)) grams = weightByCode.get(sku)!;
         else if (weightByName.has(nameKey)) grams = weightByName.get(nameKey)!;
         return {
