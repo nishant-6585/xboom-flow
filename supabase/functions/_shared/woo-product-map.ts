@@ -104,6 +104,26 @@ function mapPrice(woo: Woo): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/**
+ * Convert a WooCommerce product `weight` value (as returned by the REST API,
+ * usually a numeric string) into grams, using the store-wide weight unit
+ * (`woocommerce_weight_unit` setting on Woo). Unknown / blank / non-positive
+ * values return null so we don't overwrite existing manual weights with 0.
+ */
+export function convertWooWeightToGrams(rawWeight: unknown, unit: string | undefined | null): number | null {
+  const n = parseFloat(String(rawWeight ?? "").trim());
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const u = String(unit || "kg").toLowerCase();
+  switch (u) {
+    case "kg":  return n * 1000;
+    case "g":   return n;
+    case "lbs":
+    case "lb":  return n * 453.592;
+    case "oz":  return n * 28.3495;
+    default:    return n * 1000; // sensible fallback: assume kg
+  }
+}
+
 /** True when the product is publicly visible/published on the website. */
 export function isPublished(woo: Woo): boolean {
   const status = String(woo?.status || "publish").toLowerCase();
@@ -124,6 +144,12 @@ export async function upsertWooProduct(
    * (false / exclusive — matches xboom.in).
    */
   pricesIncludeTax?: boolean,
+  /**
+   * Store-wide `woocommerce_weight_unit` setting (kg | g | lbs | oz). When
+   * omitted, weight_grams is left untouched so we don't overwrite manually
+   * curated weights with a bad guess.
+   */
+  weightUnit?: string,
 ): Promise<UpsertResult> {
   const wooId = Number(woo?.id);
   if (!wooId || Number.isNaN(wooId)) {
@@ -168,6 +194,15 @@ export async function upsertWooProduct(
   // Avoid clobbering when the caller didn't probe the store setting.
   if (pricesIncludeTax === undefined) {
     delete websiteFields.website_price_includes_gst;
+  }
+
+  // Weight: only stamp when we know the store weight unit AND the product
+  // reports a positive weight. Otherwise leave any manually edited value alone.
+  if (weightUnit !== undefined) {
+    const grams = convertWooWeightToGrams(woo?.weight, weightUnit);
+    if (grams !== null) {
+      websiteFields.weight_grams = grams;
+    }
   }
 
   // 1) Match by woo_product_id
