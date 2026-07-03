@@ -1361,7 +1361,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 proofUploadedAt={(order as any).delivery_proof_uploaded_at ?? null}
                 proofReviewedAt={(order as any).delivery_proof_reviewed_at ?? null}
                 proofRejectReason={(order as any).delivery_proof_reject_reason ?? null}
-                onChanged={() => onUpdate(order.id, {})}
+                onChanged={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
               />
             )}
 
