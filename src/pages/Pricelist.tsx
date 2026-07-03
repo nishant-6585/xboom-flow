@@ -604,6 +604,7 @@ export default function Pricelist() {
                           <SortableHead k="website_price">Website Price</SortableHead>
                           <SortableHead k="dealer_price">Dealer Price</SortableHead>
                           {canManage && <SortableHead k="cost_price">Cost Price</SortableHead>}
+                          {canManage && <SortableHead k="weight_grams">Weight (g)</SortableHead>}
                           {canManage && <SortableHead k="margin">Margin</SortableHead>}
                           <TableHead>Lead Time</TableHead>
                           <SortableHead k="availability">Availability</SortableHead>
