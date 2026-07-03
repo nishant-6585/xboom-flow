@@ -26,6 +26,7 @@ const INTERAKT_API_KEY = Deno.env.get("INTERAKT_API_KEY");
 const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE_URL =
   Deno.env.get("PORTAL_BASE_URL") ?? "https://xboomflow.com/portal";
+const STAFF_BASE_URL = "https://xboomflow.com";
 
 /**
  * Per-state WhatsApp template mapping.
@@ -356,7 +357,7 @@ Deno.serve(async (req) => {
         const subject = `[${tk.priority.toUpperCase()}] Ticket ${tk.ticket_number}: ${tk.subject}`;
         const html = htmlWrap(
           subject,
-          `<p>New ticket from <strong>${tk.account?.company_name ?? "—"}</strong>.</p><p><a href="https://xboomflow.com/tickets">Open in admin</a></p>`,
+          `<p>New ticket from <strong>${tk.account?.company_name ?? "—"}</strong>.</p><p><a href="${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}">Open ticket</a></p>`,
         );
         for (const e of emails) {
           const res = await sendEmail(e, subject, html);
@@ -385,7 +386,7 @@ Deno.serve(async (req) => {
           // Internal-only — just notify staff, never the customer
           const emails = await getStaffEmails(admin, [tk.assigned_to, tk.account?.assigned_rep_id]);
           const subject = `[Internal] ${tk.ticket_number} ${tk.subject}`;
-          const html = htmlWrap(subject, `<p>${msg.sender_name_snapshot ?? "Staff"}:</p><p style="white-space:pre-wrap">${msg.body}</p>`);
+          const html = htmlWrap(subject, `<p>${msg.sender_name_snapshot ?? "Staff"}:</p><p style="white-space:pre-wrap">${msg.body}</p><p><a href="${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}">Open ticket</a></p>`);
           for (const e of emails) {
             const res = await sendEmail(e, subject, html);
             results.push({ channel: "email", to: e, ok: res.ok, error: res.error });
@@ -404,7 +405,7 @@ Deno.serve(async (req) => {
           // notify staff
           const emails = await getStaffEmails(admin, [tk.assigned_to, tk.account?.assigned_rep_id]);
           const subject = `Reply on ${tk.ticket_number} — ${tk.subject}`;
-          const html = htmlWrap(subject, `<p><strong>${msg.sender_name_snapshot ?? "Customer"}</strong> replied:</p><p style="background:#f3f4f6;padding:12px;border-radius:8px;white-space:pre-wrap">${msg.body}</p>`);
+          const html = htmlWrap(subject, `<p><strong>${msg.sender_name_snapshot ?? "Customer"}</strong> replied:</p><p style="background:#f3f4f6;padding:12px;border-radius:8px;white-space:pre-wrap">${msg.body}</p><p><a href="${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}">Open ticket</a></p>`);
           for (const e of emails) {
             const res = await sendEmail(e, subject, html);
             results.push({ channel: "email", to: e, ok: res.ok, error: res.error });
