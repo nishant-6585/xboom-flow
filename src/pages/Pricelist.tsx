@@ -413,8 +413,15 @@ export default function Pricelist() {
       case "website": return "Website Price";
       case "dealer": return "Dealer Price";
       case "cost": return "Cost Price";
+      case "missing_weight": return "Missing Weight";
       default: return "";
     }
+  };
+
+  const isMissingWeightFilter = priceFilter === "missing_weight";
+
+  const toggleMissingWeight = () => {
+    setPriceFilter((current) => (current === "missing_weight" ? "all" : "missing_weight"));
   };
 
   const toggleSort = (key: string) => {
