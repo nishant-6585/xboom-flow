@@ -131,7 +131,7 @@ export function PricelistAnalytics({ items, onFilterClick, canManage }: Pricelis
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className={`grid gap-4 grid-cols-2 ${canManage ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
         <Card 
           className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
           onClick={() => handleCardClick("all")}
