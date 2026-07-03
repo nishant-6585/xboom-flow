@@ -1,0 +1,1 @@
+select vault.update_secret((select id from vault.secrets where name='CRON_SECRET'), '_5I3Q0Wb2U4H_M09k0tMfCVNiX4Q2ETB-rZoMiWR6MbjN10WGTaqYs85GF0wH7TJ', 'CRON_SECRET');
