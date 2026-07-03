@@ -558,6 +558,19 @@ export default function Pricelist() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {canManage && (
+                    <Button
+                      type="button"
+                      variant={isMissingWeightFilter ? "default" : "outline"}
+                      size="sm"
+                      onClick={toggleMissingWeight}
+                      className="shrink-0"
+                      title="Show only products missing weight"
+                    >
+                      <Scale className="w-4 h-4 mr-2" />
+                      Missing weight
+                    </Button>
+                  )}
                 </div>
 
                 {/* Active filter indicator */}
