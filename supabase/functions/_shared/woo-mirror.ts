@@ -489,7 +489,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
         .eq("id", internalId)
         .maybeSingle();
       if (freshOrder && freshOrder.confirmation_status === "pending") {
-        await requestCustomerConfirmation(supabase, freshOrder);
+        await invokeCustomerConfirmationFn(freshOrder.id);
       }
     } catch (e) {
       console.error("[woo-mirror] confirmation dispatch failed", e);
@@ -504,102 +504,27 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
 }
 
 /**
- * Ask the customer to confirm a heavy order.
- *   - Email via Resend (branded, deep link to /portal/confirm)
- *   - SMS enqueued into order_notifications (worker: send-order-sms-msg91)
- *   - Always resilient: send failures are logged, never thrown.
+ * Fire-and-forget invocation of the dedicated confirmation-request edge
+ * function. Always resolves; errors are only logged so order mirroring
+ * never fails on notification issues.
  */
-// deno-lint-ignore no-explicit-any
-export async function requestCustomerConfirmation(supabase: any, order: any): Promise<void> {
-  const orderId = order?.id;
-  const orderNumber = order?.order_number || orderId;
-  const customerName = order?.customer_name || "Customer";
-  const customerEmail: string | null = order?.customer_email || null;
-  const customerPhone: string | null = order?.customer_phone || null;
-  const link = `https://xboomflow.com/portal/confirm`;
-
-  // ---- Email via Resend ---------------------------------------------------
-  if (customerEmail) {
-    try {
-      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-      if (RESEND_API_KEY) {
-        const html = `
-          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
-            <h2 style="margin:0 0 12px">Please confirm your order</h2>
-            <p>Hi ${escapeHtml(customerName)},</p>
-            <p>Thank you for your order <strong>${escapeHtml(orderNumber)}</strong> with Xboom.</p>
-            <p>Because this order includes items that ship as a larger consignment, we need you
-            to confirm the order before we dispatch. Please log into your Xboom customer portal
-            and click <em>Confirm your order</em>.</p>
-            <p style="text-align:center;margin:28px 0">
-              <a href="${link}" style="background:#111;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600">
-                Confirm your order
-              </a>
-            </p>
-            <p style="color:#555;font-size:13px">Or open this link: <br/>
-              <a href="${link}">${link}</a>
-            </p>
-            <p style="color:#888;font-size:12px;margin-top:32px">Xboom · Order ${escapeHtml(orderNumber)}</p>
-          </div>`;
-        const resp = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-          body: JSON.stringify({
-            from: "Xboom Orders <orders@xboomflow.com>",
-            to: [customerEmail],
-            subject: `Action required: confirm your Xboom order ${orderNumber}`,
-            html,
-          }),
-        });
-        const emailOk = resp.ok;
-        await supabase.from("order_notifications").insert({
-          order_ref: orderId, order_source: "internal",
-          order_number: orderNumber, status_trigger: "confirmation_request",
-          channel: "email", phone: null,
-          template_name: "confirmation_request_email",
-          payload: { customer_name: customerName, order_number: orderNumber, link },
-          status: emailOk ? "sent" : "failed",
-          sent_at: emailOk ? new Date().toISOString() : null,
-          error_message: emailOk ? null : `resend http ${resp.status}`,
-          provider: "resend",
-        });
-      } else {
-        console.warn("[woo-mirror] RESEND_API_KEY missing, skipping confirmation email");
-      }
-    } catch (e) {
-      console.error("[woo-mirror] confirmation email failed", e);
-      await supabase.from("order_notifications").insert({
-        order_ref: orderId, order_source: "internal",
-        order_number: orderNumber, status_trigger: "confirmation_request",
-        channel: "email", template_name: "confirmation_request_email",
-        payload: { customer_name: customerName, order_number: orderNumber, link },
-        status: "failed", error_message: e instanceof Error ? e.message : String(e),
-        provider: "resend",
-      });
-    }
+async function invokeCustomerConfirmationFn(orderId: string): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    await fetch(`${url}/functions/v1/send-customer-confirmation-request`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+        apikey: key,
+      },
+      body: JSON.stringify({ order_id: orderId }),
+    });
+  } catch (e) {
+    console.error("[woo-mirror] invokeCustomerConfirmationFn failed", e);
   }
-
-  // ---- SMS via MSG91 queue ------------------------------------------------
-  if (customerPhone) {
-    try {
-      await supabase.from("order_notifications").insert({
-        order_ref: orderId, order_source: "internal",
-        order_number: orderNumber, status_trigger: "confirmation_request",
-        channel: "sms", phone: customerPhone,
-        template_name: "confirmation_request",
-        payload: { customer_name: customerName, order_number: orderNumber, link },
-        provider: "msg91",
-      });
-    } catch (e) {
-      console.error("[woo-mirror] confirmation SMS enqueue failed", e);
-    }
-  }
-}
-
-function escapeHtml(s: string): string {
-  return String(s)
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 }
 
 /**
