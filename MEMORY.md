@@ -4,7 +4,22 @@
 > Update this file as tasks complete. Newest entries at the top of each section.
 > Status legend: ✅ done · 🟡 in progress · ⏳ pending / not started · ❗ blocker
 
-Last updated: 2026-06-19
+Last updated: 2026-07-03
+
+---
+
+## ⏳ PLANNED — Customer portal: confirmation, delivery proof, service requests (3 staged prompts)
+
+Requirements reviewed against existing portal architecture (2026-07-03). Feasible — mostly extends what exists: PortalOrders/PortalOrderDetail (order viewing ✅ exists), tracking card in PortalOrderDetail (✅ exists, minor polish), PortalTickets + `portal-sla-monitor` (SLA breach detection/escalation cron ✅ exists), `send-order-sms-msg91` + Resend (✅ exist).
+
+**Key gap found:** no product weight stored anywhere (pricelist/order_items/Woo sync) — the >249g confirmation rule (DGCA drone threshold) has no data source. Stage 1 adds it.
+
+**Locked assumptions:** weight synced from Woo product weight (unit-converted to grams) into `pricelist.weight_grams`, copied to `order_items.weight_grams` at order time; rule = ANY line item >249g; email + SMS both sent (SMS only if phone); new `orders.delivery_mode` ('courier'|'office_pickup'), proof image mandatory only for office_pickup; 12h SLA for service_request tickets escalating to admin + sales_manager; tickets routed to supply_chain.
+
+- **Stage 1 (⏳ prompt ready):** `weight_grams` on pricelist+order_items (Woo sync converts units; editable in Pricelist UI) + weight-gated confirmation: `orders.requires_confirmation/confirmation_status/confirmed_at/confirmed_by_contact`; email+SMS with portal deep link on creation when >249g; portal "Confirm your order" (RPC, own-account scoped) + dashboard banner; staff badge + resend in OrderDialog.
+- **Stage 2 (⏳ prompt ready):** office/showroom delivery proof — `delivery_mode` + proof columns on orders, private `delivery-proofs` bucket, mandatory image upload before delivered (office_pickup), admin/sales_manager approval queue (reject needs reason). Plus tracking polish: show tracking_status + OrderTimeline entry on tracking changes.
+- **Stage 3 (⏳ prompt ready):** portal "Service Request" ticket type + own-order link, routed to supply_chain, 12h first-response+resolution SLA, `portal-sla-monitor` extended to escalate breaches to admin+sales_manager (keep portal_sla_alerts dedupe).
+- Send order: Stage 1 → verify → Stage 2 → Stage 3.
 
 ---
 
