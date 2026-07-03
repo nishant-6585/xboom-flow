@@ -560,11 +560,11 @@ export default function Pricelist() {
                   </Select>
                 </div>
 
-                {/* Active price filter indicator */}
+                {/* Active filter indicator */}
                 {priceFilter !== "all" && (
                   <div className="flex items-center gap-2 mb-4">
                     <Badge variant="secondary" className="flex items-center gap-1">
-                      Price Filter: {getPriceFilterLabel(priceFilter)}
+                      Filter: {getPriceFilterLabel(priceFilter)}
                       <button
                         onClick={() => setPriceFilter("all")}
                         className="ml-1 hover:text-destructive"
