@@ -282,9 +282,10 @@ export function TallyDashboard() {
     return false; // Read-only in tally context
   }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
       const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes, linksRes] = await Promise.all([
           supabase
             .from("orders")
@@ -354,14 +355,33 @@ export function TallyDashboard() {
           rawLinks.forEach(l => { l.procurement = procMap.get(l.inventory_procurement_id); });
         }
         setInvLinks(rawLinks);
-      } catch (err) {
-        console.error("Error fetching tally data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    } catch (err) {
+      console.error("Error fetching tally data:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const t = toast.loading("Refreshing tally… syncing Zoho invoices");
+    try {
+      const { error: syncErr } = await supabase.functions.invoke("zoho-books-sync", { body: {} });
+      if (syncErr) {
+        toast.error(`Zoho sync failed: ${syncErr.message}`, { id: t });
+      } else {
+        toast.success("Zoho invoices synced", { id: t });
+      }
+      await fetchData();
+    } catch (err: any) {
+      toast.error(err?.message || "Refresh failed", { id: t });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchData, refreshing]);
 
   // Unique salesperson list
   const salesPersons = useMemo(() => {
