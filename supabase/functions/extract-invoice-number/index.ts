@@ -28,6 +28,16 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData?.user) return jsonResponse({ error: "Unauthorized" }, 401);
 
+    // Restrict to privileged internal roles
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id);
+    const allowed = new Set(["admin", "finance", "sales", "supply_chain"]);
+    if (!roles?.some((r: { role: string }) => allowed.has(r.role))) {
+      return jsonResponse({ error: "Forbidden" }, 403);
+    }
+
     const { invoice_id, storage_path } = await req.json();
     if (!invoice_id || !storage_path) {
       return jsonResponse({ error: "invoice_id and storage_path are required" }, 400);
