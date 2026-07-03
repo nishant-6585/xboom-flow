@@ -806,6 +806,34 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
       const refreshedItems = await fetchOrderItems(order.id);
       setOrderItems(refreshedItems);
+
+      // Recalculate the order header total from the refreshed items so the
+      // order card (which reads orders.total_sales_amount) reflects the new
+      // prices immediately — not just the dialog's Order Items table.
+      if (updated > 0) {
+        const itemsSubtotal = refreshedItems.reduce(
+          (sum, it) => sum + (Number(it.unit_price) || 0) * (Number(it.quantity) || 0),
+          0,
+        );
+        const discount = Number((order as any).discount_amount) || 0;
+        const delivery = Number((order as any).delivery_charges) || 0;
+        const nextTotal = Math.max(0, itemsSubtotal - discount + delivery);
+        const oldTotal = Number((order as any).total_sales_amount) || 0;
+        if (nextTotal !== oldTotal) {
+          const { error: totalErr } = await supabase
+            .from('orders')
+            .update({ total_sales_amount: nextTotal })
+            .eq('id', order.id);
+          if (!totalErr) {
+            if (user && profile) {
+              await recordChanges('orders', order.id, {
+                total_sales_amount: { old: oldTotal, new: nextTotal },
+              }, profile.name || 'Unknown');
+            }
+            await onUpdate(order.id, { total_sales_amount: nextTotal } as Partial<Order>);
+          }
+        }
+      }
       }
 
       const parts: string[] = [];
