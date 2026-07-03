@@ -1346,6 +1346,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               )}
             </div>
 
+            {/* Delivery mode + office/showroom proof (staff-only). Customers
+                never see this card. */}
+            {canEditSalesFields && (
+              <DeliveryProofCard
+                orderId={order.id}
+                orderNumber={order.order_number}
+                deliveryMode={deliveryMode}
+                onDeliveryModeChange={(m) => setDeliveryMode(m)}
+                proofUrl={(order as any).delivery_proof_url ?? null}
+                proofStatus={(order as any).delivery_proof_status ?? null}
+                proofUploadedAt={(order as any).delivery_proof_uploaded_at ?? null}
+                proofReviewedAt={(order as any).delivery_proof_reviewed_at ?? null}
+                proofRejectReason={(order as any).delivery_proof_reject_reason ?? null}
+                onChanged={() => onUpdate(order.id, {})}
+              />
+            )}
+
             {/* WooCommerce sync — only for website-sourced orders. Lets the
                 user push the order to any Woo status (Processing, Shipped,
                 Completed, etc.) directly from the unified Order dialog. The
