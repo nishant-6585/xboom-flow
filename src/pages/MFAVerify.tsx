@@ -16,7 +16,7 @@ const MFAVerify = () => {
   const fromPath = state?.from?.pathname;
   const stateTarget = fromPath ? `${fromPath}${state?.from?.search ?? ""}${state?.from?.hash ?? ""}` : null;
   const isSafeTarget = (value: string | null | undefined) =>
-    !!value && value.startsWith("/") && !value.startsWith("//") && value !== "/auth" && value !== "/mfa-verify";
+    !!value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/auth") && !value.startsWith("/mfa-verify");
   const target = isSafeTarget(redirectParam)
     ? redirectParam
     : isSafeTarget(stateTarget)
