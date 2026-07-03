@@ -873,7 +873,7 @@ export default function Pricelist() {
           </TabsContent>
 
           <TabsContent value="analytics" forceMount className="data-[state=inactive]:hidden mt-0 data-[state=active]:mt-2">
-            <PricelistAnalytics items={items} onFilterClick={handleAnalyticsFilterClick} />
+            <PricelistAnalytics items={items} onFilterClick={handleAnalyticsFilterClick} canManage={canManage} />
           </TabsContent>
         </Tabs>
 
