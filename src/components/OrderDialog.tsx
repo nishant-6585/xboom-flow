@@ -482,6 +482,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       return;
     }
 
+    // Office-pickup delivery requires an approved (or at least uploaded) proof photo
+    // before the order can be marked delivered.
+    if (
+      status === 'delivery_done' &&
+      deliveryMode === 'office_pickup' &&
+      !(order as any).delivery_proof_url
+    ) {
+      toast.error('Upload the customer-receiving proof photo before marking this office-pickup order as delivered.');
+      return;
+    }
+
     // Validate tracking URL is a proper http(s) link
     if (trackingUrl && !isValidHttpUrl(trackingUrl)) {
       toast.error('Tracking URL must be a valid link starting with http:// or https://');
