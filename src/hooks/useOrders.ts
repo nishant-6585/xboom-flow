@@ -529,18 +529,58 @@ export function useOrders() {
 
       // Insert order items if provided
       if (orderData && orderItems && orderItems.length > 0) {
-        const itemsToInsert = orderItems.map(item => ({
-          order_id: orderData.id,
-          product_name: item.product_name,
-          product_code: item.product_code || item.product_name,
-          product_category: item.product_category,
-          quantity: item.quantity,
-          unit_price: item.unit_price || null,
-          // Flow procurement fields from order to items
-          procurement_rate: item.procurement_rate || formData.procurement_rate || null,
-          supplier_id: formData.supplier_id || null,
-          notes: item.notes || null,
-        }));
+        // Pull weight_grams from pricelist for the SKUs we're inserting so
+        // the "requires_confirmation" trigger can fire on any item > 249 g.
+        const skus = Array.from(new Set(
+          orderItems.map(i => (i.product_code || i.product_name || '').trim()).filter(Boolean)
+        ));
+        const names = Array.from(new Set(
+          orderItems.map(i => (i.product_name || '').trim()).filter(Boolean)
+        ));
+        const weightByCode = new Map<string, number>();
+        const weightByName = new Map<string, number>();
+        try {
+          if (skus.length) {
+            const { data: pw } = await supabase
+              .from('pricelist')
+              .select('woo_sku, weight_grams')
+              .in('woo_sku', skus);
+            for (const r of pw || []) {
+              if (r?.woo_sku && r?.weight_grams != null) weightByCode.set(String(r.woo_sku), Number(r.weight_grams));
+            }
+          }
+          if (names.length) {
+            const { data: pn } = await supabase
+              .from('pricelist')
+              .select('product_name, weight_grams')
+              .in('product_name', names);
+            for (const r of pn || []) {
+              if (r?.product_name && r?.weight_grams != null) weightByName.set(String(r.product_name).toLowerCase(), Number(r.weight_grams));
+            }
+          }
+        } catch (e) {
+          console.warn('Weight lookup failed', e);
+        }
+
+        const itemsToInsert = orderItems.map(item => {
+          const sku = (item.product_code || item.product_name || '').trim();
+          const nameKey = (item.product_name || '').trim().toLowerCase();
+          let grams: number | null = null;
+          if (sku && weightByCode.has(sku)) grams = weightByCode.get(sku)!;
+          else if (weightByName.has(nameKey)) grams = weightByName.get(nameKey)!;
+          return {
+            order_id: orderData.id,
+            product_name: item.product_name,
+            product_code: item.product_code || item.product_name,
+            product_category: item.product_category,
+            quantity: item.quantity,
+            unit_price: item.unit_price || null,
+            procurement_rate: item.procurement_rate || formData.procurement_rate || null,
+            supplier_id: formData.supplier_id || null,
+            notes: item.notes || null,
+            weight_grams: grams,
+          };
+        });
 
         const { error: itemsError } = await supabase
           .from('order_items')
@@ -549,6 +589,27 @@ export function useOrders() {
         if (itemsError) {
           console.error('Error creating order items:', itemsError);
           // Don't fail the order creation, just log the error
+        }
+
+        // If any inserted item is > 249 g, the DB trigger will have flipped
+        // orders.confirmation_status to 'pending'. Kick off the email + SMS
+        // to the customer via the dedicated edge function. Never block
+        // order creation on send failure.
+        try {
+          const { data: freshOrder } = await supabase
+            .from('orders')
+            .select('confirmation_status')
+            .eq('id', orderData.id)
+            .maybeSingle();
+          if (freshOrder?.confirmation_status === 'pending') {
+            supabase.functions.invoke('send-customer-confirmation-request', {
+              body: { order_id: orderData.id },
+            }).then(({ error }) => {
+              if (error) console.warn('confirmation request send failed', error);
+            });
+          }
+        } catch (e) {
+          console.warn('confirmation dispatch check failed', e);
         }
       }
 
