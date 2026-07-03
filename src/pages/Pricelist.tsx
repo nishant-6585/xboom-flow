@@ -978,6 +978,25 @@ export default function Pricelist() {
                   />
                 </div>
               </div>
+              {canManage && (
+                <div className="space-y-2">
+                  <Label>Weight (grams)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={formData.weight_grams ?? ""}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      weight_grams: e.target.value === "" ? undefined : parseFloat(e.target.value),
+                    })}
+                    placeholder="e.g. 350"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Orders with any item over 249 g require customer confirmation before dispatch.
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Currency</Label>
                 <Select
