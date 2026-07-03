@@ -47,6 +47,7 @@ export function PricelistAnalytics({ items, onFilterClick, canManage }: Pricelis
       (i) => (i.website_price && i.website_price > 0) || (i.dealer_price && i.dealer_price > 0)
     ).length;
     const missingAllPrices = total - withAnyPrice;
+    const missingWeight = items.filter((i) => !i.weight_grams || i.weight_grams <= 0).length;
 
     return {
       total,
@@ -55,9 +56,11 @@ export function PricelistAnalytics({ items, onFilterClick, canManage }: Pricelis
       withCostPrice,
       withAnyPrice,
       missingAllPrices,
+      missingWeight,
       websitePricePercent: total > 0 ? ((withWebsitePrice / total) * 100).toFixed(1) : "0",
       dealerPricePercent: total > 0 ? ((withDealerPrice / total) * 100).toFixed(1) : "0",
       costPricePercent: total > 0 ? ((withCostPrice / total) * 100).toFixed(1) : "0",
+      missingWeightPercent: total > 0 ? ((missingWeight / total) * 100).toFixed(1) : "0",
     };
   }, [items]);
 
