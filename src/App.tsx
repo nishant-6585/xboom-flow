@@ -201,7 +201,7 @@ function AppInner() {
                   path="orders"
                   element={
                     <PortalProtectedRoute>
-                      <PortalOrders />
+                      <Navigate to="/portal/purchases" replace />
                     </PortalProtectedRoute>
                   }
                 />
