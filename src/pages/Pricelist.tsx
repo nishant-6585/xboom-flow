@@ -137,7 +137,7 @@ export default function Pricelist() {
       const matchesAvailability = availabilityFilter === "all" || 
         (availabilityFilter === "_blank" ? (!item.availability || item.availability.trim() === "") : item.availability === availabilityFilter);
       
-      // Price filter logic
+      // Price / weight filter logic
       let matchesPrice = true;
       if (priceFilter === "with_price") {
         matchesPrice = (item.website_price && item.website_price > 0) || (item.dealer_price && item.dealer_price > 0);
@@ -149,6 +149,8 @@ export default function Pricelist() {
         matchesPrice = !!(item.dealer_price && item.dealer_price > 0);
       } else if (priceFilter === "cost") {
         matchesPrice = !!(item.cost_price && item.cost_price > 0);
+      } else if (priceFilter === "missing_weight") {
+        matchesPrice = !item.weight_grams || item.weight_grams <= 0;
       }
       
       return matchesSearch && matchesCategory && matchesBrand && matchesAvailability && matchesPrice;
