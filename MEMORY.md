@@ -10,9 +10,11 @@ Last updated: 2026-07-03
 
 ## ⏳ PLANNED — Customer portal: confirmation, delivery proof, service requests (3 staged prompts)
 
-Requirements reviewed against existing portal architecture (2026-07-03). Feasible — mostly extends what exists: PortalOrders/PortalOrderDetail (order viewing ✅ exists), tracking card in PortalOrderDetail (✅ exists, minor polish), PortalTickets + `portal-sla-monitor` (SLA breach detection/escalation cron ✅ exists), `send-order-sms-msg91` + Resend (✅ exist).
+Requirements reviewed against existing portal architecture (2026-07-03). Feasible. PortalTickets + `portal-sla-monitor` (SLA cron ✅ exists), `send-order-sms-msg91` + Resend (✅ exist).
 
-**Key gap found:** no product weight stored anywhere (pricelist/order_items/Woo sync) — the >249g confirmation rule (DGCA drone threshold) has no data source. Stage 1 adds it.
+**Key gaps found:**
+1. No product weight stored anywhere (pricelist/order_items/Woo sync) — the >249g confirmation rule (DGCA threshold) has no data source. Stage 1 adds it.
+2. **`portal_orders` ≠ `public.orders`** — portal_orders is a separate B2B pipeline (draft→quote→PO→dispatch, staff-created) with NO link to public.orders. Retail customers (KYC-onboarded from website/internal orders) have purchases only in public.orders → today's PortalOrders shows them nothing, and its tracking card reads portal_orders fields. **Pattern chosen (Lovable Option 3):** confirmation columns live ONLY on public.orders; all customer-facing reads go through email-matched SECURITY DEFINER RPCs (portal contact → portal_contacts.email → orders.customer_email): `get_my_confirmable_orders()`/`confirm_my_order()` (Stage 1), `get_my_purchases()` + new /portal/purchases "My Purchases" page (Stage 2), service-ticket order picker from get_my_purchases with plain-uuid `related_order_id` snapshot fields, no FK (Stage 3). SMS/email deep link → /portal/confirm (NOT /portal/orders/<id>, that's B2B). Never open orders SELECT to portal users; no orders→portal_orders mirror.
 
 **Locked assumptions:** weight synced from Woo product weight (unit-converted to grams) into `pricelist.weight_grams`, copied to `order_items.weight_grams` at order time; rule = ANY line item >249g; email + SMS both sent (SMS only if phone); new `orders.delivery_mode` ('courier'|'office_pickup'), proof image mandatory only for office_pickup; 12h SLA for service_request tickets escalating to admin + sales_manager; tickets routed to supply_chain.
 
