@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2, PackageCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2, PackageCheck, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { useMyKyc } from "@/hooks/useKyc";
 
 type ConfirmableRow = {
   order_id: string;
@@ -42,8 +44,14 @@ export function usePendingConfirmations() {
 
 export default function PortalConfirm() {
   const { data, isLoading, error, refetch } = usePendingConfirmations();
+  const { account: kycAccount, loading: kycLoading } = useMyKyc();
   const qc = useQueryClient();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  // Confirmation requires KYC to be at least submitted (pending_verification or approved).
+  // "resubmission_required" and "rejected" mean the customer still needs to (re)submit.
+  const kycStatus = kycAccount?.kyc_status ?? "not_submitted";
+  const kycSatisfied = kycStatus === "pending_verification" || kycStatus === "approved";
 
   const confirm = useMutation({
     mutationFn: async (orderId: string) => {
@@ -69,6 +77,23 @@ export default function PortalConfirm() {
           Please review and confirm the orders below so we can dispatch them.
         </p>
       </div>
+
+      {!kycLoading && !kycSatisfied && (data?.length ?? 0) > 0 && (
+        <Card className="border-amber-300 bg-amber-50/60 mb-4">
+          <CardContent className="py-4 flex items-start gap-3">
+            <ShieldAlert className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-amber-900">Complete KYC first</p>
+              <p className="text-sm text-amber-800 mt-1">
+                You need to submit your KYC (Aadhaar) before you can confirm your order.
+              </p>
+            </div>
+            <Button asChild variant="default" className="bg-amber-600 hover:bg-amber-700 text-white">
+              <Link to="/portal/kyc">Go to KYC</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {isLoading && (
         <div className="space-y-3">
@@ -117,7 +142,8 @@ export default function PortalConfirm() {
               </div>
               <Button
                 onClick={() => confirm.mutate(row.order_id)}
-                disabled={confirmingId === row.order_id}
+                disabled={confirmingId === row.order_id || !kycSatisfied || kycLoading}
+                title={!kycSatisfied ? "Complete KYC first" : undefined}
               >
                 {confirmingId === row.order_id ? "Confirming…" : "Confirm order"}
               </Button>
