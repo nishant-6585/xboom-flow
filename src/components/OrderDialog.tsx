@@ -291,6 +291,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setIsRto(order.is_rto || false);
       setCancellationReason(order.cancellation_reason || '');
       setOrderDate(order.order_date ? new Date(order.order_date) : new Date(order.created_at));
+      setDeliveryMode(((order as any).delivery_mode as string) || null);
       setCustomerName(order.customer_name || '');
       setCustomerCompany(order.customer_company || '');
       setCustomerGst((order as any).customer_gst || '');
