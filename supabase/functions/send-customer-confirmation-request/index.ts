@@ -33,19 +33,26 @@ serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    const auth = req.headers.get("Authorization") || "";
+    const auth = req.headers.get("Authorization") || req.headers.get("authorization") || "";
     const isServiceRole = auth.includes(SERVICE_ROLE);
 
     // Gate non-service-role callers to admin/sales/sales_manager.
     if (!isServiceRole) {
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
       const anonClient = createClient(
         SUPABASE_URL,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
+        anonKey,
         { global: { headers: { Authorization: auth } } },
       );
-      const { data: userRes } = await anonClient.auth.getUser();
+      const { data: userRes, error: userErr } = await anonClient.auth.getUser();
       const uid = userRes?.user?.id;
       if (!uid) {
+        console.warn("[send-customer-confirmation-request] unauthorized", {
+          hasAuthHeader: !!auth,
+          authScheme: auth ? auth.split(/\s+/)[0] : null,
+          hasAnonKey: !!anonKey,
+          userError: userErr?.message || null,
+        });
         return new Response(JSON.stringify({ error: "unauthorized" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -54,6 +61,7 @@ serve(async (req) => {
       const rset = new Set((roles || []).map((r: any) => r.role));
       const allowed = rset.has("admin") || rset.has("sales") || rset.has("sales_manager");
       if (!allowed) {
+        console.warn("[send-customer-confirmation-request] forbidden", { uid, roles: Array.from(rset) });
         return new Response(JSON.stringify({ error: "forbidden" }), {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
