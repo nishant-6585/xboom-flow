@@ -565,6 +565,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       cancelled_by: finalStatus === 'cancelled' && order.status !== 'cancelled' ? user?.id : order.cancelled_by,
     } as Partial<Order>;
 
+    // Persist delivery mode when it changed on the card
+    if (deliveryMode !== ((order as any).delivery_mode ?? null)) {
+      (updates as any).delivery_mode = deliveryMode;
+    }
+
     // Track changes for edit history — compare every editable field
     const changes: Record<string, { old: any; new: any }> = {};
     const trackField = (field: string, oldVal: any, newVal: any) => {
