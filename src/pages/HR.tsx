@@ -271,7 +271,15 @@ export default function HR() {
         </Tabs>
       </main>
 
-      <LeaveApplyDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} onSubmit={applyLeave} />
+      <LeaveApplyDialog
+        open={leaveDialogOpen}
+        onOpenChange={(o) => {
+          setLeaveDialogOpen(o);
+          if (!o) setLeavePrefillDate(undefined);
+        }}
+        onSubmit={applyLeave}
+        prefillDate={leavePrefillDate}
+      />
       {isHROrAdmin && (
         <HRLeaveApplyDialog
           open={hrLeaveDialogOpen}
