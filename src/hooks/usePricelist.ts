@@ -19,6 +19,7 @@ export interface PricelistItem {
   notes: string | null;
   marketing_collateral_url: string | null;
   marketing_collateral_name: string | null;
+  weight_grams: number | null;
   woo_product_id: number | null;
   woo_sku: string | null;
   woo_stock_status: string | null;
@@ -45,6 +46,7 @@ export interface PricelistFormData {
   notes?: string;
   marketing_collateral_url?: string;
   marketing_collateral_name?: string;
+  weight_grams?: number | null;
 }
 
 export function usePricelist() {
