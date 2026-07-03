@@ -36,6 +36,14 @@ const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<
   }
 };
 
+type ReturnLocationState = { from?: { pathname?: string; search?: string; hash?: string } } | null;
+
+const getPostAuthTarget = (state: ReturnLocationState) => {
+  const fromPath = state?.from?.pathname;
+  if (!fromPath || fromPath === "/auth" || fromPath === "/mfa-verify") return "/";
+  return `${fromPath}${state?.from?.search ?? ""}${state?.from?.hash ?? ""}`;
+};
+
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(true);
@@ -98,12 +106,8 @@ const Auth = () => {
       return;
     }
 
-    const state = location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null;
-    const fromPath = state?.from?.pathname;
-    const target = fromPath && fromPath !== "/auth"
-      ? `${fromPath}${state?.from?.search ?? ""}${state?.from?.hash ?? ""}`
-      : "/";
-    navigate(target, { replace: true });
+    const state = location.state as ReturnLocationState;
+    navigate(getPostAuthTarget(state), { replace: true });
   }, [authLoading, isForgotPassword, isResetPassword, mfaStatus, navigate, user, location.state]);
 
   const validateForm = () => {
@@ -312,13 +316,13 @@ const Auth = () => {
 
           if (hasMfaPending) {
             // Never navigate through dashboard while second factor is still pending
-            navigate("/mfa-verify", { replace: true });
+            navigate("/mfa-verify", { replace: true, state: location.state });
           } else {
             toast({
               title: "Welcome back!",
               description: "You have successfully logged in.",
             });
-            navigate("/");
+            navigate(getPostAuthTarget(location.state as ReturnLocationState), { replace: true });
           }
         }
       } else {
