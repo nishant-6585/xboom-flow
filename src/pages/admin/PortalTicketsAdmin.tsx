@@ -155,7 +155,7 @@ export default function PortalTicketsAdmin() {
                     <div>First response due: {fmt(t.sla_first_response_due_at)}</div>
                     <div>Resolution due: {fmt(t.sla_resolution_due_at)}</div>
                     <div className="mt-1">
-                      <Link to={`/portal/tickets/${t.id}`} className="text-primary hover:underline">
+                      <Link to={`/admin/portal-tickets/${t.id}`} className="text-primary hover:underline">
                         Open thread →
                       </Link>
                     </div>
