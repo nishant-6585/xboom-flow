@@ -20,6 +20,7 @@ import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
 import { Check, X, Users, ShieldCheck, ShieldOff, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History, Briefcase, FileQuestion, Package, Terminal } from "lucide-react";
+import { ADMIN_TABS, filterAdminTabs } from "@/components/admin/adminTabsConfig";
 import { UserApprovalHistoryDialog } from "@/components/admin/UserApprovalHistoryDialog";
 import { ActionWithCommentDialog } from "@/components/admin/ActionWithCommentDialog";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
