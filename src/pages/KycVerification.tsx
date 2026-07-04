@@ -204,6 +204,7 @@ export default function KycVerification() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </main>
     </div>
   );
 }
