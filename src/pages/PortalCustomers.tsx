@@ -849,12 +849,12 @@ export default function PortalCustomers() {
               <AlertDialogDescription>
                 {deleteBlockers ? (
                   <>
-                    Cannot delete <strong>{deleteRow?.company_name}</strong> — this account has{" "}
+                    Cannot delete <strong>{deleteRow ? (deleteRow.accountType === "business" ? deleteRow.company_name : (deleteRow.primary?.full_name || deleteRow.company_name)) : ""}</strong> — this account has{" "}
                     <strong>{deleteBlockers}</strong>. Suspend or archive instead.
                   </>
                 ) : (
                   <>
-                    This will permanently delete <strong>{deleteRow?.company_name}</strong> and all its portal contacts.
+                    This will permanently delete <strong>{deleteRow ? (deleteRow.accountType === "business" ? deleteRow.company_name : (deleteRow.primary?.full_name || deleteRow.company_name)) : ""}</strong> and all its portal contacts.
                     This action cannot be undone.
                   </>
                 )}
