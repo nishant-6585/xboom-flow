@@ -1,175 +1,121 @@
 project_id = "mxsotxddcvmeluqonuuj"
 
-[functions.portal-resend-invite-test]
-verify_jwt = false
-
-[functions.zoho-books-webhook]
-verify_jwt = false
-
-[functions.zoho-invoice-webhook]
-verify_jwt = false
-
-[functions.portal-set-password]
-verify_jwt = false
-
-[functions.google-ads-sync]
-verify_jwt = false
-
-[functions.ai-lead-scoring]
-verify_jwt = false
-
-[functions.ai-sales-assistant]
-verify_jwt = false
-
-[functions.send-slack-notification]
-verify_jwt = false
-
-[functions.shopify-config]
-verify_jwt = false
-
-[functions.shopify-webhook]
-verify_jwt = false
-
-[functions.shopify-order-processor]
-verify_jwt = false
-
-[functions.shopify-order-backfill]
-verify_jwt = false
-
-[functions.shopify-monitor]
-verify_jwt = false
-
-[functions.auto-checkout]
-verify_jwt = false
-
-[functions.low-stock-alerts]
-verify_jwt = false
-
-[functions.ai-portal-assistant]
-verify_jwt = false
-
-[functions.credit-monthly-el]
-verify_jwt = false
-
-[functions.approve-invitation]
-verify_jwt = false
-
-[functions.interakt-portal-webhook]
-verify_jwt = false
-
-[functions.portal-renewal-monitor]
-verify_jwt = false
-
-[functions.portal-docs-digest]
-verify_jwt = false
-
-[functions.send-order-notification]
-verify_jwt = false
-
-[functions.send-ticket-email]
-verify_jwt = false
-
-[functions.attendance-nudge]
-verify_jwt = false
-
-[functions.demand-forecast]
-verify_jwt = false
-
-[functions.payment-risk-scoring]
-verify_jwt = false
-
-[functions.upload-form-attachment]
-verify_jwt = false
-
-[functions.sync-interakt-contacts]
-verify_jwt = false
-
-[functions.sync-health-check]
-verify_jwt = false
-
-[functions.myoperator-webhook]
-verify_jwt = false
-
-[functions.sync-myoperator-logs]
-verify_jwt = false
-
-[functions.send-attention-notification]
-verify_jwt = false
-
-[functions.ai-sales-report]
-verify_jwt = false
-
-[functions.slack-actions]
-verify_jwt = false
-
-[functions.gmail-oauth-callback]
-verify_jwt = false
-
-[functions.gmail-lead-sync]
-verify_jwt = false
-
-[functions.ai-email-lead-processor]
-verify_jwt = false
-
-[functions.analyze-ticket]
-verify_jwt = false
-
-[functions.check-sla-risk]
-verify_jwt = false
-
-[functions.resolve-ticket-ai]
-verify_jwt = false
-
-[functions.fetch-code-context]
-verify_jwt = false
-
-[functions.parse-credit-card-statement]
-verify_jwt = false
-
-[functions.elevenlabs-call-summary]
-verify_jwt = false
-
-[functions.get-order-status]
-verify_jwt = false
-
-[functions.update-order-status]
-verify_jwt = false
-
-[functions.woocommerce-orders-backfill]
-verify_jwt = false
-
-[functions.woocommerce-orders-reconcile]
-verify_jwt = false
-
-[functions.woocommerce-push-update]
-verify_jwt = false
-
-[functions.woocommerce-webhook]
-verify_jwt = false
-
-[functions.woocommerce-product-webhook]
-verify_jwt = false
-
-[functions.woocommerce-products-backfill]
-verify_jwt = false
-
-[functions.send-website-order-email]
-verify_jwt = false
-
-[functions.portal-invite-customer]
-verify_jwt = false
-
-[functions.admin-reset-mfa]
-verify_jwt = false
-
-[functions.send-invoice-email]
-verify_jwt = false
-
-[functions.facebook-leads-webhook]
-verify_jwt = false
-
-[functions.send-invite-email]
-verify_jwt = false
-
-[functions.process-email-queue]
-verify_jwt = true
+[functions]
+  [functions.admin-reset-mfa]
+    verify_jwt = false
+  [functions.ai-email-lead-processor]
+    verify_jwt = false
+  [functions.ai-lead-scoring]
+    verify_jwt = false
+  [functions.ai-portal-assistant]
+    verify_jwt = false
+  [functions.ai-sales-assistant]
+    verify_jwt = false
+  [functions.ai-sales-report]
+    verify_jwt = false
+  [functions.analyze-ticket]
+    verify_jwt = false
+  [functions.approve-invitation]
+    verify_jwt = false
+  [functions.attendance-nudge]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.auto-checkout]
+    verify_jwt = false
+  [functions.check-sla-risk]
+    verify_jwt = false
+  [functions.credit-monthly-el]
+    verify_jwt = false
+  [functions.demand-forecast]
+    verify_jwt = false
+  [functions.elevenlabs-call-summary]
+    verify_jwt = false
+  [functions.facebook-leads-webhook]
+    verify_jwt = false
+  [functions.fetch-code-context]
+    verify_jwt = false
+  [functions.get-order-status]
+    verify_jwt = false
+  [functions.gmail-lead-sync]
+    verify_jwt = false
+  [functions.gmail-oauth-callback]
+    verify_jwt = false
+  [functions.google-ads-sync]
+    verify_jwt = false
+  [functions.interakt-portal-webhook]
+    verify_jwt = false
+  [functions.low-stock-alerts]
+    verify_jwt = false
+  [functions.myoperator-webhook]
+    verify_jwt = false
+  [functions.parse-credit-card-statement]
+    verify_jwt = false
+  [functions.payment-risk-scoring]
+    verify_jwt = false
+  [functions.portal-docs-digest]
+    verify_jwt = false
+  [functions.portal-invite-customer]
+    verify_jwt = false
+  [functions.portal-renewal-monitor]
+    verify_jwt = false
+  [functions.portal-resend-invite-test]
+    verify_jwt = false
+  [functions.portal-set-password]
+    verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+  [functions.resolve-ticket-ai]
+    verify_jwt = false
+  [functions.send-attention-notification]
+    verify_jwt = false
+  [functions.send-invite-email]
+    verify_jwt = false
+  [functions.send-invoice-email]
+    verify_jwt = false
+  [functions.send-order-notification]
+    verify_jwt = false
+  [functions.send-slack-notification]
+    verify_jwt = false
+  [functions.send-ticket-email]
+    verify_jwt = false
+  [functions.send-website-order-email]
+    verify_jwt = false
+  [functions.shopify-config]
+    verify_jwt = false
+  [functions.shopify-monitor]
+    verify_jwt = false
+  [functions.shopify-order-backfill]
+    verify_jwt = false
+  [functions.shopify-order-processor]
+    verify_jwt = false
+  [functions.shopify-webhook]
+    verify_jwt = false
+  [functions.slack-actions]
+    verify_jwt = false
+  [functions.sync-health-check]
+    verify_jwt = false
+  [functions.sync-interakt-contacts]
+    verify_jwt = false
+  [functions.sync-myoperator-logs]
+    verify_jwt = false
+  [functions.update-order-status]
+    verify_jwt = false
+  [functions.upload-form-attachment]
+    verify_jwt = false
+  [functions.woocommerce-orders-backfill]
+    verify_jwt = false
+  [functions.woocommerce-orders-reconcile]
+    verify_jwt = false
+  [functions.woocommerce-product-webhook]
+    verify_jwt = false
+  [functions.woocommerce-products-backfill]
+    verify_jwt = false
+  [functions.woocommerce-push-update]
+    verify_jwt = false
+  [functions.woocommerce-webhook]
+    verify_jwt = false
+  [functions.zoho-books-webhook]
+    verify_jwt = false
+  [functions.zoho-invoice-webhook]
+    verify_jwt = false
