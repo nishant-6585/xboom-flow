@@ -485,30 +485,31 @@ async function onboardOrder(
     ? `<p style="margin:0 0 22px;">${btn(confirmLink, "Confirm my order")}</p>`
     : "";
 
-  const html = shell(
-    "Customer Portal",
-    `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;">Thank you for your order, ${esc(order.customer_name || "")}!</h1>
-     <p style="margin:0 0 12px;font-size:15px;color:#334155;line-height:1.55;">
-       We've received your order <strong>${esc(order.order_number || "")}</strong>. Welcome aboard — your XBOOM Customer Portal is ready.
-     </p>
-     <p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.55;">
-       Before we begin processing, please complete a quick KYC by uploading your Aadhaar card. This usually takes under a minute.
-     </p>
-     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 22px;">
-       <p style="margin:0 0 10px;font-weight:600;color:#0f172a;font-size:14px;">Getting started</p>
-       ${stepsHtml}
-     </div>
-     <p style="margin:0 0 14px;">${btn(setupLink, "Set my password")}</p>
-     <p style="margin:0 0 22px;">${btn(kycLink, "Upload KYC documents")}</p>
-     ${confirmButtonHtml}
-     <p style="margin:0;font-size:12px;color:#94a3b8;">Order processing may require KYC approval. If you have questions, just reply to this email.</p>`,
-  );
-
-  const sendRes = await sendEmailWithRetry(
-    email,
-    "Welcome to XBOOM — set up your portal & complete KYC",
-    html,
-  );
+  // Migrated to platform (queued React Email template `kyc-onboarding`).
+  // Idempotency key derived from the kyc_email_log identity: one send per
+  // (order, kyc_invite). `force` re-sends generate a fresh key so manual
+  // resends still enqueue.
+  const idemKey = opts.force
+    ? `kyc:onboarding:${order.id}:force:${Date.now()}`
+    : `kyc:onboarding:${order.id}`;
+  const platformRes = await sendPlatform({
+    to: email,
+    templateName: "kyc-onboarding",
+    templateData: {
+      customerName: order.customer_name || "",
+      orderNumber: order.order_number || "",
+      setupLink,
+      kycLink,
+      confirmLink,
+      needsConfirmation,
+    },
+    idempotencyKey: idemKey,
+  });
+  const sendRes = {
+    ok: platformRes.ok,
+    error: platformRes.ok ? undefined : platformRes.error,
+    attempts: 1,
+  };
 
   await logKycEmail(admin, {
     order_id: order.id,
@@ -541,7 +542,9 @@ async function onboardOrder(
         status: sendRes.ok ? "sent" : "failed",
         sent_at: sendRes.ok ? new Date().toISOString() : null,
         error_message: sendRes.ok ? null : sendRes.error,
-        provider: "resend",
+        // Log the actual provider used by the seam so audits reflect the
+        // migration state rather than a hardcoded literal.
+        provider: platformRes.provider,
       });
     } catch (logErr) {
       console.error("[kyc-handler] order_notifications log failed", logErr);
