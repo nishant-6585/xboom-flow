@@ -153,6 +153,12 @@ User deliberately chose platform email after verifying sender domain (xboomflow.
 
 ---
 
+## ✅ VERIFIED 2026-07-04: Email platform migration Turns A+B — commits 5eda60d5, eb7dc6e8
+
+Turn A: order-notification + website-order templates live on platform queue (send-transactional-email + pgmq + process-email-queue); seam platform branch real (templateName/templateData/idempotencyKey; rejects raw HTML + attachments; NOTE: sends to FIRST recipient only — fix before Turn G admin-list functions). Turn B: KYC suite flipped (kyc-onboarding/kyc-reminder/kyc-status/kyc-salesperson-notify templates, transactional: true). Prereqs all verified in code: sender = "Xboom <notifications@xboomflow.com>" + Reply-To support@xboom.in; /unsubscribe page + route built; transactional flag bypasses suppression+unsub footer (non-transactional = fail-closed suppression check); kyc-handler logs platformRes.provider. Remaining turns: C (send-ticket-email + portal-notify) → D (confirmation-request + portal-invite-customer) → E (teammate/HR invites) → F (password reset) → G (tail + multi-recipient fix). Sender decision: keep noreply→notifications@xboomflow.com root-domain display, replies via support@xboom.in.
+
+---
+
 ## ✅ VERIFIED 2026-07-04: Email seam refactor (Option C step 1) — commit 958fa8f8
 
 `_shared/email.ts` created: sendEmail({to,subject,html,attachments,replyTo,from,provider,cc,bcc}); EMAIL_PROVIDER env (default resend); platform branch stubbed 501 until React Email templates land; DEFAULT_FROM "Xboom <notifications@notify.xboomflow.com>", DEFAULT_REPLY_TO support@xboom.in. All 18 functions migrated — grep confirms ZERO direct api.resend.com/resend-SDK calls remain outside the seam. send-invoice-email pinned provider:'resend' (platform lacks attachments) with FROM "Xboom Utilities <invoices@notify.xboomflow.com>". send-order-notification no longer uses sandbox onboarding@resend.dev. Spot-checked kyc-handler (retry wrapper intact; provider:'resend' at ~line 524 is only the order_notifications LOG value — flag to update when variant flips to platform) and send-order-notification (dynamic import, fine).
