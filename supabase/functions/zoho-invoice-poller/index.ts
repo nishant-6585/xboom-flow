@@ -72,10 +72,18 @@ async function sha256Hex(buf: ArrayBuffer): Promise<string> {
     .join("");
 }
 
-// Zoho returns last_modified_time as "2024-05-01T10:22:33+0530".
-// The list endpoint accepts the same ISO-with-offset value. Just pass it through.
+// Zoho Books' last_modified_time query param wants ISO WITHOUT fractional seconds
+// and with a compact numeric offset ("+0000"), not the SQL-style "+00:00".
 function toZohoTimeParam(iso: string): string {
-  return iso.replace(/\.\d+/, "");
+  // Normalise to Date first, then rebuild in Zoho's accepted shape.
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  // Emit UTC to avoid TZ ambiguity; Zoho accepts "+0000".
+  return (
+    `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}` +
+    `T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}+0000`
+  );
 }
 
 async function findMatchingOrder(
