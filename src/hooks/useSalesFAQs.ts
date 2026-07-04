@@ -30,14 +30,15 @@ export interface FAQFormData {
 
 export function useSalesFAQs() {
   const { user, profile, role } = useAuth();
+  // Depend on user.id (stable primitive), not user object — see usePricelist.
+  const userId = user?.id ?? null;
   const [faqs, setFAQs] = useState<SalesFAQ[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchFAQs = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
 
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('sales_faqs')
         .select('*')
@@ -52,7 +53,7 @@ export function useSalesFAQs() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchFAQs();
