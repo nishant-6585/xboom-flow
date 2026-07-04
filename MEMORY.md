@@ -147,6 +147,12 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 
 ---
 
+## 🟡 DECISION REVERSED (2026-07-04): ALL outgoing email moving Resend → Lovable platform email
+
+User deliberately chose platform email after verifying sender domain (xboomflow.com; notify subdomain delegated to ns3/ns4.lovable.cloud — Pending was caused by stale ns1/ns2 NS records in GoDaddy not serving the zone; deleted, verified). Rationale: no daily cap, built-in queue/retry, no Resend cost. Prompt handed to Lovable: single `_shared/email.ts` helper with EMAIL_PROVIDER switch (platform default, resend fallback — one-file swap for the future platform exit), refactor ~17 Resend call sites, replyTo support@xboom.in, ATTACHMENT check for send-invoice-email (stays on Resend if platform lacks attachments), smoke test per category. **Migration-off-Lovable impact: email is now a platform dependency to unwind — but the provider-switch helper makes that a config flip.** Watch: new-domain spam/warm-up for first days; then Resend plan can be downgraded (keep key as fallback).
+
+---
+
 ## ✅ Completed work
 
 ### 2026-07-04 — Portal Customers refinements ✅ + email-provider decision (by Lovable / Claude-verified)
