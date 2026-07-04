@@ -134,6 +134,10 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 
 ## ✅ Completed work
 
+### 2026-07-04 — Auth fix: email deep links logged users out of every tab ✅ (by Claude, commit `4bd9d3dd`)
+Symptom: clicking "Open ticket" in portal notification emails opened the xboomflow.com login screen despite an active session, AND killed the existing session in other tabs. Root cause: a startup "corrupted token cleanup" IIFE in `useAuth.tsx` (added by Lovable commit `23a19ee3`, 2026-05-21) ran once per NEW tab (per-tab sessionStorage flag) and deleted the `sb-*-auth-token` localStorage key when the refresh token was <20 chars or the access token expired — but valid Supabase refresh tokens ARE short opaque (~12-char) strings, and expired access tokens are refreshable. Every new tab therefore purged the shared session; the storage removal broadcast SIGNED_OUT to all tabs. Fix: cleanup now only removes truly corrupted entries (unparseable JSON / missing refresh_token). ⚠️ Related residual risk (not changed): `isSessionExpired` purge on INITIAL_SESSION (useAuth ~line 424) can still force cross-tab logout if the SDK ever emits an expired session mid-refresh — revisit if random logouts persist.
+
+
 ### 2026-06-19 — Email invoice to customer (proforma + Zoho) ✅ (by Lovable)
 Auto-emails the customer when a proforma is generated or a Zoho invoice is uploaded; reuses the existing **Resend** integration (`RESEND_API_KEY`, verified domain `xboom.in`, sender `invoices@xboom.in`).
 - `send-invoice-email` edge fn: pulls PDF from `invoices` bucket, base64-attaches, document-aware subject/body (Proforma vs Tax Invoice; tax invoice notes it supersedes the proforma). Auto-mode idempotent (skips if a 'sent' row exists for that invoice id); manual re-send always allowed. `verify_jwt=false`.
