@@ -91,6 +91,26 @@ async function sendEmailOnce(
   };
 }
 
+// Platform (queued) helper for KYC transactional templates. Returns the
+// full seam result so callers can log the actual provider used.
+async function sendPlatform(args: {
+  to: string;
+  templateName: string;
+  templateData: Record<string, unknown>;
+  idempotencyKey: string;
+}) {
+  return await sendMailSeam({
+    to: args.to,
+    // subject/html are ignored by the platform branch; template controls them.
+    subject: "",
+    html: "",
+    provider: "platform",
+    templateName: args.templateName,
+    templateData: args.templateData,
+    idempotencyKey: args.idempotencyKey,
+  });
+}
+
 // Back-compat wrapper used by staff notifications / status emails (no retry needed).
 async function sendEmail(to: string, subject: string, html: string) {
   return await sendEmailOnce(to, subject, html);
