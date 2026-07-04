@@ -367,20 +367,14 @@ export function TallyDashboard() {
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
-    const t = toast.loading("Refreshing tally… syncing Zoho invoices");
+    const t = toast.loading("Refreshing tally…");
     try {
-      const { data: syncData, error: syncErr } = await supabase.functions.invoke("zoho-books-sync", { body: {} });
-      if (syncErr) {
-        toast.error(`Zoho sync failed: ${syncErr.message}`, { id: t });
-      } else if (syncData?.rate_limited) {
-        toast.warning(
-          syncData.message || "Zoho daily API quota reached — showing last synced data.",
-          { id: t, duration: 6000 },
-        );
-      } else {
-        toast.success("Zoho invoices synced", { id: t });
-      }
+      // Zoho invoices are now pushed in real-time via the zoho-books-webhook
+      // function (Zoho workflow rules), so a periodic bulk pull is no longer
+      // needed and would burn against Zoho's 2,000 calls/day cap. Refresh
+      // just re-reads the local cache.
       await fetchData();
+      toast.success("Tally refreshed", { id: t });
     } catch (err: any) {
       toast.error(err?.message || "Refresh failed", { id: t });
     } finally {
