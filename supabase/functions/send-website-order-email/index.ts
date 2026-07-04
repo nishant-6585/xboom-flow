@@ -167,34 +167,18 @@ Deno.serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  if (!RESEND_API_KEY) {
-    return new Response(JSON.stringify({ error: "RESEND_API_KEY missing" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  }
-
   const { subject, html } = buildEmail(body);
+  const { sendEmail: sendMailSeam } = await import("../_shared/email.ts");
 
-  const resp = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: FROM,
-      to: [body.customer_email],
-      subject,
-      html,
-      reply_to: "support@xboom.in",
-      tags: [{ name: "category", value: "website_order" }, { name: "event", value: body.event }],
-    }),
+  const resp = await sendMailSeam({
+    to: body.customer_email,
+    subject,
+    html,
   });
 
-  const text = await resp.text();
   if (!resp.ok) {
-    console.error("[send-website-order-email] Resend error", resp.status, text);
-    return new Response(JSON.stringify({ error: "Resend failed", details: text.slice(0, 500) }),
+    console.error("[send-website-order-email] Email error", resp.status, resp.error);
+    return new Response(JSON.stringify({ error: "Email failed", details: (resp.error ?? "").slice(0, 500) }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
