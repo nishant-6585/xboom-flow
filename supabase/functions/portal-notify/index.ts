@@ -13,6 +13,7 @@
 // whatsapp_number is on file.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,9 +22,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const INTERAKT_API_KEY = Deno.env.get("INTERAKT_API_KEY");
-const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE_URL =
   Deno.env.get("PORTAL_BASE_URL") ?? "https://xboomflow.com/portal";
 const STAFF_BASE_URL = "https://xboomflow.com";
@@ -79,22 +78,9 @@ function json(body: unknown, status = 200) {
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
-  if (!RESEND_API_KEY) return { ok: false, error: "RESEND_API_KEY missing" };
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, error: `${res.status} ${JSON.stringify(data)}` };
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
-  }
+  const r = await sendMailSeam({ to, subject, html });
+  if (!r.ok) return { ok: false, error: `${r.status} ${r.error ?? ""}`.trim() };
+  return { ok: true, data: r.raw };
 }
 
 async function sendWhatsApp(
