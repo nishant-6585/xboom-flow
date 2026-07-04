@@ -151,7 +151,8 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 ### 2026-07-04 — Portal Customers refinements ✅ + email-provider decision (by Lovable / Claude-verified)
 - Refinement pass verified: `displayCompany()` rule (company only for Business accounts — list/CSV/drawer/delete-confirm), drawer "Recent Orders" now reads public.orders by contact-email match (B2B section only when portal_orders exist), invite dialog Individual/Business toggle, WhatsApp capture (invite + drawer inline editor); onboardOrder sets primary_contact_name. Small fixes: confirmation chip whitespace-nowrap; KYC page got main Header/tab bar.
 - **Decision: declined Lovable's built-in-email migration (notify.xboomflow.com)** — would add new platform lock-in counter to the migration-off-Lovable milestone. Standardizing on Resend (user to upgrade plan for quota) + the portable retry/logging work (portal_notifications_log + hourly retry cron + resolved/closed notify fix) — prompt handed to Lovable.
-- Still pending from this thread: last_login_at RPC fix + auth.users backfill + unified admin nav (prompt given); DigiLocker (awaits vendor pick).
+- **last_login fix + unified admin nav ✅** (2026-07-04, migration `20260704075253`, verified): `touch_portal_last_login()` SECURITY DEFINER RPC (own-row by auth.uid; replaces the RLS-blocked direct update that made everyone show "Never logged in") + one-time backfill from `auth.users.last_sign_in_at`; `adminTabsConfig.ts` ADMIN_TABS is now the single source for Admin.tsx + AdminTabsNav (Portal Tickets/Feature Flags/Dev Console/KYC Emails consistent, financeOk kept).
+- Still pending: DigiLocker (awaits vendor pick); notification retry/logging build (Resend retained — Lovable platform-email declined).
 
 
 ### 2026-07-04 — Auth fix: email deep links logged users out of every tab ✅ (by Claude, commit `4bd9d3dd`)
