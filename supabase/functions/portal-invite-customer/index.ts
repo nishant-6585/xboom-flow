@@ -230,9 +230,7 @@ Deno.serve(async (req) => {
     // 9. Send the branded invite email via Resend (notifications@xboom.in)
     let emailSent = false;
     let emailError: string | null = null;
-    if (!RESEND_API_KEY) {
-      emailError = "RESEND_API_KEY not configured";
-    } else {
+    {
       const html = renderInviteEmail({
         fullName: body.full_name,
         actionLink,
