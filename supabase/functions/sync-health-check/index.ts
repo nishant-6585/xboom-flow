@@ -134,24 +134,15 @@ function buildEmailHtml(stale: HealthRow[], healthy: HealthRow[]): string {
 }
 
 async function sendAlertEmail(stale: HealthRow[], healthy: HealthRow[]) {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  if (!apiKey) {
-    console.error("RESEND_API_KEY not configured");
-    return { sent: false, error: "missing_api_key" };
-  }
+  const { sendEmail: sendMailSeam } = await import("../_shared/email.ts");
   const subject = `🚨 [Xboom] ${stale.length} lead source${stale.length === 1 ? "" : "s"} not syncing`;
   const html = buildEmailHtml(stale, healthy);
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM_EMAIL, to: ADMIN_EMAILS, subject, html }),
-  });
-  const body = await res.text();
+  const res = await sendMailSeam({ to: ADMIN_EMAILS, subject, html });
   if (!res.ok) {
-    console.error("Resend error:", res.status, body);
-    return { sent: false, error: body };
+    console.error("Email error:", res.status, res.error);
+    return { sent: false, error: res.error };
   }
-  return { sent: true, response: body };
+  return { sent: true, response: res.raw };
 }
 
 Deno.serve(async (req) => {

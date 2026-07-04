@@ -3,9 +3,9 @@
 // recovery link, and emails it via Resend from notifications@xboom.in (same
 // sender used for ticket/order notifications).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
+// NOTE: outbound sends go through the shared seam (_shared/email.ts).
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -230,9 +230,7 @@ Deno.serve(async (req) => {
     // 9. Send the branded invite email via Resend (notifications@xboom.in)
     let emailSent = false;
     let emailError: string | null = null;
-    if (!RESEND_API_KEY) {
-      emailError = "RESEND_API_KEY not configured";
-    } else {
+    {
       const html = renderInviteEmail({
         fullName: body.full_name,
         actionLink,
@@ -242,29 +240,16 @@ Deno.serve(async (req) => {
         ? "You've been added to the XBOOM B2B Portal"
         : "You're invited to the XBOOM B2B Portal";
       try {
-        const r = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: FROM_ADDRESS,
-            to: [email],
-            subject,
-            html,
-          }),
-        });
+        const r = await sendMailSeam({ to: email, subject, html });
         if (!r.ok) {
-          const txt = await r.text();
-          emailError = `Resend ${r.status}: ${txt.slice(0, 300)}`;
-          console.error("Resend send failed:", emailError);
+          emailError = `Email ${r.status}: ${r.error ?? ""}`.slice(0, 300);
+          console.error("Email send failed:", emailError);
         } else {
           emailSent = true;
         }
       } catch (e) {
         emailError = (e as Error).message;
-        console.error("Resend send threw:", emailError);
+        console.error("Email send threw:", emailError);
       }
     }
 

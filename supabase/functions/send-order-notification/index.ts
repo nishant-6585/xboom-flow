@@ -223,24 +223,15 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "XBOOM Flow <onboarding@resend.dev>",
-        to: ["nishant.k@xboom.in"],
-        subject: `New Order Created: ${orderData.orderNumber} - ${orderData.customerName}`,
-        html: emailHtml,
-      }),
+    const { sendEmail: sendMailSeam } = await import("../_shared/email.ts");
+    const emailResponse = await sendMailSeam({
+      to: "nishant.k@xboom.in",
+      subject: `New Order Created: ${orderData.orderNumber} - ${orderData.customerName}`,
+      html: emailHtml,
     });
-
-    const result = await emailResponse.json();
-
+    const result = emailResponse.raw;
     if (!emailResponse.ok) {
-      console.error("Resend API error:", result);
+      console.error("Email send error:", emailResponse.error, result);
       throw new Error("Failed to send email");
     }
 

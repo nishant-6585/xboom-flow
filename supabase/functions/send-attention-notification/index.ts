@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendEmail as sendMailSeam } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,9 +84,8 @@ Deno.serve(async (req) => {
       target_role: 'admin',
     });
 
-    // Try to send email notification via Resend if API key exists
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (resendApiKey) {
+    // Send email notification through the shared seam.
+    {
       const emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: #dc2626; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0;">
@@ -105,18 +105,10 @@ Deno.serve(async (req) => {
         </div>
       `;
 
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'XBoom Alerts <alerts@xboom.in>',
-          to: [NOTIFY_EMAIL],
-          subject: `🚨 Attention: ${customer_name}${company ? ` - ${company}` : ''} [${source_type}]`.slice(0, 200),
-          html: emailBody,
-        }),
+      await sendMailSeam({
+        to: NOTIFY_EMAIL,
+        subject: `🚨 Attention: ${customer_name}${company ? ` - ${company}` : ''} [${source_type}]`.slice(0, 200),
+        html: emailBody,
       });
     }
 

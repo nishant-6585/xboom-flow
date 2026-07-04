@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,7 +31,10 @@ const fmtINR = (n: number) =>
     maximumFractionDigits: 2,
   }).format(n || 0);
 
-const FROM = "Xboom Utilities <invoices@xboom.in>";
+// Pinned display From for invoice PDFs (per-function override on the seam).
+// send-invoice-email is permanently pinned to the 'resend' provider because
+// the platform queued-email path does not support file attachments.
+const FROM = "Xboom Utilities <invoices@notify.xboomflow.com>";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -257,33 +261,23 @@ serve(async (req) => {
       </div>
     `;
 
-    const resp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: FROM,
-        to: [customerEmail],
-        subject,
-        html,
-        attachments: [
-          {
-            filename: `${invNum}.pdf`,
-            content: b64,
-          },
-        ],
-      }),
+    // Provider pinned to Resend — platform path cannot carry PDF attachments.
+    const resp = await sendMailSeam({
+      provider: "resend",
+      from: FROM,
+      to: customerEmail,
+      subject,
+      html,
+      attachments: [{ filename: `${invNum}.pdf`, content: b64 }],
     });
-    const result = await resp.json().catch(() => ({}));
+    const result: any = resp.raw ?? {};
     if (!resp.ok) {
-      const errMsg = (result && (result.message || result.error)) || `HTTP ${resp.status}`;
+      const errMsg = resp.error || `HTTP ${resp.status}`;
       await admin.from("invoice_email_log").insert({
         ...logBase, to_email: customerEmail, status: "failed", error: String(errMsg).slice(0, 500),
       });
       return new Response(JSON.stringify({ error: errMsg }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: resp.status || 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
