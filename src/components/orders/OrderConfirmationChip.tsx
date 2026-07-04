@@ -58,8 +58,8 @@ export function OrderConfirmationChip({
             onClick={(e) => e.stopPropagation()}
             className={
               isConfirmed
-                ? "text-xs h-5 px-1.5 gap-1 border-emerald-400 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400"
-                : "text-xs h-5 px-1.5 gap-1 border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400"
+                ? "text-xs h-5 px-1.5 gap-1 whitespace-nowrap border-emerald-400 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400"
+                : "text-xs h-5 px-1.5 gap-1 whitespace-nowrap border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400"
             }
           >
             {isConfirmed ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
