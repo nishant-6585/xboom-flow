@@ -6,6 +6,7 @@ import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { PaymentStatusTracker } from '@/components/PaymentStatusTracker';
 import { KycInviteBadge } from '@/components/orders/KycInviteBadge';
 import { OrderConfirmationChip } from '@/components/orders/OrderConfirmationChip';
+import { InvoiceAttachedBadge } from '@/components/orders/InvoiceAttachedBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { Package, User, Building2, Truck, ExternalLink, TrendingUp, Clock, CreditCard, Trophy, XCircle, Undo2, IndianRupee, Calendar, ShoppingBag } from 'lucide-react';
@@ -82,6 +83,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
                   </Badge>
                 )}
                 <KycInviteBadge orderId={order.id} compact />
+                <InvoiceAttachedBadge orderId={order.id} compact />
                 <OrderConfirmationChip
                   orderId={order.id}
                   confirmationStatus={(order as any).confirmation_status}
