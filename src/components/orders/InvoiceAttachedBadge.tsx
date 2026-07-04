@@ -70,7 +70,7 @@ export function InvoiceAttachedBadge({ orderId, compact = false }: Props) {
         <TooltipTrigger asChild>
           <Badge
             variant="outline"
-            className="h-5 px-1.5 gap-1 text-xs font-medium border-emerald-400 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400 shadow-sm"
+            className="h-5 px-1.5 gap-1 text-xs font-semibold border-emerald-600 text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:border-emerald-400 shadow-sm ring-1 ring-emerald-300 dark:ring-emerald-700"
           >
             <FileCheck2 className="h-3 w-3" />
             {compact ? short : label}
