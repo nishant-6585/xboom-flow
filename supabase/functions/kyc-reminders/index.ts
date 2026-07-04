@@ -18,25 +18,24 @@ function esc(s: string) {
   );
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  const r = await sendMailSeam({ to, subject, html });
+// Migrated to platform (queued React Email template `kyc-reminder`).
+async function sendReminder(to: string, name: string, daysOld: number, accountId: string, bucket: string): Promise<boolean> {
+  const r = await sendMailSeam({
+    to,
+    subject: "",
+    html: "",
+    provider: "platform",
+    templateName: "kyc-reminder",
+    templateData: {
+      name,
+      daysOld,
+      kycLink: `${PORTAL_BASE}/portal/kyc`,
+    },
+    // Idempotency key mirrors the kyc_audit_log identity — one row per
+    // (account, reminder bucket) — so retries never double-send.
+    idempotencyKey: `kyc:reminder:${accountId}:${bucket}`,
+  });
   return r.ok;
-}
-
-function reminderHtml(name: string, daysOld: number) {
-  const link = `${PORTAL_BASE}/portal/kyc`;
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#f5f6f8;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;padding:32px 12px;">
-    <tr><td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.08);">
-        <tr><td style="background:#0c1e3e;padding:22px 28px;color:#fff;font-weight:700;">x<span style="color:#d4af37;">boom</span> <span style="font-size:11px;letter-spacing:1.5px;opacity:.7;margin-left:8px;text-transform:uppercase;">KYC reminder</span></td></tr>
-        <tr><td style="padding:28px;">
-          <h1 style="margin:0 0 10px;font-size:20px;">Quick reminder — your KYC isn't finished yet</h1>
-          <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.55;">Hi ${esc(name)}, it's been ${daysOld} day${daysOld === 1 ? "" : "s"} since your order. We still need your Aadhaar card to keep things moving smoothly.</p>
-          <p style="margin:0 0 0;"><a href="${link}" style="display:inline-block;background:#0c1e3e;color:#fff;text-decoration:none;padding:11px 20px;border-radius:8px;font-weight:600;font-size:14px;">Upload KYC now</a></p>
-        </td></tr>
-      </table>
-    </td></tr></table></body></html>`;
 }
 
 Deno.serve(async (req) => {
@@ -99,10 +98,12 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (!contact?.email) continue;
 
-      const ok = await sendEmail(
+      const ok = await sendReminder(
         contact.email,
-        `Reminder: upload your Aadhaar to complete KYC`,
-        reminderHtml(contact.full_name || acct.primary_contact_name || "there", b.days),
+        contact.full_name || acct.primary_contact_name || "there",
+        b.days,
+        accountId,
+        b.label,
       );
       if (ok) sent++;
 
