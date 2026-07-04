@@ -76,8 +76,10 @@ export function useNotifications() {
       if (error) throw error;
 
       const notifs = (data || []) as Notification[];
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.is_read).length);
+      // Dedup by id defensively — realtime may have already inserted some rows
+      const uniq = Array.from(new Map(notifs.map(n => [n.id, n])).values());
+      setNotifications(uniq);
+      setUnreadCount(uniq.filter(n => !n.is_read).length);
       
       // Mark initial load as complete
       isInitialLoad.current = false;
@@ -91,9 +93,11 @@ export function useNotifications() {
   useEffect(() => {
     fetchNotifications();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates — unique channel name per mount so
+    // remounts/StrictMode don't collide on the same global channel.
+    const channelName = `notifications-changes-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel('notifications-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -103,15 +107,22 @@ export function useNotifications() {
         },
         (payload) => {
           const newNotification = payload.new as Notification;
-          
-          // Add to state
-          setNotifications(prev => [newNotification, ...prev]);
-          if (!newNotification.is_read) {
+
+          // Dedup by id — prevents the same row from stacking up if
+          // the INSERT event is delivered more than once (multiple
+          // subscribers, reconnects, or an overlap with a refetch).
+          let inserted = false;
+          setNotifications(prev => {
+            if (prev.some(n => n.id === newNotification.id)) return prev;
+            inserted = true;
+            return [newNotification, ...prev];
+          });
+          if (inserted && !newNotification.is_read) {
             setUnreadCount(prev => prev + 1);
           }
           
           // Show toast for new hot leads and mega deals (skip on initial load)
-          if (!isInitialLoad.current) {
+          if (inserted && !isInitialLoad.current) {
             showToastForNotification(newNotification);
           }
         }
