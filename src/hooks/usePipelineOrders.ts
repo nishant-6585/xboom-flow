@@ -90,14 +90,19 @@ export const PIPELINE_PRIORITIES = [
 
 export function usePipelineOrders() {
   const { user, role } = useAuth();
+  // Depend on user.id (a stable primitive), NOT the user OBJECT. Supabase
+  // re-issues a fresh user object on tab focus / session refresh; using the
+  // object as a dep would flip loading back to true, unmounting any open
+  // dialogs and wiping in-progress form data (see usePricelist.ts for the
+  // original occurrence of this bug).
+  const userId = user?.id ?? null;
   const [pipelineOrders, setPipelineOrders] = useState<PipelineOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPipelineOrders = useCallback(async () => {
-    if (!user) return;
-    
+    if (!userId) return;
+
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('pipeline_orders')
         .select('*')
@@ -109,9 +114,11 @@ export function usePipelineOrders() {
       console.error('Error fetching pipeline orders:', error);
       toast.error('Failed to fetch pipeline orders');
     } finally {
+      // Only flip loading off — never back on for background refetches.
+      // The initial `useState(true)` covers first load.
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchPipelineOrders();

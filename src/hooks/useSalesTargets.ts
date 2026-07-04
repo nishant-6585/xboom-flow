@@ -38,14 +38,15 @@ export interface SalesTargetFormData {
 
 export function useSalesTargets() {
   const { user, role } = useAuth();
+  // Depend on user.id (stable primitive), not user object — see usePricelist.
+  const userId = user?.id ?? null;
   const [targets, setTargets] = useState<SalesTarget[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTargets = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
 
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('sales_targets')
         .select('*')
@@ -61,7 +62,7 @@ export function useSalesTargets() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchTargets();
