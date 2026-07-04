@@ -138,6 +138,14 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 
 ---
 
+## ⏳ PLANNED — DigiLocker KYC + Portal Customers screen upgrade (prompts ready)
+
+**DigiLocker KYC (customer portal)** — decisions: access via **licensed aggregator** (Surepass/Setu-class; direct MeitY partnership deferred — weeks of onboarding vs days; architecture is provider-agnostic so switching later is contained) and **auto-approve** DigiLocker-verified KYC (`kyc_status='approved'`, `source='digilocker'`). Plan: `digilocker-kyc-init` + `digilocker-kyc-callback` edge fns, `kyc_digilocker_sessions` table, portal `/portal/kyc` primary "Verify instantly with DigiLocker" button (manual upload stays as fallback), staff source badges, DPDP hygiene (store aadhaar_last4 + consent timestamp + txn id only; never full number/raw XML). **⚠️ Trigger interplay:** `auto_confirm_orders_on_kyc_submission` fires only on → pending_verification; must ALSO fire on → approved or DigiLocker customers' drone orders won't auto-confirm (in prompt). **Blocked on user: pick vendor + get API key**; prompt has provider placeholders.
+
+**Portal Customers screen upgrade** — current screen shows only company/industry/status/created; retail (KYC-onboarded) customers appear as "Companies" with empty Industry. Prompt ready (Tier 1+2): drop "B2B" label; Customer column (primary contact name/email/phone); account-type badge Business (gstin/company≠contact) vs Individual (replaces Industry); KYC + Last-login ("Never" = invited-not-activated) columns; search/filters (status, KYC, type, rep); clickable stats cards; account detail drawer (contacts w/ resend-invite + activate/deactivate, KYC docs, recent orders by email-match + tickets, rep selector); guarded delete; optional CSV export. Staff-only RPC if RLS blocks joins. DigiLocker "verified" badges will surface in this screen's KYC column once both ship.
+
+---
+
 ## ✅ Completed work
 
 ### 2026-07-04 — Auth fix: email deep links logged users out of every tab ✅ (by Claude, commit `4bd9d3dd`)
