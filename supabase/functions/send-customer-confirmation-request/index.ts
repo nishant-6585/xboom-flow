@@ -10,6 +10,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -132,15 +133,10 @@ serve(async (req) => {
             <p style="color:#555;font-size:13px">Or open this link:<br/><a href="${link}">${link}</a></p>
             <p style="color:#888;font-size:12px;margin-top:32px">Xboom · Order ${escapeHtml(orderNumber)}</p>
           </div>`;
-        const resp = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-          body: JSON.stringify({
-            from: "Xboom <notifications@xboom.in>",
-            to: [order.customer_email],
-            subject: `Action required: confirm your Xboom order ${orderNumber}`,
-            html,
-          }),
+        const resp = await sendMailSeam({
+          to: order.customer_email,
+          subject: `Action required: confirm your Xboom order ${orderNumber}`,
+          html,
         });
         const ok = resp.ok;
         result.email = ok ? "sent" : `failed:${resp.status}`;
