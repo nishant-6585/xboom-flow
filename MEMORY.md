@@ -132,6 +132,12 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 - **Open / prereqs:** customer state for Place of Supply (orders store address as a string — dialog lets finance confirm; consider a `state` column later); signature image in `signatures` bucket; confirm seller GSTIN/bank/T&C from sample are current.
 - **Website orders:** ✅ now wired by Lovable — `GenerateProformaDialog` accepts a `wooOrder` prop; `WooOrderDetailDialog`/`ShopifyOrderDetailDialog` have Generate buttons; new `InvoiceListCard`. Also added: buyer GSTIN field, regenerate-existing-proforma (keeps number).
 
+## ❗ OPEN — Resend daily quota exceeded (email infra at capacity)
+
+2026-07-04: portal ticket-reply email to customer very likely FAILED — Resend returned `429 daily_quota_exceeded` (free tier ~100/day; ALL app email shares one key: confirmations, KYC, invoices, portal notify, SLA). **Action (user): upgrade Resend plan.** Also: `portal-notify` doesn't persist per-send outcomes (`portal_notifications_log` exists but is never written) and the resolved/closed status change never notifies customers (`updateStatus` calls ticket_message_added without message_id → 404). Consolidated fix prompt handed to Lovable (log + hourly retry cron + ticket_status_changed event + admin Notifications section). Portal thread delivery itself confirmed ✅ (reply is_internal=false).
+
+---
+
 ## ✅ Completed work
 
 ### 2026-07-04 — Auth fix: email deep links logged users out of every tab ✅ (by Claude, commit `4bd9d3dd`)
