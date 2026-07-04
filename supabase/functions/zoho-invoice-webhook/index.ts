@@ -22,10 +22,19 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // Simple shared-secret auth via query param (?token=...) or header
+    // Simple shared-secret auth via query param (?token=...) or header.
+    // Fail CLOSED: if the secret isn't configured, reject everything rather
+    // than accepting unauthenticated calls.
+    if (!WEBHOOK_SECRET) {
+      console.error('[zoho-invoice-webhook] ZOHO_WEBHOOK_SECRET not configured');
+      return new Response(JSON.stringify({ error: 'server misconfigured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const url = new URL(req.url);
     const token = url.searchParams.get('token') ?? req.headers.get('x-webhook-secret');
-    if (WEBHOOK_SECRET && token !== WEBHOOK_SECRET) {
+    if (token !== WEBHOOK_SECRET) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

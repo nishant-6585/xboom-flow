@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.zoho-books-webhook]
 verify_jwt = false
 
+[functions.zoho-invoice-webhook]
+verify_jwt = false
+
 [functions.portal-set-password]
 verify_jwt = false
 
