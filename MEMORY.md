@@ -148,6 +148,12 @@ Goal: remove the finance team's dependency on Zoho for the invoice PDF. Decision
 
 ## ✅ Completed work
 
+### 2026-07-04 — Portal Customers refinements ✅ + email-provider decision (by Lovable / Claude-verified)
+- Refinement pass verified: `displayCompany()` rule (company only for Business accounts — list/CSV/drawer/delete-confirm), drawer "Recent Orders" now reads public.orders by contact-email match (B2B section only when portal_orders exist), invite dialog Individual/Business toggle, WhatsApp capture (invite + drawer inline editor); onboardOrder sets primary_contact_name. Small fixes: confirmation chip whitespace-nowrap; KYC page got main Header/tab bar.
+- **Decision: declined Lovable's built-in-email migration (notify.xboomflow.com)** — would add new platform lock-in counter to the migration-off-Lovable milestone. Standardizing on Resend (user to upgrade plan for quota) + the portable retry/logging work (portal_notifications_log + hourly retry cron + resolved/closed notify fix) — prompt handed to Lovable.
+- Still pending from this thread: last_login_at RPC fix + auth.users backfill + unified admin nav (prompt given); DigiLocker (awaits vendor pick).
+
+
 ### 2026-07-04 — Auth fix: email deep links logged users out of every tab ✅ (by Claude, commit `4bd9d3dd`)
 Symptom: clicking "Open ticket" in portal notification emails opened the xboomflow.com login screen despite an active session, AND killed the existing session in other tabs. Root cause: a startup "corrupted token cleanup" IIFE in `useAuth.tsx` (added by Lovable commit `23a19ee3`, 2026-05-21) ran once per NEW tab (per-tab sessionStorage flag) and deleted the `sb-*-auth-token` localStorage key when the refresh token was <20 chars or the access token expired — but valid Supabase refresh tokens ARE short opaque (~12-char) strings, and expired access tokens are refreshable. Every new tab therefore purged the shared session; the storage removal broadcast SIGNED_OUT to all tabs. Fix: cleanup now only removes truly corrupted entries (unparseable JSON / missing refresh_token). ⚠️ Related residual risk (not changed): `isSessionExpired` purge on INITIAL_SESSION (useAuth ~line 424) can still force cross-tab logout if the SDK ever emits an expired session mid-refresh — revisit if random logouts persist.
 
