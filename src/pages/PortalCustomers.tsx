@@ -76,6 +76,11 @@ function accountTypeOf(account: AccountRow, primary: ContactRow | null): "busine
   return "individual";
 }
 
+/** Display company name only for real businesses; "—" otherwise. */
+function displayCompany(row: { accountType: "business" | "individual"; company_name: string }): string {
+  return row.accountType === "business" ? (row.company_name || "—") : "—";
+}
+
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -125,7 +130,7 @@ function downloadCsv(rows: EnrichedRow[]) {
   const lines = [header.join(",")];
   for (const r of rows) {
     lines.push([
-      r.company_name,
+      displayCompany(r),
       r.accountType,
       r.primary?.full_name ?? "",
       r.primary?.email ?? "",
@@ -172,12 +177,14 @@ export default function PortalCustomers() {
 
   // Invite dialog
   const [open, setOpen] = useState(false);
+  const [inviteType, setInviteType] = useState<"individual" | "business">("individual");
   const [companyName, setCompanyName] = useState("");
   const [gstin, setGstin] = useState("");
   const [industry, setIndustry] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [contactRole, setContactRole] = useState<"buyer" | "admin" | "technician" | "finance">("buyer");
   const [submitting, setSubmitting] = useState(false);
 
@@ -289,26 +296,35 @@ export default function PortalCustomers() {
 
   // ----- invite -----
   const resetInvite = () => {
+    setInviteType("individual");
     setCompanyName(""); setGstin(""); setIndustry("");
-    setFullName(""); setEmail(""); setPhone(""); setContactRole("buyer");
+    setFullName(""); setEmail(""); setPhone(""); setWhatsappNumber(""); setContactRole("buyer");
   };
   const submit = async () => {
-    if (!companyName || !fullName || !email) {
-      toast({ title: "Missing fields", description: "Company, full name and email are required.", variant: "destructive" });
+    if (!fullName || !email) {
+      toast({ title: "Missing fields", description: "Customer name and email are required.", variant: "destructive" });
       return;
     }
+    if (inviteType === "business" && !companyName) {
+      toast({ title: "Missing fields", description: "Company name is required for business accounts.", variant: "destructive" });
+      return;
+    }
+    // For individuals, use the person's name for company_name (NOT NULL constraint)
+    // while still setting primary_contact_name so the display rule identifies them as Individual.
+    const effectiveCompanyName = inviteType === "business" ? companyName : fullName;
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("portal-invite-customer", {
       body: {
         new_account: {
-          company_name: companyName,
-          gstin: gstin || undefined,
-          industry: industry || undefined,
+          company_name: effectiveCompanyName,
+          gstin: inviteType === "business" ? (gstin || undefined) : undefined,
+          industry: inviteType === "business" ? (industry || undefined) : undefined,
           primary_contact_name: fullName,
         },
         full_name: fullName,
         email,
         phone: phone || undefined,
+        whatsapp_number: whatsappNumber || undefined,
         contact_role: contactRole,
       },
     });
@@ -396,6 +412,7 @@ export default function PortalCustomers() {
         full_name: c.full_name,
         email: c.email,
         phone: c.phone ?? undefined,
+        whatsapp_number: c.whatsapp_number ?? undefined,
         contact_role: c.role,
       },
     });
@@ -474,22 +491,45 @@ export default function PortalCustomers() {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Company / customer name *</Label>
-                      <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Drones Pvt Ltd" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label>GSTIN</Label>
-                        <Input value={gstin} onChange={(e) => setGstin(e.target.value)} />
+                      <Label>Account type</Label>
+                      <div className="inline-flex rounded-md border p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setInviteType("individual")}
+                          className={`px-3 py-1.5 text-sm rounded ${inviteType === "individual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+                        >
+                          <UserIcon className="inline h-3.5 w-3.5 mr-1" /> Individual
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInviteType("business")}
+                          className={`px-3 py-1.5 text-sm rounded ${inviteType === "business" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+                        >
+                          <Building2 className="inline h-3.5 w-3.5 mr-1" /> Business
+                        </button>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Industry</Label>
-                        <Input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Surveying" />
-                      </div>
                     </div>
+                    {inviteType === "business" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Company name *</Label>
+                          <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Drones Pvt Ltd" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label>GSTIN</Label>
+                            <Input value={gstin} onChange={(e) => setGstin(e.target.value)} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Industry</Label>
+                            <Input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Surveying" />
+                          </div>
+                        </div>
+                      </>
+                    )}
                     <div className="border-t pt-4 space-y-4">
                       <div className="space-y-2">
-                        <Label>Primary contact name *</Label>
+                        <Label>Customer name *</Label>
                         <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -501,6 +541,14 @@ export default function PortalCustomers() {
                           <Label>Phone</Label>
                           <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>WhatsApp number</Label>
+                        <Input
+                          value={whatsappNumber}
+                          onChange={(e) => setWhatsappNumber(e.target.value)}
+                          placeholder="Used for WhatsApp notifications"
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>Role</Label>
@@ -658,7 +706,7 @@ export default function PortalCustomers() {
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-medium">{r.company_name}</div>
+                                <div className="font-medium">{displayCompany(r)}</div>
                                 <AccountTypeBadge type={r.accountType} />
                               </div>
                             </TableCell>
@@ -801,12 +849,12 @@ export default function PortalCustomers() {
               <AlertDialogDescription>
                 {deleteBlockers ? (
                   <>
-                    Cannot delete <strong>{deleteRow?.company_name}</strong> — this account has{" "}
+                    Cannot delete <strong>{deleteRow ? (deleteRow.accountType === "business" ? deleteRow.company_name : (deleteRow.primary?.full_name || deleteRow.company_name)) : ""}</strong> — this account has{" "}
                     <strong>{deleteBlockers}</strong>. Suspend or archive instead.
                   </>
                 ) : (
                   <>
-                    This will permanently delete <strong>{deleteRow?.company_name}</strong> and all its portal contacts.
+                    This will permanently delete <strong>{deleteRow ? (deleteRow.accountType === "business" ? deleteRow.company_name : (deleteRow.primary?.full_name || deleteRow.company_name)) : ""}</strong> and all its portal contacts.
                     This action cannot be undone.
                   </>
                 )}
@@ -862,19 +910,50 @@ interface DrawerProps {
 }
 
 function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggleContact, onEditAccount }: DrawerProps) {
-  const [orders, setOrders] = useState<{ id: string; order_number: string; current_state: string; total: number | null; created_at: string }[]>([]);
+  const [portalOrders, setPortalOrders] = useState<{ id: string; order_number: string; current_state: string; total: number | null; created_at: string }[]>([]);
+  const [orders, setOrders] = useState<{ id: string; order_number: string; order_date: string | null; created_at: string; product_name: string | null; status: string | null; confirmation_status: string | null }[]>([]);
   const [tickets, setTickets] = useState<{ id: string; ticket_number: string; subject: string; status: string; created_at: string }[]>([]);
   const [kycDocs, setKycDocs] = useState<{ id: string; doc_type: string; file_name: string; file_path: string; status: string; uploaded_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Inline WhatsApp editor state (per contact)
+  const [editingWa, setEditingWa] = useState<string | null>(null);
+  const [waDraft, setWaDraft] = useState("");
+  const [savingWa, setSavingWa] = useState(false);
+
+  const saveWhatsapp = async (contactId: string) => {
+    setSavingWa(true);
+    const { error } = await supabase
+      .from("portal_contacts")
+      .update({ whatsapp_number: waDraft.trim() || null })
+      .eq("id", contactId);
+    setSavingWa(false);
+    if (error) { toast({ title: "Update failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "WhatsApp number updated" });
+    setEditingWa(null);
+    // Optimistic update in local row
+    const c = row.contacts.find((x) => x.id === contactId);
+    if (c) c.whatsapp_number = waDraft.trim() || null;
+  };
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [o, t, k] = await Promise.all([
+      const emails = Array.from(new Set(row.contacts.map((c) => c.email?.toLowerCase()).filter(Boolean))) as string[];
+      const ordersQuery = emails.length
+        ? supabase.from("orders")
+            .select("id, order_number, order_date, created_at, product_name, status, confirmation_status, customer_email")
+            .in("customer_email", emails)
+            .order("order_date", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .limit(5)
+        : Promise.resolve({ data: [] as any[] });
+      const [po, o, t, k] = await Promise.all([
         supabase.from("portal_orders")
           .select("id, order_number, current_state, total, created_at")
           .eq("account_id", row.id).order("created_at", { ascending: false }).limit(5),
+        ordersQuery,
         supabase.from("portal_tickets")
           .select("id, ticket_number, subject, status, created_at")
           .eq("account_id", row.id).order("created_at", { ascending: false }).limit(5),
@@ -883,13 +962,14 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
           .eq("account_id", row.id).eq("is_current", true).order("uploaded_at", { ascending: false }),
       ]);
       if (cancelled) return;
+      setPortalOrders((po.data ?? []) as any);
       setOrders((o.data ?? []) as any);
       setTickets((t.data ?? []) as any);
       setKycDocs((k.data ?? []) as any);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [row.id]);
+  }, [row.id, row.contacts]);
 
   const openKycDoc = async (path: string) => {
     const { data, error } = await supabase.storage.from("kyc-documents").createSignedUrl(path, 60);
@@ -900,7 +980,11 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
   return (
     <>
       <SheetHeader>
-        <SheetTitle>{row.company_name}</SheetTitle>
+        <SheetTitle>
+          {row.accountType === "business"
+            ? row.company_name
+            : (row.primary?.full_name || row.primary_contact_name || row.company_name)}
+        </SheetTitle>
         <SheetDescription className="flex items-center gap-2">
           <AccountTypeBadge type={row.accountType} />
           <StatusBadge status={row.status} />
@@ -956,12 +1040,33 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
                     <div className="min-w-0">
                       <div className="font-medium">{c.full_name} <span className="text-xs text-muted-foreground capitalize">· {c.role}</span></div>
                       <div className="text-xs text-muted-foreground">{c.email}</div>
-                      {(c.phone || c.whatsapp_number) && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {c.phone && <span className="mr-2">{c.phone}</span>}
-                          {c.whatsapp_number && <span>WA: {c.whatsapp_number}</span>}
-                        </div>
-                      )}
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                        {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+                        {editingWa === c.id ? (
+                          <span className="inline-flex items-center gap-1">
+                            <MessageCircle className="h-3 w-3" />
+                            <Input
+                              autoFocus
+                              value={waDraft}
+                              onChange={(e) => setWaDraft(e.target.value)}
+                              className="h-6 w-40 text-xs"
+                              placeholder="+91…"
+                            />
+                            <Button size="sm" variant="ghost" className="h-6 px-2" disabled={savingWa} onClick={() => saveWhatsapp(c.id)}>Save</Button>
+                            <Button size="sm" variant="ghost" className="h-6 px-2" disabled={savingWa} onClick={() => setEditingWa(null)}>Cancel</Button>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => { setEditingWa(c.id); setWaDraft(c.whatsapp_number ?? ""); }}
+                            className="inline-flex items-center gap-1 hover:text-foreground underline decoration-dotted"
+                            title="Edit WhatsApp number"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            {c.whatsapp_number ? `WA: ${c.whatsapp_number}` : "Add WhatsApp"}
+                          </button>
+                        )}
+                      </div>
                       <div className="text-xs mt-1">
                         {neverLoggedIn ? (
                           <span className="text-amber-700">Never logged in</span>
@@ -1020,14 +1125,38 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
 
         {/* Recent orders */}
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">Recent portal orders</h3>
+          <h3 className="text-sm font-semibold uppercase text-muted-foreground">Recent orders</h3>
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           ) : orders.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No portal orders.</p>
+            <p className="text-xs text-muted-foreground">No orders on record for this customer's email.</p>
           ) : (
             <ul className="space-y-1 text-sm">
               {orders.map((o) => (
+                <li key={o.id} className="flex items-center justify-between border rounded px-2 py-1">
+                  <div className="min-w-0">
+                    <div className="font-medium">{o.order_number}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {o.product_name || "—"}
+                      {o.status && <span className="ml-2 capitalize">· {o.status.replace(/_/g, " ")}</span>}
+                      {o.confirmation_status && <span className="ml-2 capitalize">· {o.confirmation_status.replace(/_/g, " ")}</span>}
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground shrink-0 ml-2">
+                    {new Date(o.order_date || o.created_at).toLocaleDateString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Business (portal) orders — only when this account actually has any */}
+        {portalOrders.length > 0 && (
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold uppercase text-muted-foreground">Business orders (B2B pipeline)</h3>
+            <ul className="space-y-1 text-sm">
+              {portalOrders.map((o) => (
                 <li key={o.id} className="flex items-center justify-between border rounded px-2 py-1">
                   <div>
                     <div className="font-medium">{o.order_number}</div>
@@ -1037,8 +1166,8 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
                 </li>
               ))}
             </ul>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Recent tickets */}
         <section className="space-y-3">
