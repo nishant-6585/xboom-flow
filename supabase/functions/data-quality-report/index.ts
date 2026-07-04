@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -160,10 +160,8 @@ serve(async (req) => {
   </div>
 </body></html>`;
 
-    // 5. Send email
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    const sendResult = await resend.emails.send({
-      from: "XBoom Data Quality <noreply@xboomflow.com>",
+    // 5. Send email through the shared seam.
+    const sendResult = await sendMailSeam({
       to: ADMIN_RECIPIENTS.map(r => r.email),
       subject: `📋 Data Quality Report — ${total} open company-name issues`,
       html,
