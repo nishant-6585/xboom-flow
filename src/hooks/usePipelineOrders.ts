@@ -103,12 +103,6 @@ export function usePipelineOrders() {
     if (!userId) return;
 
     try {
-      // Only show the loading state on FIRST load. Background refetches keep
-      // the current list visible so mounted dialogs/forms are not remounted.
-      setPipelineOrders((prev) => {
-        if (prev.length === 0) setLoading(true);
-        return prev;
-      });
       const { data, error } = await supabase
         .from('pipeline_orders')
         .select('*')
@@ -120,6 +114,8 @@ export function usePipelineOrders() {
       console.error('Error fetching pipeline orders:', error);
       toast.error('Failed to fetch pipeline orders');
     } finally {
+      // Only flip loading off — never back on for background refetches.
+      // The initial `useState(true)` covers first load.
       setLoading(false);
     }
   }, [userId]);
