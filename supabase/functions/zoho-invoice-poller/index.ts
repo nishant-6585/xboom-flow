@@ -214,7 +214,20 @@ Deno.serve(async (req) => {
       if (resp.status === 204) break;
       const data = await resp.json();
       if (!resp.ok) {
-        // Rate limit or transient: log and stop; cursor stays put, we retry next run.
+        if (resp.status === 429 || data?.code === 45) {
+          // Daily/per-minute Zoho quota reached — leave cursor untouched, log softly, exit.
+          await admin.from("zoho_sync_log").insert({
+            provider: PROVIDER,
+            entity: "poller",
+            status: "rate_limited",
+            error_message: (data?.message || "Zoho API rate limit").slice(0, 500),
+            completed_at: new Date().toISOString(),
+          });
+          return new Response(
+            JSON.stringify({ ok: true, rate_limited: true, stats }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
         throw new Error(
           `Zoho list error [${resp.status}]: ${JSON.stringify(data).slice(0, 300)}`,
         );
