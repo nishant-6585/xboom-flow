@@ -68,9 +68,6 @@ const isSessionExpired = (session: Session | null | undefined): boolean =>
     if (sessionStorage.getItem(FLAG)) return;
     sessionStorage.setItem(FLAG, "1");
 
-    const isLikelyJwt = (s: unknown): boolean =>
-      typeof s === "string" && s.split(".").length === 3 && s.length > 40;
-
     const toRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -82,15 +79,17 @@ const isSessionExpired = (session: Session | null | undefined): boolean =>
         toRemove.push(key);
         continue;
       }
+      // Only purge entries that are TRULY corrupted (unparseable JSON, or a
+      // parseable value with no refresh token at all). Do NOT judge validity
+      // by token shape or length: Supabase refresh tokens are short opaque
+      // strings (often ~12 chars, not JWTs), and an expired access token is
+      // still refreshable — deleting either logs the user out of EVERY tab
+      // (the storage removal broadcasts SIGNED_OUT), which broke opening
+      // email deep links in a new tab.
       try {
         const parsed = JSON.parse(raw);
-        const access = parsed?.access_token ?? parsed?.currentSession?.access_token;
         const refresh = parsed?.refresh_token ?? parsed?.currentSession?.refresh_token;
-        const expiryMs = getStoredSessionExpiryMs(parsed);
-        // A valid Supabase session must have a JWT access_token AND a refresh_token string.
-        // Refresh tokens are opaque, but legitimate ones are >20 chars; "fabpcaaupcg5"-style
-        // 12-char garbage is a clear corruption marker.
-        if (!isLikelyJwt(access) || typeof refresh !== "string" || refresh.length < 20 || (expiryMs !== null && expiryMs <= Date.now())) {
+        if (typeof refresh !== "string" || refresh.length === 0) {
           toRemove.push(key);
         }
       } catch {
