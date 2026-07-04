@@ -30,6 +30,19 @@ export interface SendEmailArgs {
   /** Optional CC/BCC pass-through. */
   cc?: string | string[];
   bcc?: string | string[];
+  /**
+   * Platform-only: name of a template registered in
+   * `_shared/transactional-email-templates/registry.ts`. Required when
+   * `provider === 'platform'`. Ignored by the Resend branch.
+   */
+  templateName?: string;
+  /** Platform-only: props passed to the React Email component. */
+  templateData?: Record<string, unknown>;
+  /**
+   * Stable idempotency key for de-duping enqueues. Used by the platform
+   * branch; safe to pass on Resend calls (ignored).
+   */
+  idempotencyKey?: string;
 }
 
 export interface SendEmailResult {
@@ -59,16 +72,83 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
   const replyTo = args.replyTo ?? DEFAULT_REPLY_TO;
 
   if (provider === "platform") {
-    // Not yet supported — raw HTML pass-through requires a registered
-    // React Email template on the queued platform. Migrate the variant to
-    // supabase/functions/_shared/transactional-email-templates/ first.
-    return {
-      ok: false,
-      status: 501,
-      provider: "platform",
-      error:
-        "platform provider requires a registered template — migrate this variant to the transactional-email registry, then flip provider to 'platform'",
-    };
+    // Platform (queued) branch: template is pre-rendered by
+    // `send-transactional-email` and enqueued in pgmq. Raw `html` is NOT
+    // used by the platform — the caller must supply a registered
+    // `templateName` + `templateData`. `subject` in `args` is ignored
+    // (the template controls its own subject).
+    if (!args.templateName) {
+      return {
+        ok: false,
+        status: 400,
+        provider: "platform",
+        error:
+          "platform provider requires `templateName` (a registered React Email template) — raw HTML is not supported",
+      };
+    }
+    if (args.attachments && args.attachments.length) {
+      return {
+        ok: false,
+        status: 400,
+        provider: "platform",
+        error:
+          "platform provider does not support attachments — pin this send to provider: 'resend'",
+      };
+    }
+    const url = Deno.env.get("SUPABASE_URL");
+    const svc = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !svc) {
+      return {
+        ok: false,
+        status: 500,
+        provider: "platform",
+        error: "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not configured",
+      };
+    }
+    // Platform templates that don't fix `to` use the first recipient.
+    const recipient = Array.isArray(args.to) ? args.to[0] : args.to;
+    try {
+      const res = await fetch(`${url}/functions/v1/send-transactional-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${svc}`,
+          apikey: svc,
+        },
+        body: JSON.stringify({
+          templateName: args.templateName,
+          recipientEmail: recipient,
+          idempotencyKey: args.idempotencyKey,
+          templateData: args.templateData ?? {},
+        }),
+      });
+      let raw: any = null;
+      try { raw = await res.json(); } catch { /* ignore */ }
+      if (!res.ok) {
+        const msg =
+          (raw && (raw.error || raw.message)) || `HTTP ${res.status}`;
+        return {
+          ok: false,
+          status: res.status,
+          provider: "platform",
+          error: String(msg).slice(0, 500),
+          raw,
+        };
+      }
+      return {
+        ok: true,
+        status: res.status,
+        provider: "platform",
+        raw,
+      };
+    } catch (err: any) {
+      return {
+        ok: false,
+        status: 0,
+        provider: "platform",
+        error: err?.message || String(err),
+      };
+    }
   }
 
   const key = Deno.env.get("RESEND_API_KEY");
