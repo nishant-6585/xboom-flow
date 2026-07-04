@@ -2,9 +2,8 @@
 // the customer's first order if KYC has not been approved. Idempotent per
 // reminder type via kyc_audit_log lookup.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 const PORTAL_BASE = "https://xboomflow.com";
 
 const corsHeaders = {
@@ -20,12 +19,7 @@ function esc(s: string) {
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
-  if (!RESEND_API_KEY) return false;
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html }),
-  });
+  const r = await sendMailSeam({ to, subject, html });
   return r.ok;
 }
 
