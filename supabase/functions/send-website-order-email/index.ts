@@ -17,6 +17,7 @@
  */
 import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,15 +65,56 @@ Deno.serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
+  // Stable idempotency identity: mirrors the DB order_notifications row for
+  // this send. Used both for the queue payload AND for the caller-side
+  // short-circuit below.
+  const idempotencyKey = `woo:${body.order_id}:${body.event}:email`;
+
+  // ---- Dedup short-circuit -----------------------------------------------
+  // The platform queue's `idempotency_key` is metadata — it is NOT enforced
+  // at enqueue time. When upstream is backed off (e.g., 429), a repeat
+  // trigger source (like a WooCommerce webhook loop) can flood the queue
+  // with hundreds of identical messages before any of them dispatch.
+  // Refuse to re-enqueue if a prior send for this idempotency_key already
+  // exists in email_send_log within the recent window (sent, pending, or
+  // suppressed — anything except a hard failure that we'd want to retry).
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: prior } = await supabase
+      .from("email_send_log")
+      .select("id, status, created_at")
+      .eq("template_name", "website-order")
+      .eq("recipient_email", body.customer_email)
+      .contains("metadata", { idempotency_key: idempotencyKey })
+      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .in("status", ["sent", "pending", "suppressed"])
+      .limit(1);
+    if (prior && prior.length > 0) {
+      console.log("[send-website-order-email] Skipping duplicate", {
+        idempotencyKey,
+        prior_status: prior[0].status,
+      });
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "duplicate_idempotency_key" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+  } catch (e) {
+    // Fail open — if the dedup lookup errors, still send. Better one
+    // duplicate than a missed cancellation notice.
+    console.warn("[send-website-order-email] Dedup lookup failed, proceeding", e);
+  }
+
   const resp = await sendEmail({
     to: body.customer_email,
     subject: "", // template owns the subject (subjectFor(event))
     html: "",   // template owns rendering
     provider: "platform",
     templateName: "website-order",
-    // Stable identity mirrors the DB order_notifications row for this
-    // (order_source='woo', order_ref=order_id, status_trigger=event, channel='email').
-    idempotencyKey: `woo:${body.order_id}:${body.event}:email`,
+    idempotencyKey,
     templateData: {
       event: body.event,
       customer_name: body.customer_name,
