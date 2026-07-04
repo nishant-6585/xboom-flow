@@ -910,19 +910,50 @@ interface DrawerProps {
 }
 
 function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggleContact, onEditAccount }: DrawerProps) {
-  const [orders, setOrders] = useState<{ id: string; order_number: string; current_state: string; total: number | null; created_at: string }[]>([]);
+  const [portalOrders, setPortalOrders] = useState<{ id: string; order_number: string; current_state: string; total: number | null; created_at: string }[]>([]);
+  const [orders, setOrders] = useState<{ id: string; order_number: string; order_date: string | null; created_at: string; product_name: string | null; status: string | null; confirmation_status: string | null }[]>([]);
   const [tickets, setTickets] = useState<{ id: string; ticket_number: string; subject: string; status: string; created_at: string }[]>([]);
   const [kycDocs, setKycDocs] = useState<{ id: string; doc_type: string; file_name: string; file_path: string; status: string; uploaded_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Inline WhatsApp editor state (per contact)
+  const [editingWa, setEditingWa] = useState<string | null>(null);
+  const [waDraft, setWaDraft] = useState("");
+  const [savingWa, setSavingWa] = useState(false);
+
+  const saveWhatsapp = async (contactId: string) => {
+    setSavingWa(true);
+    const { error } = await supabase
+      .from("portal_contacts")
+      .update({ whatsapp_number: waDraft.trim() || null })
+      .eq("id", contactId);
+    setSavingWa(false);
+    if (error) { toast({ title: "Update failed", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "WhatsApp number updated" });
+    setEditingWa(null);
+    // Optimistic update in local row
+    const c = row.contacts.find((x) => x.id === contactId);
+    if (c) c.whatsapp_number = waDraft.trim() || null;
+  };
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [o, t, k] = await Promise.all([
+      const emails = Array.from(new Set(row.contacts.map((c) => c.email?.toLowerCase()).filter(Boolean))) as string[];
+      const ordersQuery = emails.length
+        ? supabase.from("orders")
+            .select("id, order_number, order_date, created_at, product_name, status, confirmation_status, customer_email")
+            .in("customer_email", emails)
+            .order("order_date", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .limit(5)
+        : Promise.resolve({ data: [] as any[] });
+      const [po, o, t, k] = await Promise.all([
         supabase.from("portal_orders")
           .select("id, order_number, current_state, total, created_at")
           .eq("account_id", row.id).order("created_at", { ascending: false }).limit(5),
+        ordersQuery,
         supabase.from("portal_tickets")
           .select("id, ticket_number, subject, status, created_at")
           .eq("account_id", row.id).order("created_at", { ascending: false }).limit(5),
@@ -931,13 +962,14 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
           .eq("account_id", row.id).eq("is_current", true).order("uploaded_at", { ascending: false }),
       ]);
       if (cancelled) return;
+      setPortalOrders((po.data ?? []) as any);
       setOrders((o.data ?? []) as any);
       setTickets((t.data ?? []) as any);
       setKycDocs((k.data ?? []) as any);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [row.id]);
+  }, [row.id, row.contacts]);
 
   const openKycDoc = async (path: string) => {
     const { data, error } = await supabase.storage.from("kyc-documents").createSignedUrl(path, 60);
@@ -948,7 +980,11 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
   return (
     <>
       <SheetHeader>
-        <SheetTitle>{row.company_name}</SheetTitle>
+        <SheetTitle>
+          {row.accountType === "business"
+            ? row.company_name
+            : (row.primary?.full_name || row.primary_contact_name || row.company_name)}
+        </SheetTitle>
         <SheetDescription className="flex items-center gap-2">
           <AccountTypeBadge type={row.accountType} />
           <StatusBadge status={row.status} />
@@ -1004,12 +1040,33 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
                     <div className="min-w-0">
                       <div className="font-medium">{c.full_name} <span className="text-xs text-muted-foreground capitalize">· {c.role}</span></div>
                       <div className="text-xs text-muted-foreground">{c.email}</div>
-                      {(c.phone || c.whatsapp_number) && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {c.phone && <span className="mr-2">{c.phone}</span>}
-                          {c.whatsapp_number && <span>WA: {c.whatsapp_number}</span>}
-                        </div>
-                      )}
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                        {c.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+                        {editingWa === c.id ? (
+                          <span className="inline-flex items-center gap-1">
+                            <MessageCircle className="h-3 w-3" />
+                            <Input
+                              autoFocus
+                              value={waDraft}
+                              onChange={(e) => setWaDraft(e.target.value)}
+                              className="h-6 w-40 text-xs"
+                              placeholder="+91…"
+                            />
+                            <Button size="sm" variant="ghost" className="h-6 px-2" disabled={savingWa} onClick={() => saveWhatsapp(c.id)}>Save</Button>
+                            <Button size="sm" variant="ghost" className="h-6 px-2" disabled={savingWa} onClick={() => setEditingWa(null)}>Cancel</Button>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => { setEditingWa(c.id); setWaDraft(c.whatsapp_number ?? ""); }}
+                            className="inline-flex items-center gap-1 hover:text-foreground underline decoration-dotted"
+                            title="Edit WhatsApp number"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            {c.whatsapp_number ? `WA: ${c.whatsapp_number}` : "Add WhatsApp"}
+                          </button>
+                        )}
+                      </div>
                       <div className="text-xs mt-1">
                         {neverLoggedIn ? (
                           <span className="text-amber-700">Never logged in</span>
@@ -1068,14 +1125,38 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
 
         {/* Recent orders */}
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">Recent portal orders</h3>
+          <h3 className="text-sm font-semibold uppercase text-muted-foreground">Recent orders</h3>
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           ) : orders.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No portal orders.</p>
+            <p className="text-xs text-muted-foreground">No orders on record for this customer's email.</p>
           ) : (
             <ul className="space-y-1 text-sm">
               {orders.map((o) => (
+                <li key={o.id} className="flex items-center justify-between border rounded px-2 py-1">
+                  <div className="min-w-0">
+                    <div className="font-medium">{o.order_number}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {o.product_name || "—"}
+                      {o.status && <span className="ml-2 capitalize">· {o.status.replace(/_/g, " ")}</span>}
+                      {o.confirmation_status && <span className="ml-2 capitalize">· {o.confirmation_status.replace(/_/g, " ")}</span>}
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground shrink-0 ml-2">
+                    {new Date(o.order_date || o.created_at).toLocaleDateString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Business (portal) orders — only when this account actually has any */}
+        {portalOrders.length > 0 && (
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold uppercase text-muted-foreground">Business orders (B2B pipeline)</h3>
+            <ul className="space-y-1 text-sm">
+              {portalOrders.map((o) => (
                 <li key={o.id} className="flex items-center justify-between border rounded px-2 py-1">
                   <div>
                     <div className="font-medium">{o.order_number}</div>
@@ -1085,8 +1166,8 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
                 </li>
               ))}
             </ul>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Recent tickets */}
         <section className="space-y-3">
