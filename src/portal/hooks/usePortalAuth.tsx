@@ -80,11 +80,9 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     setAccount((a as PortalAccount) ?? null);
     setHydratedUserId(uid);
 
-    // Touch last_login_at (best-effort)
-    void supabase
-      .from("portal_contacts")
-      .update({ last_login_at: new Date().toISOString() })
-      .eq("id", c.id);
+    // Touch last_login_at via SECURITY DEFINER RPC so it works for every portal
+    // role (RLS on portal_contacts blocks direct updates for non-admin contacts).
+    void supabase.rpc("touch_portal_last_login");
 
     return { contact: portalContact, error: null };
   }, []);

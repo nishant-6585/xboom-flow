@@ -17328,6 +17328,7 @@ export type Database = {
         Returns: undefined
       }
       sync_profiles_to_employees: { Args: never; Returns: number }
+      touch_portal_last_login: { Args: never; Returns: undefined }
       trip_notification_breaker: {
         Args: { _minutes?: number; _reason: string }
         Returns: undefined
