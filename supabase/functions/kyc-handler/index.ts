@@ -704,21 +704,19 @@ async function notifySalesperson(
   if (!prof?.email) return;
 
   const reviewLink = `${PORTAL_BASE}/kyc?account=${accountId}`;
-  const html = shell(
-    "KYC Review",
-    `<h1 style="margin:0 0 12px;font-size:20px;color:#0f172a;">KYC submitted — review needed</h1>
-     <p style="margin:0 0 8px;font-size:14px;color:#334155;">A customer just uploaded their Aadhaar card for KYC.</p>
-     <table style="margin:14px 0 20px;border-collapse:collapse;font-size:14px;color:#0f172a;">
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Customer</td><td style="padding:4px 0;font-weight:600;">${esc(acct.primary_contact_name || acct.company_name || "")}</td></tr>
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Company</td><td style="padding:4px 0;">${esc(acct.company_name || "")}</td></tr>
-       ${latestOrder?.order_number ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b;">Order</td><td style="padding:4px 0;font-weight:600;">${esc(latestOrder.order_number)}</td></tr>` : ""}
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Uploaded</td><td style="padding:4px 0;">${new Date().toLocaleString("en-IN")}</td></tr>
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Aadhaar</td><td style="padding:4px 0;">XXXX XXXX ${esc(acct.aadhaar_last4 || "")}</td></tr>
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Status</td><td style="padding:4px 0;color:#b45309;font-weight:600;">Pending Verification</td></tr>
-     </table>
-     <p style="margin:0;">${btn(reviewLink, "Review KYC")}</p>`,
-  );
-  await sendEmail(prof.email, "KYC awaiting your review", html);
+  await sendPlatform({
+    to: prof.email,
+    templateName: "kyc-salesperson-notify",
+    templateData: {
+      customerName: acct.primary_contact_name || acct.company_name || "",
+      companyName: acct.company_name || "",
+      orderNumber: latestOrder?.order_number || "",
+      aadhaarLast4: acct.aadhaar_last4 || "",
+      reviewLink,
+      uploadedAt: new Date().toLocaleString("en-IN"),
+    },
+    idempotencyKey: `kyc:salesperson_notify:${documentId}`,
+  });
 
   await admin.from("kyc_audit_log").insert({
     account_id: accountId,
@@ -814,34 +812,22 @@ async function emailCustomerStatus(
     .maybeSingle();
   if (!c?.email) return;
   const portalLink = `${PORTAL_BASE}/portal/kyc`;
-  const html =
-    decision === "approved"
-      ? shell(
-          "KYC Approved",
-          `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;">✅ Your KYC has been approved</h1>
-           <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.55;">Hi ${esc(c.full_name || "")}, your KYC verification is complete. Your orders will continue to be processed normally — no further action needed.</p>
-           <p style="margin:0 0 0;">${btn(portalLink, "View in portal")}</p>`,
-        )
-      : shell(
-          "KYC Rejected",
-          `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;">Action needed: KYC was rejected</h1>
-           <p style="margin:0 0 12px;font-size:15px;color:#334155;line-height:1.55;">Hi ${esc(c.full_name || "")}, your KYC submission could not be approved.</p>
-           <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;margin:0 0 18px;color:#7f1d1d;font-size:14px;">
-             <strong>Reason:</strong> ${esc(reason || "")}
-           </div>
-           <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.55;">Please re-upload your Aadhaar card from the portal so we can review again.</p>
-           <p style="margin:0;">${btn(portalLink, "Re-upload KYC")}</p>`,
-        );
   // Approve/reject emails are also customer-facing — respect the kill switch.
   if (!(await isCustomerEmailsEnabled(admin))) {
     console.log("[kyc-handler] status email suppressed (kill switch)", { to: c.email });
     return;
   }
-  await sendEmail(
-    c.email,
-    decision === "approved" ? "Your KYC has been approved" : "Action needed: KYC was rejected",
-    html,
-  );
+  await sendPlatform({
+    to: c.email,
+    templateName: "kyc-status",
+    templateData: {
+      decision,
+      name: c.full_name || "",
+      reason: reason || "",
+      portalLink,
+    },
+    idempotencyKey: `kyc:status:${accountId}:${decision}:${Date.now()}`,
+  });
 }
 
 // ============ ORDER KYC STATUS (read-only) ============
