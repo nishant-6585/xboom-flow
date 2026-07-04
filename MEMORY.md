@@ -153,6 +153,14 @@ User deliberately chose platform email after verifying sender domain (xboomflow.
 
 ---
 
+## ✅ VERIFIED 2026-07-04 (late): Webhook-loop email flood — root-caused, fixed, purged
+
+Incident: ~1,270 msgs jammed pgmq.q_transactional_emails; platform provider 429'd (retry_after 17:30Z); KYC emails stuck. Root cause: self-echo loop — mirrorIntoInternalOrders re-stamped cancelled_at on EVERY repeat webhook → orders_woo_reverse_sync trigger saw IS DISTINCT FROM → PUT to Woo → Woo re-fired order.updated (orders 143256/143468, ~2s cadence, all status:success). website_orders_email_notify trigger re-fired cancelled branch each cycle. pgmq does NOT dedupe on idempotency_key at enqueue (dispatch-time dedup only, and nothing reached 'sent' behind the 429) — key learning.
+Fixes verified in code: (1) woo-mirror.ts transition-only stamps; (2) migration 20260704170402 purges flood keys + trigger requires OLD.<field> IS NULL; (3) send-website-order-email dedup short-circuit vs email_send_log; send-transactional-email now writes metadata.idempotency_key. Queue 1,270→11; ~1,500 orphan pending log rows → suppressed (purged_webhook_loop_duplicate).
+Open: (a) platform provider daily/per-sec quota NOT visible in-project — user to raise Lovable support ticket if capacity planning needs it; (b) 1 dlq row: 403 lovable_api_key_registry_lookup_failed (platform auth blip — watch for recurrence); (c) KYC test sends (kyc:onboarding/reminder:turnB-verify) pending until 17:30Z window cleared — confirm sent, re-send Robin Thakur ORD2600370 invite, then Turn C. (d) KYC card status bug: order card reads kyc_email_log.status (flips 'sent' on enqueue) not email_send_log delivery status — fix after migration.
+
+---
+
 ## ✅ VERIFIED 2026-07-04: Email platform migration Turns A+B — commits 5eda60d5, eb7dc6e8
 
 Turn A: order-notification + website-order templates live on platform queue (send-transactional-email + pgmq + process-email-queue); seam platform branch real (templateName/templateData/idempotencyKey; rejects raw HTML + attachments; NOTE: sends to FIRST recipient only — fix before Turn G admin-list functions). Turn B: KYC suite flipped (kyc-onboarding/kyc-reminder/kyc-status/kyc-salesperson-notify templates, transactional: true). Prereqs all verified in code: sender = "Xboom <notifications@xboomflow.com>" + Reply-To support@xboom.in; /unsubscribe page + route built; transactional flag bypasses suppression+unsub footer (non-transactional = fail-closed suppression check); kyc-handler logs platformRes.provider. Remaining turns: C (send-ticket-email + portal-notify) → D (confirmation-request + portal-invite-customer) → E (teammate/HR invites) → F (password reset) → G (tail + multi-recipient fix). Sender decision: keep noreply→notifications@xboomflow.com root-domain display, replies via support@xboom.in.
