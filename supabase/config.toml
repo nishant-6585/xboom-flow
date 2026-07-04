@@ -3,6 +3,9 @@ project_id = "mxsotxddcvmeluqonuuj"
 [functions.portal-resend-invite-test]
 verify_jwt = false
 
+[functions.zoho-books-webhook]
+verify_jwt = false
+
 [functions.portal-set-password]
 verify_jwt = false
 
