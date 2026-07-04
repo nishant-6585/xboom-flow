@@ -323,7 +323,8 @@ Deno.serve(async (req) => {
     payload: {
       message_id: messageId,
       to: effectiveRecipient,
-      from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      from: `${SITE_NAME} <${FROM_LOCAL}@${FROM_DOMAIN}>`,
+      reply_to: REPLY_TO,
       sender_domain: SENDER_DOMAIN,
       subject: resolvedSubject,
       html,
@@ -331,7 +332,9 @@ Deno.serve(async (req) => {
       purpose: 'transactional',
       label: templateName,
       idempotency_key: idempotencyKey,
+      // Transactional templates omit the unsubscribe footer entirely.
       unsubscribe_token: unsubscribeToken,
+      skip_unsubscribe_footer: isTransactional,
       queued_at: new Date().toISOString(),
     },
   })
