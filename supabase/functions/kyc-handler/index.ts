@@ -91,6 +91,26 @@ async function sendEmailOnce(
   };
 }
 
+// Platform (queued) helper for KYC transactional templates. Returns the
+// full seam result so callers can log the actual provider used.
+async function sendPlatform(args: {
+  to: string;
+  templateName: string;
+  templateData: Record<string, unknown>;
+  idempotencyKey: string;
+}) {
+  return await sendMailSeam({
+    to: args.to,
+    // subject/html are ignored by the platform branch; template controls them.
+    subject: "",
+    html: "",
+    provider: "platform",
+    templateName: args.templateName,
+    templateData: args.templateData,
+    idempotencyKey: args.idempotencyKey,
+  });
+}
+
 // Back-compat wrapper used by staff notifications / status emails (no retry needed).
 async function sendEmail(to: string, subject: string, html: string) {
   return await sendEmailOnce(to, subject, html);
@@ -465,30 +485,31 @@ async function onboardOrder(
     ? `<p style="margin:0 0 22px;">${btn(confirmLink, "Confirm my order")}</p>`
     : "";
 
-  const html = shell(
-    "Customer Portal",
-    `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;">Thank you for your order, ${esc(order.customer_name || "")}!</h1>
-     <p style="margin:0 0 12px;font-size:15px;color:#334155;line-height:1.55;">
-       We've received your order <strong>${esc(order.order_number || "")}</strong>. Welcome aboard — your XBOOM Customer Portal is ready.
-     </p>
-     <p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.55;">
-       Before we begin processing, please complete a quick KYC by uploading your Aadhaar card. This usually takes under a minute.
-     </p>
-     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 22px;">
-       <p style="margin:0 0 10px;font-weight:600;color:#0f172a;font-size:14px;">Getting started</p>
-       ${stepsHtml}
-     </div>
-     <p style="margin:0 0 14px;">${btn(setupLink, "Set my password")}</p>
-     <p style="margin:0 0 22px;">${btn(kycLink, "Upload KYC documents")}</p>
-     ${confirmButtonHtml}
-     <p style="margin:0;font-size:12px;color:#94a3b8;">Order processing may require KYC approval. If you have questions, just reply to this email.</p>`,
-  );
-
-  const sendRes = await sendEmailWithRetry(
-    email,
-    "Welcome to XBOOM — set up your portal & complete KYC",
-    html,
-  );
+  // Migrated to platform (queued React Email template `kyc-onboarding`).
+  // Idempotency key derived from the kyc_email_log identity: one send per
+  // (order, kyc_invite). `force` re-sends generate a fresh key so manual
+  // resends still enqueue.
+  const idemKey = opts.force
+    ? `kyc:onboarding:${order.id}:force:${Date.now()}`
+    : `kyc:onboarding:${order.id}`;
+  const platformRes = await sendPlatform({
+    to: email,
+    templateName: "kyc-onboarding",
+    templateData: {
+      customerName: order.customer_name || "",
+      orderNumber: order.order_number || "",
+      setupLink,
+      kycLink,
+      confirmLink,
+      needsConfirmation,
+    },
+    idempotencyKey: idemKey,
+  });
+  const sendRes = {
+    ok: platformRes.ok,
+    error: platformRes.ok ? undefined : platformRes.error,
+    attempts: 1,
+  };
 
   await logKycEmail(admin, {
     order_id: order.id,
@@ -521,7 +542,9 @@ async function onboardOrder(
         status: sendRes.ok ? "sent" : "failed",
         sent_at: sendRes.ok ? new Date().toISOString() : null,
         error_message: sendRes.ok ? null : sendRes.error,
-        provider: "resend",
+        // Log the actual provider used by the seam so audits reflect the
+        // migration state rather than a hardcoded literal.
+        provider: platformRes.provider,
       });
     } catch (logErr) {
       console.error("[kyc-handler] order_notifications log failed", logErr);
@@ -681,21 +704,19 @@ async function notifySalesperson(
   if (!prof?.email) return;
 
   const reviewLink = `${PORTAL_BASE}/kyc?account=${accountId}`;
-  const html = shell(
-    "KYC Review",
-    `<h1 style="margin:0 0 12px;font-size:20px;color:#0f172a;">KYC submitted — review needed</h1>
-     <p style="margin:0 0 8px;font-size:14px;color:#334155;">A customer just uploaded their Aadhaar card for KYC.</p>
-     <table style="margin:14px 0 20px;border-collapse:collapse;font-size:14px;color:#0f172a;">
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Customer</td><td style="padding:4px 0;font-weight:600;">${esc(acct.primary_contact_name || acct.company_name || "")}</td></tr>
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Company</td><td style="padding:4px 0;">${esc(acct.company_name || "")}</td></tr>
-       ${latestOrder?.order_number ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b;">Order</td><td style="padding:4px 0;font-weight:600;">${esc(latestOrder.order_number)}</td></tr>` : ""}
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Uploaded</td><td style="padding:4px 0;">${new Date().toLocaleString("en-IN")}</td></tr>
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Aadhaar</td><td style="padding:4px 0;">XXXX XXXX ${esc(acct.aadhaar_last4 || "")}</td></tr>
-       <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Status</td><td style="padding:4px 0;color:#b45309;font-weight:600;">Pending Verification</td></tr>
-     </table>
-     <p style="margin:0;">${btn(reviewLink, "Review KYC")}</p>`,
-  );
-  await sendEmail(prof.email, "KYC awaiting your review", html);
+  await sendPlatform({
+    to: prof.email,
+    templateName: "kyc-salesperson-notify",
+    templateData: {
+      customerName: acct.primary_contact_name || acct.company_name || "",
+      companyName: acct.company_name || "",
+      orderNumber: latestOrder?.order_number || "",
+      aadhaarLast4: acct.aadhaar_last4 || "",
+      reviewLink,
+      uploadedAt: new Date().toLocaleString("en-IN"),
+    },
+    idempotencyKey: `kyc:salesperson_notify:${documentId}`,
+  });
 
   await admin.from("kyc_audit_log").insert({
     account_id: accountId,
@@ -791,34 +812,22 @@ async function emailCustomerStatus(
     .maybeSingle();
   if (!c?.email) return;
   const portalLink = `${PORTAL_BASE}/portal/kyc`;
-  const html =
-    decision === "approved"
-      ? shell(
-          "KYC Approved",
-          `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;">✅ Your KYC has been approved</h1>
-           <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.55;">Hi ${esc(c.full_name || "")}, your KYC verification is complete. Your orders will continue to be processed normally — no further action needed.</p>
-           <p style="margin:0 0 0;">${btn(portalLink, "View in portal")}</p>`,
-        )
-      : shell(
-          "KYC Rejected",
-          `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a;">Action needed: KYC was rejected</h1>
-           <p style="margin:0 0 12px;font-size:15px;color:#334155;line-height:1.55;">Hi ${esc(c.full_name || "")}, your KYC submission could not be approved.</p>
-           <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;margin:0 0 18px;color:#7f1d1d;font-size:14px;">
-             <strong>Reason:</strong> ${esc(reason || "")}
-           </div>
-           <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.55;">Please re-upload your Aadhaar card from the portal so we can review again.</p>
-           <p style="margin:0;">${btn(portalLink, "Re-upload KYC")}</p>`,
-        );
   // Approve/reject emails are also customer-facing — respect the kill switch.
   if (!(await isCustomerEmailsEnabled(admin))) {
     console.log("[kyc-handler] status email suppressed (kill switch)", { to: c.email });
     return;
   }
-  await sendEmail(
-    c.email,
-    decision === "approved" ? "Your KYC has been approved" : "Action needed: KYC was rejected",
-    html,
-  );
+  await sendPlatform({
+    to: c.email,
+    templateName: "kyc-status",
+    templateData: {
+      decision,
+      name: c.full_name || "",
+      reason: reason || "",
+      portalLink,
+    },
+    idempotencyKey: `kyc:status:${accountId}:${decision}:${Date.now()}`,
+  });
 }
 
 // ============ ORDER KYC STATUS (read-only) ============

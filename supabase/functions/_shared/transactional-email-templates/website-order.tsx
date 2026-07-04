@@ -239,6 +239,7 @@ export const template = {
   component: Email,
   subject: subjectFor,
   displayName: 'Customer — Website Order Update',
+  transactional: true,
   previewData: {
     event: 'order_received',
     customer_name: 'Jane Doe',

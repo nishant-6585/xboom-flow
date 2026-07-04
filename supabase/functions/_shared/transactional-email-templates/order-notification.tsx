@@ -150,6 +150,7 @@ export const template = {
     `New Order Created: ${d?.orderNumber ?? ''} - ${d?.customerName ?? ''}`,
   displayName: 'Internal — New Order Created',
   to: 'nishant.k@xboom.in',
+  transactional: true,
   previewData: {
     orderNumber: 'ORD-1001',
     customerName: 'Jane Doe',
