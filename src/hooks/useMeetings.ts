@@ -85,14 +85,15 @@ export const MEETING_OUTCOMES: { value: MeetingOutcome; label: string; color: st
 
 export function useMeetings() {
   const { user, profile } = useAuth();
+  // Depend on user.id (stable primitive), not user object — see usePricelist.
+  const userId = user?.id ?? null;
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchMeetings = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
 
     try {
-      setLoading(true);
       // Use raw query since meetings table is new
       const { data, error } = await supabase
         .from('meetings' as any)
@@ -124,7 +125,7 @@ export function useMeetings() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchMeetings();
