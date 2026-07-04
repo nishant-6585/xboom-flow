@@ -706,7 +706,7 @@ export default function PortalCustomers() {
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-medium">{r.company_name}</div>
+                                <div className="font-medium">{displayCompany(r)}</div>
                                 <AccountTypeBadge type={r.accountType} />
                               </div>
                             </TableCell>
