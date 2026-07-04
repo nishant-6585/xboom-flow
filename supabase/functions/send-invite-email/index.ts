@@ -145,22 +145,15 @@ Deno.serve(async (req) => {
 
     const html = buildHtml({ name: displayName, actionLink, siteUrl: SITE_URL });
 
-    const resendResp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: FROM,
-        to: [recipientEmail],
-        subject: `Welcome to XBOOM Flow — set your password`,
-        html,
-      }),
+    const { sendEmail: sendMailSeam } = await import("../_shared/email.ts");
+    const resendResp = await sendMailSeam({
+      to: recipientEmail,
+      subject: `Welcome to XBOOM Flow — set your password`,
+      html,
     });
-    const resendBody = await resendResp.json().catch(() => ({}));
+    const resendBody: any = resendResp.raw ?? {};
     if (!resendResp.ok) {
-      throw new Error(resendBody?.message || `Resend failed (${resendResp.status})`);
+      throw new Error(resendResp.error || `Email failed (${resendResp.status})`);
     }
 
     if (logId) {
