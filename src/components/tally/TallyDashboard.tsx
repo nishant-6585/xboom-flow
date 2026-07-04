@@ -369,9 +369,14 @@ export function TallyDashboard() {
     setRefreshing(true);
     const t = toast.loading("Refreshing tally… syncing Zoho invoices");
     try {
-      const { error: syncErr } = await supabase.functions.invoke("zoho-books-sync", { body: {} });
+      const { data: syncData, error: syncErr } = await supabase.functions.invoke("zoho-books-sync", { body: {} });
       if (syncErr) {
         toast.error(`Zoho sync failed: ${syncErr.message}`, { id: t });
+      } else if (syncData?.rate_limited) {
+        toast.warning(
+          syncData.message || "Zoho daily API quota reached — showing last synced data.",
+          { id: t, duration: 6000 },
+        );
       } else {
         toast.success("Zoho invoices synced", { id: t });
       }
