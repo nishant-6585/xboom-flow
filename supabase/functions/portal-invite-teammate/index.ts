@@ -164,9 +164,7 @@ Deno.serve(async (req) => {
 
     let emailSent = false;
     let emailError: string | null = null;
-    if (!RESEND_API_KEY) {
-      emailError = "RESEND_API_KEY not configured";
-    } else {
+    {
       const html = renderInviteEmail({ fullName: body.full_name, actionLink, isExistingUser });
       const subject = isExistingUser
         ? "You've been added to the XBOOM B2B Portal"
