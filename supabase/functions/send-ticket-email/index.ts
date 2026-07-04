@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -289,14 +287,13 @@ const handler = async (req: Request): Promise<Response> => {
       `;
     }
 
-    const emailResponse = await resend.emails.send({
-      from: "XBOOM Flow <notifications@xboom.in>",
-      to: [recipientEmail],
+    const emailResponse = await sendMailSeam({
+      to: recipientEmail,
       subject: emailSubject,
       html: emailHtml,
     });
-
-    console.log("Ticket email sent successfully:", emailResponse);
+    if (!emailResponse.ok) throw new Error(emailResponse.error || `Email failed (${emailResponse.status})`);
+    console.log("Ticket email sent successfully:", emailResponse.id);
 
     return new Response(
       JSON.stringify({ success: true, data: emailResponse }),
