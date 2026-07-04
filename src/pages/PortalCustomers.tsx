@@ -491,22 +491,45 @@ export default function PortalCustomers() {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Company / customer name *</Label>
-                      <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Drones Pvt Ltd" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label>GSTIN</Label>
-                        <Input value={gstin} onChange={(e) => setGstin(e.target.value)} />
+                      <Label>Account type</Label>
+                      <div className="inline-flex rounded-md border p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setInviteType("individual")}
+                          className={`px-3 py-1.5 text-sm rounded ${inviteType === "individual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+                        >
+                          <UserIcon className="inline h-3.5 w-3.5 mr-1" /> Individual
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInviteType("business")}
+                          className={`px-3 py-1.5 text-sm rounded ${inviteType === "business" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+                        >
+                          <Building2 className="inline h-3.5 w-3.5 mr-1" /> Business
+                        </button>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Industry</Label>
-                        <Input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Surveying" />
-                      </div>
                     </div>
+                    {inviteType === "business" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Company name *</Label>
+                          <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Drones Pvt Ltd" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label>GSTIN</Label>
+                            <Input value={gstin} onChange={(e) => setGstin(e.target.value)} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Industry</Label>
+                            <Input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Surveying" />
+                          </div>
+                        </div>
+                      </>
+                    )}
                     <div className="border-t pt-4 space-y-4">
                       <div className="space-y-2">
-                        <Label>Primary contact name *</Label>
+                        <Label>Customer name *</Label>
                         <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -518,6 +541,14 @@ export default function PortalCustomers() {
                           <Label>Phone</Label>
                           <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>WhatsApp number</Label>
+                        <Input
+                          value={whatsappNumber}
+                          onChange={(e) => setWhatsappNumber(e.target.value)}
+                          placeholder="Used for WhatsApp notifications"
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>Role</Label>
