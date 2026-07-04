@@ -6,7 +6,12 @@ import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
 // To update, re-run the email domain setup flow.
-const SITE_NAME = "xboom-flow"
+// Sender identity — surfaced in the From: header display name.
+const SITE_NAME = "Xboom"
+// Local-part of the From address (e.g. notifications@xboomflow.com).
+const FROM_LOCAL = "notifications"
+// Reply-To for all queued app emails.
+const REPLY_TO = "support@xboom.in"
 // SENDER_DOMAIN is the verified sender subdomain FQDN (e.g., "notify.example.com").
 // It MUST match the subdomain delegated to Lovable's nameservers — never the root domain.
 // The email API looks up this exact domain; a mismatch causes "No email domain record found".
@@ -121,48 +126,57 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   // 2. Check suppression list (fail-closed: if we can't verify, don't send)
-  const { data: suppressed, error: suppressionError } = await supabase
-    .from('suppressed_emails')
-    .select('id')
-    .eq('email', effectiveRecipient.toLowerCase())
-    .maybeSingle()
+  // Transactional templates (KYC, order confirmation, ticket replies,
+  // password reset, portal invites) MUST bypass suppression — a customer
+  // who unsubscribed from marketing must still receive account-critical
+  // mail, otherwise onboarding breaks silently.
+  const isTransactional = template.transactional === true
 
-  if (suppressionError) {
-    console.error('Suppression check failed — refusing to send', {
-      error: suppressionError,
-      effectiveRecipient,
-    })
-    return new Response(
-      JSON.stringify({ error: 'Failed to verify suppression status' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
+  if (!isTransactional) {
+    const { data: suppressed, error: suppressionError } = await supabase
+      .from('suppressed_emails')
+      .select('id')
+      .eq('email', effectiveRecipient.toLowerCase())
+      .maybeSingle()
+
+    if (suppressionError) {
+      console.error('Suppression check failed — refusing to send', {
+        error: suppressionError,
+        effectiveRecipient,
+      })
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify suppression status' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    if (suppressed) {
+      await supabase.from('email_send_log').insert({
+        message_id: messageId,
+        template_name: templateName,
+        recipient_email: effectiveRecipient,
+        status: 'suppressed',
+      })
+
+      console.log('Email suppressed', { effectiveRecipient, templateName })
+      return new Response(
+        JSON.stringify({ success: false, reason: 'email_suppressed' }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
   }
 
-  if (suppressed) {
-    // Log the suppressed attempt
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: templateName,
-      recipient_email: effectiveRecipient,
-      status: 'suppressed',
-    })
-
-    console.log('Email suppressed', { effectiveRecipient, templateName })
-    return new Response(
-      JSON.stringify({ success: false, reason: 'email_suppressed' }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  // 3. Get or create unsubscribe token (one token per email address)
+  // 3. Get or create unsubscribe token (one token per email address).
+  // Transactional templates skip this entirely — they omit the footer link.
   const normalizedEmail = effectiveRecipient.toLowerCase()
-  let unsubscribeToken: string
+  let unsubscribeToken: string | null = null
+  if (!isTransactional) {
 
   // Check for existing token for this email
   const { data: existingToken, error: tokenLookupError } = await supabase
@@ -276,6 +290,7 @@ Deno.serve(async (req) => {
       }
     )
   }
+  } // end !isTransactional token block
 
   // 4. Render React Email template to HTML and plain text
   const html = await renderAsync(
