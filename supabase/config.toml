@@ -119,3 +119,7 @@ project_id = "mxsotxddcvmeluqonuuj"
     verify_jwt = false
   [functions.zoho-invoice-webhook]
     verify_jwt = false
+  [functions.zoho-invoice-poller]
+    verify_jwt = false
+  [functions.zoho-invoice-attach]
+    verify_jwt = false
