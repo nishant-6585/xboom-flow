@@ -301,18 +301,28 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     created_by: SYSTEM_USER_ID,
   };
 
-  if (wooStatus === "cancelled") {
+  // ---- Transition-only stamps ---------------------------------------------
+  // Repeat webhooks for the SAME cancelled/refunded/delivered status must not
+  // re-stamp timestamp fields; doing so re-fires the orders_woo_reverse_sync
+  // trigger which PUTs back to Woo and causes Woo to re-fire order.updated,
+  // creating an infinite webhook loop (see the 143256/143468 flood).
+  const existingStatus = existing?.status ?? null;
+  if (wooStatus === "cancelled" && existingStatus !== "cancelled") {
     orderRow.cancelled_at = new Date().toISOString();
     orderRow.cancellation_reason = "Cancelled on WooCommerce";
     orderRow.order_outcome = "OL";
     orderRow.lost_reason = "Customer cancelled on website";
   }
-  if (wooStatus === "refunded") {
+  if (wooStatus === "refunded" && existingStatus !== "cancelled") {
+    // refunded internally maps to `cancelled`; only stamp on first transition
     orderRow.refund_status = "refunded";
     orderRow.refund_requested_at = new Date().toISOString();
     orderRow.refund_reason = "Refunded on WooCommerce";
   }
-  if (wooStatus === "delivered" || wooStatus === "completed") {
+  if (
+    (wooStatus === "delivered" || wooStatus === "completed") &&
+    existingStatus !== "delivery_done"
+  ) {
     orderRow.actual_delivery = new Date().toISOString().slice(0, 10);
     orderRow.order_outcome = "OW";
   }
