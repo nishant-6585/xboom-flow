@@ -133,6 +133,32 @@ Deno.serve(async (req) => {
       if (resp.status === 204) break;
       const data = await resp.json();
       if (!resp.ok) {
+        // Zoho's per-organization daily API cap (code 45) — surface a friendly,
+        // non-fatal response so the UI can still refresh the tally from cached data.
+        if (resp.status === 429 || data?.code === 45) {
+          if (logId) {
+            await supabase
+              .from("zoho_sync_log")
+              .update({
+                status: "rate_limited",
+                records_synced: totalSynced,
+                error_message: (data?.message || "Zoho API rate limit reached").slice(0, 500),
+                completed_at: new Date().toISOString(),
+              })
+              .eq("id", logId);
+          }
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              rate_limited: true,
+              records_synced: totalSynced,
+              message:
+                data?.message ||
+                "Zoho daily API quota reached. Tally will refresh from the last successful sync.",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
         throw new Error(
           `Zoho API error [${resp.status}]: ${JSON.stringify(data).slice(0, 300)}`,
         );
