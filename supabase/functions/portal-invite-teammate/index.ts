@@ -3,9 +3,8 @@
 // teammate is added to the caller's account_id only — the caller cannot pick
 // an arbitrary account.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const FROM_ADDRESS = "XBOOM Flow <notifications@xboom.in>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -173,13 +172,9 @@ Deno.serve(async (req) => {
         ? "You've been added to the XBOOM B2B Portal"
         : "You're invited to the XBOOM B2B Portal";
       try {
-        const r = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from: FROM_ADDRESS, to: [email], subject, html }),
-        });
+        const r = await sendMailSeam({ to: email, subject, html });
         if (!r.ok) {
-          emailError = `Resend ${r.status}: ${(await r.text()).slice(0, 300)}`;
+          emailError = `Email ${r.status}: ${r.error ?? ""}`.slice(0, 300);
         } else {
           emailSent = true;
         }
