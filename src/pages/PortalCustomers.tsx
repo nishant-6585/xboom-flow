@@ -76,6 +76,11 @@ function accountTypeOf(account: AccountRow, primary: ContactRow | null): "busine
   return "individual";
 }
 
+/** Display company name only for real businesses; "—" otherwise. */
+function displayCompany(row: { accountType: "business" | "individual"; company_name: string }): string {
+  return row.accountType === "business" ? (row.company_name || "—") : "—";
+}
+
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -125,7 +130,7 @@ function downloadCsv(rows: EnrichedRow[]) {
   const lines = [header.join(",")];
   for (const r of rows) {
     lines.push([
-      r.company_name,
+      displayCompany(r),
       r.accountType,
       r.primary?.full_name ?? "",
       r.primary?.email ?? "",
@@ -172,12 +177,14 @@ export default function PortalCustomers() {
 
   // Invite dialog
   const [open, setOpen] = useState(false);
+  const [inviteType, setInviteType] = useState<"individual" | "business">("individual");
   const [companyName, setCompanyName] = useState("");
   const [gstin, setGstin] = useState("");
   const [industry, setIndustry] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [contactRole, setContactRole] = useState<"buyer" | "admin" | "technician" | "finance">("buyer");
   const [submitting, setSubmitting] = useState(false);
 
@@ -289,26 +296,35 @@ export default function PortalCustomers() {
 
   // ----- invite -----
   const resetInvite = () => {
+    setInviteType("individual");
     setCompanyName(""); setGstin(""); setIndustry("");
-    setFullName(""); setEmail(""); setPhone(""); setContactRole("buyer");
+    setFullName(""); setEmail(""); setPhone(""); setWhatsappNumber(""); setContactRole("buyer");
   };
   const submit = async () => {
-    if (!companyName || !fullName || !email) {
-      toast({ title: "Missing fields", description: "Company, full name and email are required.", variant: "destructive" });
+    if (!fullName || !email) {
+      toast({ title: "Missing fields", description: "Customer name and email are required.", variant: "destructive" });
       return;
     }
+    if (inviteType === "business" && !companyName) {
+      toast({ title: "Missing fields", description: "Company name is required for business accounts.", variant: "destructive" });
+      return;
+    }
+    // For individuals, use the person's name for company_name (NOT NULL constraint)
+    // while still setting primary_contact_name so the display rule identifies them as Individual.
+    const effectiveCompanyName = inviteType === "business" ? companyName : fullName;
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("portal-invite-customer", {
       body: {
         new_account: {
-          company_name: companyName,
-          gstin: gstin || undefined,
-          industry: industry || undefined,
+          company_name: effectiveCompanyName,
+          gstin: inviteType === "business" ? (gstin || undefined) : undefined,
+          industry: inviteType === "business" ? (industry || undefined) : undefined,
           primary_contact_name: fullName,
         },
         full_name: fullName,
         email,
         phone: phone || undefined,
+        whatsapp_number: whatsappNumber || undefined,
         contact_role: contactRole,
       },
     });
@@ -396,6 +412,7 @@ export default function PortalCustomers() {
         full_name: c.full_name,
         email: c.email,
         phone: c.phone ?? undefined,
+        whatsapp_number: c.whatsapp_number ?? undefined,
         contact_role: c.role,
       },
     });
