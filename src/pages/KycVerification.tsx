@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useKycQueue, kycStatusMeta, type KycQueueRow } from "@/hooks/useKyc";
 import { format } from "date-fns";
 import { Eye, Check, X, Loader2, ShieldCheck, Search } from "lucide-react";
+import { Header } from "@/components/Header";
 
 export default function KycVerification() {
   const { rows, loading, review, getSignedUrl, getAadhaarFull } = useKycQueue();
@@ -69,14 +70,16 @@ export default function KycVerification() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="min-h-[100dvh] bg-background flex flex-col">
+      <Header />
+      <main className="container mx-auto px-4 py-6 max-w-7xl space-y-6 flex-1">
+        <div className="flex items-center gap-3">
         <ShieldCheck className="h-7 w-7 text-primary" />
         <div>
           <h1 className="text-2xl font-bold tracking-tight">KYC Verification Queue</h1>
           <p className="text-sm text-muted-foreground">Review customer-submitted Aadhaar documents.</p>
         </div>
-      </div>
+        </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
