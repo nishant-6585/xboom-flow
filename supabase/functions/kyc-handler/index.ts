@@ -46,7 +46,10 @@ async function sendEmailWithRetry(
   const outcome = await sendWithRetry(() => sendEmailOnce(to, subject, html) as Promise<SendResult>);
   return { ok: outcome.ok, error: outcome.error, attempts: outcome.attempt_count };
 }
-const FROM_ADDRESS = "Xboom <notifications@xboom.in>";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
+// Legacy From — retained for logging back-compat; actual From now comes from
+// the unified seam default (Xboom <notifications@notify.xboomflow.com>).
+const FROM_ADDRESS = "Xboom <notifications@notify.xboomflow.com>";
 const PORTAL_BASE = "https://xboomflow.com";
 
 const corsHeaders = {
@@ -78,27 +81,14 @@ async function sendEmailOnce(
   subject: string,
   html: string,
 ): Promise<{ ok: boolean; error?: string; status?: number; network?: boolean }> {
-  if (!RESEND_API_KEY) return { ok: false, error: "RESEND_API_KEY missing" };
-  try {
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html }),
-    });
-    if (!r.ok) {
-      return {
-        ok: false,
-        status: r.status,
-        error: `Resend ${r.status}: ${(await r.text()).slice(0, 240)}`,
-      };
-    }
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, network: true, error: (e as Error).message };
-  }
+  const r = await sendMailSeam({ to, subject, html });
+  if (r.ok) return { ok: true, status: r.status };
+  return {
+    ok: false,
+    status: r.status,
+    network: r.status === 0,
+    error: r.error ? `Email ${r.status}: ${r.error}` : `Email ${r.status}`,
+  };
 }
 
 // Back-compat wrapper used by staff notifications / status emails (no retry needed).
