@@ -153,6 +153,14 @@ User deliberately chose platform email after verifying sender domain (xboomflow.
 
 ---
 
+## ✅ VERIFIED 2026-07-04: Email seam refactor (Option C step 1) — commit 958fa8f8
+
+`_shared/email.ts` created: sendEmail({to,subject,html,attachments,replyTo,from,provider,cc,bcc}); EMAIL_PROVIDER env (default resend); platform branch stubbed 501 until React Email templates land; DEFAULT_FROM "Xboom <notifications@notify.xboomflow.com>", DEFAULT_REPLY_TO support@xboom.in. All 18 functions migrated — grep confirms ZERO direct api.resend.com/resend-SDK calls remain outside the seam. send-invoice-email pinned provider:'resend' (platform lacks attachments) with FROM "Xboom Utilities <invoices@notify.xboomflow.com>". send-order-notification no longer uses sandbox onboarding@resend.dev. Spot-checked kyc-handler (retry wrapper intact; provider:'resend' at ~line 524 is only the order_notifications LOG value — flag to update when variant flips to platform) and send-order-notification (dynamic import, fine).
+
+NEXT: template migration turns A–G (A: order+website-order notification → B: KYC family → C: ticket/portal-notify → D: confirmation-request + portal customer invite → E: teammate/HR invites → F: password reset → G: low-volume tail). Each turn: React Email template reproducing copy exactly, stable idempotencyKey from existing log identity, flip that function's provider, live test before next. Watch spam/warm-up on new domain.
+
+---
+
 ## ✅ Completed work
 
 ### 2026-07-04 — Portal Customers refinements ✅ + email-provider decision (by Lovable / Claude-verified)
