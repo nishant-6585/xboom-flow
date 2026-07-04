@@ -68,6 +68,7 @@ import ProformaAudit from "./pages/ProformaAudit";
 import DroneOperations from "./pages/DroneOperations";
 import SpareParts from "./pages/SpareParts";
 import NotFound from "./pages/NotFound";
+import Unsubscribe from "./pages/Unsubscribe";
 import Leads from "./pages/Leads";
 import Messages from "./pages/Messages";
 import CompanyCleanup from "./pages/CompanyCleanup";
@@ -117,6 +118,7 @@ function AppInner() {
     <>
       <Routes>
         <Route path="/auth" element={<Auth />} />
+        <Route path="/unsubscribe" element={<Unsubscribe />} />
         <Route path="/mfa-verify" element={<MFAVerify />} />
         <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
         <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
@@ -299,8 +301,10 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
   const location = useLocation();
   // Hide widgets on public/auth pages
   const publicPaths = ['/auth', '/mfa-verify', '/form-embed', '/public'];
+  const alwaysHidden = ['/unsubscribe'];
   const portalPaths = ['/portal'];
-  const isPublicPage = publicPaths.some(p => location.pathname.startsWith(p));
+  const isPublicPage = publicPaths.some(p => location.pathname.startsWith(p))
+    || alwaysHidden.some(p => location.pathname.startsWith(p));
   const isPortalPage = portalPaths.some(p => location.pathname.startsWith(p));
   if (isPublicPage || isPortalPage) return null;
   // Do not render any protected UI until authentication and MFA state are fully resolved
