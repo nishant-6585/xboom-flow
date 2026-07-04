@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, ExternalLink, BookOpen } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
+import { UnmatchedZohoInvoicesPanel } from "./UnmatchedZohoInvoicesPanel";
 
 type Status = {
   connected: boolean;
@@ -107,6 +108,7 @@ export function ZohoBooksSettingsPanel() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -223,5 +225,9 @@ export function ZohoBooksSettingsPanel() {
         )}
       </CardContent>
     </Card>
+    <div className="mt-4">
+      <UnmatchedZohoInvoicesPanel />
+    </div>
+    </>
   );
 }

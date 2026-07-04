@@ -8638,6 +8638,7 @@ export type Database = {
           updated_at: string
           uploaded_by: string | null
           woocommerce_order_id: string | null
+          zoho_invoice_id: string | null
         }
         Insert: {
           amount_paid?: number | null
@@ -8665,6 +8666,7 @@ export type Database = {
           updated_at?: string
           uploaded_by?: string | null
           woocommerce_order_id?: string | null
+          zoho_invoice_id?: string | null
         }
         Update: {
           amount_paid?: number | null
@@ -8692,6 +8694,7 @@ export type Database = {
           updated_at?: string
           uploaded_by?: string | null
           woocommerce_order_id?: string | null
+          zoho_invoice_id?: string | null
         }
         Relationships: [
           {
@@ -15737,8 +15740,12 @@ export type Database = {
           linked_order_id: string | null
           linked_order_number: string | null
           match_method: string | null
+          match_status: string
           matched_at: string | null
           organization_id: string
+          pdf_attached_invoice_id: string | null
+          pdf_hash: string | null
+          pdf_synced_at: string | null
           raw: Json | null
           reference_number: string | null
           status: string | null
@@ -15759,8 +15766,12 @@ export type Database = {
           linked_order_id?: string | null
           linked_order_number?: string | null
           match_method?: string | null
+          match_status?: string
           matched_at?: string | null
           organization_id: string
+          pdf_attached_invoice_id?: string | null
+          pdf_hash?: string | null
+          pdf_synced_at?: string | null
           raw?: Json | null
           reference_number?: string | null
           status?: string | null
@@ -15781,8 +15792,12 @@ export type Database = {
           linked_order_id?: string | null
           linked_order_number?: string | null
           match_method?: string | null
+          match_status?: string
           matched_at?: string | null
           organization_id?: string
+          pdf_attached_invoice_id?: string | null
+          pdf_hash?: string | null
+          pdf_synced_at?: string | null
           raw?: Json | null
           reference_number?: string | null
           status?: string | null
@@ -15802,6 +15817,13 @@ export type Database = {
             columns: ["linked_order_id"]
             isOneToOne: false
             referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zoho_books_invoices_pdf_attached_fk"
+            columns: ["pdf_attached_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "order_invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -15827,6 +15849,30 @@ export type Database = {
           provider?: string
           state?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      zoho_poller_state: {
+        Row: {
+          last_error: string | null
+          last_polled_at: string | null
+          last_success_at: string | null
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          last_error?: string | null
+          last_polled_at?: string | null
+          last_success_at?: string | null
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          last_error?: string | null
+          last_polled_at?: string | null
+          last_success_at?: string | null
+          provider?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -16433,6 +16479,10 @@ export type Database = {
       assign_orphan_leads_sweep: { Args: never; Returns: number }
       assign_woo_lead: {
         Args: { p_assignee: string; p_order_id: string }
+        Returns: undefined
+      }
+      attach_zoho_invoice_to_order: {
+        Args: { p_order_id: string; p_zoho_invoice_id: string }
         Returns: undefined
       }
       attribute_website_order: {

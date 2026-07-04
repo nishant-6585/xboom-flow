@@ -1,84 +1,72 @@
-## Diagnosis (no code changes)
+# Zoho Books Invoice Poller — Phase 2
 
-### 1. Does the order exist in `orders`?
+Reuses the existing Zoho OAuth connection (`zoho_tokens`, org `862649719`, `.com` API domain). No new self-client, no new client secrets.
 
-Yes. Direct DB query confirms a single row:
+## 1. Database changes (one migration)
 
-```
-order_number     : 143055
-id               : b196ab49-994e-4991-aee6-c379bc2931bb
-source           : website
-status           : in_transit
-payment_status   : pending
-total_sales_amount: 139,280.00
-amount_paid      : 0.00
-deleted_at       : null
-order_date       : 2026-06-22
-external_id      : 143055
-procurement_edited: true
-sales_person_id  : a8050cc3-... (Vinay Rawat's rep)
-```
+- Add columns to `zoho_books_invoices`:
+  - `match_status text` — `matched` | `unmatched` | `pending` (default `pending`)
+  - `pdf_attached_invoice_id uuid` — FK to `order_invoices(id)` for idempotency
+  - `pdf_synced_at timestamptz`
+  - `pdf_hash text` — sha256 of last uploaded PDF bytes, so we only re-upload when Zoho changed the PDF
+- Add columns to `order_invoices`:
+  - `zoho_invoice_id text UNIQUE` — links the attachment back to Zoho (one order_invoices row per Zoho invoice)
+- New table `zoho_poller_state` (single row): `last_polled_at timestamptz`, `last_success_at timestamptz`, `last_error text`
+- Extend `match_zoho_invoices_to_orders()` RPC to also write `match_status='matched'` when a link is found and keep unmatched rows at `unmatched` after a first pass.
 
-So it is in the main `orders` table — not a separate Woo-only table.
+## 2. New edge function `zoho-invoice-poller`
 
-### 2. WooCommerce sync — separate table?
+Config: `verify_jwt = false`, cron-authenticated via existing `isAuthorizedCron` (`X-Cron-Secret`).
 
-There are two surfaces:
-- `woocommerce_orders` — raw live feed from the Woo API (`useWooCommerceOrders`). Used for the "Website" tab and for live rows that haven't been mirrored yet.
-- `orders` with `source = 'website'` — the mirror written by `woo-mirror` edge function. Used everywhere else (Procurement, Orders → All Orders, Sales, analytics).
+Flow per invocation:
 
-143055 has been mirrored (row exists in `orders`), so it should flow through the unified path.
+1. Read `zoho_poller_state.last_polled_at` (fallback: 24h ago on first run).
+2. `getValidToken()` (same helper as `zoho-books-sync`).
+3. `GET {api_domain}/books/v3/invoices?organization_id=…&last_modified_time=<cursor>&sort_column=last_modified_time&sort_order=A&per_page=200` — paginate via `page_context.has_more_page`.
+4. Upsert each into `zoho_books_invoices` (same shape as `zoho-books-sync`).
+5. For each new/updated invoice:
+   - `GET /books/v3/invoices/{id}?accept=pdf` → fetch bytes, sha256 hash.
+   - Skip if `pdf_hash` unchanged (idempotent short-circuit).
+   - Determine matching order:
+     - (a) `orders.order_number == invoice.reference_number`
+     - (b) else `orders.customer_email == invoice.email` AND `abs(orders.total_sales_amount - invoice.total) <= 1`
+     - (c) else mark `match_status='unmatched'` — skip PDF attach.
+   - If matched: upload PDF to `invoices` bucket at `zoho/{order_id}/{invoice_number}.pdf`, upsert into `order_invoices` keyed on `zoho_invoice_id` (`source='zoho'`, `document_type='tax_invoice'`), update `zoho_books_invoices` with `linked_order_id/number`, `match_method`, `match_status='matched'`, `pdf_attached_invoice_id`, `pdf_hash`, `pdf_synced_at`.
+   - Call existing `send-invoice-email` with the new `order_invoices.id` — same idempotency/logging as manual Zoho uploads.
+6. Never throw on individual invoice failure — log to `zoho_sync_log`, continue.
+7. On overall success, advance `last_polled_at` to `max(last_modified_time)` of processed batch; on failure, leave cursor alone and log to `zoho_sync_log`.
 
-### 3. Where it gets filtered out
+Manual invocation path: allow admin/finance JWT (same role check as `zoho-books-sync`) with a `?since=<iso>` override for backfills.
 
-Two layers:
+## 3. Cron
 
-**Layer A — `useOrders.ts` (passes 143055 through):**
-```ts
-const WEBSITE_ORDER_CUTOFF = new Date('2026-04-30T00:00:00Z').getTime();
-const orders = rawOrders.filter((o) => {
-  if (o?.deleted_at) return false;                       // OK — null
-  if ((o?.source || 'manual') !== 'website') return true;
-  const status = (o?.status || '').toLowerCase();
-  if (status === 'po_received' || status === 'cancelled') return false; // not our status
-  const refDate = o.order_date || o.created_at;
-  return new Date(refDate).getTime() >= WEBSITE_ORDER_CUTOFF; // 2026-06-22 ≥ 2026-04-30 OK
-});
-```
-143055 survives this layer. So Procurement (which consumes this list) sees it.
+Insert one `pg_cron` job hitting `zoho-invoice-poller` every 15 min via `net.http_post` with the vault `CRON_SECRET` (same pattern as other scheduled functions). Installed via `supabase--insert` (not migration) so it can pull the vault secret at install time.
 
-**Layer B — `useOrdersFiltering.ts` (drops 143055). This is the root cause.**
+## 4. Admin UI
 
-```ts
-const isWebsiteMirrorPaid = (o) =>
-  o.payment_status === 'full' || (total > 0 && paid >= total);
+New card `UnmatchedZohoInvoicesPanel.tsx` in the Zoho Books settings area:
+- Lists `zoho_books_invoices WHERE match_status='unmatched'`
+- Each row: invoice #, date, customer, total, "Attach to order…" combobox (searches orders by number/customer), on select → calls a small new RPC `attach_zoho_invoice_to_order(zoho_invoice_id, order_id)` that fetches the PDF (via a new lightweight edge fn `zoho-invoice-attach`), uploads, inserts `order_invoices`, updates link + `match_status='matched'`, and fires `send-invoice-email`.
+- RLS: admin/finance only.
 
-const filteredOrders = a.orders.filter(o => {
-  ...
-  if (a.sourceFilter === 'manual')        return !isWebsite;
-  if (a.sourceFilter === 'website_auto')  return isWebsite && isWebsiteMirrorPaid(o);
-  return !isWebsite || isWebsiteMirrorPaid(o);   // 'all' branch
-});
-```
+Existing `ZohoInvoiceCard` on order detail already renders these — no changes there because it reads `linked_order_number`.
 
-For website-source rows, **All Orders and Website (Auto) both require `isWebsiteMirrorPaid` to be true.**
+## 5. Verification
 
-143055 has `payment_status = 'pending'` and `amount_paid = 0`, so `isWebsiteMirrorPaid` returns `false`. The row is dropped from `filteredOrders` and from `unifiedRows`, and never reaches the table. Searching "143055" returns 0 results because the search runs against `filteredOrders`, not the unfiltered list.
+After deploy, manually POST to `zoho-invoice-poller` with the cron secret, then report: invoices scanned, new/updated, matched, unmatched, PDFs attached, emails queued.
 
-The live-Woo fallback branch in the same hook cannot rescue it either:
-- The Woo row's `woo_order_id = 143055` is in `mirroredWooIds` (because the mirror exists), so it is explicitly skipped to avoid duplicates.
-- Even if it weren't, that branch also requires `payment_status === 'paid'`, which the Woo row isn't.
+## Files touched
 
-### 4. Why Procurement still shows it
+- `supabase/migrations/…_zoho_poller.sql` — schema changes above + RPC update
+- `supabase/functions/zoho-invoice-poller/index.ts` — new
+- `supabase/functions/zoho-invoice-attach/index.ts` — new (manual-attach path for the admin UI)
+- `supabase/config.toml` — add `verify_jwt = false` blocks for the two new functions
+- `src/components/admin/UnmatchedZohoInvoicesPanel.tsx` — new
+- `src/components/admin/ZohoBooksSettingsPanel.tsx` — mount the new panel
 
-Procurement reads orders by a different path (joined via `inventory_procurements` / `order_procurement_links`) without going through `useOrdersFiltering`, so the paid-only gate doesn't apply there.
+## Non-goals
 
-### 5. Why Sales also hides it
+- `zoho-invoice-webhook` is left untouched (dormant).
+- No changes to the existing `zoho-books-sync` "sync now" button — the two coexist; the poller is the always-on incremental path.
 
-`src/pages/Sales.tsx` does not run its own website-source filter; it consumes the same orders surface as Orders. Once `useOrdersFiltering` drops the row from `filteredOrders` / `unifiedRows`, downstream Sales views inherit the omission.
-
-### Root cause (one line)
-
-`useOrdersFiltering.ts` requires website-mirror orders to be fully paid before showing them. 143055 is `in_transit` but still `payment_status = pending`, so the Orders and Sales lists silently exclude it; Procurement uses a different query and is unaffected.
-
-No code changes are made in this plan — diagnosis only, per the request.
+Say **go** and I'll build it in one pass.

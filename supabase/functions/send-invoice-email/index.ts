@@ -42,38 +42,50 @@ serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Auth: either a valid user JWT (admin/finance/supply_chain/sales_manager)
+    // OR a valid cron secret (used by zoho-invoice-poller for auto-sends).
+    const cronSecret = req.headers.get("x-cron-secret") ?? req.headers.get("X-Cron-Secret");
+    const expectedCron =
+      Deno.env.get("CRON_SECRET") ?? Deno.env.get("ZOHO_SYNC_CRON_SECRET");
+    const isCronCall = !!(cronSecret && expectedCron && cronSecret === expectedCron);
+
+    let userId: string | null = null;
+    if (!isCronCall) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
       });
-    }
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-    const userId = claimsData?.claims?.sub as string | undefined;
-    if (claimsErr || !userId) {
-      console.error("JWT verification failed:", claimsErr);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+      userId = (claimsData?.claims?.sub as string | undefined) ?? null;
+      if (claimsErr || !userId) {
+        console.error("JWT verification failed:", claimsErr);
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Role check — only finance/admin/supply_chain/sales_manager may send invoice PDFs.
-    const { data: roles } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const ALLOWED_ROLES = ["admin", "finance", "supply_chain", "sales_manager"];
-    if (!roles?.some((r: { role: string }) => ALLOWED_ROLES.includes(r.role))) {
-      console.warn("Forbidden invoice email attempt by user", userId);
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!isCronCall && userId) {
+      // Role check — only finance/admin/supply_chain/sales_manager may send invoice PDFs.
+      const { data: roles } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      const ALLOWED_ROLES = ["admin", "finance", "supply_chain", "sales_manager"];
+      if (!roles?.some((r: { role: string }) => ALLOWED_ROLES.includes(r.role))) {
+        console.warn("Forbidden invoice email attempt by user", userId);
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const body = (await req.json()) as Body;
