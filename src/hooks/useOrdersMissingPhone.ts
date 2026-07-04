@@ -29,7 +29,6 @@ export function useOrdersMissingPhone() {
       setLoading(false);
       return;
     }
-    setLoading(true);
     let query = (supabase as any)
       .from('orders_missing_phone')
       .select('*')

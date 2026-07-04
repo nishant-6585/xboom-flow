@@ -65,8 +65,7 @@ export function MissingPhoneBanner({ onOpenOrder }: MissingPhoneBannerProps) {
                 <div className="min-w-0 flex-1">
                   <span className="font-medium text-foreground">{o.order_number}</span>
                   <span className="text-muted-foreground">
-                    {' '}— {o.customer_name || 'Unnamed'}
-                    {o.customer_company ? ` (${o.customer_company})` : ''}
+                    {' '}— {o.sales_person_name || 'Unassigned'}
                   </span>
                 </div>
                 <Button
