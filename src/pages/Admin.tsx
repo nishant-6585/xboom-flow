@@ -792,113 +792,32 @@ const Admin = () => {
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            const t = ADMIN_TABS.find((x) => x.value === v);
+            if (t && !t.inline) {
+              navigate(t.to);
+              return;
+            }
+            handleTabChange(v);
+          }}
+        >
           <TabsList className="mb-6 h-auto flex-wrap justify-start">
-            {!isFinanceOnly && (
-              <>
-                <TabsTrigger value="analytics" className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Analytics
-                </TabsTrigger>
-                <TabsTrigger value="payments" className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  Payment Reminders
-                </TabsTrigger>
-              </>
-            )}
-            <TabsTrigger value="approvals" className="flex items-center gap-2">
-              <Receipt className="w-4 h-4" />
-              Payment Approvals
-            </TabsTrigger>
-            {!isFinanceOnly && (
-              <>
-                <TabsTrigger value="users" className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  User Management
-                  {pendingUsers.length > 0 && (
+            {filterAdminTabs(isFinanceOnly).map((t) => {
+              const Icon = t.icon;
+              return (
+                <TabsTrigger key={t.value} value={t.value} className="flex items-center gap-2">
+                  <Icon className="w-4 h-4" />
+                  {t.label}
+                  {t.value === "users" && pendingUsers.length > 0 && (
                     <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
                       {pendingUsers.length}
                     </Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="integrations" className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  Integrations
-                </TabsTrigger>
-                <TabsTrigger value="form-access" className="flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4" />
-                  Form Access
-                </TabsTrigger>
-                <TabsTrigger value="notices" className="flex items-center gap-2">
-                  <Bell className="w-4 h-4" />
-                  Notices
-                </TabsTrigger>
-                <TabsTrigger value="signature" className="flex items-center gap-2">
-                  <KeyRound className="w-4 h-4" />
-                  Signature
-                </TabsTrigger>
-                <TabsTrigger value="activity" className="flex items-center gap-2">
-                  <Activity className="w-4 h-4" />
-                  Activity
-                </TabsTrigger>
-                <TabsTrigger value="organization" className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4" />
-                  Organization
-                </TabsTrigger>
-                <TabsTrigger value="attendance-policy" className="flex items-center gap-2">
-                  <CalendarClock className="w-4 h-4" />
-                  Attendance Policy
-                </TabsTrigger>
-                <TabsTrigger value="holidays" className="flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4" />
-                  Holidays
-                </TabsTrigger>
-                <TabsTrigger value="employee-activity" className="flex items-center gap-2">
-                  <History className="w-4 h-4" />
-                  Employee Activity
-                </TabsTrigger>
-                <TabsTrigger value="agent-mapping" className="flex items-center gap-2">
-                  <UserCog className="w-4 h-4" />
-                  Agent Mapping
-                </TabsTrigger>
-                <TabsTrigger value="audit-logs" className="flex items-center gap-2" onClick={() => navigate("/admin/audit-logs")}>
-                  <Shield className="w-4 h-4" />
-                  Audit Logs
-                </TabsTrigger>
-                <TabsTrigger value="company-cleanup" className="flex items-center gap-2" onClick={() => navigate("/admin/company-cleanup")}>
-                  <Building2 className="w-4 h-4" />
-                  Company Cleanup
-                </TabsTrigger>
-                <TabsTrigger value="portal-dashboard" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-dashboard")}>
-                  <Activity className="w-4 h-4" />
-                  Portal Dashboard
-                </TabsTrigger>
-                <TabsTrigger value="portal-customers" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-customers")}>
-                  <Briefcase className="w-4 h-4" />
-                  Portal Customers
-                </TabsTrigger>
-                <TabsTrigger value="portal-rfqs" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-rfqs")}>
-                  <FileQuestion className="w-4 h-4" />
-                  Portal RFQs
-                </TabsTrigger>
-                <TabsTrigger value="portal-orders" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-orders")}>
-                  <Package className="w-4 h-4" />
-                  Portal Orders
-                </TabsTrigger>
-                <TabsTrigger value="portal-dispatch" className="flex items-center gap-2" onClick={() => navigate("/admin/portal-dispatch")}>
-                  <Briefcase className="w-4 h-4" />
-                  Dispatch Queue
-                </TabsTrigger>
-                <TabsTrigger value="kyc-emails" className="flex items-center gap-2" onClick={() => navigate("/admin/kyc-emails")}>
-                  <Mail className="w-4 h-4" />
-                  KYC Emails
-                </TabsTrigger>
-                <TabsTrigger value="dev-console" className="flex items-center gap-2" onClick={() => navigate("/admin/dev-console")}>
-                  <Terminal className="w-4 h-4" />
-                  Dev Console
-                </TabsTrigger>
-              </>
-            )}
+              );
+            })}
           </TabsList>
 
           <TabsContent value="analytics">
