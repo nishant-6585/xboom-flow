@@ -3,29 +3,21 @@
 // Auth: X-Cron-Secret header.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const RESEND = Deno.env.get("RESEND_API_KEY");
-const FROM = "XBOOM Flow <notifications@xboom.in>";
 
 function ok(body: unknown, s = 200) {
   return new Response(JSON.stringify(body), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
-  if (!RESEND) return false;
-  try {
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: FROM, to: [to], subject, html }),
-    });
-    return r.ok;
-  } catch { return false; }
+  const r = await sendMailSeam({ to, subject, html });
+  return r.ok;
 }
 
 async function sendWhatsApp(phone: string, template: string, vals: string[]) {
