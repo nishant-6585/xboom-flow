@@ -16,6 +16,7 @@ import {
 import { Loader2, RefreshCw, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { DlqAlertCard } from "@/components/admin/DlqAlertCard";
 
 interface Row {
   id: string;
@@ -156,6 +157,8 @@ export default function KycEmailLogs() {
           Every customer KYC / portal-invite email attempt sent on order creation or via staff resend.
         </p>
       </div>
+
+      <DlqAlertCard />
 
       <Card>
         <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
