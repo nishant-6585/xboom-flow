@@ -20,3 +20,9 @@ Add one file per table/policy area. Files must end in `.sql` and live under
   - finance role can write
   - admin role can write
   - unauthenticated (`anon`) cannot SELECT or write
+- `employees_self_update.sql` — guards the sensitive-column write contract on
+  `employees` (added 2026-07-05 after PRIVILEGE_ESCALATION finding). Verifies:
+  - a sales employee CAN update their own `bank_account` and `ifsc_code`
+  - the same employee CANNOT update `monthly_salary` or `role`
+  - HR CAN update `monthly_salary` and `role`
+  - each bank/IFSC change writes an `employee_bank_audit_log` row
