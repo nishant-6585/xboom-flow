@@ -21,6 +21,12 @@ import { template as portalInvite } from './portal-invite.tsx'
 import { template as portalInviteTeammate } from './portal-invite-teammate.tsx'
 import { template as hrUserInvite } from './hr-user-invite.tsx'
 import { template as passwordResetAdmin } from './password-reset-admin.tsx'
+import { template as portalSlaAlert } from './portal-sla-alert.tsx'
+import { template as portalDocsDigest } from './portal-docs-digest.tsx'
+import { template as portalRenewalReminder } from './portal-renewal-reminder.tsx'
+import { template as attentionNotification } from './attention-notification.tsx'
+import { template as syncHealthAlert } from './sync-health-alert.tsx'
+import { template as dataQualityReport } from './data-quality-report.tsx'
 
 export interface TemplateEntry {
   component: React.ComponentType<any>
@@ -63,4 +69,10 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portal-invite-teammate': portalInviteTeammate,
   'hr-user-invite': hrUserInvite,
   'password-reset-admin': passwordResetAdmin,
+  'portal-sla-alert': portalSlaAlert,
+  'portal-docs-digest': portalDocsDigest,
+  'portal-renewal-reminder': portalRenewalReminder,
+  'attention-notification': attentionNotification,
+  'sync-health-alert': syncHealthAlert,
+  'data-quality-report': dataQualityReport,
 }
