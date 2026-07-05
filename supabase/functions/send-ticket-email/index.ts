@@ -123,20 +123,56 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // Authorization: prevent internal phishing. Only admin/hr/support, or
+    // a participant on the referenced ticket (raised_by / assigned_to),
+    // may trigger a ticket notification email. Additionally, fetch the
+    // real ticket row and use its own subject/ticket_number rather than
+    // trusting attacker-supplied text.
+    const { data: callerRoles } = await supabase
+      .from("user_roles").select("role").eq("user_id", user.id);
+    const privilegedRoles = new Set(["admin", "hr", "support"]);
+    const callerIsPrivileged = (callerRoles ?? []).some(
+      (r: { role: string }) => privilegedRoles.has(r.role),
+    );
+
+    const { data: realTicket } = await supabase
+      .from("tickets")
+      .select("id, ticket_number, subject, raised_by, assigned_to, priority, category")
+      .eq("ticket_number", payload.ticket_number)
+      .maybeSingle();
+
+    if (!realTicket) {
+      return new Response(JSON.stringify({ error: "Ticket not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const callerIsParticipant =
+      realTicket.raised_by === user.id || realTicket.assigned_to === user.id;
+    if (!callerIsPrivileged && !callerIsParticipant) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Length-clamp text inputs. React escapes props, so HTML-escaping here
     // would double-encode inside the template — clamp only.
     const clamp = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
-    const ticket_number = clamp(payload.ticket_number, 50);
-    const subject = clamp(payload.subject, 200);
+    // Ticket identity + subject come from the DB row, not the request body,
+    // so a caller can't fabricate them.
+    const ticket_number = clamp(realTicket.ticket_number, 50);
+    const subject = clamp(realTicket.subject, 200);
     const old_status = clamp(payload.old_status, 50);
     const new_status = clamp(payload.new_status, 50);
-    const priority = clamp(payload.priority, 20);
+    const priority = clamp(realTicket.priority ?? payload.priority, 20);
     const resolution_notes = clamp(payload.resolution_notes, 2000);
     const raised_by_name = clamp(payload.raised_by_name, 100);
     const updated_by_name = clamp(payload.updated_by_name, 100);
     const recipient_user_id = payload.recipient_user_id;
     const sla_due_at = payload.sla_due_at;
-    const category = clamp(payload.category, 100);
+    const category = clamp(realTicket.category ?? payload.category, 100);
 
     // Fetch recipient's email from profiles
     const { data: recipientProfile, error: profileError } = await supabase
