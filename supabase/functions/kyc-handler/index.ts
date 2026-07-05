@@ -13,11 +13,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   EMAIL_RE,
   isDuplicate,
-  sendWithRetry,
-  type SendResult,
 } from "./helpers.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // Kill switch for customer-facing KYC emails. Source of truth is the
 // `feature_flags` row with key='kyc_customer_emails_enabled' (DB-backed
 // so admins can toggle from the UI without redeploying). Falls back to
@@ -36,20 +33,7 @@ async function isCustomerEmailsEnabled(admin: ReturnType<typeof createClient>): 
   return (Deno.env.get("KYC_CUSTOMER_EMAILS_ENABLED") ?? "false").toLowerCase() === "true";
 }
 
-// Wraps sendEmailOnce with the shared retry helper (3 attempts: 1s, 3s, 9s
-// on HTTP 429 / 5xx / network throws — hard 4xx never retries).
-async function sendEmailWithRetry(
-  to: string,
-  subject: string,
-  html: string,
-): Promise<{ ok: boolean; error?: string; attempts: number }> {
-  const outcome = await sendWithRetry(() => sendEmailOnce(to, subject, html) as Promise<SendResult>);
-  return { ok: outcome.ok, error: outcome.error, attempts: outcome.attempt_count };
-}
 import { sendEmail as sendMailSeam } from "../_shared/email.ts";
-// Legacy From — retained for logging back-compat; actual From now comes from
-// the unified seam default (Xboom <notifications@notify.xboomflow.com>).
-const FROM_ADDRESS = "Xboom <notifications@notify.xboomflow.com>";
 const PORTAL_BASE = "https://xboomflow.com";
 
 const corsHeaders = {
@@ -76,21 +60,6 @@ function esc(s: string) {
   );
 }
 
-async function sendEmailOnce(
-  to: string,
-  subject: string,
-  html: string,
-): Promise<{ ok: boolean; error?: string; status?: number; network?: boolean }> {
-  const r = await sendMailSeam({ to, subject, html });
-  if (r.ok) return { ok: true, status: r.status };
-  return {
-    ok: false,
-    status: r.status,
-    network: r.status === 0,
-    error: r.error ? `Email ${r.status}: ${r.error}` : `Email ${r.status}`,
-  };
-}
-
 // Platform (queued) helper for KYC transactional templates. Returns the
 // full seam result so callers can log the actual provider used.
 async function sendPlatform(args: {
@@ -111,11 +80,6 @@ async function sendPlatform(args: {
   });
 }
 
-// Back-compat wrapper used by staff notifications / status emails (no retry needed).
-async function sendEmail(to: string, subject: string, html: string) {
-  return await sendEmailOnce(to, subject, html);
-}
-
 async function logKycEmail(
   admin: ReturnType<typeof createClient>,
   row: {
@@ -126,6 +90,7 @@ async function logKycEmail(
     error?: string | null;
     attempt_count?: number;
     sent_by?: string | null;
+    idempotency_key?: string | null;
   },
 ) {
   try {
@@ -138,6 +103,7 @@ async function logKycEmail(
       error: row.error ?? null,
       attempt_count: row.attempt_count ?? 1,
       sent_by: row.sent_by ?? null,
+      idempotency_key: row.idempotency_key ?? null,
     });
   } catch (e) {
     console.error("[kyc-handler] kyc_email_log insert failed:", e);
