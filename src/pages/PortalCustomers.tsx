@@ -293,9 +293,44 @@ export default function PortalCustomers() {
     });
   }, [rows, search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, monthStart]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly]);
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    const dir = sortDir === "asc" ? 1 : -1;
+    const cmpStr = (a: string | null | undefined, b: string | null | undefined) => {
+      const av = (a ?? "").toLowerCase();
+      const bv = (b ?? "").toLowerCase();
+      if (!av && bv) return 1;   // empties last regardless of dir
+      if (av && !bv) return -1;
+      if (av === bv) return 0;
+      return av < bv ? -1 * dir : 1 * dir;
+    };
+    arr.sort((a, b) => {
+      switch (sortKey) {
+        case "customer":
+          return cmpStr(a.primary?.full_name ?? a.primary_contact_name ?? a.company_name,
+                        b.primary?.full_name ?? b.primary_contact_name ?? b.company_name);
+        case "account":
+          if (a.accountType !== b.accountType) {
+            return a.accountType < b.accountType ? -1 * dir : 1 * dir;
+          }
+          return cmpStr(displayCompany(a), displayCompany(b));
+        case "kyc":
+          return cmpStr(a.kyc_status, b.kyc_status);
+        case "status":
+          return cmpStr(a.status, b.status);
+        case "lastLogin":
+          return cmpStr(a.primary?.last_login_at, b.primary?.last_login_at);
+        case "created":
+        default:
+          return cmpStr(a.created_at, b.created_at);
+      }
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, sortKey, sortDir]);
 
   // ----- stats -----
   const stats = useMemo(() => {
