@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Loader2, Plus, Pencil, Trash2, Search, Download, Mail, UserCheck, UserX,
   Building2, User as UserIcon, ShieldCheck, ShieldAlert, Shield, ShieldQuestion,
-  Phone, MessageCircle, RotateCw,
+  Phone, MessageCircle, RotateCw, ArrowUp, ArrowDown, ChevronsUpDown,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,6 +125,30 @@ function csvEscape(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+type SortKey = "customer" | "account" | "kyc" | "lastLogin" | "status" | "created";
+function SortBtn({
+  label, k, sortKey, sortDir, onClick,
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortDir: "asc" | "desc";
+  onClick: (k: SortKey) => void;
+}) {
+  const active = sortKey === k;
+  const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(k)}
+      className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${active ? "text-foreground" : "text-muted-foreground"}`}
+    >
+      {label}
+      <Icon className="h-3 w-3" />
+    </button>
+  );
+}
+
 function downloadCsv(rows: EnrichedRow[]) {
   const header = ["Company","Type","Contact","Email","Phone","KYC","Status","Last Login","Created"];
   const lines = [header.join(",")];
@@ -174,6 +198,19 @@ export default function PortalCustomers() {
   const [neverLoginOnly, setNeverLoginOnly] = useState(false);
   const [newThisMonthOnly, setNewThisMonthOnly] = useState(false);
   const [page, setPage] = useState(1);
+
+  // Sorting
+  type SortKey = "customer" | "account" | "kyc" | "lastLogin" | "status" | "created";
+  const [sortKey, setSortKey] = useState<SortKey>("created");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "created" || key === "lastLogin" ? "desc" : "asc");
+    }
+  };
 
   // Invite dialog
   const [open, setOpen] = useState(false);
@@ -280,9 +317,44 @@ export default function PortalCustomers() {
     });
   }, [rows, search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, monthStart]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly]);
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    const dir = sortDir === "asc" ? 1 : -1;
+    const cmpStr = (a: string | null | undefined, b: string | null | undefined) => {
+      const av = (a ?? "").toLowerCase();
+      const bv = (b ?? "").toLowerCase();
+      if (!av && bv) return 1;   // empties last regardless of dir
+      if (av && !bv) return -1;
+      if (av === bv) return 0;
+      return av < bv ? -1 * dir : 1 * dir;
+    };
+    arr.sort((a, b) => {
+      switch (sortKey) {
+        case "customer":
+          return cmpStr(a.primary?.full_name ?? a.primary_contact_name ?? a.company_name,
+                        b.primary?.full_name ?? b.primary_contact_name ?? b.company_name);
+        case "account":
+          if (a.accountType !== b.accountType) {
+            return a.accountType < b.accountType ? -1 * dir : 1 * dir;
+          }
+          return cmpStr(displayCompany(a), displayCompany(b));
+        case "kyc":
+          return cmpStr(a.kyc_status, b.kyc_status);
+        case "status":
+          return cmpStr(a.status, b.status);
+        case "lastLogin":
+          return cmpStr(a.primary?.last_login_at, b.primary?.last_login_at);
+        case "created":
+        default:
+          return cmpStr(a.created_at, b.created_at);
+      }
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, sortKey, sortDir]);
 
   // ----- stats -----
   const stats = useMemo(() => {
@@ -667,12 +739,12 @@ export default function PortalCustomers() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Account</TableHead>
-                        <TableHead>KYC</TableHead>
-                        <TableHead>Last login</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Created</TableHead>
+                        <TableHead><SortBtn label="Customer" k="customer" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="Account" k="account" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="KYC" k="kyc" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="Last login" k="lastLogin" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="Created" k="created" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
