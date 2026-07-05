@@ -18,6 +18,8 @@ import { template as portalTicketReplyToStaff } from './portal-ticket-reply-to-s
 import { template as portalTicketReplyToCustomer } from './portal-ticket-reply-to-customer.tsx'
 import { template as customerConfirmationRequest } from './customer-confirmation-request.tsx'
 import { template as portalInvite } from './portal-invite.tsx'
+import { template as portalInviteTeammate } from './portal-invite-teammate.tsx'
+import { template as hrUserInvite } from './hr-user-invite.tsx'
 
 export interface TemplateEntry {
   component: React.ComponentType<any>
@@ -57,4 +59,6 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portal-ticket-reply-to-customer': portalTicketReplyToCustomer,
   'customer-confirmation-request': customerConfirmationRequest,
   'portal-invite': portalInvite,
+  'portal-invite-teammate': portalInviteTeammate,
+  'hr-user-invite': hrUserInvite,
 }
