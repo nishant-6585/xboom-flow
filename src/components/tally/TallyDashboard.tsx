@@ -369,7 +369,7 @@ export function TallyDashboard() {
     setRefreshing(true);
     const t = toast.loading("Refreshing tally…");
     try {
-      // Zoho invoices are now pushed in real-time via the zoho-books-webhook
+      // Zoho invoices are now pushed in real-time via the zoho-invoice-webhook
       // function (Zoho workflow rules), so a periodic bulk pull is no longer
       // needed and would burn against Zoho's 2,000 calls/day cap. Refresh
       // just re-reads the local cache.

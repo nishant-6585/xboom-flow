@@ -7572,6 +7572,7 @@ export type Database = {
           doc_type: string
           error: string | null
           id: string
+          idempotency_key: string | null
           order_id: string | null
           order_number: string | null
           recipient_email: string | null
@@ -7584,6 +7585,7 @@ export type Database = {
           doc_type?: string
           error?: string | null
           id?: string
+          idempotency_key?: string | null
           order_id?: string | null
           order_number?: string | null
           recipient_email?: string | null
@@ -7596,6 +7598,7 @@ export type Database = {
           doc_type?: string
           error?: string | null
           id?: string
+          idempotency_key?: string | null
           order_id?: string | null
           order_number?: string | null
           recipient_email?: string | null
