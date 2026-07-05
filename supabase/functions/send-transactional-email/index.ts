@@ -9,9 +9,9 @@ import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 // Sender identity — surfaced in the From: header display name.
 const SITE_NAME = "Xboom"
 // Local-part of the From address (e.g. notifications@xboomflow.com).
-const FROM_LOCAL = "notifications"
+const FROM_LOCAL = "no-reply"
 // Reply-To for all queued app emails.
-const REPLY_TO = "support@xboom.in"
+const REPLY_TO = "no-reply@xboomflow.com"
 // SENDER_DOMAIN is the verified sender subdomain FQDN (e.g., "notify.example.com").
 // It MUST match the subdomain delegated to Lovable's nameservers — never the root domain.
 // The email API looks up this exact domain; a mismatch causes "No email domain record found".
