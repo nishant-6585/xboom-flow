@@ -32,10 +32,13 @@ const ok = (body: Record<string, unknown> = { received: true }) =>
 async function verifyElevenLabsSignature(req: Request, rawBody: string): Promise<boolean> {
   const secret = Deno.env.get("ELEVENLABS_WEBHOOK_SECRET");
   if (!secret) {
-    console.warn(
-      "[elevenlabs-call-summary] ELEVENLABS_WEBHOOK_SECRET not set — accepting unsigned webhook. Configure the secret to enforce signature verification.",
+    // Fail closed: reject the request when the shared secret has not been
+    // configured (or was rotated without redeploying). Matches the
+    // fail-closed pattern used by other webhook handlers in this codebase.
+    console.error(
+      "[elevenlabs-call-summary] ELEVENLABS_WEBHOOK_SECRET not set — rejecting webhook. Configure the secret to accept ElevenLabs webhooks.",
     );
-    return true;
+    return false;
   }
 
   const header = req.headers.get("elevenlabs-signature") || req.headers.get("ElevenLabs-Signature");
