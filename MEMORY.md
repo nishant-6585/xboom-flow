@@ -153,6 +153,15 @@ User deliberately chose platform email after verifying sender domain (xboomflow.
 
 ---
 
+## 🟡 2026-07-05: Platform email limitations confirmed + Turn C gate
+
+CONFIRMED from delivered mail (post-fix sends f2b4c15b/55965ab0): Lovable delivery API STRIPS Reply-To header and From display name (client lib @lovable.dev/email-js@0.0.4 sends both correctly — platform-side bug). Also renders unsubscribe footer on ALL sends incl. transactional (mandates unsubscribe_token, 400 missing_unsubscribe otherwise; skip_unsubscribe_footer has no API effect). Mitigations: template copy now says "email us at support@xboom.in" (no more "reply to this email"); user raising Lovable support ticket (Reply-To strip, From name, transactional footer opt-out, unsubscribe scope, quota ceilings); GoDaddy email-forward notifications@/noreply@xboomflow.com → support@xboom.in as plan B (root has no MX; forwarding safe).
+DLQ alert email now out-of-band via seam provider:'resend' (verified index.ts:208-209), DLQ_ALERT_TO env override, notifications row unchanged. Reason buckets normalized shared with DlqAlertCard.
+Employee bank guard shipped+verified: trigger blocks sensitive cols for non-admin/HR, auth.uid() IS NULL bypass explicit, employee_bank_audit_log + single HR notification (both-cols=1), pgTAP suite, HR BankAuditHistoryPanel in EmployeeDetailDialog.
+TURN C GATES: (1) upstream unsubscribe test — green-lit with nishant.gearup+unsubtest@gmail.com (send → user clicks footer → kyc-onboarding to same address → email_send_log verdict; dlq/suppressed = account-wide upstream suppression = escalate before customer-facing turns). (2) Robin Thakur re-send contradiction: Lovable claimed 50344383 sent (ORD2600370) then said order doesn't exist — reconciliation demanded. (3) 4 flood-DLQ'd customer invites re-send requested (nagarjunamadala, uditsiingh09, ptarchana02, mohabulskill). KYC onboarding order_number sometimes null in orders (loud warn added) — investigate data.
+
+---
+
 ## ✅ VERIFIED 2026-07-04 (late): Webhook-loop email flood — root-caused, fixed, purged
 
 Incident: ~1,270 msgs jammed pgmq.q_transactional_emails; platform provider 429'd (retry_after 17:30Z); KYC emails stuck. Root cause: self-echo loop — mirrorIntoInternalOrders re-stamped cancelled_at on EVERY repeat webhook → orders_woo_reverse_sync trigger saw IS DISTINCT FROM → PUT to Woo → Woo re-fired order.updated (orders 143256/143468, ~2s cadence, all status:success). website_orders_email_notify trigger re-fired cancelled branch each cycle. pgmq does NOT dedupe on idempotency_key at enqueue (dispatch-time dedup only, and nothing reached 'sent' behind the 429) — key learning.
