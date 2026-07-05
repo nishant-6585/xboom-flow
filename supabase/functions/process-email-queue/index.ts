@@ -1,7 +1,6 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-export { buildDispatcherPayload } from './payload.ts'
 import { buildDispatcherPayload } from './payload.ts'
 
 // A DLQ event captured for post-run notification. We batch these and emit
