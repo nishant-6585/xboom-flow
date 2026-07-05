@@ -837,16 +837,50 @@ async function orderKycStatus(
 
   const { data: lastLog } = await admin
     .from("kyc_email_log")
-    .select("status, created_at, attempt_count")
+    .select("status, created_at, attempt_count, idempotency_key, recipient_email")
     .eq("order_id", orderId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  // Reflect ACTUAL delivery from email_send_log, not just the enqueue-time
+  // status. Match by idempotency_key stored in metadata (new rows) and fall
+  // back to recipient+template within a 24h window for older rows that
+  // predate the key column.
+  let delivery: { status: string; created_at: string } | null = null;
+  const idem = (lastLog as any)?.idempotency_key as string | null;
+  const rcpt = (lastLog as any)?.recipient_email as string | null;
+  if (idem) {
+    const { data: es } = await admin
+      .from("email_send_log")
+      .select("status, created_at")
+      .eq("metadata->>idempotency_key", idem)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (es) delivery = es as any;
+  }
+  if (!delivery && rcpt && (lastLog as any)?.created_at) {
+    const from = new Date(new Date((lastLog as any).created_at).getTime() - 60_000).toISOString();
+    const to = new Date(new Date((lastLog as any).created_at).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const { data: es } = await admin
+      .from("email_send_log")
+      .select("status, created_at")
+      .eq("template_name", "kyc-onboarding")
+      .ilike("recipient_email", rcpt)
+      .gte("created_at", from)
+      .lte("created_at", to)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (es) delivery = es as any;
+  }
 
   return json({
     kyc_status: kycStatus,
     has_portal_account: hasPortalAccount,
     customer_email: customerEmail,
     last_invite: lastLog ?? null,
+    last_delivery: delivery,
   });
 }
