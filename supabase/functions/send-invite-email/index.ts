@@ -143,27 +143,40 @@ Deno.serve(async (req) => {
     }
     const actionLink = linkData.properties.action_link;
 
-    const html = buildHtml({ name: displayName, actionLink, siteUrl: SITE_URL });
-
     const { sendEmail: sendMailSeam } = await import("../_shared/email.ts");
-    const resendResp = await sendMailSeam({
+    // Stable idempotency from the log-of-record: one attempt per queued
+    // invitation_email_log row. Retries of the same invocation collapse;
+    // resends (which insert a new log row) send again.
+    const idempotencyKey = logId
+      ? `send-invite-email:${logId}`
+      : `send-invite-email:${invitationId}:${recipientEmail}`;
+    const platformResp = await sendMailSeam({
+      provider: "platform",
       to: recipientEmail,
-      subject: `Welcome to XBOOM Flow — set your password`,
-      html,
+      subject: "",
+      html: "",
+      templateName: "hr-user-invite",
+      templateData: {
+        name: displayName,
+        action_link: actionLink,
+        site_url: SITE_URL,
+      },
+      idempotencyKey,
     });
-    const resendBody: any = resendResp.raw ?? {};
-    if (!resendResp.ok) {
-      throw new Error(resendResp.error || `Email failed (${resendResp.status})`);
+    const platformBody: any = platformResp.raw ?? {};
+    if (!platformResp.ok) {
+      throw new Error(platformResp.error || `Email failed (${platformResp.status})`);
     }
 
     if (logId) {
       await adminClient.from("invitation_email_log").update({
         status: "sent",
-        provider_message_id: resendBody?.id || null,
+        provider: "platform",
+        provider_message_id: platformBody?.message_id || platformBody?.id || null,
       }).eq("id", logId);
     }
 
-    return new Response(JSON.stringify({ success: true, message_id: resendBody?.id || null }), {
+    return new Response(JSON.stringify({ success: true, message_id: platformBody?.message_id || platformBody?.id || null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
