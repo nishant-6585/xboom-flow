@@ -163,7 +163,8 @@ DRONE-DETECTION OVERHAUL ✅ VERIFIED 2026-07-05 (migrations 20260705125802/1309
 Zoho invoice badge: "Zoho + Proforma" conflation reverted to plain "Zoho Invoice" (user decision — tax invoice ≠ proforma).
 
 TURN D ✅ VERIFIED (commit 490e9e54): send-customer-confirmation-request + portal-invite-customer on platform — customer-confirmation-request.tsx + portal-invite.tsx (dynamic is_existing_user variant), transactional:true; idempotency: confirmation = order_id+attemptIdx (re-clicks send fresh), invite = invite_token. Ticket status-cycle fix shipped: transitionMarker from tickets.updated_at epoch appended to status_update key.
-NEXT: Turn E in flight (portal-invite-teammate + send-invite-email/HR) → F (password reset) → multi-recipient seam fix → G (tail) (send-ticket-email + portal-notify templates). Then D–G per plan; before G: seam multi-recipient fix. Post-G: KYC card delivery-status fix, kyc-handler dead constant.
+TURN E ✅ VERIFIED: send-invite-email (hr-user-invite) + portal-invite-teammate on platform, transactional:true, idempotency from invitation_email_log.id / contactId+token-fingerprint. Definitive reflag ledger: 9 orders (143208, 143556, ORD2600069/0105/0133/0168/0172/0186/0320). LOOSE END CAUGHT: 3 FPs awaiting "clear" never approved (ORD2600050/0103 training services, ORD2600259 CADDX FPV camera) — approval sent with Turn F go.
+NEXT: Turn F in flight (send-password-reset-email — most sensitive variant, reset link behavior must be identical) (portal-invite-teammate + send-invite-email/HR) → F (password reset) → multi-recipient seam fix → G (tail) (send-ticket-email + portal-notify templates). Then D–G per plan; before G: seam multi-recipient fix. Post-G: KYC card delivery-status fix, kyc-handler dead constant.
 
 ---
 
