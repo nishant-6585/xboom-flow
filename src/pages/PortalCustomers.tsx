@@ -121,8 +121,35 @@ function AccountTypeBadge({ type }: { type: "business" | "individual" }) {
 }
 
 function csvEscape(v: unknown): string {
+  return csvEscapeImpl(v);
+}
+function csvEscapeImpl(v: unknown): string {
   const s = v == null ? "" : String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+type SortKey = "customer" | "account" | "kyc" | "lastLogin" | "status" | "created";
+function SortBtn({
+  label, k, sortKey, sortDir, onClick,
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortDir: "asc" | "desc";
+  onClick: (k: SortKey) => void;
+}) {
+  const active = sortKey === k;
+  const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(k)}
+      className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${active ? "text-foreground" : "text-muted-foreground"}`}
+    >
+      {label}
+      <Icon className="h-3 w-3" />
+    </button>
+  );
 }
 
 function downloadCsv(rows: EnrichedRow[]) {
