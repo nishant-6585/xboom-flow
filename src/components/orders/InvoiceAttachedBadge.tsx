@@ -53,10 +53,10 @@ export function InvoiceAttachedBadge({ orderId, compact = false }: Props) {
   if (!inv) return null;
 
   const isZoho = inv.source === "zoho";
-  // Zoho-synced invoices are proformas until a tax invoice replaces them,
-  // so the card badge reads "Zoho + Proforma Invoice" for clarity.
-  const label = isZoho ? "Zoho + Proforma Invoice" : "Invoice Attached";
-  const short = isZoho ? "Zoho + Proforma" : "Invoice";
+  // Zoho Books issues the official tax invoice; keep the badge label
+  // distinct from proformas (which are a separate document type).
+  const label = isZoho ? "Zoho Invoice" : "Invoice Attached";
+  const short = isZoho ? "Zoho" : "Invoice";
 
   const tooltipLines = [
     isZoho ? "Synced from Zoho Books" : "Attached to order",
