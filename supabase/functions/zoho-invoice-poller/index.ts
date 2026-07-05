@@ -276,10 +276,23 @@ Deno.serve(async (req) => {
 
     let maxSeen = cursor;
 
+    // Per-run enrichment cap: keep Zoho API consumption predictable.
+    // Steady-state deltas rarely exceed this; leftovers pick up next tick.
+    const ENRICH_CAP = 50;
+    let enriched = 0;
+
     for (const inv of collected) {
       try {
         if (inv.last_modified_time && inv.last_modified_time > maxSeen) {
           maxSeen = inv.last_modified_time;
+        }
+
+        if (enriched >= ENRICH_CAP) {
+          // Stop the expensive per-invoice work (PDF fetch + email) but keep
+          // advancing the cursor to processed rows only — do NOT bump maxSeen
+          // for skipped invoices so the next run resumes here.
+          maxSeen = cursor;
+          break;
         }
 
         // Fetch current mirror row (post-match)
@@ -322,6 +335,8 @@ Deno.serve(async (req) => {
         }
 
         stats.matched += 1;
+
+        enriched += 1;
 
         // Fetch PDF
         const pdfUrl =
