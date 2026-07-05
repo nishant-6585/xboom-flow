@@ -108,9 +108,7 @@ async function moveToDlq(
 // scoped to the invocation prevents accidental double-fires).
 async function notifyDlqBatch(
   supabase: ReturnType<typeof createClient>,
-  events: DlqEvent[],
-  supabaseUrl: string,
-  supabaseServiceKey: string
+  events: DlqEvent[]
 ): Promise<void> {
   if (events.length === 0) return
 
@@ -478,7 +476,7 @@ Deno.serve(async (req) => {
         if (isForbidden(error)) {
           await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000), dlqEvents)
           // Fire DLQ notification before returning early.
-          await notifyDlqBatch(supabase, dlqEvents, supabaseUrl, supabaseServiceKey)
+          await notifyDlqBatch(supabase, dlqEvents)
           return new Response(
             JSON.stringify({ processed: totalProcessed, stopped: 'forbidden' }),
             { headers: { 'Content-Type': 'application/json' } }
@@ -508,7 +506,7 @@ Deno.serve(async (req) => {
   }
 
   // Fire ONE summary DLQ alert for the whole run.
-  await notifyDlqBatch(supabase, dlqEvents, supabaseUrl, supabaseServiceKey)
+  await notifyDlqBatch(supabase, dlqEvents)
 
   return new Response(
     JSON.stringify({ processed: totalProcessed }),
