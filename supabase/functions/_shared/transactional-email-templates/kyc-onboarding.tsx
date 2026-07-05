@@ -80,12 +80,13 @@ const Email = (p: Props = {}) => {
               </Section>
             ) : null}
             <Text style={fine}>
-              Order processing may require KYC approval. Questions? Email us at{' '}
-              <Link href="mailto:support@xboom.in" style={{ color: '#0ea5e9' }}>support@xboom.in</Link>.
+              Order processing may require KYC approval. Questions?{' '}
+              <Link href="https://xboomflow.com/portal/login" style={{ color: '#0ea5e9' }}>Sign in to your Customer Portal</Link>{' '}
+              and raise a support ticket.
             </Text>
           </Section>
           <Hr style={hr} />
-          <Text style={footer}>XBOOM Flow · Customer Portal · Reply to <Link href="mailto:support@xboom.in" style={{ color: '#0ea5e9' }}>support@xboom.in</Link></Text>
+          <Text style={footer}>XBOOM Flow · Customer Portal · This mailbox is not monitored — please do not reply.</Text>
         </Container>
       </Body>
     </Html>
