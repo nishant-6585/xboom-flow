@@ -153,7 +153,16 @@ User deliberately chose platform email after verifying sender domain (xboomflow.
 
 ---
 
-## 🟡 2026-07-05: Platform email limitations confirmed + Turn C gate
+## ✅ 2026-07-05 (evening): Email identity finalized + all Turn C gates cleared
+
+DECISION: no xboom.in visible on any xboomflow email. All platform sends now "Xboom <no-reply@xboomflow.com>" (FROM_LOCAL=no-reply), Reply-To no-reply@xboomflow.com (intentionally NOT a mailbox — replies bounce by design; customer questions route via portal support tickets, wording in templates updated; support@xboom.in removed from all customer-visible copy; dlq-alert.tsx keeps support@xboom.in as internal ops recipient only). Verified in code + delivered inbox test (dbee6b60). No GoDaddy mailbox/forward needed (user cancelled — CEO Vishal holds GoDaddy access anyway).
+GATES CLEARED: (1) unsubscribe test PASSED — TEST-STEP3 kyc-onboarding DELIVERED to inbox after footer-unsubscribe click → upstream suppression does not block transactional sends. (2) Reply-To + From display name ARE honored in delivered mail (earlier "platform strips headers" conclusion wrong — stale dispatcher window); support ticket item 1 moot, keep footer-opt-out/unsub-scope/quota questions. (3) Robin Thakur reconciled — invite delivered (13b9dcc8, ORD2600370 exists; Lovable's "doesn't exist" was a case-sensitivity query error + mis-quoted id). (4) 4 flood-DLQ'd customer invites re-sent, all sent 11:26Z. (5) NULL order_number: zero rows, template guard stays as defense.
+RESEND OUTAGE DISARMED: notify.xboomflow.com NOT verified in Resend (403 confirmed); DEFAULT_FROM/invoice FROM reverted to notifications@/invoices@xboom.in; zero casualties (path was idle). Resend-path From still xboom.in — constraint until xboomflow.com verified in Resend dashboard. Dead constant FROM_ADDRESS in kyc-handler:52 — cleanup someday.
+NEXT: Turn C in flight (send-ticket-email + portal-notify templates). Then D–G per plan; before G: seam multi-recipient fix. Post-G: KYC card delivery-status fix, kyc-handler dead constant.
+
+---
+
+## 🟡 2026-07-05 (earlier): Platform email limitations confirmed + Turn C gate
 
 CONFIRMED from delivered mail (post-fix sends f2b4c15b/55965ab0): Lovable delivery API STRIPS Reply-To header and From display name (client lib @lovable.dev/email-js@0.0.4 sends both correctly — platform-side bug). Also renders unsubscribe footer on ALL sends incl. transactional (mandates unsubscribe_token, 400 missing_unsubscribe otherwise; skip_unsubscribe_footer has no API effect). Mitigations: template copy now says "email us at support@xboom.in" (no more "reply to this email"); user raising Lovable support ticket (Reply-To strip, From name, transactional footer opt-out, unsubscribe scope, quota ceilings); GoDaddy email-forward notifications@/noreply@xboomflow.com → support@xboom.in as plan B (root has no MX; forwarding safe).
 DLQ alert email now out-of-band via seam provider:'resend' (verified index.ts:208-209), DLQ_ALERT_TO env override, notifications row unchanged. Reason buckets normalized shared with DlqAlertCard.
