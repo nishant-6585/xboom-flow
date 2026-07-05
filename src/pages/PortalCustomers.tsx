@@ -121,9 +121,6 @@ function AccountTypeBadge({ type }: { type: "business" | "individual" }) {
 }
 
 function csvEscape(v: unknown): string {
-  return csvEscapeImpl(v);
-}
-function csvEscapeImpl(v: unknown): string {
   const s = v == null ? "" : String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
