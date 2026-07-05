@@ -12,6 +12,7 @@ import type { EmployeeRecord } from "./EmployeesPanel";
 import { useState, useEffect } from "react";
 import { EditHistoryPanel } from "@/components/EditHistoryPanel";
 import { EmploymentHistoryPanel } from "./EmploymentHistoryPanel";
+import { BankAuditHistoryPanel } from "./BankAuditHistoryPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useEditHistory } from "@/hooks/useEditHistory";
@@ -399,6 +400,14 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           />
 
           <Separator />
+
+          {/* Bank Change Audit (HR/Admin/Finance only — component hides itself otherwise) */}
+          {isHROrAdmin && (
+            <>
+              <BankAuditHistoryPanel employeeId={employee.id} />
+              <Separator />
+            </>
+          )}
 
           {/* Change History */}
           <div>
