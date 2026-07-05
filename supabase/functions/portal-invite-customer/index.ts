@@ -227,20 +227,28 @@ Deno.serve(async (req) => {
       .from("portal_notification_preferences")
       .upsert({ contact_id: contactId }, { onConflict: "contact_id", ignoreDuplicates: true });
 
-    // 9. Send the branded invite email via Resend (notifications@xboom.in)
+    // 9. Send the branded invite email via the platform queue.
     let emailSent = false;
     let emailError: string | null = null;
     {
-      const html = renderInviteEmail({
-        fullName: body.full_name,
-        actionLink,
-        isExistingUser,
-      });
-      const subject = isExistingUser
-        ? "You've been added to the XBOOM B2B Portal"
-        : "You're invited to the XBOOM B2B Portal";
+      // Stable idempotency: identity is the invite token (unique per invite row),
+      // matching the log-of-record (portal_invite_tokens).
+      const inviteToken = (inviteRow as { token: string }).token;
+      const idempotencyKey = `portal-invite-customer:${inviteToken}`;
       try {
-        const r = await sendMailSeam({ to: email, subject, html });
+        const r = await sendMailSeam({
+          provider: "platform",
+          to: email,
+          subject: "",
+          html: "",
+          templateName: "portal-invite",
+          templateData: {
+            full_name: body.full_name,
+            action_link: actionLink,
+            is_existing_user: isExistingUser,
+          },
+          idempotencyKey,
+        });
         if (!r.ok) {
           emailError = `Email ${r.status}: ${r.error ?? ""}`.slice(0, 300);
           console.error("Email send failed:", emailError);
