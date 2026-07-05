@@ -252,6 +252,36 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Authorization: match `analyze-ticket` — only admin/hr, or the ticket's
+    // raised_by / assigned_to, may trigger AI resolution. Prevents any
+    // authenticated user (sales, marketing, etc.) from spending AI credits
+    // on tickets they are not involved with.
+    {
+      const { data: roles } = await supabaseAdmin
+        .from("user_roles").select("role").eq("user_id", user.id);
+      const privileged = new Set(["admin", "hr"]);
+      const isPrivileged = (roles ?? []).some(
+        (r: { role: string }) => privileged.has(r.role),
+      );
+      if (!isPrivileged) {
+        const { data: ticketOwnership } = await supabaseAdmin
+          .from("tickets")
+          .select("raised_by, assigned_to")
+          .eq("id", ticket_id)
+          .maybeSingle();
+        const isParticipant =
+          !!ticketOwnership &&
+          (ticketOwnership.raised_by === user.id ||
+            ticketOwnership.assigned_to === user.id);
+        if (!isParticipant) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
     // Initialize metrics
     const metrics = createMetrics(ticket_id);
 
