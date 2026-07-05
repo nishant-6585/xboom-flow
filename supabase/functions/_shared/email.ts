@@ -61,7 +61,7 @@ export interface SendEmailResult {
 // preceded by verifying the new domain in the Resend dashboard.
 export const DEFAULT_FROM =
   "Xboom <notifications@xboom.in>";
-export const DEFAULT_REPLY_TO = "support@xboom.in";
+export const DEFAULT_REPLY_TO = "no-reply@xboomflow.com";
 
 function resolveProvider(explicit?: EmailProvider): EmailProvider {
   if (explicit) return explicit;
