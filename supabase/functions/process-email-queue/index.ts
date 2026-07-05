@@ -1,6 +1,20 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
+export { buildDispatcherPayload } from './payload.ts'
+import { buildDispatcherPayload } from './payload.ts'
+
+// A DLQ event captured for post-run notification. We batch these and emit
+// ONE summary alert per invocation to avoid alert-flood on template outages
+// (which is exactly the failure mode we just fixed for customer email).
+interface DlqEvent {
+  queue: string
+  template: string
+  recipient: string
+  reason: string
+  message_id: string | null
+}
+
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
 const DEFAULT_SEND_DELAY_MS = 200
@@ -57,7 +71,8 @@ async function moveToDlq(
   supabase: ReturnType<typeof createClient>,
   queue: string,
   msg: { msg_id: number; message: Record<string, unknown> },
-  reason: string
+  reason: string,
+  dlqEvents?: DlqEvent[]
 ): Promise<void> {
   const payload = msg.message
   await supabase.from('email_send_log').insert({
@@ -75,6 +90,95 @@ async function moveToDlq(
   })
   if (error) {
     console.error('Failed to move message to DLQ', { queue, msg_id: msg.msg_id, reason, error })
+  }
+  if (dlqEvents) {
+    dlqEvents.push({
+      queue,
+      template: String(payload.label || queue),
+      recipient: String(payload.to || 'unknown'),
+      reason: reason.slice(0, 500),
+      message_id: typeof payload.message_id === 'string' ? payload.message_id : null,
+    })
+  }
+}
+
+// Fire one summary notification per run when any messages dead-lettered.
+// Writes an admin-targeted notification row AND enqueues a single alert
+// email through the same platform queue we're operating (idempotency key
+// scoped to the invocation prevents accidental double-fires).
+async function notifyDlqBatch(
+  supabase: ReturnType<typeof createClient>,
+  events: DlqEvent[],
+  supabaseUrl: string,
+  supabaseServiceKey: string
+): Promise<void> {
+  if (events.length === 0) return
+
+  // Aggregate for the summary.
+  const byTemplate = new Map<string, number>()
+  const byReason = new Map<string, number>()
+  for (const e of events) {
+    byTemplate.set(e.template, (byTemplate.get(e.template) ?? 0) + 1)
+    // Compact reason keys — collapse long API error bodies to the first line.
+    const shortReason = e.reason.split('\n')[0].slice(0, 160)
+    byReason.set(shortReason, (byReason.get(shortReason) ?? 0) + 1)
+  }
+  const templateBreakdown = Array.from(byTemplate.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([template, count]) => ({ template, count }))
+  const reasonBreakdown = Array.from(byReason.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([reason, count]) => ({ reason, count }))
+
+  const summary = `${events.length} email(s) moved to DLQ. Templates: ${
+    templateBreakdown.map((t) => `${t.template} × ${t.count}`).join(', ')
+  }.`
+
+  // 1. Admin notification row (existing feed).
+  const { error: notifError } = await supabase.from('notifications').insert({
+    type: 'email_dlq_alert',
+    title: `Email dispatcher: ${events.length} message(s) dead-lettered`,
+    message: summary,
+    target_role: 'admin',
+  })
+  if (notifError) {
+    console.error('Failed to insert DLQ admin notification', { error: notifError })
+  }
+
+  // 2. Single summary email via the same platform queue.
+  // Idempotency key uses the current UTC minute + event count so retries
+  // within the same batch collapse and normal runs get unique keys.
+  const nowMinute = new Date().toISOString().slice(0, 16) // YYYY-MM-DDTHH:MM
+  const idempotencyKey = `dlq-alert-${nowMinute}-${events.length}`
+
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        templateName: 'dlq-alert',
+        idempotencyKey,
+        templateData: {
+          totalCount: events.length,
+          templateBreakdown,
+          reasonBreakdown,
+          sampleEvents: events.slice(0, 10),
+          runAt: new Date().toISOString(),
+        },
+      }),
+    })
+    // Consume response body to prevent resource leaks in Deno.
+    await res.text()
+    if (!res.ok) {
+      console.error('DLQ alert email dispatch returned non-2xx', { status: res.status })
+    }
+  } catch (err) {
+    console.error('DLQ alert email dispatch failed', {
+      error: err instanceof Error ? err.message : String(err),
+    })
   }
 }
 
@@ -112,6 +216,11 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+  // Collected DLQ events for this run — a single summary alert is fired at
+  // the end (see notifyDlqBatch). NEVER notify per-message: a broken
+  // template could dead-letter dozens per invocation.
+  const dlqEvents: DlqEvent[] = []
 
   // 1. Check rate-limit cooldown and read queue config
   const { data: state } = await supabase
@@ -211,14 +320,14 @@ Deno.serve(async (req) => {
             queued_at: queuedAt,
             ttl_minutes: ttlMinutes[queue],
           })
-          await moveToDlq(supabase, queue, msg, `TTL exceeded (${ttlMinutes[queue]} minutes)`)
+          await moveToDlq(supabase, queue, msg, `TTL exceeded (${ttlMinutes[queue]} minutes)`, dlqEvents)
           continue
         }
       }
 
       // Move to DLQ if max failed send attempts reached.
       if (failedAttempts >= MAX_RETRIES) {
-        await moveToDlq(supabase, queue, msg, `Max retries (${MAX_RETRIES}) exceeded (attempted ${failedAttempts} times)`)
+        await moveToDlq(supabase, queue, msg, `Max retries (${MAX_RETRIES}) exceeded (attempted ${failedAttempts} times)`, dlqEvents)
         continue
       }
 
@@ -250,26 +359,7 @@ Deno.serve(async (req) => {
 
       try {
         await sendLovableEmail(
-          {
-            run_id: payload.run_id,
-            to: payload.to,
-            from: payload.from,
-            sender_domain: payload.sender_domain,
-            subject: payload.subject,
-            html: payload.html,
-            text: payload.text,
-            purpose: payload.purpose,
-            label: payload.label,
-            idempotency_key: payload.idempotency_key,
-            reply_to: payload.reply_to,
-            // Upstream API mandates unsubscribe_token on every send (400
-            // missing_unsubscribe otherwise) — including transactional
-            // templates. There is no API flag to suppress the footer, so
-            // skip_unsubscribe_footer on the payload is informational only
-            // and cannot be honored here today. Tracked as a platform gap.
-            unsubscribe_token: payload.unsubscribe_token,
-            message_id: payload.message_id,
-          },
+          buildDispatcherPayload(payload),
           // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
           // falls back to the default Lovable API endpoint (https://api.lovable.dev).
           // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
@@ -333,7 +423,9 @@ Deno.serve(async (req) => {
         // 403s are permanent configuration or authorization failures for this
         // message, so move straight to DLQ and stop processing the rest of the batch.
         if (isForbidden(error)) {
-          await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000))
+          await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000), dlqEvents)
+          // Fire DLQ notification before returning early.
+          await notifyDlqBatch(supabase, dlqEvents, supabaseUrl, supabaseServiceKey)
           return new Response(
             JSON.stringify({ processed: totalProcessed, stopped: 'forbidden' }),
             { headers: { 'Content-Type': 'application/json' } }
@@ -361,6 +453,9 @@ Deno.serve(async (req) => {
       }
     }
   }
+
+  // Fire ONE summary DLQ alert for the whole run.
+  await notifyDlqBatch(supabase, dlqEvents, supabaseUrl, supabaseServiceKey)
 
   return new Response(
     JSON.stringify({ processed: totalProcessed }),
