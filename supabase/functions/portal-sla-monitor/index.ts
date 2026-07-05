@@ -23,18 +23,38 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  const r = await sendMailSeam({ to, subject, html });
+async function sendBreachAlert(opts: {
+  ticketId: string;
+  kind: "first_response" | "resolution";
+  label: string;
+  ticketNumber: string;
+  subject: string;
+  accountName: string;
+  priority: string;
+  recipients: string[];
+}) {
+  const ticketUrl = `https://xboomflow.com/admin/portal-tickets/${opts.ticketId}`;
+  // Stable idempotency: one alert per (ticket, breach kind). The
+  // portal_sla_alerts guard prevents re-sends across runs; this key
+  // additionally collapses in-flight retries.
+  const idempotencyKey = `portal-sla-alert:${opts.ticketId}:${opts.kind}`;
+  const r = await sendMailSeam({
+    provider: "platform",
+    to: opts.recipients,
+    subject: "",
+    html: "",
+    templateName: "portal-sla-alert",
+    templateData: {
+      label: opts.label,
+      ticket_number: opts.ticketNumber,
+      subject: opts.subject,
+      account_name: opts.accountName,
+      priority: opts.priority,
+      ticket_url: ticketUrl,
+    },
+    idempotencyKey,
+  });
   return { ok: r.ok, error: r.error };
-}
-
-function escapeHtml(value: unknown) {
-  return String(value ?? "—")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 Deno.serve(async (req) => {
@@ -134,10 +154,19 @@ Deno.serve(async (req) => {
     }
 
     const label = kind === "first_response" ? "First-response SLA breached" : "Resolution SLA breached";
-    const subject = `[SLA] ${label}: ${row.ticket_number}`;
-    const html = `<div style="font-family:Arial,sans-serif;padding:24px"><h2 style="color:#b91c1c">${escapeHtml(label)}</h2><p><strong>Ticket:</strong> ${escapeHtml(row.ticket_number)} — ${escapeHtml(row.subject)}</p><p><strong>Account:</strong> ${escapeHtml(row.account?.company_name)}</p><p><strong>Priority:</strong> ${escapeHtml(row.priority)}</p><p><a href="https://xboomflow.com/admin/portal-tickets/${row.id}" style="background:#0c2340;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Open ticket</a></p></div>`;
-
-    for (const e of [...new Set(emails)]) await sendEmail(e, subject, html);
+    const uniqueRecipients = [...new Set(emails)];
+    if (uniqueRecipients.length > 0) {
+      await sendBreachAlert({
+        ticketId: row.id,
+        kind,
+        label,
+        ticketNumber: row.ticket_number,
+        subject: row.subject,
+        accountName: row.account?.company_name ?? "—",
+        priority: row.priority,
+        recipients: uniqueRecipients,
+      });
+    }
 
     await admin.from("portal_sla_alerts").insert({ ticket_id: row.id, breach_type: kind });
 

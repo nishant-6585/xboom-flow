@@ -14,8 +14,32 @@ function ok(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  const r = await sendMailSeam({ to, subject, html });
+async function sendDigest(opts: {
+  accountId: string;
+  recipient: string;
+  items: Array<{ title: string | null; doc_type: string; order_number: string | null }>;
+}) {
+  // Stable idempotency: one digest per (account, recipient, day). Retries
+  // of the same run collapse; the next day produces a fresh key.
+  const day = new Date().toISOString().slice(0, 10);
+  const idempotencyKey = `portal-docs-digest:${opts.accountId}:${day}`;
+  const r = await sendMailSeam({
+    // Periodic informational — NOT transactional; suppression + unsubscribe apply.
+    provider: "platform",
+    to: opts.recipient,
+    subject: "",
+    html: "",
+    templateName: "portal-docs-digest",
+    templateData: {
+      items: opts.items.map((d) => ({
+        title: d.title ?? d.doc_type,
+        doc_type: d.doc_type,
+        order_number: d.order_number ?? undefined,
+      })),
+      documents_url: "https://xboomflow.com/portal/documents",
+    },
+    idempotencyKey,
+  });
   return r.ok;
 }
 
@@ -71,14 +95,18 @@ Deno.serve(async (req) => {
       prefMap.set(p.contact_id, p.email_new_docs !== false);
     }
 
-    const items = list.map((d) => `<li><strong>${(d.title ?? d.doc_type)}</strong> — ${d.doc_type} <em>(${d.order?.order_number ?? "—"})</em></li>`).join("");
-    const subject = `${list.length} new document${list.length === 1 ? "" : "s"} on your portal`;
-    const html = `<div style="font-family:Arial,sans-serif;padding:24px"><h2 style="color:#0c2340">New documents available</h2><p>The following documents were uploaded in the last 24 hours:</p><ul>${items}</ul><p><a href="https://xboomflow.com/portal/documents" style="background:#0c2340;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Open documents</a></p></div>`;
-
     for (const c of cl) {
       if (!c.email) continue;
       if (prefMap.get(c.id) === false) continue; // explicit opt-out
-      const ok2 = await sendEmail(c.email, subject, html);
+      const ok2 = await sendDigest({
+        accountId,
+        recipient: c.email,
+        items: list.map((d) => ({
+          title: d.title,
+          doc_type: d.doc_type,
+          order_number: d.order?.order_number ?? null,
+        })),
+      });
       if (ok2) sent.push(c.email);
     }
   }
