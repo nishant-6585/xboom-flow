@@ -2,6 +2,7 @@ import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 import { buildDispatcherPayload } from './payload.ts'
+import { sendEmail as sendMailSeam } from '../_shared/email.ts'
 
 // A DLQ event captured for post-run notification. We batch these and emit
 // ONE summary alert per invocation to avoid alert-flood on template outages
@@ -107,9 +108,7 @@ async function moveToDlq(
 // scoped to the invocation prevents accidental double-fires).
 async function notifyDlqBatch(
   supabase: ReturnType<typeof createClient>,
-  events: DlqEvent[],
-  supabaseUrl: string,
-  supabaseServiceKey: string
+  events: DlqEvent[]
 ): Promise<void> {
   if (events.length === 0) return
 
@@ -158,41 +157,80 @@ async function notifyDlqBatch(
     console.error('Failed to insert DLQ admin notification', { error: notifError })
   }
 
-  // 2. Single summary email via the same platform queue.
-  // Idempotency key uses the current UTC minute + event count so retries
-  // within the same batch collapse and normal runs get unique keys.
-  const nowMinute = new Date().toISOString().slice(0, 16) // YYYY-MM-DDTHH:MM
-  const idempotencyKey = `dlq-alert-${nowMinute}-${events.length}`
+  // 2. Single summary email — sent OUT-OF-BAND via Resend, NOT enqueued
+  //    into the same platform queue we are monitoring. If the queue is
+  //    jammed (which is the exact failure mode this alert exists to
+  //    catch), enqueuing the alert would delay its own alarm behind the
+  //    backlog. Raw HTML through the seam is intentional — this is an
+  //    internal admin alert, not a customer-facing template.
+  const runAt = new Date().toISOString()
+  const alertTo = Deno.env.get('DLQ_ALERT_TO') || 'support@xboom.in'
+  const templateRows = templateBreakdown
+    .map(
+      (t) =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escapeHtml(t.template)}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums">${t.count}</td></tr>`,
+    )
+    .join('')
+  const reasonRows = reasonBreakdown
+    .map(
+      (r) =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escapeHtml(r.reason)}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums">${r.count}</td></tr>`,
+    )
+    .join('')
+  const sampleRows = events
+    .slice(0, 10)
+    .map(
+      (e) =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escapeHtml(e.template)}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${escapeHtml(e.recipient)}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${escapeHtml(e.reason.slice(0, 200))}</td></tr>`,
+    )
+    .join('')
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:640px">
+      <h2 style="margin:0 0 8px">Email dispatcher DLQ alert</h2>
+      <p style="margin:0 0 12px;color:#444">
+        <strong>${events.length}</strong> email(s) moved to DLQ in the run at
+        ${escapeHtml(runAt)}. This alert was sent OUT-OF-BAND via Resend so a
+        jammed platform queue cannot delay its own alarm.
+      </p>
+      <h3 style="margin:16px 0 4px;font-size:14px">By template</h3>
+      <table style="border-collapse:collapse;width:100%;font-size:13px">${templateRows}</table>
+      <h3 style="margin:16px 0 4px;font-size:14px">By reason</h3>
+      <table style="border-collapse:collapse;width:100%;font-size:13px">${reasonRows}</table>
+      <h3 style="margin:16px 0 4px;font-size:14px">Sample (first 10)</h3>
+      <table style="border-collapse:collapse;width:100%;font-size:12px">
+        <thead><tr style="text-align:left;background:#fafafa"><th style="padding:4px 8px">Template</th><th style="padding:4px 8px">Recipient</th><th style="padding:4px 8px">Reason</th></tr></thead>
+        <tbody>${sampleRows}</tbody>
+      </table>
+    </div>
+  `
 
   try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${supabaseServiceKey}`,
-      },
-      body: JSON.stringify({
-        templateName: 'dlq-alert',
-        idempotencyKey,
-        templateData: {
-          totalCount: events.length,
-          templateBreakdown,
-          reasonBreakdown,
-          sampleEvents: events.slice(0, 10),
-          runAt: new Date().toISOString(),
-        },
-      }),
+    const result = await sendMailSeam({
+      provider: 'resend',
+      to: alertTo,
+      subject: `Email DLQ: ${events.length} dead-lettered`,
+      html,
     })
-    // Consume response body to prevent resource leaks in Deno.
-    await res.text()
-    if (!res.ok) {
-      console.error('DLQ alert email dispatch returned non-2xx', { status: res.status })
+    if (!result.ok) {
+      console.error('DLQ alert email (Resend) failed', {
+        status: result.status,
+        error: result.error,
+      })
     }
   } catch (err) {
-    console.error('DLQ alert email dispatch failed', {
+    console.error('DLQ alert email dispatch crashed', {
       error: err instanceof Error ? err.message : String(err),
     })
   }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 Deno.serve(async (req) => {
@@ -438,7 +476,7 @@ Deno.serve(async (req) => {
         if (isForbidden(error)) {
           await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000), dlqEvents)
           // Fire DLQ notification before returning early.
-          await notifyDlqBatch(supabase, dlqEvents, supabaseUrl, supabaseServiceKey)
+          await notifyDlqBatch(supabase, dlqEvents)
           return new Response(
             JSON.stringify({ processed: totalProcessed, stopped: 'forbidden' }),
             { headers: { 'Content-Type': 'application/json' } }
@@ -468,7 +506,7 @@ Deno.serve(async (req) => {
   }
 
   // Fire ONE summary DLQ alert for the whole run.
-  await notifyDlqBatch(supabase, dlqEvents, supabaseUrl, supabaseServiceKey)
+  await notifyDlqBatch(supabase, dlqEvents)
 
   return new Response(
     JSON.stringify({ processed: totalProcessed }),
