@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const FROM = "XBOOM HR <hr@xboom.in>";
+const FROM = "XBOOM HR <hr@xboom.in>";  // Retained for log rows only; platform sends via the queue's configured sender.
 
 interface Body {
   invitation_id: string;
@@ -63,7 +63,6 @@ Deno.serve(async (req) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
   const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   const SITE_URL = Deno.env.get("SITE_URL") || "https://xboomflow.com";
 
   const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -74,8 +73,6 @@ Deno.serve(async (req) => {
   let triggeredBy: string | null = null;
 
   try {
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
-
     // AuthN — only admin or HR may trigger. Accept a valid Authorization JWT.
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -124,7 +121,7 @@ Deno.serve(async (req) => {
         recipient_email: recipientEmail,
         from_address: FROM,
         status: "queued",
-        provider: "resend",
+        provider: "platform",
         triggered_by: triggeredBy,
         context: "invitation_approval",
       })
@@ -192,7 +189,7 @@ Deno.serve(async (req) => {
         recipient_email: recipientEmail,
         from_address: FROM,
         status: "failed",
-        provider: "resend",
+        provider: "platform",
         error_message: String(err?.message || err).slice(0, 500),
         triggered_by: triggeredBy,
         context: "invitation_approval",
