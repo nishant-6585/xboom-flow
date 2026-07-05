@@ -17185,6 +17185,7 @@ export type Database = {
       invoke_send_order_sms_msg91: { Args: never; Returns: number }
       invoke_woocommerce_orders_reconcile: { Args: never; Returns: number }
       invoke_woocommerce_products_backfill: { Args: never; Returns: number }
+      is_component_category: { Args: { cat: string }; Returns: boolean }
       is_drone_category: { Args: { cat: string }; Returns: boolean }
       is_drone_product: {
         Args: { p_category: string; p_name: string }
@@ -17431,6 +17432,7 @@ export type Database = {
       needs_step_up_auth: { Args: { p_user_id: string }; Returns: boolean }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_phone: { Args: { _raw: string }; Returns: string }
+      order_has_drone: { Args: { p_order_id: string }; Returns: boolean }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

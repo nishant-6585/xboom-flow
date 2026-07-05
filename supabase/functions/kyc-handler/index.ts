@@ -328,28 +328,24 @@ async function onboardOrder(
     }
   }
 
-  // Only send onboarding/KYC email for drone orders, not for pure
-  // Drone Components orders. If every line item on the order is in the
-  // "Drone Components" category, skip the email entirely.
-  const { data: items } = await admin
-    .from("order_items")
-    .select("product_category")
-    .eq("order_id", order.id);
-  if (items && items.length > 0) {
-    const allComponents = items.every(
-      (it: any) => (it.product_category || "").trim().toLowerCase() === "drone components",
-    );
-    if (allComponents) {
-      await logKycEmail(admin, {
-        order_id: order.id,
-        order_number: order.order_number,
-        recipient_email: email,
-        status: "skipped",
-        error: "drone_components_only",
-        sent_by: opts.triggeredBy ?? null,
-      });
-      return json({ skipped: true, reason: "drone_components_only" });
-    }
+  // Only send onboarding/KYC for orders that actually contain a drone.
+  // Delegates to the shared SQL helper `public.order_has_drone` so the
+  // trigger (mark_order_requires_confirmation) and this gate cannot drift
+  // apart — one detection function, one keyword list.
+  const { data: hasDrone, error: hasDroneErr } = await admin
+    .rpc("order_has_drone", { p_order_id: order.id });
+  if (hasDroneErr) {
+    console.error("[kyc-handler] order_has_drone failed", hasDroneErr);
+  } else if (hasDrone === false) {
+    await logKycEmail(admin, {
+      order_id: order.id,
+      order_number: order.order_number,
+      recipient_email: email,
+      status: "skipped",
+      error: "no_drone_in_order",
+      sent_by: opts.triggeredBy ?? null,
+    });
+    return json({ skipped: true, reason: "no_drone_in_order" });
   }
 
   // Skip if customer already has a portal account
