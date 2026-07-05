@@ -17185,6 +17185,7 @@ export type Database = {
       invoke_send_order_sms_msg91: { Args: never; Returns: number }
       invoke_woocommerce_orders_reconcile: { Args: never; Returns: number }
       invoke_woocommerce_products_backfill: { Args: never; Returns: number }
+      is_component_category: { Args: { cat: string }; Returns: boolean }
       is_drone_category: { Args: { cat: string }; Returns: boolean }
       is_drone_product: {
         Args: { p_category: string; p_name: string }
