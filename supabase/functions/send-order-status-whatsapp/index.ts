@@ -8,6 +8,7 @@
 // Atomic claim via claim_pending_notifications() RPC ensures no duplicate sends.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -387,6 +388,38 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Authorization: accept a cron secret OR an admin/sales_manager/supply_chain
+  // JWT. Prevents anonymous callers from force-processing / resending
+  // WhatsApp notifications to real customers.
+  const supabaseUrlEarly = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKeyEarly = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKeyEarly = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const authHeaderEarly = req.headers.get("Authorization") || "";
+  const bearer = authHeaderEarly.replace(/^Bearer\s+/i, "").trim();
+  let authorized = await isAuthorizedCron(req);
+  if (!authorized && bearer && bearer === serviceRoleKeyEarly) authorized = true;
+  if (!authorized && bearer) {
+    try {
+      const userClient = createClient(supabaseUrlEarly, anonKeyEarly, {
+        global: { headers: { Authorization: `Bearer ${bearer}` } },
+      });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (user) {
+        const adminClient = createClient(supabaseUrlEarly, serviceRoleKeyEarly);
+        const { data: roles } = await adminClient
+          .from("user_roles").select("role").eq("user_id", user.id);
+        const allowed = new Set(["admin", "sales_manager", "supply_chain"]);
+        if ((roles ?? []).some((r: { role: string }) => allowed.has(r.role))) authorized = true;
+      }
+    } catch (_e) { /* fall through */ }
+  }
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
