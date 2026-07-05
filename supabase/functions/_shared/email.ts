@@ -109,50 +109,79 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
         error: "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not configured",
       };
     }
-    // Platform templates that don't fix `to` use the first recipient.
-    const recipient = Array.isArray(args.to) ? args.to[0] : args.to;
-    try {
-      const res = await fetch(`${url}/functions/v1/send-transactional-email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${svc}`,
-          apikey: svc,
-        },
-        body: JSON.stringify({
-          templateName: args.templateName,
-          recipientEmail: recipient,
-          idempotencyKey: args.idempotencyKey,
-          templateData: args.templateData ?? {},
-        }),
-      });
-      let raw: any = null;
-      try { raw = await res.json(); } catch { /* ignore */ }
-      if (!res.ok) {
-        const msg =
-          (raw && (raw.error || raw.message)) || `HTTP ${res.status}`;
-        return {
-          ok: false,
-          status: res.status,
-          provider: "platform",
-          error: String(msg).slice(0, 500),
-          raw,
-        };
-      }
-      return {
-        ok: true,
-        status: res.status,
-        provider: "platform",
-        raw,
-      };
-    } catch (err: any) {
+    // Platform templates are enqueued per-recipient. When multiple `to`
+    // addresses are provided the seam loops and calls
+    // `send-transactional-email` once per address so admin-list emails
+    // (sync-health, data-quality, attention alerts) actually deliver to
+    // everyone — the legacy implementation silently kept only the first
+    // recipient. Idempotency is derived per-recipient as
+    // `${idempotencyKey}:${recipient}` when a base key is supplied, so a
+    // retry of the same enqueue collapses but each address gets its own
+    // dedup slot.
+    const recipients = (Array.isArray(args.to) ? args.to : [args.to])
+      .map((r) => String(r || "").trim())
+      .filter((r) => r.length > 0);
+    if (recipients.length === 0) {
       return {
         ok: false,
-        status: 0,
+        status: 400,
         provider: "platform",
-        error: err?.message || String(err),
+        error: "no recipients supplied",
       };
     }
+    const perRecipient: Array<{ recipient: string; ok: boolean; status: number; error?: string; raw?: unknown }> = [];
+    for (const recipient of recipients) {
+      const recipientKey = args.idempotencyKey
+        ? (recipients.length === 1
+            ? args.idempotencyKey
+            : `${args.idempotencyKey}:${recipient}`)
+        : undefined;
+      try {
+        const res = await fetch(`${url}/functions/v1/send-transactional-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${svc}`,
+            apikey: svc,
+          },
+          body: JSON.stringify({
+            templateName: args.templateName,
+            recipientEmail: recipient,
+            idempotencyKey: recipientKey,
+            templateData: args.templateData ?? {},
+          }),
+        });
+        let raw: any = null;
+        try { raw = await res.json(); } catch { /* ignore */ }
+        if (!res.ok) {
+          const msg = (raw && (raw.error || raw.message)) || `HTTP ${res.status}`;
+          perRecipient.push({ recipient, ok: false, status: res.status, error: String(msg).slice(0, 500), raw });
+        } else {
+          perRecipient.push({ recipient, ok: true, status: res.status, raw });
+        }
+      } catch (err: any) {
+        perRecipient.push({ recipient, ok: false, status: 0, error: err?.message || String(err) });
+      }
+    }
+    const allOk = perRecipient.every((r) => r.ok);
+    const anyOk = perRecipient.some((r) => r.ok);
+    const worstStatus = perRecipient.reduce((s, r) => (r.ok ? s : Math.max(s, r.status || 500)), 0) || 200;
+    if (allOk) {
+      return {
+        ok: true,
+        status: 200,
+        provider: "platform",
+        raw: { recipients: perRecipient },
+      };
+    }
+    const firstErr = perRecipient.find((r) => !r.ok);
+    return {
+      ok: false,
+      status: worstStatus,
+      provider: "platform",
+      error: `${perRecipient.filter((r) => !r.ok).length}/${perRecipient.length} recipients failed${firstErr ? `: ${firstErr.error}` : ""}${anyOk ? " (partial)" : ""}`.slice(0, 500),
+      raw: { recipients: perRecipient },
+    };
   }
 
   const key = Deno.env.get("RESEND_API_KEY");
