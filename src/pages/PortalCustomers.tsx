@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Loader2, Plus, Pencil, Trash2, Search, Download, Mail, UserCheck, UserX,
   Building2, User as UserIcon, ShieldCheck, ShieldAlert, Shield, ShieldQuestion,
-  Phone, MessageCircle, RotateCw,
+  Phone, MessageCircle, RotateCw, ArrowUp, ArrowDown, ChevronsUpDown,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
