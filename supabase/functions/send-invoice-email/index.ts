@@ -34,7 +34,10 @@ const fmtINR = (n: number) =>
 // Pinned display From for invoice PDFs (per-function override on the seam).
 // send-invoice-email is permanently pinned to the 'resend' provider because
 // the platform queued-email path does not support file attachments.
-const FROM = "Xboom Utilities <invoices@notify.xboomflow.com>";
+// Resend-verified sender. Only xboom.in is verified in the Resend account;
+// invoices@notify.xboomflow.com returned 403 validation_error. Keep this on
+// the verified apex domain until the delegated subdomain is added in Resend.
+const FROM = "Xboom Utilities <invoices@xboom.in>";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
