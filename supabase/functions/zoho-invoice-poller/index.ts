@@ -405,6 +405,8 @@ Deno.serve(async (req) => {
 
         stats.pdfs_attached += 1;
 
+        advanceCursor();
+
         // Fire the invoice email (idempotent inside send-invoice-email)
         try {
           const cronSecret =
