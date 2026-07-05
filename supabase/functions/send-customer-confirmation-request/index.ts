@@ -115,28 +115,32 @@ serve(async (req) => {
     }
 
     // ----- Email via Resend -----
-    if (order.customer_email && RESEND_API_KEY && hasExistingPortalUser) {
+    if (order.customer_email && hasExistingPortalUser) {
       try {
-        const html = `
-          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
-            <h2 style="margin:0 0 12px">Please confirm your order</h2>
-            <p>Hi ${escapeHtml(customerName)},</p>
-            <p>Thank you for your order <strong>${escapeHtml(orderNumber)}</strong> with Xboom.</p>
-            <p>Because this order includes a drone, we need you to confirm the order
-            before we dispatch. Please log into your Xboom customer portal and click
-            <em>Confirm your order</em>.</p>
-            <p style="text-align:center;margin:28px 0">
-              <a href="${link}" style="background:#111;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600">
-                Confirm your order
-              </a>
-            </p>
-            <p style="color:#555;font-size:13px">Or open this link:<br/><a href="${link}">${link}</a></p>
-            <p style="color:#888;font-size:12px;margin-top:32px">Xboom · Order ${escapeHtml(orderNumber)}</p>
-          </div>`;
+        // Stable idempotency: identity is the order + trigger. order_notifications
+        // is our log-of-record for this trigger; the row id changes per attempt
+        // (Resend button), so include a monotonically-increasing attempt counter
+        // derived from the existing log rows for this order+trigger.
+        const { count: priorAttempts } = await admin
+          .from("order_notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("order_ref", order.id)
+          .eq("status_trigger", "confirmation_request")
+          .eq("channel", "email");
+        const attemptIdx = (priorAttempts ?? 0) + 1;
+        const idempotencyKey = `send-customer-confirmation-request:email:${order.id}:${attemptIdx}`;
         const resp = await sendMailSeam({
+          provider: "platform",
           to: order.customer_email,
-          subject: `Action required: confirm your Xboom order ${orderNumber}`,
-          html,
+          subject: "",
+          html: "",
+          templateName: "customer-confirmation-request",
+          templateData: {
+            customer_name: customerName,
+            order_number: orderNumber,
+            link,
+          },
+          idempotencyKey,
         });
         const ok = resp.ok;
         result.email = ok ? "sent" : `failed:${resp.status}`;
@@ -148,8 +152,8 @@ serve(async (req) => {
           payload: { customer_name: customerName, order_number: orderNumber, link },
           status: ok ? "sent" : "failed",
           sent_at: ok ? new Date().toISOString() : null,
-          error_message: ok ? null : `resend http ${resp.status}`,
-          provider: "resend",
+          error_message: ok ? null : `platform http ${resp.status}`,
+          provider: "platform",
         });
       } catch (e) {
         result.email = "error";
@@ -161,7 +165,7 @@ serve(async (req) => {
           payload: { customer_name: customerName, order_number: orderNumber, link },
           status: "failed",
           error_message: e instanceof Error ? e.message : String(e),
-          provider: "resend",
+          provider: "platform",
         });
       }
     } else if (!order.customer_email) {
@@ -177,10 +181,8 @@ serve(async (req) => {
         payload: { customer_name: customerName, order_number: orderNumber, link, delivered_via: "onboarding_email" },
         status: "skipped",
         error_message: "sent_via_onboarding",
-        provider: "resend",
+        provider: "platform",
       });
-    } else {
-      result.email = "no_resend_key";
     }
 
     // ----- SMS via MSG91 queue -----

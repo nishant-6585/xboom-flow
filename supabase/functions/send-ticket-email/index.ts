@@ -156,6 +156,23 @@ const handler = async (req: Request): Promise<Response> => {
     const recipientEmail = recipientProfile.email;
     const recipientName = recipientProfile.name || "Team Member";
 
+    // Per-transition component: fetch the ticket's current updated_at so
+    // re-entering the same status (resolved -> reopened -> resolved) produces
+    // a distinct idempotency key. True duplicate dispatches within the same
+    // transition still collapse because updated_at is stable until the next
+    // write.
+    let transitionMarker = "";
+    {
+      const { data: ticketRow } = await supabase
+        .from("tickets")
+        .select("updated_at")
+        .eq("ticket_number", ticket_number)
+        .maybeSingle();
+      transitionMarker = ticketRow?.updated_at
+        ? new Date(ticketRow.updated_at).getTime().toString()
+        : Date.now().toString();
+    }
+
     // Route through platform (queued) provider. Templates render React Email;
     // subject/html are ignored on the platform branch.
     const templateName =
@@ -181,13 +198,14 @@ const handler = async (req: Request): Promise<Response> => {
             resolution_notes,
           };
 
-    // Stable idempotency: identity is (type, ticket_number, recipient, new_status).
-    // The ticket-message id isn't part of the status_update/assignment payload,
-    // so use the transition identity the caller already commits.
+    // Stable idempotency: identity is (type, ticket_number, recipient, status,
+    // transitionMarker). transitionMarker = tickets.updated_at epoch so a
+    // status re-entry (e.g. resolved -> reopened -> resolved) notifies again,
+    // while duplicate dispatches within the same transition still dedup.
     const idempotencyKey =
       payload.type === "assignment"
-        ? `send-ticket-email:assignment:${ticket_number}:${recipient_user_id}`
-        : `send-ticket-email:status_update:${ticket_number}:${recipient_user_id}:${new_status}`;
+        ? `send-ticket-email:assignment:${ticket_number}:${recipient_user_id}:${transitionMarker}`
+        : `send-ticket-email:status_update:${ticket_number}:${recipient_user_id}:${new_status}:${transitionMarker}`;
 
     const emailResponse = await sendMailSeam({
       provider: "platform",
