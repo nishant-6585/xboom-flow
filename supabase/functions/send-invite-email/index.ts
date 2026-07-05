@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const FROM = "XBOOM HR <hr@xboom.in>";
+const FROM = "XBOOM HR <hr@xboom.in>";  // Retained for log rows only; platform sends via the queue's configured sender.
 
 interface Body {
   invitation_id: string;
@@ -63,7 +63,6 @@ Deno.serve(async (req) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
   const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   const SITE_URL = Deno.env.get("SITE_URL") || "https://xboomflow.com";
 
   const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -74,8 +73,6 @@ Deno.serve(async (req) => {
   let triggeredBy: string | null = null;
 
   try {
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
-
     // AuthN — only admin or HR may trigger. Accept a valid Authorization JWT.
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -124,7 +121,7 @@ Deno.serve(async (req) => {
         recipient_email: recipientEmail,
         from_address: FROM,
         status: "queued",
-        provider: "resend",
+        provider: "platform",
         triggered_by: triggeredBy,
         context: "invitation_approval",
       })
@@ -143,27 +140,40 @@ Deno.serve(async (req) => {
     }
     const actionLink = linkData.properties.action_link;
 
-    const html = buildHtml({ name: displayName, actionLink, siteUrl: SITE_URL });
-
     const { sendEmail: sendMailSeam } = await import("../_shared/email.ts");
-    const resendResp = await sendMailSeam({
+    // Stable idempotency from the log-of-record: one attempt per queued
+    // invitation_email_log row. Retries of the same invocation collapse;
+    // resends (which insert a new log row) send again.
+    const idempotencyKey = logId
+      ? `send-invite-email:${logId}`
+      : `send-invite-email:${invitationId}:${recipientEmail}`;
+    const platformResp = await sendMailSeam({
+      provider: "platform",
       to: recipientEmail,
-      subject: `Welcome to XBOOM Flow — set your password`,
-      html,
+      subject: "",
+      html: "",
+      templateName: "hr-user-invite",
+      templateData: {
+        name: displayName,
+        action_link: actionLink,
+        site_url: SITE_URL,
+      },
+      idempotencyKey,
     });
-    const resendBody: any = resendResp.raw ?? {};
-    if (!resendResp.ok) {
-      throw new Error(resendResp.error || `Email failed (${resendResp.status})`);
+    const platformBody: any = platformResp.raw ?? {};
+    if (!platformResp.ok) {
+      throw new Error(platformResp.error || `Email failed (${platformResp.status})`);
     }
 
     if (logId) {
       await adminClient.from("invitation_email_log").update({
         status: "sent",
-        provider_message_id: resendBody?.id || null,
+        provider: "platform",
+        provider_message_id: platformBody?.message_id || platformBody?.id || null,
       }).eq("id", logId);
     }
 
-    return new Response(JSON.stringify({ success: true, message_id: resendBody?.id || null }), {
+    return new Response(JSON.stringify({ success: true, message_id: platformBody?.message_id || platformBody?.id || null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
@@ -179,7 +189,7 @@ Deno.serve(async (req) => {
         recipient_email: recipientEmail,
         from_address: FROM,
         status: "failed",
-        provider: "resend",
+        provider: "platform",
         error_message: String(err?.message || err).slice(0, 500),
         triggered_by: triggeredBy,
         context: "invitation_approval",
