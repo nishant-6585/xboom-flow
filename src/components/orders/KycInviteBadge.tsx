@@ -204,8 +204,12 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
     const shortLabel =
       status === "sent"
         ? "KYC Sent"
-        : status === "failed"
+        : (status === "failed" || status === "dlq" || status === "bounced")
         ? "KYC Failed"
+        : status === "suppressed"
+        ? "KYC Suppressed"
+        : status === "complained"
+        ? "KYC Complained"
         : status === "skipped"
         ? "KYC Skipped"
         : "KYC Pending";
