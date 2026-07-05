@@ -23,9 +23,10 @@ interface AuditRow {
  * non-privileged viewer will simply see an empty list (query returns 0 rows).
  */
 export function BankAuditHistoryPanel({ employeeId }: Props) {
-  const { profile } = useAuth();
-  const roles = (profile as any)?.roles as string[] | undefined;
-  const isPrivileged = !!roles?.some((r) => r === "admin" || r === "hr" || r === "finance");
+  const { roles } = useAuth();
+  const isPrivileged = (roles ?? []).some(
+    (r) => r === "admin" || r === "hr" || r === "finance"
+  );
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(false);
 
