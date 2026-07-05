@@ -173,10 +173,15 @@ Deno.serve(async (req) => {
   }
 
   // 3. Get or create unsubscribe token (one token per email address).
-  // Transactional templates skip this entirely — they omit the footer link.
+  // NOTE: the upstream delivery API mandates unsubscribe_token on every
+  // send — including transactional templates — and returns 400
+  // missing_unsubscribe if omitted. We therefore always mint/reuse a
+  // token here. Suppressing the rendered footer for transactional
+  // templates is not currently possible via the API; tracked as a
+  // platform gap.
   const normalizedEmail = effectiveRecipient.toLowerCase()
   let unsubscribeToken: string | null = null
-  if (!isTransactional) {
+  {
 
   // Check for existing token for this email
   const { data: existingToken, error: tokenLookupError } = await supabase
