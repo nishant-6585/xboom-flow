@@ -48,6 +48,7 @@ interface KycInfo {
   has_portal_account: boolean;
   customer_email: string | null;
   last_invite: { status: string; created_at: string; attempt_count: number } | null;
+  last_delivery?: { status: string; created_at: string } | null;
 }
 
 const STATUS_META: Record<string, { label: string; variant: any; Icon: any; cls: string }> = {
@@ -55,6 +56,10 @@ const STATUS_META: Record<string, { label: string; variant: any; Icon: any; cls:
   failed: { label: "KYC Invite: Failed", variant: "destructive", Icon: XCircle, cls: "" },
   skipped: { label: "KYC Invite: Skipped", variant: "secondary", Icon: MinusCircle, cls: "" },
   pending: { label: "KYC Invite: Pending", variant: "outline", Icon: Clock, cls: "" },
+  dlq: { label: "KYC Invite: Dead-lettered", variant: "destructive", Icon: XCircle, cls: "" },
+  bounced: { label: "KYC Invite: Bounced", variant: "destructive", Icon: XCircle, cls: "" },
+  complained: { label: "KYC Invite: Complained", variant: "destructive", Icon: XCircle, cls: "" },
+  suppressed: { label: "KYC Invite: Suppressed", variant: "secondary", Icon: MinusCircle, cls: "" },
 };
 
 const KYC_META: Record<string, { label: string; short: string; Icon: any; cls: string }> = {
@@ -172,14 +177,27 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
     );
   }
 
-  const status = row?.status ?? "pending";
+  // Prefer ACTUAL delivery status from email_send_log (pending/sent/dlq/
+  // bounced/complained/suppressed). Fall back to the enqueue-time status
+  // in kyc_email_log for rows that predate delivery correlation, and for
+  // 'skipped' outcomes which never enqueue an email at all.
+  const enqueueStatus = row?.status ?? "pending";
+  const deliveryStatus = info?.last_delivery?.status;
+  const status =
+    enqueueStatus === "skipped" || enqueueStatus === "failed"
+      ? enqueueStatus
+      : (deliveryStatus || enqueueStatus);
   const meta = STATUS_META[status] ?? STATUS_META.pending;
   const Icon = meta.Icon;
 
+  const deliveryLine =
+    info?.last_delivery
+      ? `\nDelivery: ${info.last_delivery.status} • ${new Date(info.last_delivery.created_at).toLocaleString()}`
+      : "";
   const tooltipText = row
-    ? `${meta.label} • ${new Date(row.created_at).toLocaleString()} • attempts: ${row.attempt_count}${
+    ? `${meta.label} • enqueued ${new Date(row.created_at).toLocaleString()} • attempts: ${row.attempt_count}${
         row.error ? `\nError: ${row.error}` : ""
-      }`
+      }${deliveryLine}`
     : "No KYC invite sent yet";
 
   if (compact) {
