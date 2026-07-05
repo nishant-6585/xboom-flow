@@ -261,6 +261,12 @@ Deno.serve(async (req) => {
             purpose: payload.purpose,
             label: payload.label,
             idempotency_key: payload.idempotency_key,
+            reply_to: payload.reply_to,
+            // Upstream API mandates unsubscribe_token on every send (400
+            // missing_unsubscribe otherwise) — including transactional
+            // templates. There is no API flag to suppress the footer, so
+            // skip_unsubscribe_footer on the payload is informational only
+            // and cannot be honored here today. Tracked as a platform gap.
             unsubscribe_token: payload.unsubscribe_token,
             message_id: payload.message_id,
           },
