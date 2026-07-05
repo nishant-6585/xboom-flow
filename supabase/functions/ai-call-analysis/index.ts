@@ -24,6 +24,11 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Track caller identity + privilege for the ownership check below.
+    // Service-role callers (internal, e.g. exotel-webhook) bypass ownership.
+    let callerUserId: string | null = null;
+    let callerIsPrivileged = token === SUPABASE_SERVICE_ROLE_KEY;
+
     if (token !== SUPABASE_SERVICE_ROLE_KEY) {
       const { data: userData, error: userErr } = await supabase.auth.getUser(token);
       if (userErr || !userData?.user) {
@@ -32,6 +37,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      callerUserId = userData.user.id;
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
@@ -44,6 +50,11 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // Admins/sales_managers can analyze any call; individual sales reps
+      // may only analyze calls they own.
+      const privileged = new Set(["admin", "sales_manager"]);
+      callerIsPrivileged =
+        (roles ?? []).some((r: { role: string }) => privileged.has(r.role));
     }
 
     const body = await req.json();
@@ -80,6 +91,16 @@ Deno.serve(async (req) => {
     if (!callLog) {
       return new Response(JSON.stringify({ error: "Call log not found" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Ownership check: RLS on call_logs scopes by sales_person_id, but the
+    // service-role client above bypasses RLS. Enforce the same rule here
+    // so a sales rep can't read another rep's AI-derived call insights.
+    if (!callerIsPrivileged && callerUserId && callLog.sales_person_id !== callerUserId) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
