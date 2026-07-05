@@ -115,8 +115,6 @@ project_id = "mxsotxddcvmeluqonuuj"
     verify_jwt = false
   [functions.woocommerce-webhook]
     verify_jwt = false
-  [functions.zoho-books-webhook]
-    verify_jwt = false
   [functions.zoho-invoice-webhook]
     verify_jwt = false
   [functions.zoho-invoice-poller]
