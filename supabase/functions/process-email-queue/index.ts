@@ -262,15 +262,12 @@ Deno.serve(async (req) => {
             label: payload.label,
             idempotency_key: payload.idempotency_key,
             reply_to: payload.reply_to,
-            // Omit unsubscribe_token entirely for transactional templates.
-            // The upstream API has no explicit "skip footer" flag — the only
-            // way to guarantee no unsubscribe footer is rendered is to not
-            // provide a token in the first place. send-transactional-email
-            // enqueues skip_unsubscribe_footer=true alongside a null token
-            // for transactional sends; both paths converge here.
-            unsubscribe_token: payload.skip_unsubscribe_footer
-              ? undefined
-              : payload.unsubscribe_token,
+            // Upstream API mandates unsubscribe_token on every send (400
+            // missing_unsubscribe otherwise) — including transactional
+            // templates. There is no API flag to suppress the footer, so
+            // skip_unsubscribe_footer on the payload is informational only
+            // and cannot be honored here today. Tracked as a platform gap.
+            unsubscribe_token: payload.unsubscribe_token,
             message_id: payload.message_id,
           },
           // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
