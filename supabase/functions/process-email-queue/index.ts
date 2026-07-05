@@ -113,14 +113,28 @@ async function notifyDlqBatch(
 ): Promise<void> {
   if (events.length === 0) return
 
-  // Aggregate for the summary.
+  // Aggregate for the summary. Reasons are normalized to first-class buckets
+  // so the alert email and the admin DlqAlertCard show the same categories.
+  // Keep this list in sync with DlqAlertCard.summarizeReason().
+  const normalizeReason = (raw: string): string => {
+    const r = raw.toLowerCase()
+    if (r.includes('max retries')) return 'Max retries exceeded'
+    if (r.includes('ttl exceeded')) return 'TTL exceeded'
+    if (r.includes('missing_unsubscribe')) return 'missing_unsubscribe (400)'
+    if (r.includes('suppressed') || r.includes('unsubscribed') || r.includes('suppression'))
+      return 'Recipient suppressed / unsubscribed'
+    if (r.includes('invalid_recipient') || r.includes('invalid email') || r.includes('bounce'))
+      return 'Invalid recipient / bounce'
+    if (r.includes('rate_limited') || r.includes('429')) return 'Rate limited (429)'
+    if (r.includes('403')) return 'Forbidden (403)'
+    return raw.split('\n')[0].slice(0, 160)
+  }
   const byTemplate = new Map<string, number>()
   const byReason = new Map<string, number>()
   for (const e of events) {
     byTemplate.set(e.template, (byTemplate.get(e.template) ?? 0) + 1)
-    // Compact reason keys — collapse long API error bodies to the first line.
-    const shortReason = e.reason.split('\n')[0].slice(0, 160)
-    byReason.set(shortReason, (byReason.get(shortReason) ?? 0) + 1)
+    const bucket = normalizeReason(e.reason)
+    byReason.set(bucket, (byReason.get(bucket) ?? 0) + 1)
   }
   const templateBreakdown = Array.from(byTemplate.entries())
     .sort((a, b) => b[1] - a[1])

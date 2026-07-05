@@ -123,7 +123,14 @@ export default function Unsubscribe() {
           {state.kind === "done" && (
             <div className="space-y-2">
               <CheckCircle2 className="h-8 w-8 mx-auto text-green-600" />
-              <p className="text-sm">You've been unsubscribed. Sorry to see you go.</p>
+              <p className="text-sm">
+                You've been unsubscribed from Xboom marketing and notification emails.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Account-critical emails (KYC, order updates, invoices, ticket replies,
+                password resets) will still be delivered — these are legally required
+                account notices, not marketing.
+              </p>
             </div>
           )}
           {state.kind === "error" && (
