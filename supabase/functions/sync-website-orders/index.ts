@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -103,6 +104,46 @@ function mapOrder(order: any) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Restrict to trusted callers only. Accept either a valid cron secret OR
+  // an admin/supply_chain/finance JWT (matches the sibling
+  // `woocommerce-orders-backfill` function). This prevents anonymous
+  // callers from triggering a recursive, self-chaining backfill that
+  // could cost quota / abuse the WooCommerce API.
+  const supabaseUrlEarly = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKeyEarly = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKeyEarly = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
+  let authorized = await isAuthorizedCron(req);
+  if (!authorized && bearer && bearer === serviceRoleKeyEarly) {
+    authorized = true;
+  }
+  if (!authorized && bearer) {
+    try {
+      const userClient = createClient(supabaseUrlEarly, anonKeyEarly, {
+        global: { headers: { Authorization: `Bearer ${bearer}` } },
+      });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (user) {
+        const admin = createClient(supabaseUrlEarly, serviceRoleKeyEarly);
+        const { data: roles } = await admin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+        const allowed = new Set(["admin", "supply_chain", "finance"]);
+        if ((roles ?? []).some((r: { role: string }) => allowed.has(r.role))) {
+          authorized = true;
+        }
+      }
+    } catch (_e) { /* fall through to 401 */ }
+  }
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
