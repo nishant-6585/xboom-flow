@@ -175,6 +175,19 @@ export default function PortalCustomers() {
   const [newThisMonthOnly, setNewThisMonthOnly] = useState(false);
   const [page, setPage] = useState(1);
 
+  // Sorting
+  type SortKey = "customer" | "account" | "kyc" | "lastLogin" | "status" | "created";
+  const [sortKey, setSortKey] = useState<SortKey>("created");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "created" || key === "lastLogin" ? "desc" : "asc");
+    }
+  };
+
   // Invite dialog
   const [open, setOpen] = useState(false);
   const [inviteType, setInviteType] = useState<"individual" | "business">("individual");
