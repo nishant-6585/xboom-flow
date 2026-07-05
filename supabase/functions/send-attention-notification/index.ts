@@ -10,15 +10,6 @@ const NOTIFY_EMAIL = 'vishal.saurav@xboom.in';
 
 const INTERNAL_ROLES = ['admin', 'sales', 'sales_manager', 'hr', 'support', 'marketing', 'finance', 'it', 'supply_chain'];
 
-const escapeHtml = (s: unknown): string =>
-  String(s ?? '')
-    .slice(0, 200)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
 const sanitize = (s: unknown): string => String(s ?? '').slice(0, 200);
 
 Deno.serve(async (req) => {
@@ -86,29 +77,27 @@ Deno.serve(async (req) => {
 
     // Send email notification through the shared seam.
     {
-      const emailBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: #dc2626; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0;">
-            <h2 style="margin: 0;">🚨 Attention Required</h2>
-          </div>
-          <div style="background: #fff; border: 1px solid #e5e7eb; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
-            <p><strong>Contact:</strong> ${escapeHtml(customer_name)}</p>
-            ${company ? `<p><strong>Company:</strong> ${escapeHtml(company)}</p>` : ''}
-            ${phone_number ? `<p><strong>Phone:</strong> ${escapeHtml(phone_number)}</p>` : ''}
-            ${email ? `<p><strong>Email:</strong> ${escapeHtml(email)}</p>` : ''}
-            ${product_name ? `<p><strong>Product:</strong> ${escapeHtml(product_name)}</p>` : ''}
-            <p><strong>Source:</strong> ${escapeHtml(source_type)}</p>
-            <p><strong>Flagged by:</strong> ${escapeHtml(marked_by_name)}</p>
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;" />
-            <p style="color: #6b7280; font-size: 14px;">This contact has been marked for immediate attention in XBoom Sales Arena.</p>
-          </div>
-        </div>
-      `;
-
+      // Stable idempotency: (customer, source, date, marker) — one alert
+      // per distinct flag per day. Retries collapse.
+      const day = new Date().toISOString().slice(0, 10);
+      const idempotencyKey =
+        `attention-notification:${day}:${source_type}:${customer_name}:${marked_by_name}`.slice(0, 240);
       await sendMailSeam({
+        provider: 'platform',
         to: NOTIFY_EMAIL,
-        subject: `🚨 Attention: ${customer_name}${company ? ` - ${company}` : ''} [${source_type}]`.slice(0, 200),
-        html: emailBody,
+        subject: '',
+        html: '',
+        templateName: 'attention-notification',
+        templateData: {
+          customer_name,
+          company,
+          phone_number,
+          email,
+          product_name,
+          source_type,
+          marked_by_name,
+        },
+        idempotencyKey,
       });
     }
 
