@@ -15,8 +15,35 @@ function ok(body: unknown, s = 200) {
   return new Response(JSON.stringify(body), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  const r = await sendMailSeam({ to, subject, html });
+async function sendRenewalReminder(opts: {
+  orderId: string;
+  alertType: "daas_renewal" | "amc_expiry";
+  expiresOn: string;
+  label: string;
+  orderNumber: string;
+  recipient: string;
+  contactId: string;
+}) {
+  // Stable idempotency: per (order, alert_type, expires_on, contact).
+  // portal_renewal_alerts already dedupes across runs; this key collapses
+  // in-flight retries within a run.
+  const idempotencyKey =
+    `portal-renewal-reminder:${opts.orderId}:${opts.alertType}:${opts.expiresOn}:${opts.contactId}`;
+  const r = await sendMailSeam({
+    // Periodic informational — NOT transactional; suppression + unsubscribe apply.
+    provider: "platform",
+    to: opts.recipient,
+    subject: "",
+    html: "",
+    templateName: "portal-renewal-reminder",
+    templateData: {
+      label: opts.label,
+      order_number: opts.orderNumber,
+      expires_on: opts.expiresOn,
+      order_url: `https://xboomflow.com/portal/orders/${opts.orderId}`,
+    },
+    idempotencyKey,
+  });
   return r.ok;
 }
 
@@ -93,12 +120,19 @@ Deno.serve(async (req) => {
         prefMap.set(p.contact_id, { email: p.email_renewals !== false, whatsapp: p.whatsapp_renewals !== false });
       }
 
-      const subject = `Action needed: ${c.label} expiring on ${c.expires}`;
-      const html = `<div style="font-family:Arial,sans-serif;padding:24px"><h2 style="color:#0c2340">${c.label} expiry reminder</h2><p>Your ${c.label} on order <strong>${o.order_number}</strong> expires on <strong>${c.expires}</strong>.</p><p>Please reach out to your account manager to renew and avoid any service disruption.</p><p><a href="https://xboomflow.com/portal/orders/${o.id}" style="background:#0c2340;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">View order</a></p></div>`;
-
       for (const ct of contactList) {
         const p = prefMap.get(ct.id) ?? { email: true, whatsapp: true };
-        if (ct.email && p.email) await sendEmail(ct.email, subject, html);
+        if (ct.email && p.email) {
+          await sendRenewalReminder({
+            orderId: o.id,
+            alertType: c.type,
+            expiresOn: c.expires,
+            label: c.label,
+            orderNumber: o.order_number,
+            recipient: ct.email,
+            contactId: ct.id,
+          });
+        }
         if (ct.whatsapp_number && p.whatsapp) {
           await sendWhatsApp(ct.whatsapp_number, c.tmpl, [ct.full_name ?? "Customer", o.order_number, c.expires]);
         }
