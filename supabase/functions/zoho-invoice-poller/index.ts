@@ -282,16 +282,15 @@ Deno.serve(async (req) => {
     let enriched = 0;
 
     for (const inv of collected) {
-      try {
+      const advanceCursor = () => {
         if (inv.last_modified_time && inv.last_modified_time > maxSeen) {
           maxSeen = inv.last_modified_time;
         }
-
+      };
+      try {
         if (enriched >= ENRICH_CAP) {
-          // Stop the expensive per-invoice work (PDF fetch + email) but keep
-          // advancing the cursor to processed rows only — do NOT bump maxSeen
-          // for skipped invoices so the next run resumes here.
-          maxSeen = cursor;
+          // Enrichment budget spent. Leftover invoices resume next tick.
+          stats.errors.push(`enrichment_cap_hit at ${enriched}/${collected.length}`);
           break;
         }
 
@@ -330,6 +329,7 @@ Deno.serve(async (req) => {
               .update({ match_status: "unmatched" })
               .eq("invoice_id", inv.invoice_id);
             stats.unmatched += 1;
+            advanceCursor();
             continue;
           }
         }
@@ -354,6 +354,7 @@ Deno.serve(async (req) => {
 
         if (mirror.pdf_hash === hash && mirror.pdf_attached_invoice_id) {
           stats.pdfs_skipped_same_hash += 1;
+          advanceCursor();
           continue;
         }
 
