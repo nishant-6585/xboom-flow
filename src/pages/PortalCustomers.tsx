@@ -715,12 +715,12 @@ export default function PortalCustomers() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Account</TableHead>
-                        <TableHead>KYC</TableHead>
-                        <TableHead>Last login</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Created</TableHead>
+                        <TableHead><SortBtn label="Customer" k="customer" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="Account" k="account" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="KYC" k="kyc" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="Last login" k="lastLogin" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
+                        <TableHead><SortBtn label="Created" k="created" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} /></TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
