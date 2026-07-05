@@ -1,10 +1,11 @@
 // Central email seam. All app outbound email flows through sendEmail(...).
 //
-// Provider selection is controlled by EMAIL_PROVIDER (default: 'resend').
-// The 'platform' branch is a stub for the queued email system — it requires
-// registered React Email templates and therefore does NOT accept raw HTML.
-// It is left in place so individual variants can be migrated one at a time
-// (see send-transactional-email / _shared/transactional-email-templates).
+// Provider selection is controlled by EMAIL_PROVIDER (default: 'platform').
+// All live callers now pass provider explicitly (send-invoice-email pins
+// 'resend' for PDF attachments; process-email-queue DLQ alert pins
+// 'resend'; every other production caller passes 'platform'). The default
+// flipped to 'platform' so any future caller that omits provider stays on
+// the queued path rather than silently falling back to Resend.
 //
 // send-invoice-email pins provider: 'resend' permanently because the
 // platform path does not support file attachments (PDF invoices).
@@ -66,7 +67,7 @@ export const DEFAULT_REPLY_TO = "no-reply@xboomflow.com";
 function resolveProvider(explicit?: EmailProvider): EmailProvider {
   if (explicit) return explicit;
   const env = (Deno.env.get("EMAIL_PROVIDER") || "").toLowerCase();
-  return env === "platform" ? "platform" : "resend";
+  return env === "resend" ? "resend" : "platform";
 }
 
 export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
