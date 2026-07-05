@@ -6,54 +6,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const FROM = "XBOOM HR <hr@xboom.in>";
-
 interface Body {
   email: string;
   name?: string;
 }
-
-const escapeHtml = (s: string) =>
-  String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-
-function buildHtml(opts: { name: string; actionLink: string; siteUrl: string }) {
-  const { name, actionLink, siteUrl } = opts;
-  return `<!doctype html>
-<html><body style="margin:0;padding:0;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#111827;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7fb;padding:32px 12px;">
-    <tr><td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;padding:32px;">
-        <tr><td>
-          <h1 style="margin:0 0 8px 0;font-size:22px;color:#0f172a;">Reset your XBOOM Flow password${name ? ", " + escapeHtml(name) : ""}</h1>
-          <p style="margin:0 0 16px 0;font-size:14px;line-height:22px;color:#374151;">
-            An administrator requested a password reset for your XBOOM Flow account.
-            Click the button below to choose a new password. This link is valid for 24 hours.
-          </p>
-          <p style="margin:24px 0;">
-            <a href="${escapeHtml(actionLink)}"
-               style="background:#0f172a;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block;">
-              Reset my password
-            </a>
-          </p>
-          <p style="margin:0 0 8px 0;font-size:12px;color:#6b7280;">Or copy and paste this link into your browser:</p>
-          <p style="margin:0 0 20px 0;font-size:12px;color:#374151;word-break:break-all;">${escapeHtml(actionLink)}</p>
-          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
-          <p style="margin:0;font-size:12px;color:#6b7280;">
-            Didn't request this? You can safely ignore this email or contact HR at hr@xboom.in.<br/>
-            Portal: <a href="${escapeHtml(siteUrl)}" style="color:#0f172a;">${escapeHtml(siteUrl)}</a>
-          </p>
-        </td></tr>
-      </table>
-      <p style="margin:16px 0 0 0;font-size:11px;color:#9ca3af;">© XBOOM Utilities</p>
-    </td></tr>
-  </table>
-</body></html>`;
-}
+const FROM = "XBOOM HR <hr@xboom.in>";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -61,7 +18,6 @@ Deno.serve(async (req) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
   const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   const SITE_URL = Deno.env.get("SITE_URL") || "https://xboomflow.com";
 
   const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -72,8 +28,6 @@ Deno.serve(async (req) => {
   let triggeredBy: string | null = null;
 
   try {
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -123,7 +77,7 @@ Deno.serve(async (req) => {
         recipient_user_id: recipientUserId,
         from_address: FROM,
         status: "queued",
-        provider: "resend",
+        provider: "platform",
         triggered_by: triggeredBy,
         context: "admin_reset",
       })
@@ -141,28 +95,43 @@ Deno.serve(async (req) => {
     }
     const actionLink = linkData.properties.action_link;
 
-    const html = buildHtml({ name: displayName, actionLink, siteUrl: SITE_URL });
+    // Stable idempotency: keyed on the password_reset_email_log row id.
+    // Each admin-initiated reset writes a new log row and generates a new
+    // recovery link, so re-resets fire a fresh email; retries of the same
+    // invocation collapse. Fallback to a token fingerprint when the log
+    // insert failed so we still get a stable-per-invocation key.
+    const tokenFingerprint = String(linkData?.properties?.hashed_token || actionLink).slice(0, 24);
+    const idempotencyKey = logId
+      ? `send-password-reset-email:${logId}`
+      : `send-password-reset-email:${recipientEmail}:${tokenFingerprint}`;
 
     const { sendEmail: sendMailSeam } = await import("../_shared/email.ts");
-    const resendResp = await sendMailSeam({
+    const sendResp = await sendMailSeam({
+      provider: "platform",
       to: recipientEmail,
-      subject: "Reset your XBOOM Flow password",
-      html,
+      subject: "",
+      html: "",
+      templateName: "password-reset-admin",
+      templateData: {
+        name: displayName,
+        action_link: actionLink,
+        site_url: SITE_URL,
+      },
+      idempotencyKey,
     });
-    const resendBody: any = resendResp.raw ?? {};
-    if (!resendResp.ok) {
-      throw new Error(resendResp.error || `Email failed (${resendResp.status})`);
+    if (!sendResp.ok) {
+      throw new Error(sendResp.error || `Email failed (${sendResp.status})`);
     }
 
     if (logId) {
       await adminClient.from("password_reset_email_log").update({
         status: "sent",
-        provider_message_id: resendBody?.id || null,
+        provider_message_id: null,
         updated_at: new Date().toISOString(),
       }).eq("id", logId);
     }
 
-    return new Response(JSON.stringify({ success: true, message_id: resendBody?.id || null }), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
@@ -179,7 +148,7 @@ Deno.serve(async (req) => {
         recipient_user_id: recipientUserId,
         from_address: FROM,
         status: "failed",
-        provider: "resend",
+        provider: "platform",
         error_message: String(err?.message || err).slice(0, 500),
         triggered_by: triggeredBy,
         context: "admin_reset",
