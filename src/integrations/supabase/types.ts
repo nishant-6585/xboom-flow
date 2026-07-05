@@ -17431,6 +17431,7 @@ export type Database = {
       needs_step_up_auth: { Args: { p_user_id: string }; Returns: boolean }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_phone: { Args: { _raw: string }; Returns: string }
+      order_has_drone: { Args: { p_order_id: string }; Returns: boolean }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
