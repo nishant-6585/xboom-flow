@@ -21,6 +21,12 @@ const Email = (p: Props = {}) => {
   const name = p.customerName || ''
   const orderNo = p.orderNumber || ''
   const needs = !!p.needsConfirmation
+  // Guard against missing order_number so we never render a bare
+  // "We've received your order ." — the trailing period without a value
+  // looks like a bug to the customer. Fall back to a neutral phrasing.
+  const orderLine = orderNo
+    ? (<>We've received your order <b>{orderNo}</b>. Welcome aboard — your XBOOM Customer Portal is ready.</>)
+    : (<>We've received your order. Welcome aboard — your XBOOM Customer Portal is ready.</>)
   return (
     <Html lang="en" dir="ltr">
       <Head />
@@ -36,7 +42,7 @@ const Email = (p: Props = {}) => {
           <Section style={card}>
             <Heading as="h1" style={h1}>Thank you for your order, {name}!</Heading>
             <Text style={body1}>
-              We've received your order <b>{orderNo}</b>. Welcome aboard — your XBOOM Customer Portal is ready.
+              {orderLine}
             </Text>
             <Text style={body1}>
               Before we begin processing, please complete a quick KYC by uploading your Aadhaar card. This usually takes under a minute.
@@ -74,7 +80,8 @@ const Email = (p: Props = {}) => {
               </Section>
             ) : null}
             <Text style={fine}>
-              Order processing may require KYC approval. If you have questions, just reply to this email.
+              Order processing may require KYC approval. Questions? Email us at{' '}
+              <Link href="mailto:support@xboom.in" style={{ color: '#0ea5e9' }}>support@xboom.in</Link>.
             </Text>
           </Section>
           <Hr style={hr} />
