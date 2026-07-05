@@ -165,12 +165,25 @@ Deno.serve(async (req) => {
     let emailSent = false;
     let emailError: string | null = null;
     {
-      const html = renderInviteEmail({ fullName: body.full_name, actionLink, isExistingUser });
-      const subject = isExistingUser
-        ? "You've been added to the XBOOM B2B Portal"
-        : "You're invited to the XBOOM B2B Portal";
+      // Stable idempotency: per (contact, hashedToken) — each fresh invite
+      // gets a new token, so re-invites send a new email; retries of the
+      // same invocation collapse.
+      const tokenFingerprint = hashedToken.slice(0, 24);
+      const idempotencyKey = `portal-invite-teammate:${contactId}:${tokenFingerprint}`;
       try {
-        const r = await sendMailSeam({ to: email, subject, html });
+        const r = await sendMailSeam({
+          provider: "platform",
+          to: email,
+          subject: "",
+          html: "",
+          templateName: "portal-invite-teammate",
+          templateData: {
+            full_name: body.full_name,
+            action_link: actionLink,
+            is_existing_user: isExistingUser,
+          },
+          idempotencyKey,
+        });
         if (!r.ok) {
           emailError = `Email ${r.status}: ${r.error ?? ""}`.slice(0, 300);
         } else {
