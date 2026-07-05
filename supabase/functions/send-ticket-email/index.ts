@@ -123,19 +123,20 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Sanitize all user-provided string inputs before inserting into HTML
-    const ticket_number = sanitizeInput(payload.ticket_number, 50);
-    const subject = sanitizeInput(payload.subject, 200);
-    const old_status = sanitizeInput(payload.old_status, 50);
-    const new_status = sanitizeInput(payload.new_status, 50);
-    const priority = sanitizeInput(payload.priority, 20);
-    const resolution_notes = sanitizeInput(payload.resolution_notes, 2000);
-    const assigned_to_name = sanitizeInput(payload.assigned_to_name, 100);
-    const raised_by_name = sanitizeInput(payload.raised_by_name, 100);
-    const updated_by_name = sanitizeInput(payload.updated_by_name, 100);
+    // Length-clamp text inputs. React escapes props, so HTML-escaping here
+    // would double-encode inside the template — clamp only.
+    const clamp = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
+    const ticket_number = clamp(payload.ticket_number, 50);
+    const subject = clamp(payload.subject, 200);
+    const old_status = clamp(payload.old_status, 50);
+    const new_status = clamp(payload.new_status, 50);
+    const priority = clamp(payload.priority, 20);
+    const resolution_notes = clamp(payload.resolution_notes, 2000);
+    const raised_by_name = clamp(payload.raised_by_name, 100);
+    const updated_by_name = clamp(payload.updated_by_name, 100);
     const recipient_user_id = payload.recipient_user_id;
     const sla_due_at = payload.sla_due_at;
-    const category = sanitizeInput(payload.category, 100);
+    const category = clamp(payload.category, 100);
 
     // Fetch recipient's email from profiles
     const { data: recipientProfile, error: profileError } = await supabase
@@ -153,147 +154,52 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const recipientEmail = recipientProfile.email;
-    const recipientName = escapeHtml(recipientProfile.name || "Team Member");
-    const priorityColor = getPriorityColor(priority);
-    const priorityEmoji = getPriorityEmoji(priority);
+    const recipientName = recipientProfile.name || "Team Member";
 
-    let emailSubject: string;
-    let emailHtml: string;
+    // Route through platform (queued) provider. Templates render React Email;
+    // subject/html are ignored on the platform branch.
+    const templateName =
+      payload.type === "assignment" ? "ticket-assigned" : "ticket-status-update";
+    const templateData: Record<string, unknown> =
+      payload.type === "assignment"
+        ? {
+            recipient_name: recipientName,
+            ticket_number,
+            subject,
+            category,
+            priority,
+            raised_by_name,
+            sla_due_at,
+          }
+        : {
+            recipient_name: recipientName,
+            ticket_number,
+            subject,
+            old_status,
+            new_status,
+            updated_by_name,
+            resolution_notes,
+          };
 
-    if (payload.type === "assignment") {
-      emailSubject = `🎫 Ticket Assigned: ${ticket_number} - ${subject}`;
-      emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">🎫 New Ticket Assigned</h1>
-          </div>
-          
-          <div style="background: #f8fafc; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
-            <p style="font-size: 16px; margin-bottom: 20px;">Hi <strong>${recipientName}</strong>,</p>
-            <p style="font-size: 16px; margin-bottom: 20px;">A ticket has been assigned to you:</p>
-            
-            <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid ${priorityColor};">
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Ticket Number</td>
-                  <td style="padding: 8px 0; font-weight: 600; font-size: 14px;">${ticket_number}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Subject</td>
-                  <td style="padding: 8px 0; font-weight: 600; font-size: 14px;">${subject}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Category</td>
-                  <td style="padding: 8px 0; font-size: 14px;">${category || 'N/A'}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Priority</td>
-                  <td style="padding: 8px 0; font-size: 14px;">
-                    <span style="background: ${priorityColor}20; color: ${priorityColor}; padding: 4px 12px; border-radius: 20px; font-weight: 600;">
-                      ${priorityEmoji} ${priority?.toUpperCase()}
-                    </span>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Raised By</td>
-                  <td style="padding: 8px 0; font-size: 14px;">${raised_by_name || 'Unknown'}</td>
-                </tr>
-                ${sla_due_at ? `
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">SLA Due</td>
-                  <td style="padding: 8px 0; font-size: 14px; color: #dc2626; font-weight: 600;">${new Date(sla_due_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                </tr>
-                ` : ''}
-              </table>
-            </div>
-            
-            <p style="font-size: 14px; color: #64748b; margin-top: 20px;">Please review and take action as needed.</p>
-            
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
-              <p style="font-size: 12px; color: #94a3b8; margin: 0;">This is an automated notification from XBOOM Flow</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-    } else {
-      // Status update email
-      emailSubject = `📋 Ticket ${ticket_number} - Status Updated to ${formatStatus(new_status || '')}`;
-      emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">📋 Ticket Status Updated</h1>
-          </div>
-          
-          <div style="background: #f8fafc; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
-            <p style="font-size: 16px; margin-bottom: 20px;">Hi <strong>${recipientName}</strong>,</p>
-            <p style="font-size: 16px; margin-bottom: 20px;">Your ticket has been updated:</p>
-            
-            <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #10b981;">
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Ticket Number</td>
-                  <td style="padding: 8px 0; font-weight: 600; font-size: 14px;">${ticket_number}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Subject</td>
-                  <td style="padding: 8px 0; font-weight: 600; font-size: 14px;">${subject}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Status Change</td>
-                  <td style="padding: 8px 0; font-size: 14px;">
-                    <span style="text-decoration: line-through; color: #94a3b8;">${formatStatus(old_status || '')}</span>
-                    <span style="margin: 0 8px;">→</span>
-                    <span style="background: #10b98120; color: #059669; padding: 4px 12px; border-radius: 20px; font-weight: 600;">${formatStatus(new_status || '')}</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Updated By</td>
-                  <td style="padding: 8px 0; font-size: 14px;">${updated_by_name || 'Unknown'}</td>
-                </tr>
-                ${resolution_notes ? `
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; font-size: 14px; vertical-align: top;">Resolution Notes</td>
-                  <td style="padding: 8px 0; font-size: 14px;">${resolution_notes}</td>
-                </tr>
-                ` : ''}
-              </table>
-            </div>
-            
-            ${new_status === 'resolved' || new_status === 'closed' ? `
-            <div style="background: #ecfdf5; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: center;">
-              <p style="color: #059669; font-weight: 600; margin: 0;">✅ This ticket has been ${new_status}!</p>
-            </div>
-            ` : ''}
-            
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
-              <p style="font-size: 12px; color: #94a3b8; margin: 0;">This is an automated notification from XBOOM Flow</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-    }
+    // Stable idempotency: identity is (type, ticket_number, recipient, new_status).
+    // The ticket-message id isn't part of the status_update/assignment payload,
+    // so use the transition identity the caller already commits.
+    const idempotencyKey =
+      payload.type === "assignment"
+        ? `send-ticket-email:assignment:${ticket_number}:${recipient_user_id}`
+        : `send-ticket-email:status_update:${ticket_number}:${recipient_user_id}:${new_status}`;
 
     const emailResponse = await sendMailSeam({
+      provider: "platform",
       to: recipientEmail,
-      subject: emailSubject,
-      html: emailHtml,
+      subject: "",
+      html: "",
+      templateName,
+      templateData,
+      idempotencyKey,
     });
     if (!emailResponse.ok) throw new Error(emailResponse.error || `Email failed (${emailResponse.status})`);
-    console.log("Ticket email sent successfully:", emailResponse.id);
+    console.log("Ticket email enqueued:", { templateName, recipientEmail });
 
     return new Response(
       JSON.stringify({ success: true, data: emailResponse }),

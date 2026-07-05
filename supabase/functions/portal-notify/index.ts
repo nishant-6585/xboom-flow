@@ -77,8 +77,21 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  const r = await sendMailSeam({ to, subject, html });
+async function sendEmail(
+  to: string,
+  templateName: string,
+  templateData: Record<string, unknown>,
+  idempotencyKey: string,
+) {
+  const r = await sendMailSeam({
+    provider: "platform",
+    to,
+    subject: "",
+    html: "",
+    templateName,
+    templateData,
+    idempotencyKey,
+  });
   if (!r.ok) return { ok: false, error: `${r.status} ${r.error ?? ""}`.trim() };
   return { ok: true, data: r.raw };
 }
@@ -120,16 +133,9 @@ async function sendWhatsApp(
   }
 }
 
-function htmlWrap(title: string, inner: string) {
-  return `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#fff;color:#1a1a2e;padding:24px">
-    <div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;padding:28px">
-      <h2 style="margin:0 0 12px;font-size:20px;color:#0c2340">${title}</h2>
-      ${inner}
-      <hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0"/>
-      <p style="font-size:12px;color:#6b7280;margin:0">XBOOM Flow Customer Portal</p>
-    </div>
-  </body></html>`;
-}
+// htmlWrap removed — copy now lives in React Email templates registered in
+// _shared/transactional-email-templates. Kept the file layout otherwise
+// identical (WhatsApp/Interakt branch untouched).
 
 async function getAccountContacts(
   admin: ReturnType<typeof createClient>,
@@ -254,15 +260,21 @@ Deno.serve(async (req) => {
         const url = `${PORTAL_BASE_URL}/orders/${orderId}`;
         const contacts = await getAccountContacts(admin, o.account_id);
         const prefs = await getPrefMap(admin, contacts.map((c) => c.id!).filter(Boolean), "order_status");
-        const subject = `Order ${o.order_number} update: ${o.current_state.replace(/_/g, " ")}`;
-        const html = htmlWrap(
-          subject,
-          `<p>Hi,</p><p>Your order <strong>${o.order_number}</strong> is now <strong>${o.current_state.replace(/_/g, " ")}</strong>.</p>${note ? `<p style="background:#f3f4f6;padding:12px;border-radius:8px">${note}</p>` : ""}${o.customer_facing_eta ? `<p>Expected by <strong>${o.customer_facing_eta}</strong>.</p>` : ""}<p><a href="${url}" style="background:#0c2340;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">View order</a></p>`,
-        );
         for (const c of contacts) {
           const p = c.id ? prefs[c.id] : { email: true, whatsapp: true };
           if (c.email && p.email) {
-            const r = await sendEmail(c.email, subject, html);
+            const r = await sendEmail(
+              c.email,
+              "portal-order-state",
+              {
+                order_number: o.order_number,
+                current_state: o.current_state,
+                customer_facing_note: note || undefined,
+                customer_facing_eta: o.customer_facing_eta || undefined,
+                order_url: url,
+              },
+              `portal-notify:order_state_changed:${orderId}:${o.current_state}:${c.email}`,
+            );
             results.push({ channel: "email", to: c.email, ok: r.ok, error: r.error });
           }
           if (c.whatsapp_number && p.whatsapp) {
@@ -293,13 +305,18 @@ Deno.serve(async (req) => {
         const r = rfq as { rfq_number: string; use_case: string; assigned_rep_id: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
         const repIds = [r.assigned_rep_id, r.account?.assigned_rep_id];
         const emails = await getStaffEmails(admin, repIds);
-        const subject = `New RFQ ${r.rfq_number} from ${r.account?.company_name ?? "customer"}`;
-        const html = htmlWrap(
-          subject,
-          `<p><strong>${r.account?.company_name ?? "—"}</strong> just submitted an RFQ.</p><p style="background:#f3f4f6;padding:12px;border-radius:8px;white-space:pre-wrap">${r.use_case}</p><p><a href="https://xboomflow.com/admin/portal-rfqs">Open queue</a></p>`,
-        );
         for (const e of emails) {
-          const res = await sendEmail(e, subject, html);
+          const res = await sendEmail(
+            e,
+            "portal-rfq-submitted",
+            {
+              rfq_number: r.rfq_number,
+              company_name: r.account?.company_name ?? "customer",
+              use_case: r.use_case,
+              admin_url: `${STAFF_BASE_URL}/admin/portal-rfqs`,
+            },
+            `portal-notify:rfq_submitted:${rfqId}:${e}`,
+          );
           results.push({ channel: "email", to: e, ok: res.ok, error: res.error });
         }
         break;
@@ -316,15 +333,15 @@ Deno.serve(async (req) => {
         const r = rfq as { rfq_number: string; account_id: string };
         const contacts = await getAccountContacts(admin, r.account_id);
         const prefs = await getPrefMap(admin, contacts.map((c) => c.id!).filter(Boolean), "order_status");
-        const subject = `Your RFQ ${r.rfq_number} is being worked on`;
-        const html = htmlWrap(
-          subject,
-          `<p>Good news — our team has picked up <strong>${r.rfq_number}</strong> and will share a quote shortly.</p>`,
-        );
         for (const c of contacts) {
           if (!c.email) continue;
           if (c.id && !prefs[c.id]?.email) continue;
-          const res = await sendEmail(c.email, subject, html);
+          const res = await sendEmail(
+            c.email,
+            "portal-rfq-assigned",
+            { rfq_number: r.rfq_number },
+            `portal-notify:rfq_assigned:${rfqId}:${c.email}`,
+          );
           results.push({ channel: "email", to: c.email, ok: res.ok, error: res.error });
         }
         break;
@@ -340,13 +357,19 @@ Deno.serve(async (req) => {
         if (!t) return json({ error: "Ticket not found" }, 404);
         const tk = t as { ticket_number: string; subject: string; priority: string; assigned_to: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
         const emails = await getStaffEmails(admin, [tk.assigned_to, tk.account?.assigned_rep_id]);
-        const subject = `[${tk.priority.toUpperCase()}] Ticket ${tk.ticket_number}: ${tk.subject}`;
-        const html = htmlWrap(
-          subject,
-          `<p>New ticket from <strong>${tk.account?.company_name ?? "—"}</strong>.</p><p><a href="${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}">Open ticket</a></p>`,
-        );
         for (const e of emails) {
-          const res = await sendEmail(e, subject, html);
+          const res = await sendEmail(
+            e,
+            "portal-ticket-created",
+            {
+              ticket_number: tk.ticket_number,
+              subject: tk.subject,
+              priority: tk.priority,
+              company_name: tk.account?.company_name ?? "—",
+              ticket_url: `${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}`,
+            },
+            `portal-notify:ticket_created:${ticketId}:${e}`,
+          );
           results.push({ channel: "email", to: e, ok: res.ok, error: res.error });
         }
         break;
@@ -369,14 +392,8 @@ Deno.serve(async (req) => {
         const tk = t as { ticket_number: string; subject: string; account_id: string; assigned_to: string | null; raised_by_contact_id: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
         const msg = m as { body: string; sender_id: string | null; sender_name_snapshot: string | null; is_internal: boolean };
         if (msg.is_internal) {
-          // Internal-only — just notify staff, never the customer
-          const emails = await getStaffEmails(admin, [tk.assigned_to, tk.account?.assigned_rep_id]);
-          const subject = `[Internal] ${tk.ticket_number} ${tk.subject}`;
-          const html = htmlWrap(subject, `<p>${msg.sender_name_snapshot ?? "Staff"}:</p><p style="white-space:pre-wrap">${msg.body}</p><p><a href="${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}">Open ticket</a></p>`);
-          for (const e of emails) {
-            const res = await sendEmail(e, subject, html);
-            results.push({ channel: "email", to: e, ok: res.ok, error: res.error });
-          }
+          // Internal notes are non-notifying by design — no email/WhatsApp
+          // fanout, no template. Staff see internal notes in the ticket UI.
           break;
         }
         // Determine if sender is staff or customer
@@ -390,25 +407,38 @@ Deno.serve(async (req) => {
         if (senderIsCustomer) {
           // notify staff
           const emails = await getStaffEmails(admin, [tk.assigned_to, tk.account?.assigned_rep_id]);
-          const subject = `Reply on ${tk.ticket_number} — ${tk.subject}`;
-          const html = htmlWrap(subject, `<p><strong>${msg.sender_name_snapshot ?? "Customer"}</strong> replied:</p><p style="background:#f3f4f6;padding:12px;border-radius:8px;white-space:pre-wrap">${msg.body}</p><p><a href="${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}">Open ticket</a></p>`);
           for (const e of emails) {
-            const res = await sendEmail(e, subject, html);
+            const res = await sendEmail(
+              e,
+              "portal-ticket-reply-to-staff",
+              {
+                ticket_number: tk.ticket_number,
+                subject: tk.subject,
+                sender_name: msg.sender_name_snapshot ?? "Customer",
+                body: msg.body,
+                ticket_url: `${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}`,
+              },
+              `portal-notify:ticket_message_added:${messageId}:${e}`,
+            );
             results.push({ channel: "email", to: e, ok: res.ok, error: res.error });
           }
         } else {
           // notify customer contacts
           const contacts = await getAccountContacts(admin, tk.account_id);
           const prefs = await getPrefMap(admin, contacts.map((c) => c.id!).filter(Boolean), "ticket_replies");
-          const subject = `Reply on ticket ${tk.ticket_number}`;
-          const html = htmlWrap(
-            subject,
-            `<p>Our team responded on <strong>${tk.ticket_number}</strong>:</p><p style="background:#f3f4f6;padding:12px;border-radius:8px;white-space:pre-wrap">${msg.body}</p><p><a href="${PORTAL_BASE_URL}/tickets/${ticketId}">View ticket</a></p>`,
-          );
           for (const c of contacts) {
             if (!c.email) continue;
             if (c.id && !prefs[c.id]?.email) continue;
-            const res = await sendEmail(c.email, subject, html);
+            const res = await sendEmail(
+              c.email,
+              "portal-ticket-reply-to-customer",
+              {
+                ticket_number: tk.ticket_number,
+                body: msg.body,
+                ticket_url: `${PORTAL_BASE_URL}/tickets/${ticketId}`,
+              },
+              `portal-notify:ticket_message_added:${messageId}:${c.email}`,
+            );
             results.push({ channel: "email", to: c.email, ok: res.ok, error: res.error });
           }
           // WhatsApp ticket-reply notification
