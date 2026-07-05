@@ -17,12 +17,18 @@ interface BreakdownRow {
 
 function summarizeReason(reason: string | null): string {
   if (!reason) return "unknown";
-  // Collapse long API JSON bodies to a short leading token.
-  if (reason.includes("Max retries")) return "Max retries exceeded";
-  if (reason.includes("TTL exceeded")) return "TTL exceeded";
-  if (reason.includes("missing_unsubscribe")) return "missing_unsubscribe (400)";
-  if (reason.includes("rate_limited") || reason.includes("429")) return "Rate limited (429)";
-  if (reason.includes("403")) return "Forbidden (403)";
+  const r = reason.toLowerCase();
+  // First-class buckets — keep in sync with process-email-queue/index.ts
+  // notifyDlqBatch normalization so the alert email and this card agree.
+  if (r.includes("max retries")) return "Max retries exceeded";
+  if (r.includes("ttl exceeded")) return "TTL exceeded";
+  if (r.includes("missing_unsubscribe")) return "missing_unsubscribe (400)";
+  if (r.includes("suppressed") || r.includes("unsubscribed") || r.includes("suppression"))
+    return "Recipient suppressed / unsubscribed";
+  if (r.includes("invalid_recipient") || r.includes("invalid email") || r.includes("bounce"))
+    return "Invalid recipient / bounce";
+  if (r.includes("rate_limited") || r.includes("429")) return "Rate limited (429)";
+  if (r.includes("403")) return "Forbidden (403)";
   return reason.split("\n")[0].slice(0, 80);
 }
 
