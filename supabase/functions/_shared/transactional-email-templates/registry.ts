@@ -7,6 +7,7 @@ import { template as kycOnboarding } from './kyc-onboarding.tsx'
 import { template as kycReminder } from './kyc-reminder.tsx'
 import { template as kycStatus } from './kyc-status.tsx'
 import { template as kycSalespersonNotify } from './kyc-salesperson-notify.tsx'
+import { template as dlqAlert } from './dlq-alert.tsx'
 
 export interface TemplateEntry {
   component: React.ComponentType<any>
@@ -35,4 +36,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'kyc-reminder': kycReminder,
   'kyc-status': kycStatus,
   'kyc-salesperson-notify': kycSalespersonNotify,
+  'dlq-alert': dlqAlert,
 }
