@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const ADMIN_EMAILS = ["vishal.saurav@xboom.in", "nishant.k@xboom.in"];
-const FROM_EMAIL = "Xboom Sync Monitor <support@xboom.in>";
 
 // source key -> { table, dateColumn, label, staleHours }
 // staleHours: how long without a new record before we consider the source unhealthy
@@ -95,49 +94,27 @@ async function fetchHealth(supabase: any): Promise<HealthRow[]> {
   return out;
 }
 
-function buildEmailHtml(stale: HealthRow[], healthy: HealthRow[]): string {
-  const row = (r: HealthRow, color: string) => `
-    <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:600;color:${color};">${r.label}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;">${r.last_record_at ? new Date(r.last_record_at).toUTCString() : "Never"}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;">${r.hours_since === null ? "—" : r.hours_since.toFixed(1) + " h"}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;">${r.threshold_hours} h</td>
-    </tr>`;
-  return `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f7f7f9;padding:24px;">
-    <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:8px;padding:24px;border:1px solid #e5e7eb;">
-      <h2 style="margin:0 0 8px;color:#dc2626;">⚠️ Lead Sync Alert</h2>
-      <p style="color:#374151;margin:0 0 16px;">${stale.length} lead source${stale.length === 1 ? " has" : "s have"} stopped syncing. Please investigate immediately.</p>
-      <h3 style="color:#dc2626;margin:20px 0 8px;">Stale Sources</h3>
-      <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        <thead><tr style="background:#fef2f2;">
-          <th align="left" style="padding:8px 12px;">Source</th>
-          <th align="left" style="padding:8px 12px;">Last Record</th>
-          <th align="left" style="padding:8px 12px;">Idle</th>
-          <th align="left" style="padding:8px 12px;">Threshold</th>
-        </tr></thead>
-        <tbody>${stale.map((r) => row(r, "#dc2626")).join("")}</tbody>
-      </table>
-      ${healthy.length > 0 ? `
-      <h3 style="color:#16a34a;margin:24px 0 8px;">Healthy Sources</h3>
-      <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        <thead><tr style="background:#f0fdf4;">
-          <th align="left" style="padding:8px 12px;">Source</th>
-          <th align="left" style="padding:8px 12px;">Last Record</th>
-          <th align="left" style="padding:8px 12px;">Idle</th>
-          <th align="left" style="padding:8px 12px;">Threshold</th>
-        </tr></thead>
-        <tbody>${healthy.map((r) => row(r, "#16a34a")).join("")}</tbody>
-      </table>` : ""}
-      <p style="color:#6b7280;font-size:12px;margin-top:24px;">Generated at ${new Date().toUTCString()} by Xboom Sync Monitor.</p>
-    </div>
-  </body></html>`;
-}
-
 async function sendAlertEmail(stale: HealthRow[], healthy: HealthRow[]) {
   const { sendEmail: sendMailSeam } = await import("../_shared/email.ts");
-  const subject = `🚨 [Xboom] ${stale.length} lead source${stale.length === 1 ? "" : "s"} not syncing`;
-  const html = buildEmailHtml(stale, healthy);
-  const res = await sendMailSeam({ to: ADMIN_EMAILS, subject, html });
+  // Stable idempotency: one alert per hourly bucket per stale set. Retries
+  // of the same cron minute collapse; a new hour or a change in the stale
+  // source list produces a fresh key.
+  const bucket = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
+  const staleSig = stale.map((r) => r.source).sort().join(",");
+  const idempotencyKey = `sync-health-alert:${bucket}:${staleSig}`.slice(0, 240);
+  const res = await sendMailSeam({
+    provider: "platform",
+    to: ADMIN_EMAILS,
+    subject: "",
+    html: "",
+    templateName: "sync-health-alert",
+    templateData: {
+      stale,
+      healthy,
+      generated_at: new Date().toUTCString(),
+    },
+    idempotencyKey,
+  });
   if (!res.ok) {
     console.error("Email error:", res.status, res.error);
     return { sent: false, error: res.error };
