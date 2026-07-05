@@ -276,10 +276,22 @@ Deno.serve(async (req) => {
 
     let maxSeen = cursor;
 
+    // Per-run enrichment cap: keep Zoho API consumption predictable.
+    // Steady-state deltas rarely exceed this; leftovers pick up next tick.
+    const ENRICH_CAP = 50;
+    let enriched = 0;
+
     for (const inv of collected) {
-      try {
+      const advanceCursor = () => {
         if (inv.last_modified_time && inv.last_modified_time > maxSeen) {
           maxSeen = inv.last_modified_time;
+        }
+      };
+      try {
+        if (enriched >= ENRICH_CAP) {
+          // Enrichment budget spent. Leftover invoices resume next tick.
+          stats.errors.push(`enrichment_cap_hit at ${enriched}/${collected.length}`);
+          break;
         }
 
         // Fetch current mirror row (post-match)
@@ -317,11 +329,14 @@ Deno.serve(async (req) => {
               .update({ match_status: "unmatched" })
               .eq("invoice_id", inv.invoice_id);
             stats.unmatched += 1;
+            advanceCursor();
             continue;
           }
         }
 
         stats.matched += 1;
+
+        enriched += 1;
 
         // Fetch PDF
         const pdfUrl =
@@ -339,6 +354,7 @@ Deno.serve(async (req) => {
 
         if (mirror.pdf_hash === hash && mirror.pdf_attached_invoice_id) {
           stats.pdfs_skipped_same_hash += 1;
+          advanceCursor();
           continue;
         }
 
@@ -388,6 +404,8 @@ Deno.serve(async (req) => {
           .eq("invoice_id", inv.invoice_id);
 
         stats.pdfs_attached += 1;
+
+        advanceCursor();
 
         // Fire the invoice email (idempotent inside send-invoice-email)
         try {
