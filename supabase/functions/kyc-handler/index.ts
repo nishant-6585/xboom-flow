@@ -490,6 +490,7 @@ async function onboardOrder(
     error: sendRes.ok ? null : sendRes.error,
     attempt_count: sendRes.attempts,
     sent_by: opts.triggeredBy ?? null,
+    idempotency_key: idemKey,
   });
 
   // If this onboarding email also carried the order-confirmation ask, log it
