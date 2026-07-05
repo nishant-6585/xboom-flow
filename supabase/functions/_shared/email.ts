@@ -54,9 +54,13 @@ export interface SendEmailResult {
   raw?: unknown;
 }
 
-// Unified verified sender on the notify.xboomflow.com delegated subdomain.
+// Resend-verified sender. NOTE: only xboom.in is verified in the Resend
+// account. The notify.xboomflow.com delegated subdomain is verified for
+// the platform (Lovable/pgmq) path but NOT for Resend — sending from that
+// domain via Resend returns 403 validation_error. Any change here must be
+// preceded by verifying the new domain in the Resend dashboard.
 export const DEFAULT_FROM =
-  "Xboom <notifications@notify.xboomflow.com>";
+  "Xboom <notifications@xboom.in>";
 export const DEFAULT_REPLY_TO = "support@xboom.in";
 
 function resolveProvider(explicit?: EmailProvider): EmailProvider {
