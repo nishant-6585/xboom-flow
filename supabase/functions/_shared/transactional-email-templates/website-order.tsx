@@ -59,7 +59,7 @@ const Sig = () => (
   <>
     <Hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '24px 0' }} />
     <Text style={{ fontSize: '13px', color: '#64748b' }}>
-      Need help? Reply to this email or write to{' '}
+      Need help? Email us at{' '}
       <Link href="mailto:support@xboom.in" style={{ color: '#0ea5e9' }}>support@xboom.in</Link>.
       <br />— Team Xboom
     </Text>

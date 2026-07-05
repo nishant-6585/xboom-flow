@@ -505,6 +505,15 @@ async function onboardOrder(
     },
     idempotencyKey: idemKey,
   });
+  if (!order.order_number) {
+    // Loud warning: template would render "We've received your order ."
+    // without a value. The template now guards this, but the row itself
+    // is a data bug we want visible in the function logs.
+    console.warn("[kyc-handler] onboarding email missing order_number", {
+      order_id: order.id,
+      recipient_email: email,
+    });
+  }
   const sendRes = {
     ok: platformRes.ok,
     error: platformRes.ok ? undefined : platformRes.error,
