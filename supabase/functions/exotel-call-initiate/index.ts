@@ -171,6 +171,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Role gate: outbound telephony costs money and can harass recipients.
+    // Restrict to roles that actually own outbound calling — matches
+    // `has_outbound_access()` intent elsewhere in the codebase.
+    {
+      const { data: roles } = await supabaseAdmin
+        .from("user_roles").select("role").eq("user_id", user.id);
+      const allowed = new Set(["admin", "sales", "sales_manager", "supply_chain"]);
+      const ok = (roles ?? []).some((r: { role: string }) => allowed.has(r.role));
+      if (!ok) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Validate base Exotel config (Caller ID resolved separately below)
     if (!EXOTEL_SID || !EXOTEL_API_KEY || !EXOTEL_API_TOKEN || !EXOTEL_FLOW_URL) {
       return new Response(
