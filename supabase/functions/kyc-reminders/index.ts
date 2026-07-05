@@ -3,6 +3,7 @@
 // reminder type via kyc_audit_log lookup.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { sendEmail as sendMailSeam } from "../_shared/email.ts";
+import { isAuthorizedCron } from "../_shared/cron-auth.ts";
 
 const PORTAL_BASE = "https://xboomflow.com";
 
@@ -40,6 +41,15 @@ async function sendReminder(to: string, name: string, daysOld: number, accountId
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Cron/admin-only endpoint. Reject anonymous callers so this cannot be
+  // abused to spam real customers or drain the email quota.
+  if (!(await isAuthorizedCron(req))) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
