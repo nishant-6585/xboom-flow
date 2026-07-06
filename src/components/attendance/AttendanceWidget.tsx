@@ -64,6 +64,19 @@ function BreakTimer({ breakStart }: { breakStart: string }) {
   return <span className="text-yellow-600 font-medium tabular-nums">{elapsed}</span>;
 }
 
+function LiveClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="tabular-nums font-mono">
+      {format(now, 'hh:mm:ss a')}
+    </span>
+  );
+}
+
 export function AttendanceWidget() {
   const { todayAttendance, breaks, status, actionLoading, checkIn, checkOut, startBreak, endBreak } = useAttendanceWidget();
   const [open, setOpen] = useState(false);
@@ -114,7 +127,10 @@ export function AttendanceWidget() {
             <StatusDot status={status} />
             <span className="font-semibold text-sm">{statusLabel}</span>
           </div>
-          <span className="text-xs text-muted-foreground">{format(new Date(), 'dd MMM')}</span>
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-xs font-semibold text-foreground"><LiveClock /></span>
+            <span className="text-[10px] text-muted-foreground">{format(new Date(), 'dd MMM')}</span>
+          </div>
         </div>
 
         {/* Today Summary */}
