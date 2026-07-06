@@ -866,14 +866,29 @@ async function orderKycStatus(
   const idem = (lastLog as any)?.idempotency_key as string | null;
   const rcpt = (lastLog as any)?.recipient_email as string | null;
   if (idem) {
-    const { data: es } = await admin
+    // The idempotency_key is only tagged on the initial `pending` row.
+    // Later status rows (sent/dlq/etc) share the same message_id but drop
+    // the key from metadata, so we must first resolve the message_id, then
+    // pull the LATEST row for that message_id chain.
+    const { data: keyed } = await admin
       .from("email_send_log")
-      .select("status, created_at")
+      .select("message_id")
       .eq("metadata->>idempotency_key", idem)
+      .not("message_id", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (es) delivery = es as any;
+    const mid = (keyed as any)?.message_id as string | null | undefined;
+    if (mid) {
+      const { data: latest } = await admin
+        .from("email_send_log")
+        .select("status, created_at")
+        .eq("message_id", mid)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest) delivery = latest as any;
+    }
   }
   if (!delivery && rcpt && (lastLog as any)?.created_at) {
     const from = new Date(new Date((lastLog as any).created_at).getTime() - 60_000).toISOString();

@@ -171,9 +171,39 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
+  const hasLoadedRef = useRef(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const rowsEqual = (a: LogRow | null, b: LogRow | null) => {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return (
+      a.id === b.id &&
+      a.status === b.status &&
+      a.error === b.error &&
+      a.attempt_count === b.attempt_count &&
+      a.recipient_email === b.recipient_email &&
+      a.created_at === b.created_at
+    );
+  };
+
+  const infosEqual = (a: KycInfo | null, b: KycInfo | null) => {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return (
+      a.kyc_status === b.kyc_status &&
+      a.has_portal_account === b.has_portal_account &&
+      a.customer_email === b.customer_email &&
+      (a.last_invite?.status ?? null) === (b.last_invite?.status ?? null) &&
+      (a.last_invite?.created_at ?? null) === (b.last_invite?.created_at ?? null) &&
+      (a.last_invite?.attempt_count ?? null) === (b.last_invite?.attempt_count ?? null) &&
+      (a.last_delivery?.status ?? null) === (b.last_delivery?.status ?? null) &&
+      (a.last_delivery?.created_at ?? null) === (b.last_delivery?.created_at ?? null)
+    );
+  };
+
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) setLoading(true);
     const [logRes, statusRes] = await Promise.all([
       (supabase.from("kyc_email_log") as any)
         .select("id, status, error, attempt_count, recipient_email, created_at")
@@ -185,24 +215,34 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
         body: { action: "order_kyc_status", order_id: orderId },
       }),
     ]);
-    setRow(((logRes as any)?.data as LogRow | null) ?? null);
+    const nextRow = ((logRes as any)?.data as LogRow | null) ?? null;
+    setRow((prev) => (rowsEqual(prev, nextRow) ? prev : nextRow));
     if (!(statusRes as any).error) {
-      setInfo(((statusRes as any).data as KycInfo) ?? null);
+      const nextInfo = ((statusRes as any).data as KycInfo) ?? null;
+      setInfo((prev) => (infosEqual(prev, nextInfo) ? prev : nextInfo));
     }
-    setLoading(false);
+    hasLoadedRef.current = true;
+    if (!silent) setLoading(false);
   }, [orderId]);
 
   useEffect(() => {
-    if (orderId) load();
+    if (orderId) load({ silent: false });
   }, [orderId, load]);
 
   // Refresh when the tab regains focus so "Queued" naturally flips to "Sent"
   // after the queue worker dispatches, without requiring a hard refresh.
+  // Uses a silent refetch so the current badge stays rendered — no loader
+  // flicker on tab switch — and state only updates if the fetched status
+  // actually differs from what's displayed.
   useEffect(() => {
     if (!orderId) return;
-    const onFocus = () => load();
+    const silentReload = () => {
+      if (!hasLoadedRef.current) return;
+      load({ silent: true });
+    };
+    const onFocus = () => silentReload();
     const onVisibility = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") silentReload();
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
@@ -247,10 +287,10 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
     } else {
       toast.success("KYC invite sent");
     }
-    load();
+    load({ silent: true });
   };
 
-  if (loading) {
+  if (loading && !hasLoadedRef.current) {
     return (
       <Badge variant="outline" className="text-xs">
         <Loader2 className="h-3 w-3 mr-1 animate-spin" />
