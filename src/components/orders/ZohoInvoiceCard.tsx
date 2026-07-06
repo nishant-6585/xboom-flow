@@ -17,7 +17,15 @@ type Inv = {
   match_method: string | null;
 };
 
-export function ZohoInvoiceCard({ orderNumber }: { orderNumber?: string | null }) {
+export function ZohoInvoiceCard({
+  orderNumber,
+  attachedZohoInvoiceIds,
+  attachedInvoiceNumbers,
+}: {
+  orderNumber?: string | null;
+  attachedZohoInvoiceIds?: Set<string>;
+  attachedInvoiceNumbers?: Set<string>;
+}) {
   const [invoices, setInvoices] = useState<Inv[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -98,8 +106,12 @@ export function ZohoInvoiceCard({ orderNumber }: { orderNumber?: string | null }
           {invoices?.map((inv) => {
             const paid = (inv.total ?? 0) - (inv.balance ?? 0);
             const fileName = `${inv.invoice_number ?? inv.invoice_id}.pdf`;
+            const isAlreadyAttached =
+              (!!inv.invoice_id && !!attachedZohoInvoiceIds?.has(inv.invoice_id)) ||
+              (!!inv.invoice_number && !!attachedInvoiceNumbers?.has(inv.invoice_number));
             return (
-              <div key={inv.invoice_id} className="flex items-center justify-between text-sm border rounded px-2 py-1.5 bg-background">
+              <div key={inv.invoice_id} className="text-sm border rounded px-2 py-1.5 bg-background">
+                <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-mono font-medium">{inv.invoice_number ?? inv.invoice_id}</span>
                   <Badge variant="outline" className="text-xs">{inv.status ?? "—"}</Badge>
@@ -143,6 +155,12 @@ export function ZohoInvoiceCard({ orderNumber }: { orderNumber?: string | null }
                     </Button>
                   </div>
                 </div>
+                </div>
+                {isAlreadyAttached && (
+                  <div className="text-[11px] text-muted-foreground mt-1 pl-0.5 italic">
+                    Linked to the invoice attachment above — same document, shown here with live Zoho status &amp; balance.
+                  </div>
+                )}
               </div>
             );
           })}
