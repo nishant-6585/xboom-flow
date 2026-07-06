@@ -386,17 +386,17 @@ Deno.serve(async (req) => {
           zoho_invoice_id: inv.invoice_id,
         } as Record<string, unknown>;
 
-        const oi = await adoptOrUpsertOrderInvoice(admin, {
+        const { id: oiId, error: oiErr } = await adoptOrUpsertOrderInvoice(admin, {
           orderId,
           invoiceNumber: invNum,
           zohoInvoiceId: inv.invoice_id,
           payload: orderInvoicePayload,
         });
-        const oiErr = oi.error;
-        if (oiErr || !oi) {
+        if (oiErr || !oiId) {
           stats.errors.push(`order_invoices ${inv.invoice_id}: ${oiErr?.message}`);
           continue;
         }
+        const oi = { id: oiId };
 
         await admin
           .from("zoho_books_invoices")
