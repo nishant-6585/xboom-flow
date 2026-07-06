@@ -291,6 +291,10 @@ export function TallyDashboard() {
             .from("orders")
             .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, customer_gst, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, estimated_procurement_rate, sales_person_name, sales_person_id, po_number")
             .not("status", "eq", "cancelled")
+            // Exclude soft-deleted orders and lost outcomes — they are test
+            // entries or dead deals and should never appear in Tally.
+            .is("deleted_at", null)
+            .not("order_outcome", "eq", "lost")
             // Exclude website (WooCommerce) orders that are still awaiting
             // payment — these typically get auto-cancelled by Woo and should
             // not pollute Tally. They reappear automatically once Woo marks
