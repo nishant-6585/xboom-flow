@@ -82,7 +82,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
                     RTO
                   </Badge>
                 )}
-                <KycInviteBadge orderId={order.id} compact />
+                <KycInviteBadge orderId={order.id} compact orderStatus={order.status} />
                 <InvoiceAttachedBadge orderId={order.id} compact />
                 <OrderConfirmationChip
                   orderId={order.id}
