@@ -590,3 +590,57 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+/**
+ * Adopt an existing (order_id, invoice_number) row whose zoho_invoice_id is NULL
+ * (manual/legacy path) — or upsert on zoho_invoice_id otherwise. This prevents the
+ * unique-index-on-zoho_invoice_id (NULLs distinct) from silently creating a second
+ * order_invoices row alongside a manual upload for the same invoice number.
+ */
+async function adoptOrUpsertOrderInvoice(
+  admin: any,
+  args: {
+    orderId: string;
+    invoiceNumber: string;
+    zohoInvoiceId: string;
+    payload: Record<string, unknown>;
+  },
+): Promise<{ id: string | null; error: any }> {
+  // 1. Already keyed by zoho_invoice_id? Update in place.
+  const { data: existingByZoho } = await admin
+    .from("order_invoices")
+    .select("id")
+    .eq("zoho_invoice_id", args.zohoInvoiceId)
+    .maybeSingle();
+  if (existingByZoho?.id) {
+    const { error } = await admin
+      .from("order_invoices")
+      .update(args.payload)
+      .eq("id", existingByZoho.id);
+    return { id: error ? null : existingByZoho.id, error };
+  }
+  // 2. Manual/legacy row for same (order_id, invoice_number) with NULL zoho_invoice_id? Adopt it.
+  const { data: manualRow } = await admin
+    .from("order_invoices")
+    .select("id")
+    .eq("order_id", args.orderId)
+    .eq("invoice_number", args.invoiceNumber)
+    .is("zoho_invoice_id", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (manualRow?.id) {
+    const { error } = await admin
+      .from("order_invoices")
+      .update(args.payload)
+      .eq("id", manualRow.id);
+    return { id: error ? null : manualRow.id, error };
+  }
+  // 3. Fresh insert.
+  const { data: inserted, error } = await admin
+    .from("order_invoices")
+    .insert(args.payload)
+    .select("id")
+    .maybeSingle();
+  return { id: inserted?.id ?? null, error };
+}
