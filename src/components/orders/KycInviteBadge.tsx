@@ -26,6 +26,8 @@ interface Props {
   orderId: string;
   customerEmail?: string | null;
   compact?: boolean;
+  /** Current order status. When 'cancelled', invite actions are disabled. */
+  orderStatus?: string | null;
 }
 
 interface LogRow {
@@ -51,15 +53,71 @@ interface KycInfo {
   last_delivery?: { status: string; created_at: string } | null;
 }
 
-const STATUS_META: Record<string, { label: string; variant: any; Icon: any; cls: string }> = {
-  sent: { label: "KYC Invite: Sent", variant: "default", Icon: CheckCircle2, cls: "bg-emerald-600 hover:bg-emerald-600" },
-  failed: { label: "KYC Invite: Failed", variant: "destructive", Icon: XCircle, cls: "" },
-  skipped: { label: "KYC Invite: Skipped", variant: "secondary", Icon: MinusCircle, cls: "" },
-  pending: { label: "KYC Invite: Pending", variant: "outline", Icon: Clock, cls: "" },
-  dlq: { label: "KYC Invite: Dead-lettered", variant: "destructive", Icon: XCircle, cls: "" },
-  bounced: { label: "KYC Invite: Bounced", variant: "destructive", Icon: XCircle, cls: "" },
-  complained: { label: "KYC Invite: Complained", variant: "destructive", Icon: XCircle, cls: "" },
-  suppressed: { label: "KYC Invite: Suppressed", variant: "secondary", Icon: MinusCircle, cls: "" },
+// Invite-delivery states. These describe the EMAIL delivery only — never the
+// customer's KYC submission progress. The submission chip (KYC_META) is a
+// separate fact and must not share labels with delivery.
+const STATUS_META: Record<
+  string,
+  { label: string; short: string; variant: any; Icon: any; cls: string }
+> = {
+  // Row exists in kyc_email_log but no successful delivery event yet — the
+  // email is sitting in the pgmq queue waiting for the worker to dispatch.
+  pending: {
+    label: "Invite Queued",
+    short: "Invite Queued",
+    variant: "secondary",
+    Icon: Clock,
+    cls: "bg-slate-200 text-slate-800 hover:bg-slate-200 border-transparent dark:bg-slate-700 dark:text-slate-100",
+  },
+  sent: {
+    label: "Invite Sent",
+    short: "Invite Sent",
+    variant: "default",
+    Icon: CheckCircle2,
+    cls: "bg-emerald-600 hover:bg-emerald-600 text-white border-transparent",
+  },
+  failed: {
+    label: "Invite Failed",
+    short: "Invite Failed",
+    variant: "destructive",
+    Icon: XCircle,
+    cls: "",
+  },
+  dlq: {
+    label: "Invite Failed",
+    short: "Invite Failed",
+    variant: "destructive",
+    Icon: XCircle,
+    cls: "",
+  },
+  bounced: {
+    label: "Invite Failed",
+    short: "Invite Failed",
+    variant: "destructive",
+    Icon: XCircle,
+    cls: "",
+  },
+  complained: {
+    label: "Invite Failed",
+    short: "Invite Failed",
+    variant: "destructive",
+    Icon: XCircle,
+    cls: "",
+  },
+  suppressed: {
+    label: "Invite Failed",
+    short: "Invite Failed",
+    variant: "destructive",
+    Icon: XCircle,
+    cls: "",
+  },
+  skipped: {
+    label: "Invite Skipped",
+    short: "Invite Skipped",
+    variant: "secondary",
+    Icon: MinusCircle,
+    cls: "",
+  },
 };
 
 const KYC_META: Record<string, { label: string; short: string; Icon: any; cls: string }> = {
@@ -101,11 +159,13 @@ const KYC_META: Record<string, { label: string; short: string; Icon: any; cls: s
   },
 };
 
-export function KycInviteBadge({ orderId, customerEmail, compact = false }: Props) {
+export function KycInviteBadge({ orderId, customerEmail, compact = false, orderStatus }: Props) {
   const { roles } = useAuth();
   const canResend =
     Array.isArray(roles) &&
     roles.some((r) => ["admin", "sales", "sales_manager"].includes(r));
+  const isCancelled = orderStatus === "cancelled";
+  const cancelledTooltip = "Order is cancelled — KYC not applicable";
   const [row, setRow] = useState<LogRow | null>(null);
   const [info, setInfo] = useState<KycInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,8 +196,28 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
     if (orderId) load();
   }, [orderId, load]);
 
+  // Refresh when the tab regains focus so "Queued" naturally flips to "Sent"
+  // after the queue worker dispatches, without requiring a hard refresh.
+  useEffect(() => {
+    if (!orderId) return;
+    const onFocus = () => load();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [orderId, load]);
+
   const resend = async (e?: { stopPropagation?: () => void }) => {
     e?.stopPropagation?.();
+    if (isCancelled) {
+      toast.error(cancelledTooltip);
+      return;
+    }
     if (sendingRef.current) return;
     sendingRef.current = true;
     setSending(true);
@@ -157,6 +237,8 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
       const reason = (data as any).reason;
       if (reason === "feature_disabled") {
         toast.error("KYC emails are off (Admin → Feature Flags)");
+      } else if (reason === "order_cancelled") {
+        toast.error(cancelledTooltip);
       } else {
         toast.message(`KYC invite skipped: ${reason}`);
       }
@@ -194,25 +276,19 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
     info?.last_delivery
       ? `\nDelivery: ${info.last_delivery.status} • ${new Date(info.last_delivery.created_at).toLocaleString()}`
       : "";
-  const tooltipText = row
-    ? `${meta.label} • enqueued ${new Date(row.created_at).toLocaleString()} • attempts: ${row.attempt_count}${
-        row.error ? `\nError: ${row.error}` : ""
+  const sentAt =
+    status === "sent" && info?.last_delivery?.created_at
+      ? new Date(info.last_delivery.created_at).toLocaleString()
+      : null;
+  const baseTooltip = row
+    ? `${meta.label}${sentAt ? ` • sent ${sentAt}` : ""} • enqueued ${new Date(row.created_at).toLocaleString()} • attempts: ${row.attempt_count}${
+        row.error ? `\nReason: ${row.error}` : ""
       }${deliveryLine}`
     : "No KYC invite sent yet";
+  const tooltipText = isCancelled ? cancelledTooltip : baseTooltip;
 
   if (compact) {
-    const shortLabel =
-      status === "sent"
-        ? "KYC Sent"
-        : (status === "failed" || status === "dlq" || status === "bounced")
-        ? "KYC Failed"
-        : status === "suppressed"
-        ? "KYC Suppressed"
-        : status === "complained"
-        ? "KYC Complained"
-        : status === "skipped"
-        ? "KYC Skipped"
-        : "KYC Pending";
+    const shortLabel = meta.short;
     return (
       <TooltipProvider delayDuration={150}>
         <span className="inline-flex items-center gap-1">
@@ -237,11 +313,12 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isCancelled) return;
                     resend(e);
                   }}
-                  disabled={sending}
-                  aria-label="Resend KYC invite"
-                  className="inline-flex items-center justify-center h-5 w-5 rounded hover:bg-accent disabled:opacity-50"
+                  disabled={sending || isCancelled}
+                  aria-label={isCancelled ? cancelledTooltip : "Resend KYC invite"}
+                  className="inline-flex items-center justify-center h-5 w-5 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -250,7 +327,9 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent className="text-xs">Resend KYC invite</TooltipContent>
+              <TooltipContent className="text-xs">
+                {isCancelled ? cancelledTooltip : "Resend KYC invite"}
+              </TooltipContent>
             </Tooltip>
           )}
         </span>
@@ -289,21 +368,30 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false }: Prop
               variant="ghost"
               className="h-6 px-2 text-xs text-muted-foreground"
               onClick={() => resend()}
-              disabled={sending}
-              title="Customer is already KYC-approved"
+              disabled={sending || isCancelled}
+              title={isCancelled ? cancelledTooltip : "Customer is already KYC-approved"}
             >
               {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Send className="h-3 w-3 mr-1" />Resend anyway</>}
             </Button>
           ) : (
-            <Button
-              size="sm"
-              variant="default"
-              className="h-7 px-2 text-xs"
-              onClick={() => resend()}
-              disabled={sending}
-            >
-              {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Send className="h-3 w-3 mr-1" />Send KYC invite</>}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => resend()}
+                    disabled={sending || isCancelled}
+                  >
+                    {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Send className="h-3 w-3 mr-1" />Send KYC invite</>}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {isCancelled && (
+                <TooltipContent className="text-xs">{cancelledTooltip}</TooltipContent>
+              )}
+            </Tooltip>
           )
         )}
       </div>
