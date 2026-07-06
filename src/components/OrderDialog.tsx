@@ -58,6 +58,10 @@ interface OrderDialogProps {
   onUpdate: (orderId: string, updates: Partial<Order>) => Promise<boolean>;
   onDelete: (orderId: string) => Promise<boolean>;
   onEscalate?: (orderId: string, reason: string) => Promise<boolean>;
+  /** Optional callback to refetch the underlying orders list. Called when
+   *  the open order changes underneath us (realtime UPDATE) or the window
+   *  regains focus. Scoped to the currently-open order only. */
+  onRefresh?: () => void;
 }
 
 const paymentStatusConfig: Record<PaymentStatus, { label: string; className: string }> = {
@@ -82,7 +86,7 @@ const FALLBACK_OUTCOME_CONFIG = {
 
 const isWonOutcome = (o: string | null | undefined) => o === 'won' || o === 'OW';
 
-export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
+export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate, onRefresh }: OrderDialogProps) {
   const { role, user, profile } = useAuth();
   const queryClient = useQueryClient();
   const { fetchOrderItems } = useOrderItems();
@@ -229,6 +233,34 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     })();
     return () => { cancelled = true; };
   }, [isWebsiteOrder, wooOrderId, open]);
+
+  // Keep the open dialog in sync with server-side changes to this order
+  // (e.g. KYC auto-confirmation flipping confirmation_status while the
+  // dialog is open). Scope: only the currently-open order id.
+  useEffect(() => {
+    if (!open || !order?.id || !onRefresh) return;
+    const orderId = order.id;
+
+    const channel = supabase
+      .channel(`order-dialog-${orderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
+        () => { onRefresh(); },
+      )
+      .subscribe();
+
+    const onFocus = () => { onRefresh(); };
+    const onVisibility = () => { if (document.visibilityState === 'visible') onRefresh(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [open, order?.id, onRefresh]);
 
   // Auto-generate tracking URL whenever courier name + tracking number change.
   // Overwrite previous URL if it was auto-generated for any known courier; keep
