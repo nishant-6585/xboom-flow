@@ -171,6 +171,24 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [poNumber, setPoNumber] = useState<string>('');
   // Multi-invoice support
   const { invoices: orderInvoices, addInvoice, removeInvoice, refetch: refetchInvoices } = useOrderInvoices(order?.id ?? null);
+  const { invoices: zohoMirrorInvoices, loading: zohoMirrorLoading } = useZohoBooksInvoicesForOrder(order?.order_number ?? null);
+
+  // Merge Zoho Books mirror rows into the attached invoices they refer to.
+  // Match by zoho_invoice_id first, then by invoice_number.
+  const zohoMetaByAttachmentId: Record<string, typeof zohoMirrorInvoices[number]> = {};
+  const matchedZohoIds = new Set<string>();
+  for (const inv of orderInvoices) {
+    const match = zohoMirrorInvoices.find((z) => {
+      if ((inv as any).zoho_invoice_id && z.invoice_id === (inv as any).zoho_invoice_id) return true;
+      if (inv.invoice_number && z.invoice_number && z.invoice_number === inv.invoice_number) return true;
+      return false;
+    });
+    if (match) {
+      zohoMetaByAttachmentId[inv.id] = match;
+      matchedZohoIds.add(match.invoice_id);
+    }
+  }
+  const unattachedZohoInvoices = zohoMirrorInvoices.filter((z) => !matchedZohoIds.has(z.invoice_id));
   const [proformaDialogOpen, setProformaDialogOpen] = useState(false);
   const [regenerateTarget, setRegenerateTarget] = useState<OrderInvoice | null>(null);
   // Proforma can be generated regardless of payment status (full/partial/none).
@@ -2375,22 +2393,18 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   onRegenerate={(inv) => { setRegenerateTarget(inv); setProformaDialogOpen(true); }}
                   canDelete={canEdit}
                   onDelete={(inv) => removeInvoice(inv)}
+                  zohoMetaByInvoiceId={zohoMetaByAttachmentId}
                 />
               )}
 
-              {/* Zoho Books linked invoice */}
+              {/* Zoho Books mirror invoices that are NOT yet attached to this order.
+                  Attached mirrors are merged inline into the InvoiceListCard rows above. */}
               <ZohoInvoiceCard
                 orderNumber={order?.order_number}
-                attachedZohoInvoiceIds={new Set(
-                  orderInvoices
-                    .map((i) => (i as any).zoho_invoice_id)
-                    .filter((v): v is string => !!v),
-                )}
-                attachedInvoiceNumbers={new Set(
-                  orderInvoices
-                    .map((i) => i.invoice_number)
-                    .filter((v): v is string => !!v),
-                )}
+                orderId={order?.id ?? null}
+                invoices={unattachedZohoInvoices}
+                loading={zohoMirrorLoading}
+                onAttached={() => refetchInvoices()}
               />
 
               {canEdit ? (
