@@ -1,0 +1,1 @@
+ALTER TABLE public.zoho_sync_log ADD COLUMN IF NOT EXISTS stats jsonb;
