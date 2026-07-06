@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle, Link2, Search } from "lucide-react";
 import { format } from "date-fns";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 type UnmatchedInv = {
   invoice_id: string;
@@ -15,6 +17,7 @@ type UnmatchedInv = {
   date: string | null;
   total: number | null;
   reference_number: string | null;
+  status: string | null;
 };
 
 type OrderOption = {
@@ -34,15 +37,16 @@ export function UnmatchedZohoInvoicesPanel() {
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<OrderOption[]>([]);
   const [searching, setSearching] = useState(false);
+  const [includeVoided, setIncludeVoided] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from("zoho_books_invoices")
-      .select("invoice_id,invoice_number,customer_name,date,total,reference_number")
-      .eq("match_status", "unmatched")
+      .select("invoice_id,invoice_number,customer_name,date,total,reference_number,status")
+      .in("match_status", ["unmatched", "void"])
       .order("date", { ascending: false })
-      .limit(100);
+      .limit(150);
     setRows((data as UnmatchedInv[]) ?? []);
     setLoading(false);
   }, []);
@@ -88,7 +92,19 @@ export function UnmatchedZohoInvoicesPanel() {
     }
   };
 
-  const summary = useMemo(() => `${rows.length} unmatched`, [rows.length]);
+  const visibleRows = useMemo(
+    () => (includeVoided ? rows : rows.filter((r) => r.status !== "void")),
+    [rows, includeVoided],
+  );
+  const voidCount = useMemo(
+    () => rows.filter((r) => r.status === "void").length,
+    [rows],
+  );
+  const summary = useMemo(
+    () =>
+      `${visibleRows.length} unmatched${voidCount ? ` · ${voidCount} voided hidden` : ""}`,
+    [visibleRows.length, voidCount],
+  );
 
   return (
     <Card>
@@ -97,6 +113,16 @@ export function UnmatchedZohoInvoicesPanel() {
           <AlertCircle className="h-5 w-5 text-amber-500" />
           Unmatched Zoho Invoices
           <Badge variant="secondary" className="ml-2">{summary}</Badge>
+          <div className="ml-auto flex items-center gap-2">
+            <Switch
+              id="include-voided"
+              checked={includeVoided}
+              onCheckedChange={setIncludeVoided}
+            />
+            <Label htmlFor="include-voided" className="text-xs font-normal">
+              Include voided
+            </Label>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -104,19 +130,27 @@ export function UnmatchedZohoInvoicesPanel() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </div>
-        ) : rows.length === 0 ? (
+        ) : visibleRows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             All synced Zoho invoices are matched to internal orders.
           </p>
         ) : (
           <div className="space-y-2">
-            {rows.map((r) => (
-              <div key={r.invoice_id} className="border rounded-lg p-3 space-y-2">
+            {visibleRows.map((r) => (
+              <div
+                key={r.invoice_id}
+                className={`border rounded-lg p-3 space-y-2 ${
+                  r.status === "void" ? "bg-destructive/5 border-destructive/40" : ""
+                }`}
+              >
                 <div className="flex flex-wrap items-center gap-2 justify-between text-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-mono font-medium">
                       {r.invoice_number ?? r.invoice_id}
                     </span>
+                    {r.status === "void" && (
+                      <Badge variant="destructive" className="text-[10px]">VOID</Badge>
+                    )}
                     {r.reference_number && (
                       <Badge variant="outline" className="text-[10px]">
                         ref: {r.reference_number}
