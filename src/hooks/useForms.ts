@@ -19,6 +19,7 @@ export interface Form {
   name: string;
   description?: string;
   is_active: boolean;
+  is_public?: boolean;
   created_by: string;
   created_by_name: string;
   created_at: string;
@@ -83,7 +84,7 @@ export function useForms() {
         ...form,
         submission_count: subCountMap.get(form.id) || 0,
         view_count: viewCountMap.get(form.id) || 0,
-      })) as Form[];
+      })) as unknown as Form[];
     },
   });
 
