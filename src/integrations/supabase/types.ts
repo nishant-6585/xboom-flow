@@ -15939,6 +15939,7 @@ export type Database = {
           provider: string
           records_synced: number | null
           started_at: string
+          stats: Json | null
           status: string
           triggered_by: string | null
         }
@@ -15950,6 +15951,7 @@ export type Database = {
           provider: string
           records_synced?: number | null
           started_at?: string
+          stats?: Json | null
           status: string
           triggered_by?: string | null
         }
@@ -15961,6 +15963,7 @@ export type Database = {
           provider?: string
           records_synced?: number | null
           started_at?: string
+          stats?: Json | null
           status?: string
           triggered_by?: string | null
         }
