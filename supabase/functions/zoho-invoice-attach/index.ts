@@ -127,22 +127,57 @@ Deno.serve(async (req) => {
       });
     if (upErr) throw upErr;
 
-    const { data: oi, error: oiErr } = await admin
+    const payload = {
+      order_id: orderId,
+      storage_path: storagePath,
+      invoice_number: invNum,
+      file_name: `${invNum}.pdf`,
+      source: "zoho",
+      document_type: "tax_invoice",
+      total: Number(mirror.total || 0),
+      amount_paid: Number(mirror.total || 0) - Number(mirror.balance || 0),
+      zoho_invoice_id: zohoInvoiceId,
+    } as Record<string, unknown>;
+
+    // Prefer adopting an existing zoho-keyed row; else a manual/legacy row for the
+    // same (order_id, invoice_number) with NULL zoho_invoice_id; else insert fresh.
+    // Avoids spawning duplicate order_invoices rows because the unique index on
+    // zoho_invoice_id treats NULLs as distinct.
+    let oiId: string | null = null;
+    const { data: existingByZoho } = await admin
       .from("order_invoices")
-      .upsert({
-        order_id: orderId,
-        storage_path: storagePath,
-        invoice_number: invNum,
-        file_name: `${invNum}.pdf`,
-        source: "zoho",
-        document_type: "tax_invoice",
-        total: Number(mirror.total || 0),
-        amount_paid: Number(mirror.total || 0) - Number(mirror.balance || 0),
-        zoho_invoice_id: zohoInvoiceId,
-      }, { onConflict: "zoho_invoice_id" })
       .select("id")
+      .eq("zoho_invoice_id", zohoInvoiceId)
       .maybeSingle();
-    if (oiErr || !oi) throw oiErr || new Error("order_invoices upsert failed");
+    if (existingByZoho?.id) {
+      const { error } = await admin.from("order_invoices").update(payload).eq("id", existingByZoho.id);
+      if (error) throw error;
+      oiId = existingByZoho.id;
+    } else {
+      const { data: manualRow } = await admin
+        .from("order_invoices")
+        .select("id")
+        .eq("order_id", orderId)
+        .eq("invoice_number", invNum)
+        .is("zoho_invoice_id", null)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (manualRow?.id) {
+        const { error } = await admin.from("order_invoices").update(payload).eq("id", manualRow.id);
+        if (error) throw error;
+        oiId = manualRow.id;
+      } else {
+        const { data: inserted, error } = await admin
+          .from("order_invoices")
+          .insert(payload)
+          .select("id")
+          .maybeSingle();
+        if (error || !inserted) throw error || new Error("order_invoices insert failed");
+        oiId = inserted.id;
+      }
+    }
+    const oi = { id: oiId as string };
 
     // Digest / hash for consistency
     const digest = await crypto.subtle.digest("SHA-256", pdfBuf);
