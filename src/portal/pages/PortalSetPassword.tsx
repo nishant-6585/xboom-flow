@@ -8,6 +8,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+const EXPIRED_LINK_MSG =
+  "This reset link has expired or was already used. Request a new one from the \u201CForgot password\u201D page.";
+
+function friendlyTokenError(raw: string): string {
+  const msg = (raw || "").toLowerCase();
+  if (
+    /expired|already used|invalid.*token|token.*invalid|otp_expired|otp.*invalid|token_not_found|used|consumed/.test(
+      msg,
+    )
+  ) {
+    return EXPIRED_LINK_MSG;
+  }
+  if (/same.*password|should be different/.test(msg)) {
+    return "Your new password must be different from your current password.";
+  }
+  if (/weak|pwned|leaked|compromised/.test(msg)) {
+    return "This password is too weak or has appeared in known data breaches. Please choose a stronger one.";
+  }
+  if (/at least|minimum|length/.test(msg)) {
+    return "Password does not meet the minimum strength requirements.";
+  }
+  if (/network|failed to fetch/.test(msg)) {
+    return "Network error. Check your connection and try again.";
+  }
+  return raw || "Failed to set password.";
+}
+
 /** Used after the user clicks the invite link from email. Supabase puts a recovery
  * session in the URL hash, so they're already temporarily authenticated. */
 export default function PortalSetPassword() {
@@ -56,6 +83,7 @@ export default function PortalSetPassword() {
       } catch { /* ignore */ }
     }
     if (error || apiErr) return setErr(apiErr || error?.message || "Failed to set password.");
+    void 0;
     const session = (data as { session?: { access_token: string; refresh_token: string } | null })?.session;
     if (session) {
       await supabase.auth.setSession({
