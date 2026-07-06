@@ -435,6 +435,111 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---- PDF backfill for stranded rows ----
+    // Rows that were matched previously but never got a PDF attached
+    // (side-effect of the pre-migration 20260705145336 unique-index bug).
+    // Drain a few per tick until empty, sharing the same ENRICH_CAP budget
+    // so we don't burn the daily Zoho API quota.
+    (stats as any).backfill_attached = 0;
+    (stats as any).backfill_skipped_void = 0;
+    (stats as any).backfill_remaining = 0;
+    if (enriched < ENRICH_CAP) {
+      const remainingBudget = ENRICH_CAP - enriched;
+      const { data: stranded } = await admin
+        .from("zoho_books_invoices")
+        .select("invoice_id, invoice_number, linked_order_id, status, total, balance, pdf_hash, pdf_attached_invoice_id")
+        .eq("match_status", "matched")
+        .is("pdf_attached_invoice_id", null)
+        .not("linked_order_id", "is", null)
+        .neq("status", "void")
+        .order("date", { ascending: false })
+        .limit(remainingBudget);
+
+      for (const row of (stranded ?? []) as any[]) {
+        if (enriched >= ENRICH_CAP) break;
+        try {
+          enriched += 1;
+
+          const pdfUrl =
+            `${token.api_domain}/books/v3/invoices/${encodeURIComponent(row.invoice_id)}` +
+            `?organization_id=${encodeURIComponent(token.organization_id)}&accept=pdf`;
+          const pdfResp = await fetch(pdfUrl, {
+            headers: { Authorization: `Zoho-oauthtoken ${token.access_token}` },
+          });
+          if (!pdfResp.ok) {
+            stats.errors.push(`backfill PDF ${row.invoice_id} status ${pdfResp.status}`);
+            continue;
+          }
+          const pdfBuf = await pdfResp.arrayBuffer();
+          const hash = await sha256Hex(pdfBuf);
+
+          if (row.pdf_hash === hash && row.pdf_attached_invoice_id) {
+            stats.pdfs_skipped_same_hash += 1;
+            continue;
+          }
+
+          const invNum = row.invoice_number || row.invoice_id;
+          const storagePath = `zoho/${row.linked_order_id}/${row.invoice_id}.pdf`;
+          const { error: upErr } = await admin.storage
+            .from(BUCKET)
+            .upload(storagePath, new Uint8Array(pdfBuf), {
+              contentType: "application/pdf",
+              upsert: true,
+            });
+          if (upErr) {
+            stats.errors.push(`backfill upload ${row.invoice_id}: ${upErr.message}`);
+            continue;
+          }
+
+          const { data: oi, error: oiErr } = await admin
+            .from("order_invoices")
+            .upsert(
+              {
+                order_id: row.linked_order_id,
+                storage_path: storagePath,
+                invoice_number: invNum,
+                file_name: `${invNum}.pdf`,
+                source: "zoho",
+                document_type: "tax_invoice",
+                total: Number(row.total || 0),
+                amount_paid: Number(row.total || 0) - Number(row.balance || 0),
+                zoho_invoice_id: row.invoice_id,
+              },
+              { onConflict: "zoho_invoice_id" },
+            )
+            .select("id")
+            .maybeSingle();
+          if (oiErr || !oi) {
+            stats.errors.push(`backfill order_invoices ${row.invoice_id}: ${oiErr?.message}`);
+            continue;
+          }
+
+          await admin
+            .from("zoho_books_invoices")
+            .update({
+              pdf_attached_invoice_id: oi.id,
+              pdf_hash: hash,
+              pdf_synced_at: new Date().toISOString(),
+            })
+            .eq("invoice_id", row.invoice_id);
+
+          (stats as any).backfill_attached += 1;
+          stats.pdfs_attached += 1;
+        } catch (bfErr) {
+          stats.errors.push(`backfill ${row.invoice_id}: ${String(bfErr).slice(0, 200)}`);
+        }
+      }
+
+      const { count: remaining } = await admin
+        .from("zoho_books_invoices")
+        .select("invoice_id", { head: true, count: "exact" })
+        .eq("match_status", "matched")
+        .is("pdf_attached_invoice_id", null)
+        .not("linked_order_id", "is", null)
+        .neq("status", "void");
+      (stats as any).backfill_remaining = remaining ?? 0;
+    }
+
     // Advance cursor on success
     await admin
       .from("zoho_poller_state")
