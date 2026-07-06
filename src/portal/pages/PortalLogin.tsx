@@ -14,6 +14,27 @@ const ERROR_MESSAGES: Record<string, string> = {
   account_suspended: "Your portal access has been suspended. Please contact your account manager.",
 };
 
+/** Map raw Supabase / auth error strings to something a customer can act on. */
+function friendlyAuthError(raw: string): string {
+  const msg = (raw || "").toLowerCase();
+  if (/invalid login credentials|invalid.*email.*password|invalid_grant/.test(msg)) {
+    return "The email or password you entered is incorrect. Please try again, or use \u201CForgot?\u201D to reset your password.";
+  }
+  if (/email not confirmed|email_not_confirmed/.test(msg)) {
+    return "Your email isn't confirmed yet. Check your inbox for the invite link, or ask your account manager to resend it.";
+  }
+  if (/too many|rate limit|over_email_send_rate_limit/.test(msg)) {
+    return "Too many attempts. Please wait a minute and try again.";
+  }
+  if (/user not found/.test(msg)) {
+    return "We couldn\u2019t find an account with that email. Ask your account manager to send you a portal invite.";
+  }
+  if (/network|failed to fetch/.test(msg)) {
+    return "Network error. Check your connection and try again.";
+  }
+  return raw || "Sign in failed. Please try again.";
+}
+
 export default function PortalLogin() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,7 +60,7 @@ export default function PortalLogin() {
     const { error: err } = await signIn(email, password);
     setSubmitting(false);
     if (err) {
-      setError(err.message || "Sign in failed");
+      setError(friendlyAuthError(err.message || ""));
     }
   };
 
