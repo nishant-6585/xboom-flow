@@ -58,6 +58,10 @@ interface OrderDialogProps {
   onUpdate: (orderId: string, updates: Partial<Order>) => Promise<boolean>;
   onDelete: (orderId: string) => Promise<boolean>;
   onEscalate?: (orderId: string, reason: string) => Promise<boolean>;
+  /** Optional callback to refetch the underlying orders list. Called when
+   *  the open order changes underneath us (realtime UPDATE) or the window
+   *  regains focus. Scoped to the currently-open order only. */
+  onRefresh?: () => void;
 }
 
 const paymentStatusConfig: Record<PaymentStatus, { label: string; className: string }> = {
@@ -82,7 +86,7 @@ const FALLBACK_OUTCOME_CONFIG = {
 
 const isWonOutcome = (o: string | null | undefined) => o === 'won' || o === 'OW';
 
-export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
+export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate, onRefresh }: OrderDialogProps) {
   const { role, user, profile } = useAuth();
   const queryClient = useQueryClient();
   const { fetchOrderItems } = useOrderItems();
