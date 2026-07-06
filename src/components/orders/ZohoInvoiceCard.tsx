@@ -1,33 +1,31 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Loader2, Eye, Download } from "lucide-react";
+import { BookOpen, Loader2, Eye, Download, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { DocumentViewer } from "@/components/hr/DocumentViewer";
+import type { ZohoBookInv } from "@/hooks/useZohoBooksInvoicesForOrder";
 
-type Inv = {
-  invoice_id: string;
-  invoice_number: string | null;
-  status: string | null;
-  date: string | null;
-  total: number | null;
-  balance: number | null;
-  match_method: string | null;
-};
-
+/**
+ * Renders Zoho Books invoices that are LINKED to the order but NOT yet
+ * present as an attached order_invoices row. Attached mirrors are shown
+ * inline on the unified invoice attachment card instead.
+ */
 export function ZohoInvoiceCard({
   orderNumber,
-  attachedZohoInvoiceIds,
-  attachedInvoiceNumbers,
+  orderId,
+  invoices,
+  loading,
+  onAttached,
 }: {
   orderNumber?: string | null;
-  attachedZohoInvoiceIds?: Set<string>;
-  attachedInvoiceNumbers?: Set<string>;
+  orderId?: string | null;
+  invoices: ZohoBookInv[];
+  loading?: boolean;
+  onAttached?: () => void;
 }) {
-  const [invoices, setInvoices] = useState<Inv[] | null>(null);
-  const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ open: boolean; url: string | null; name: string }>({
     open: false,
@@ -71,44 +69,41 @@ export function ZohoInvoiceCard({
     }
   };
 
-  useEffect(() => {
-    if (!orderNumber) return;
-    let active = true;
-    setLoading(true);
-    supabase
-      .from("zoho_books_invoices")
-      .select("invoice_id,invoice_number,status,date,total,balance,match_method")
-      .eq("linked_order_number", orderNumber)
-      .order("date", { ascending: false })
-      .then(({ data }) => {
-        if (!active) return;
-        setInvoices((data ?? []) as any);
-        setLoading(false);
+  const attach = async (invoiceId: string) => {
+    if (!orderId) {
+      toast.error("Cannot attach: missing order id");
+      return;
+    }
+    setBusyId(invoiceId + ":attach");
+    try {
+      const { error } = await supabase.functions.invoke("zoho-invoice-attach", {
+        body: { zoho_invoice_id: invoiceId, order_id: orderId },
       });
-    return () => { active = false; };
-  }, [orderNumber]);
+      if (error) throw error;
+      toast.success("Invoice PDF attached from Zoho");
+      onAttached?.();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to attach invoice");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   if (!orderNumber) return null;
+  // Nothing to render if all mirrors are already attached and we're not loading.
+  if (!loading && invoices.length === 0) return null;
 
   return (
     <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
       <div className="flex items-center gap-2 text-sm font-medium">
-        <BookOpen className="h-4 w-4" /> Zoho Books invoice
+        <BookOpen className="h-4 w-4" /> Zoho Books invoice (not yet attached)
         {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
       </div>
-      {!loading && (invoices?.length ?? 0) === 0 ? (
-        <div className="text-xs text-muted-foreground">
-          No Zoho invoice linked. Set the order number ({orderNumber}) in Zoho's
-          <span className="font-mono"> cf_order_id </span> custom field, then re-sync.
-        </div>
-      ) : (
+      {invoices.length > 0 && (
         <div className="space-y-1.5">
-          {invoices?.map((inv) => {
+          {invoices.map((inv) => {
             const paid = (inv.total ?? 0) - (inv.balance ?? 0);
             const fileName = `${inv.invoice_number ?? inv.invoice_id}.pdf`;
-            const isAlreadyAttached =
-              (!!inv.invoice_id && !!attachedZohoInvoiceIds?.has(inv.invoice_id)) ||
-              (!!inv.invoice_number && !!attachedInvoiceNumbers?.has(inv.invoice_number));
             return (
               <div key={inv.invoice_id} className="text-sm border rounded px-2 py-1.5 bg-background">
                 <div className="flex items-center justify-between">
@@ -153,14 +148,24 @@ export function ZohoInvoiceCard({
                         ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         : <Download className="h-3.5 w-3.5" />}
                     </Button>
+                    {orderId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 text-xs"
+                        title="Download the PDF from Zoho and attach it to this order"
+                        onClick={() => attach(inv.invoice_id)}
+                        disabled={busyId === inv.invoice_id + ":attach"}
+                      >
+                        {busyId === inv.invoice_id + ":attach"
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Paperclip className="h-3.5 w-3.5" />}
+                        Attach PDF
+                      </Button>
+                    )}
                   </div>
                 </div>
                 </div>
-                {isAlreadyAttached && (
-                  <div className="text-[11px] text-muted-foreground mt-1 pl-0.5 italic">
-                    Linked to the invoice attachment above — same document, shown here with live Zoho status &amp; balance.
-                  </div>
-                )}
               </div>
             );
           })}
