@@ -558,6 +558,7 @@ Deno.serve(async (req) => {
       records_synced: stats.upserted,
       error_message: stats.errors.length > 0 ? stats.errors.slice(0, 5).join(" | ").slice(0, 900) : null,
       completed_at: new Date().toISOString(),
+      stats: stats as any,
     });
 
     return new Response(JSON.stringify({ ok: true, stats }), {
