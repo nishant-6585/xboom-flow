@@ -82,8 +82,9 @@ export default function PortalSetPassword() {
         }
       } catch { /* ignore */ }
     }
-    if (error || apiErr) return setErr(apiErr || error?.message || "Failed to set password.");
-    void 0;
+    if (error || apiErr) {
+      return setErr(friendlyTokenError(apiErr || error?.message || ""));
+    }
     const session = (data as { session?: { access_token: string; refresh_token: string } | null })?.session;
     if (session) {
       await supabase.auth.setSession({
