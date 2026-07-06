@@ -44,22 +44,39 @@ Deno.serve(async (req) => {
   }
 
   // Internal-only guard: reject anything that isn't a service-role caller.
-  // We inspect the JWT payload directly (no DB round-trip). The gateway has
-  // already validated the signature; we just check the role claim.
+  // Two accepted proofs (either is sufficient):
+  //   1. Bearer token equals SUPABASE_SERVICE_ROLE_KEY (constant-time compare).
+  //      Required for Lovable Cloud's new signing-keys system where the
+  //      service-role secret is an opaque `sb_secret_...` string, not a JWT
+  //      with a decodable `role` claim.
+  //   2. Legacy JWT-format service key: decode the payload and require
+  //      `role === 'service_role'`.
   const authHeader = req.headers.get('Authorization') || ''
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
-  let callerRole: string | null = null
-  try {
-    const payloadB64 = token.split('.')[1] || ''
-    const padded = payloadB64 + '='.repeat((4 - (payloadB64.length % 4)) % 4)
-    const json = JSON.parse(
-      atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
-    )
-    callerRole = typeof json?.role === 'string' ? json.role : null
-  } catch {
-    callerRole = null
+  const svcKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+
+  function timingSafeEqual(a: string, b: string): boolean {
+    if (!a || !b || a.length !== b.length) return false
+    let diff = 0
+    for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+    return diff === 0
   }
-  if (callerRole !== 'service_role') {
+
+  let callerRole: string | null = null
+  const matchesServiceKey = timingSafeEqual(token, svcKey)
+  if (!matchesServiceKey) {
+    try {
+      const payloadB64 = token.split('.')[1] || ''
+      const padded = payloadB64 + '='.repeat((4 - (payloadB64.length % 4)) % 4)
+      const json = JSON.parse(
+        atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
+      )
+      callerRole = typeof json?.role === 'string' ? json.role : null
+    } catch {
+      callerRole = null
+    }
+  }
+  if (!matchesServiceKey && callerRole !== 'service_role') {
     console.warn('send-transactional-email: non-service-role caller blocked', {
       role: callerRole,
     })
