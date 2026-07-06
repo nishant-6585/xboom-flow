@@ -251,11 +251,26 @@ async function onboardOrder(
   }
   const { data: order, error } = await admin
     .from("orders")
-    .select("id, order_number, customer_name, customer_email, customer_company, sales_person_id, sales_person_name, source, confirmation_status, requires_confirmation")
+    .select("id, order_number, customer_name, customer_email, customer_company, sales_person_id, sales_person_name, source, confirmation_status, requires_confirmation, status")
     .eq("id", orderId)
     .maybeSingle();
   if (error) return json({ error: error.message }, 500);
   if (!order) return json({ error: "Order not found" }, 404);
+
+  // Defense in depth: never invite KYC on a cancelled order. Even a manual
+  // resend with force=true is rejected — a cancelled order does not need
+  // identity verification and sending one erodes customer trust.
+  if ((order as any).status === "cancelled") {
+    await logKycEmail(admin, {
+      order_id: order.id,
+      order_number: order.order_number,
+      recipient_email: ((opts.overrideEmail ?? order.customer_email) || "").trim().toLowerCase() || null,
+      status: "skipped",
+      error: "order_cancelled",
+      sent_by: opts.triggeredBy ?? null,
+    });
+    return json({ skipped: true, reason: "order_cancelled" });
+  }
 
   const email = ((opts.overrideEmail ?? order.customer_email) || "").trim().toLowerCase();
   if (!email) {
