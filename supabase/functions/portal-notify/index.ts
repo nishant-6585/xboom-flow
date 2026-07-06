@@ -14,6 +14,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { sendEmail as sendMailSeam } from "../_shared/email.ts";
+import { resolveRecipients } from "../_shared/staff-routing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -303,8 +304,11 @@ Deno.serve(async (req) => {
           .maybeSingle();
         if (!rfq) return json({ error: "RFQ not found" }, 404);
         const r = rfq as { rfq_number: string; use_case: string; assigned_rep_id: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
-        const repIds = [r.assigned_rep_id, r.account?.assigned_rep_id];
-        const emails = await getStaffEmails(admin, repIds);
+        const { emails, reasons } = await resolveRecipients(admin, "rfq_submitted", {
+          assignee: r.assigned_rep_id,
+          accountRep: r.account?.assigned_rep_id ?? null,
+        });
+        console.log(`[portal-notify] rfq_submitted ${rfqId} recipients=${emails.length} reasons=${reasons.join(",")}`);
         for (const e of emails) {
           const res = await sendEmail(
             e,
@@ -351,12 +355,17 @@ Deno.serve(async (req) => {
         const ticketId = String(body.payload.ticket_id ?? "");
         const { data: t } = await admin
           .from("portal_tickets")
-          .select("ticket_number, subject, priority, assigned_to, account_id, account:portal_accounts(company_name, assigned_rep_id)")
+          .select("ticket_number, subject, priority, ticket_type, assigned_to, account_id, account:portal_accounts(company_name, assigned_rep_id)")
           .eq("id", ticketId)
           .maybeSingle();
         if (!t) return json({ error: "Ticket not found" }, 404);
-        const tk = t as { ticket_number: string; subject: string; priority: string; assigned_to: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
-        const emails = await getStaffEmails(admin, [tk.assigned_to, tk.account?.assigned_rep_id]);
+        const tk = t as { ticket_number: string; subject: string; priority: string; ticket_type: string | null; assigned_to: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
+        const { emails, reasons } = await resolveRecipients(admin, "ticket_created", {
+          assignee: tk.assigned_to,
+          accountRep: tk.account?.assigned_rep_id ?? null,
+          ticketType: tk.ticket_type,
+        });
+        console.log(`[portal-notify] ticket_created ${ticketId} recipients=${emails.length} reasons=${reasons.join(",")}`);
         for (const e of emails) {
           const res = await sendEmail(
             e,
@@ -380,7 +389,7 @@ Deno.serve(async (req) => {
         const messageId = String(body.payload.message_id ?? "");
         const { data: t } = await admin
           .from("portal_tickets")
-          .select("ticket_number, subject, account_id, assigned_to, raised_by_contact_id, account:portal_accounts(company_name, assigned_rep_id)")
+          .select("ticket_number, subject, ticket_type, account_id, assigned_to, raised_by_contact_id, account:portal_accounts(company_name, assigned_rep_id)")
           .eq("id", ticketId)
           .maybeSingle();
         const { data: m } = await admin
@@ -389,7 +398,7 @@ Deno.serve(async (req) => {
           .eq("id", messageId)
           .maybeSingle();
         if (!t || !m) return json({ error: "Ticket/message not found" }, 404);
-        const tk = t as { ticket_number: string; subject: string; account_id: string; assigned_to: string | null; raised_by_contact_id: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
+        const tk = t as { ticket_number: string; subject: string; ticket_type: string | null; account_id: string; assigned_to: string | null; raised_by_contact_id: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
         const msg = m as { body: string; sender_id: string | null; sender_name_snapshot: string | null; is_internal: boolean };
         if (msg.is_internal) {
           // Internal notes are non-notifying by design — no email/WhatsApp
@@ -406,7 +415,12 @@ Deno.serve(async (req) => {
 
         if (senderIsCustomer) {
           // notify staff
-          const emails = await getStaffEmails(admin, [tk.assigned_to, tk.account?.assigned_rep_id]);
+          const { emails, reasons } = await resolveRecipients(admin, "ticket_reply_to_staff", {
+            assignee: tk.assigned_to,
+            accountRep: tk.account?.assigned_rep_id ?? null,
+            ticketType: tk.ticket_type,
+          });
+          console.log(`[portal-notify] ticket_reply_to_staff ${ticketId} recipients=${emails.length} reasons=${reasons.join(",")}`);
           for (const e of emails) {
             const res = await sendEmail(
               e,
