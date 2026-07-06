@@ -16780,6 +16780,31 @@ export type Database = {
         Returns: boolean
       }
       email_queue_dispatch: { Args: never; Returns: undefined }
+      employees_self_update_check: {
+        Args: {
+          _bank_account: string
+          _department: string
+          _designation: string
+          _employee_number: string
+          _employee_type: string
+          _employment_status: Database["public"]["Enums"]["employment_status"]
+          _exit_date: string
+          _id: string
+          _ifsc_code: string
+          _is_active: boolean
+          _joining_date: string
+          _manager_id: string
+          _monthly_salary: number
+          _pan_number: string
+          _role: string
+          _shift_end_time: string
+          _shift_start_time: string
+          _shift_type: string
+          _tax_regime: string
+          _xboom_email: string
+        }
+        Returns: boolean
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -17230,6 +17255,17 @@ export type Database = {
           with_company: number
         }[]
       }
+      leave_request_self_update_check: {
+        Args: {
+          _approved_rejected_at: string
+          _approver_id: string
+          _approver_name: string
+          _id: string
+          _is_hr_applied: boolean
+          _status: string
+        }
+        Returns: boolean
+      }
       link_zoho_invoice_manual: {
         Args: { p_invoice_id: string; p_order_id: string }
         Returns: undefined
@@ -17540,6 +17576,20 @@ export type Database = {
       retry_notification_from_dlq: {
         Args: { _dlq_id: string }
         Returns: string
+      }
+      sales_faq_self_update_check: {
+        Args: {
+          _answered_at: string
+          _answered_by: string
+          _answered_by_name: string
+          _approved_at: string
+          _approved_by: string
+          _approved_by_name: string
+          _id: string
+          _is_approved: boolean
+          _is_pinned: boolean
+        }
+        Returns: boolean
       }
       scan_company_field_quality: { Args: never; Returns: number }
       scan_suspect_companies: {
