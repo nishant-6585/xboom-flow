@@ -1,0 +1,2 @@
+DROP POLICY IF EXISTS "Public can view active forms" ON public.forms;
+CREATE POLICY "Public can view active public forms" ON public.forms FOR SELECT TO anon, authenticated USING (is_active = true AND is_public = true);
