@@ -1197,6 +1197,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   <KycInviteBadge
                     orderId={order.id}
                     customerEmail={customerEmail || (order as any).customer_email}
+                    orderStatus={order.status}
                   />
                 </DialogDescription>
               </div>
