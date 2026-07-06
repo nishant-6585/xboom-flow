@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,7 +114,11 @@ export default function PortalSetPassword() {
           {linkValid === false && (
             <Alert className="mb-4" variant="destructive">
               <AlertDescription>
-                Your invite link has expired. Ask your account manager to resend the invite.
+                This link is invalid or has expired. Request a new one from the{" "}
+                <Link to="/portal/forgot-password" className="underline font-medium">
+                  Forgot password
+                </Link>{" "}
+                page, or ask your account manager to resend the invite.
               </AlertDescription>
             </Alert>
           )}
