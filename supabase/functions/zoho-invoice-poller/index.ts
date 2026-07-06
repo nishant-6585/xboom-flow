@@ -371,7 +371,9 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Idempotent order_invoices upsert keyed on zoho_invoice_id
+        // Idempotent order_invoices write: prefer adopting an existing manual/legacy row
+        // for the same (order_id, invoice_number) whose zoho_invoice_id is NULL, so the
+        // unique-index-on-zoho_invoice_id (NULLs distinct) doesn't spawn a second row.
         const orderInvoicePayload = {
           order_id: orderId,
           storage_path: storagePath,
@@ -384,11 +386,13 @@ Deno.serve(async (req) => {
           zoho_invoice_id: inv.invoice_id,
         } as Record<string, unknown>;
 
-        const { data: oi, error: oiErr } = await admin
-          .from("order_invoices")
-          .upsert(orderInvoicePayload, { onConflict: "zoho_invoice_id" })
-          .select("id")
-          .maybeSingle();
+        const oi = await adoptOrUpsertOrderInvoice(admin, {
+          orderId,
+          invoiceNumber: invNum,
+          zohoInvoiceId: inv.invoice_id,
+          payload: orderInvoicePayload,
+        });
+        const oiErr = oi.error;
         if (oiErr || !oi) {
           stats.errors.push(`order_invoices ${inv.invoice_id}: ${oiErr?.message}`);
           continue;
