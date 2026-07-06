@@ -228,6 +228,38 @@ serve(async (req) => {
       });
     }
 
+    // Role check — only admin / supply_chain / sales_manager can push Shopify
+    // order changes. Mirrors the WooCommerce sibling's authorization posture
+    // (its trigger uses CRON_SECRET; this function is user-invoked so we
+    // authorize by role instead).
+    const userId = claimsData.claims.sub as string | undefined;
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: roleRows, error: roleErr } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if (roleErr) {
+      console.error("[shopify-push-update] role lookup failed", roleErr);
+      return new Response(JSON.stringify({ error: "Authorization check failed" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const allowed = new Set(["admin", "supply_chain", "sales_manager"]);
+    const hasRole = (roleRows ?? []).some((r: { role: string }) => allowed.has(r.role));
+    if (!hasRole) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body = (await req.json().catch(() => ({}))) as PushBody;
     if (!body.shopify_order_id) {
       return new Response(JSON.stringify({ error: "shopify_order_id required" }), {

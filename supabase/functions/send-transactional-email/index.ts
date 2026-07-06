@@ -31,13 +31,42 @@ function generateToken(): string {
 }
 
 // Auth note: this function uses verify_jwt = true in config.toml, so Supabase's
-// gateway validates the caller's JWT (anon or service_role) before the request
-// reaches this code. No in-function auth check is needed.
+// gateway validates the caller's JWT. That alone is not enough — any signed-in
+// user (including b2b_customer portal accounts) has a valid JWT. This is the
+// front door to the branded email queue, so we additionally require the caller
+// to present the service-role key. All legitimate callers are edge functions
+// invoking via `_shared/email.ts` with the service-role bearer.
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
+  }
+
+  // Internal-only guard: reject anything that isn't a service-role caller.
+  // We inspect the JWT payload directly (no DB round-trip). The gateway has
+  // already validated the signature; we just check the role claim.
+  const authHeader = req.headers.get('Authorization') || ''
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  let callerRole: string | null = null
+  try {
+    const payloadB64 = token.split('.')[1] || ''
+    const padded = payloadB64 + '='.repeat((4 - (payloadB64.length % 4)) % 4)
+    const json = JSON.parse(
+      atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
+    )
+    callerRole = typeof json?.role === 'string' ? json.role : null
+  } catch {
+    callerRole = null
+  }
+  if (callerRole !== 'service_role') {
+    console.warn('send-transactional-email: non-service-role caller blocked', {
+      role: callerRole,
+    })
+    return new Response(
+      JSON.stringify({ error: 'Forbidden: internal use only' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
