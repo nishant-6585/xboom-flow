@@ -8,6 +8,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { sendEmail as sendMailSeam } from "../_shared/email.ts";
+import { resolveRecipients } from "../_shared/staff-routing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -113,27 +114,24 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (existing) return;
 
-    // Resolve recipient emails (assigned_to + account rep + any admin)
-    const userIds = [row.assigned_to, row.account?.assigned_rep_id].filter(
-      (x): x is string => !!x,
+    // Resolve recipients via the shared routing table. Owner-first
+    // (assignee, else account rep); service_request adds supply_chain;
+    // resolution breaches escalate to sales_manager. Admins are NEVER
+    // added here — admin visibility stays via in-app notifications.
+    const { userIds, emails, reasons } = await resolveRecipients(
+      admin,
+      kind === "first_response" ? "first_response_breach" : "resolution_breach",
+      {
+        assignee: row.assigned_to,
+        accountRep: row.account?.assigned_rep_id ?? null,
+        ticketType: row.ticket_type,
+      },
     );
-    const { data: adminRoles } = await admin
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
-    for (const r of (adminRoles ?? []) as Array<{ user_id: string }>) userIds.push(r.user_id);
 
-    // Service requests: also loop in supply_chain + sales_manager
+    // In-app notifications for service_request tickets (unchanged behavior).
     if (row.ticket_type === "service_request") {
-      const { data: extras } = await admin
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["supply_chain", "sales_manager"]);
-      for (const r of (extras ?? []) as Array<{ user_id: string }>) userIds.push(r.user_id);
-
-      // In-app notifications (never block on email)
       const label = kind === "first_response" ? "First response" : "Resolution";
-      for (const uid of [...new Set(userIds)]) {
+      for (const uid of userIds) {
         try {
           await admin.from("notifications").insert({
             user_id: uid,
@@ -144,18 +142,10 @@ Deno.serve(async (req) => {
         } catch { /* ignore */ }
       }
     }
-
-    const emails: string[] = [];
-    for (const uid of [...new Set(userIds)]) {
-      try {
-        const { data } = await admin.auth.admin.getUserById(uid);
-        if (data?.user?.email) emails.push(data.user.email);
-      } catch { /* ignore */ }
-    }
+    console.log(`[sla-monitor] ${row.ticket_number} ${kind} recipients=${emails.length} reasons=${reasons.join(",")}`);
 
     const label = kind === "first_response" ? "First-response SLA breached" : "Resolution SLA breached";
-    const uniqueRecipients = [...new Set(emails)];
-    if (uniqueRecipients.length > 0) {
+    if (emails.length > 0) {
       await sendBreachAlert({
         ticketId: row.id,
         kind,
@@ -164,7 +154,7 @@ Deno.serve(async (req) => {
         subject: row.subject,
         accountName: row.account?.company_name ?? "—",
         priority: row.priority,
-        recipients: uniqueRecipients,
+        recipients: emails,
       });
     }
 
