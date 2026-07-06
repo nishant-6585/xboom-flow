@@ -89,6 +89,7 @@ import { PortalAuthProvider } from "@/portal/hooks/usePortalAuth";
 import { PortalProtectedRoute } from "@/portal/components/PortalProtectedRoute";
 import PortalLogin from "@/portal/pages/PortalLogin";
 import PortalSetPassword from "@/portal/pages/PortalSetPassword";
+import PortalForgotPassword from "@/portal/pages/PortalForgotPassword";
 import PortalActivate from "@/portal/pages/PortalActivate";
 import PortalDashboard from "@/portal/pages/PortalDashboard";
 import PortalOrderDetail from "@/portal/pages/PortalOrderDetail";
@@ -193,6 +194,7 @@ function AppInner() {
               <Routes>
                 <Route path="login" element={<PortalLogin />} />
                 <Route path="set-password" element={<PortalSetPassword />} />
+                <Route path="forgot-password" element={<PortalForgotPassword />} />
                 <Route path="activate" element={<PortalActivate />} />
                 <Route
                   path="dashboard"
