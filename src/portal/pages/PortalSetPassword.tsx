@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+const EXPIRED_LINK_MSG =
+  "This reset link has expired or was already used. Request a new one from the \u201CForgot password\u201D page.";
+
+function friendlyTokenError(raw: string): string {
+  const msg = (raw || "").toLowerCase();
+  if (
+    /expired|already used|invalid.*token|token.*invalid|otp_expired|otp.*invalid|token_not_found|used|consumed/.test(
+      msg,
+    )
+  ) {
+    return EXPIRED_LINK_MSG;
+  }
+  if (/same.*password|should be different/.test(msg)) {
+    return "Your new password must be different from your current password.";
+  }
+  if (/weak|pwned|leaked|compromised/.test(msg)) {
+    return "This password is too weak or has appeared in known data breaches. Please choose a stronger one.";
+  }
+  if (/at least|minimum|length/.test(msg)) {
+    return "Password does not meet the minimum strength requirements.";
+  }
+  if (/network|failed to fetch/.test(msg)) {
+    return "Network error. Check your connection and try again.";
+  }
+  return raw || "Failed to set password.";
+}
 
 /** Used after the user clicks the invite link from email. Supabase puts a recovery
  * session in the URL hash, so they're already temporarily authenticated. */
@@ -55,7 +83,9 @@ export default function PortalSetPassword() {
         }
       } catch { /* ignore */ }
     }
-    if (error || apiErr) return setErr(apiErr || error?.message || "Failed to set password.");
+    if (error || apiErr) {
+      return setErr(friendlyTokenError(apiErr || error?.message || ""));
+    }
     const session = (data as { session?: { access_token: string; refresh_token: string } | null })?.session;
     if (session) {
       await supabase.auth.setSession({
@@ -84,7 +114,11 @@ export default function PortalSetPassword() {
           {linkValid === false && (
             <Alert className="mb-4" variant="destructive">
               <AlertDescription>
-                Your invite link has expired. Ask your account manager to resend the invite.
+                This link is invalid or has expired. Request a new one from the{" "}
+                <Link to="/portal/forgot-password" className="underline font-medium">
+                  Forgot password
+                </Link>{" "}
+                page, or ask your account manager to resend the invite.
               </AlertDescription>
             </Alert>
           )}
