@@ -21,6 +21,7 @@ export interface OrderInvoice {
   place_of_supply?: string | null;
   gst_treatment?: 'igst' | 'cgst_sgst' | null;
   tax_breakup?: unknown;
+  zoho_invoice_id?: string | null;
 }
 
 export function useOrderInvoices(orderId: string | null | undefined) {

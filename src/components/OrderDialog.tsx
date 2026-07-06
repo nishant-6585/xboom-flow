@@ -2378,7 +2378,19 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               )}
 
               {/* Zoho Books linked invoice */}
-              <ZohoInvoiceCard orderNumber={order?.order_number} />
+              <ZohoInvoiceCard
+                orderNumber={order?.order_number}
+                attachedZohoInvoiceIds={new Set(
+                  orderInvoices
+                    .map((i) => (i as any).zoho_invoice_id)
+                    .filter((v): v is string => !!v),
+                )}
+                attachedInvoiceNumbers={new Set(
+                  orderInvoices
+                    .map((i) => i.invoice_number)
+                    .filter((v): v is string => !!v),
+                )}
+              />
 
               {canEdit ? (
                 <div>
