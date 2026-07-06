@@ -9211,6 +9211,7 @@ export type Database = {
           estimated_delivery: string | null
           estimated_procurement_rate: number | null
           external_id: string | null
+          has_voided_zoho_invoice: boolean
           id: string
           internal_notes: string | null
           invoice_number: string | null
@@ -9320,6 +9321,7 @@ export type Database = {
           estimated_delivery?: string | null
           estimated_procurement_rate?: number | null
           external_id?: string | null
+          has_voided_zoho_invoice?: boolean
           id?: string
           internal_notes?: string | null
           invoice_number?: string | null
@@ -9429,6 +9431,7 @@ export type Database = {
           estimated_delivery?: string | null
           estimated_procurement_rate?: number | null
           external_id?: string | null
+          has_voided_zoho_invoice?: boolean
           id?: string
           internal_notes?: string | null
           invoice_number?: string | null
@@ -17351,6 +17354,7 @@ export type Database = {
           estimated_delivery: string | null
           estimated_procurement_rate: number | null
           external_id: string | null
+          has_voided_zoho_invoice: boolean
           id: string
           internal_notes: string | null
           invoice_number: string | null
