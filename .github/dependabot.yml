@@ -1,0 +1,27 @@
+# Dependabot: automated dependency update PRs.
+#
+# - Security updates: GitHub opens a PR as soon as a dependency in
+#   package-lock.json has a known vulnerability (requires "Dependabot
+#   security updates" enabled in repo Settings → Code security).
+# - Version updates below: one grouped PR per month for routine
+#   minor/patch bumps, so the noise stays low.
+#
+# Note: Supabase edge functions (Deno, npm: specifiers) are not covered
+# by the npm ecosystem here — those are reviewed manually when touched.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
