@@ -38,7 +38,7 @@ import { computeWooStats, formatINR, timeAgo } from '@/lib/wooStats';
 export default function Orders() {
   const { role, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
+  const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder, refetch: refetchOrders } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading, refetch: refetchShopifyOrders } = useShopifyOrders();
   const { wooOrders, loading: wooLoading, refetch: refetchWooOrders } = useWooCommerceOrders({ sinceDays: 90 });
   const wooTotalCount = wooOrders.length;
@@ -452,6 +452,7 @@ export default function Orders() {
           onUpdate={updateOrder}
           onDelete={deleteOrder}
           onEscalate={escalateOrder}
+          onRefresh={refetchOrders}
         />
       </main>
     </div>
