@@ -495,28 +495,27 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          const { data: oi, error: oiErr } = await admin
-            .from("order_invoices")
-            .upsert(
-              {
-                order_id: row.linked_order_id,
-                storage_path: storagePath,
-                invoice_number: invNum,
-                file_name: `${invNum}.pdf`,
-                source: "zoho",
-                document_type: "tax_invoice",
-                total: Number(row.total || 0),
-                amount_paid: Number(row.total || 0) - Number(row.balance || 0),
-                zoho_invoice_id: row.invoice_id,
-              },
-              { onConflict: "zoho_invoice_id" },
-            )
-            .select("id")
-            .maybeSingle();
-          if (oiErr || !oi) {
+          const { id: oiId, error: oiErr } = await adoptOrUpsertOrderInvoice(admin, {
+            orderId: row.linked_order_id,
+            invoiceNumber: invNum,
+            zohoInvoiceId: row.invoice_id,
+            payload: {
+              order_id: row.linked_order_id,
+              storage_path: storagePath,
+              invoice_number: invNum,
+              file_name: `${invNum}.pdf`,
+              source: "zoho",
+              document_type: "tax_invoice",
+              total: Number(row.total || 0),
+              amount_paid: Number(row.total || 0) - Number(row.balance || 0),
+              zoho_invoice_id: row.invoice_id,
+            },
+          });
+          if (oiErr || !oiId) {
             stats.errors.push(`backfill order_invoices ${row.invoice_id}: ${oiErr?.message}`);
             continue;
           }
+          const oi = { id: oiId };
 
           await admin
             .from("zoho_books_invoices")
