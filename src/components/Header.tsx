@@ -168,9 +168,7 @@ export function Header() {
                 </nav>
                 <div className="flex-shrink-0 border-t border-border p-3 space-y-2">
                   <div className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/60">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-xs font-semibold text-primary-foreground">
-                      {profile?.name ? getInitials(profile.name) : "U"}
-                    </div>
+                    <AvatarBubble size="w-9 h-9" textSize="text-xs" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{profile?.name || "User"}</p>
                       <p className="text-xs text-muted-foreground">{getRoleLabel(role)}</p>
@@ -231,17 +229,13 @@ export function Header() {
                     <p className="text-sm font-medium leading-tight">{profile?.name || "User"}</p>
                     <p className="text-[11px] text-muted-foreground">{getRoleLabel(role)}</p>
                   </div>
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-xs font-semibold text-primary-foreground shadow-sm">
-                    {profile?.name ? getInitials(profile.name) : "U"}
-                  </div>
+                  <AvatarBubble size="w-9 h-9" textSize="text-xs" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60 bg-popover">
                 <DropdownMenuLabel>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-sm font-semibold text-primary-foreground">
-                      {profile?.name ? getInitials(profile.name) : "U"}
-                    </div>
+                    <AvatarBubble size="w-10 h-10" textSize="text-sm" />
                     <div className="min-w-0">
                       <p className="font-medium truncate">{profile?.name}</p>
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mt-0.5">{getRoleLabel(role)}</Badge>
@@ -295,9 +289,7 @@ export function Header() {
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-xs font-semibold text-primary-foreground">
-              {profile?.name ? getInitials(profile.name) : "U"}
-            </div>
+            <AvatarBubble size="w-8 h-8" textSize="text-xs" />
           </div>
         </div>
       </header>
