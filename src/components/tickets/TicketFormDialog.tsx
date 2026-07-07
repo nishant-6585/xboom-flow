@@ -139,6 +139,18 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
       const { validateFile } = await import("@/lib/fileValidation");
       const uploadedPaths: string[] = [];
 
+      // The storage RLS policy on `ticket-attachments` requires the FIRST
+      // path segment to equal auth.uid() (matches the pattern used across
+      // the app). Without this the INSERT fails silently for every user
+      // that isn't service-role, which is why internal-staff ticket
+      // attachments never uploaded.
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id;
+      if (!uid) {
+        toast.error("Please sign in again to upload attachments");
+        return;
+      }
+
       for (const file of Array.from(files)) {
         const validation = validateFile(file, "documents");
         if (!validation.valid) {
@@ -147,7 +159,7 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
         }
 
         const safeName = file.name.replace(/\s+/g, "-");
-        const storagePath = `tickets/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+        const storagePath = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
 
         const { error } = await supabase.storage
           .from("ticket-attachments")
