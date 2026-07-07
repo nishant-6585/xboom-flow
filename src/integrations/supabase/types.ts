@@ -7508,7 +7508,9 @@ export type Database = {
           id: string
           is_current: boolean
           metadata: Json
+          method: string
           mime_type: string | null
+          provider: string | null
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -7528,7 +7530,9 @@ export type Database = {
           id?: string
           is_current?: boolean
           metadata?: Json
+          method?: string
           mime_type?: string | null
+          provider?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -7548,7 +7552,9 @@ export type Database = {
           id?: string
           is_current?: boolean
           metadata?: Json
+          method?: string
           mime_type?: string | null
+          provider?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null

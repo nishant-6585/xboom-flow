@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PortalLayout } from "@/portal/components/PortalLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,13 +6,44 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useMyKyc, kycStatusMeta } from "@/hooks/useKyc";
-import { Upload, FileText, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function PortalKyc() {
   const { account, documents, loading, submitting, submitAadhaar, getSignedUrl } = useMyKyc();
   const [aadhaar, setAadhaar] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [digilockerEnabled, setDigilockerEnabled] = useState(false);
+  const [dlStarting, setDlStarting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("feature_flags")
+        .select("enabled")
+        .eq("key", "digilocker_kyc_enabled")
+        .maybeSingle();
+      if (!cancelled) setDigilockerEnabled(!!(data as any)?.enabled);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function startDigilocker() {
+    setDlStarting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("digilocker-initiate", { body: {} });
+      if (error) throw error;
+      const url = (data as any)?.consent_url;
+      if (!url) throw new Error("No consent URL returned");
+      window.location.href = url;
+    } catch (e: any) {
+      toast.error(e.message ?? "Could not start DigiLocker verification");
+      setDlStarting(false);
+    }
+  }
 
   if (loading) {
     return <PortalLayout><div className="p-10 text-center text-muted-foreground">Loading…</div></PortalLayout>;
@@ -91,6 +122,28 @@ export default function PortalKyc() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {digilockerEnabled && (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="h-5 w-5 text-primary mt-0.5" />
+                    <div className="text-sm">
+                      <div className="font-medium">Verify instantly with DigiLocker</div>
+                      <div className="text-muted-foreground">
+                        Fetches your Aadhaar securely from the Government's DigiLocker — no upload,
+                        approved in seconds.
+                      </div>
+                    </div>
+                  </div>
+                  <Button onClick={startDigilocker} disabled={dlStarting} className="w-full sm:w-auto">
+                    {dlStarting
+                      ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecting…</>
+                      : <><ShieldCheck className="h-4 w-4 mr-2" /> Verify with DigiLocker</>}
+                  </Button>
+                  <div className="text-xs text-muted-foreground">
+                    Prefer to upload manually? Use the form below.
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="aadhaar">Aadhaar Number <span className="text-red-600">*</span></Label>
                 <Input
