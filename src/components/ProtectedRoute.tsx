@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { MFAEnrollment } from "@/components/auth/MFAEnrollment";
 import { MFAVerification } from "@/components/auth/MFAVerification";
+import { ProfilePicturePrompt } from "@/components/ProfilePicturePrompt";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -139,5 +140,10 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <ProfilePicturePrompt />
+    </>
+  );
 };

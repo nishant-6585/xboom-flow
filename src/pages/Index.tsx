@@ -21,7 +21,6 @@ import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { MonthlyPulsePopup } from "@/components/dashboard/MonthlyPulsePopup";
 import { HolidayCalendarWidget } from "@/components/dashboard/HolidayCalendarWidget";
 import { HolidayPopup } from "@/components/dashboard/HolidayPopup";
-import { ProfilePicturePrompt } from "@/components/ProfilePicturePrompt";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
 import { HRPendingApprovalsWidget } from "@/components/dashboard/HRPendingApprovalsWidget";
@@ -905,7 +904,6 @@ const Index = () => {
       <ErrorBoundary fallback={null}><NoticePopup /></ErrorBoundary>
       <ErrorBoundary fallback={null}><MonthlyPulsePopup /></ErrorBoundary>
       <ErrorBoundary fallback={null}><HolidayPopup /></ErrorBoundary>
-      <ErrorBoundary fallback={null}><ProfilePicturePrompt /></ErrorBoundary>
     </div>
   );
 };
