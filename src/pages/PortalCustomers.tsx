@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { startOfDay, endOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -198,6 +200,13 @@ export default function PortalCustomers() {
   const initNever = spGet("never") === "1";
   const initNew = spGet("new") === "1";
   const initSearch = spGet("q");
+  const parseDate = (v: string) => {
+    if (!v) return undefined;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  const initFrom = parseDate(spGet("from"));
+  const initTo = parseDate(spGet("to"));
 
   const [rows, setRows] = useState<EnrichedRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,6 +218,8 @@ export default function PortalCustomers() {
   const [repFilter, setRepFilter] = useState<RepFilter>(initRep);
   const [neverLoginOnly, setNeverLoginOnly] = useState(initNever);
   const [newThisMonthOnly, setNewThisMonthOnly] = useState(initNew);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(initFrom);
+  const [dateTo, setDateTo] = useState<Date | undefined>(initTo);
   const [page, setPage] = useState(1);
 
   // Reflect filter state back into the URL so links are shareable.
@@ -220,11 +231,13 @@ export default function PortalCustomers() {
     if (repFilter !== "all") next.set("rep", repFilter);
     if (neverLoginOnly) next.set("never", "1");
     if (newThisMonthOnly) next.set("new", "1");
+    if (dateFrom) next.set("from", dateFrom.toISOString().slice(0, 10));
+    if (dateTo) next.set("to", dateTo.toISOString().slice(0, 10));
     const q = search.trim();
     if (q) next.set("q", q);
     // Avoid noisy history entries — replace instead of push.
     setSearchParams(next, { replace: true });
-  }, [statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, search, setSearchParams]);
+  }, [statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, search, setSearchParams]);
 
   // Sorting
   type SortKey = "customer" | "account" | "kyc" | "lastLogin" | "status" | "created";
@@ -333,6 +346,14 @@ export default function PortalCustomers() {
         if (hasLogin) return false;
       }
       if (newThisMonthOnly && r.created_at < monthStart) return false;
+      if (dateFrom) {
+        const s = startOfDay(dateFrom).toISOString();
+        if (r.created_at < s) return false;
+      }
+      if (dateTo) {
+        const e = endOfDay(dateTo).toISOString();
+        if (r.created_at > e) return false;
+      }
       if (q) {
         const hay = [
           r.company_name, r.primary?.full_name, r.primary?.email,
@@ -342,7 +363,7 @@ export default function PortalCustomers() {
       }
       return true;
     });
-  }, [rows, search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, monthStart]);
+  }, [rows, search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, monthStart]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -381,7 +402,7 @@ export default function PortalCustomers() {
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, sortKey, sortDir]);
 
   // ----- stats -----
   const stats = useMemo(() => {
@@ -693,6 +714,16 @@ export default function PortalCustomers() {
           {/* Filters */}
           <Card>
             <CardContent className="p-4">
+              <div className="mb-4 pb-4 border-b">
+                <div className="text-xs font-medium text-muted-foreground mb-2">Filter by created date</div>
+                <DateRangeFilter
+                  startDate={dateFrom}
+                  endDate={dateTo}
+                  onStartDateChange={setDateFrom}
+                  onEndDateChange={setDateTo}
+                  onClear={() => { setDateFrom(undefined); setDateTo(undefined); }}
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 <div className="relative md:col-span-2">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
