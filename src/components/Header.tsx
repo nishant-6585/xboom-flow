@@ -46,6 +46,38 @@ export function Header() {
       .slice(0, 2);
   };
 
+  // Renders the user's uploaded profile photo when available, otherwise
+  // falls back to a gradient-initials bubble. Keeps sizing consistent
+  // via the `size` classes passed in.
+  const AvatarBubble = ({
+    size = "w-9 h-9",
+    textSize = "text-xs",
+  }: { size?: string; textSize?: string }) => {
+    const hasPhoto = !!profile?.avatar_url;
+    return (
+      <div
+        className={
+          size +
+          " rounded-full overflow-hidden shadow-sm flex items-center justify-center " +
+          (hasPhoto
+            ? "bg-muted"
+            : "bg-gradient-to-br from-primary to-primary-glow text-primary-foreground font-semibold " +
+              textSize)
+        }
+      >
+        {hasPhoto ? (
+          <img
+            src={profile!.avatar_url as string}
+            alt={profile?.name || "Profile"}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <span className={textSize}>{profile?.name ? getInitials(profile.name) : "U"}</span>
+        )}
+      </div>
+    );
+  };
+
   const getRoleLabel = (role: string | null) => {
     switch (role) {
       case "sales": return "Sales";
