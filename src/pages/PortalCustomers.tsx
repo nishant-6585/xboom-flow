@@ -361,9 +361,11 @@ export default function PortalCustomers() {
     const total = rows.length;
     const active = rows.filter((r) => r.status === "active").length;
     const kycPending = rows.filter((r) => r.kyc_status === "pending_verification").length;
+    const kycApproved = rows.filter((r) => r.kyc_status === "approved").length;
+    const kycNotSubmitted = rows.filter((r) => !r.kyc_status || r.kyc_status === "not_submitted").length;
     const neverLogin = rows.filter((r) => !r.contacts.some((c) => c.last_login_at && c.auth_user_id)).length;
     const newThisMonth = rows.filter((r) => r.created_at >= monthStart).length;
-    return { total, active, kycPending, neverLogin, newThisMonth };
+    return { total, active, kycPending, kycApproved, kycNotSubmitted, neverLogin, newThisMonth };
   }, [rows, monthStart]);
 
   // ----- invite -----
@@ -505,11 +507,13 @@ export default function PortalCustomers() {
     load();
   };
 
-  const applyFilterFromStat = (kind: "total" | "active" | "kyc" | "never" | "new") => {
+  const applyFilterFromStat = (kind: "total" | "active" | "kyc" | "kyc_approved" | "kyc_not_submitted" | "never" | "new") => {
     setStatusFilter("all"); setKycFilter("all"); setTypeFilter("all"); setRepFilter("all");
     setNeverLoginOnly(false); setNewThisMonthOnly(false); setSearch("");
     if (kind === "active") setStatusFilter("active");
     if (kind === "kyc") setKycFilter("pending_verification");
+    if (kind === "kyc_approved") setKycFilter("approved");
+    if (kind === "kyc_not_submitted") setKycFilter("not_submitted");
     if (kind === "never") setNeverLoginOnly(true);
     if (kind === "new") setNewThisMonthOnly(true);
   };
@@ -649,10 +653,12 @@ export default function PortalCustomers() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
             <StatCard label="Total" value={stats.total} onClick={() => applyFilterFromStat("total")} />
             <StatCard label="Active" value={stats.active} onClick={() => applyFilterFromStat("active")} />
+            <StatCard label="KYC approved" value={stats.kycApproved} tone="emerald" onClick={() => applyFilterFromStat("kyc_approved")} />
             <StatCard label="KYC pending" value={stats.kycPending} tone="amber" onClick={() => applyFilterFromStat("kyc")} />
+            <StatCard label="KYC not submitted" value={stats.kycNotSubmitted} tone="amber" onClick={() => applyFilterFromStat("kyc_not_submitted")} />
             <StatCard label="Never logged in" value={stats.neverLogin} tone="amber" onClick={() => applyFilterFromStat("never")} />
             <StatCard label="New this month" value={stats.newThisMonth} tone="emerald" onClick={() => applyFilterFromStat("new")} />
           </div>
