@@ -120,6 +120,29 @@ serve(async (req) => {
     // Fix #1: Uses IST now — no more UTC mismatch
     // Fix #3: If HR manually added check_in_time, query excludes that employee automatically
     if (currentHourIST > lateAfterHour) {
+      // Exclusion #1: skip on weekends (Sat/Sun per project working-days policy).
+      // Compute the IST day-of-week (0=Sun..6=Sat).
+      const nowIstMs = Date.now() + IST_OFFSET_HOURS * 60 * 60 * 1000;
+      const istDow = new Date(nowIstMs).getUTCDay();
+      if (istDow === 0 || istDow === 6) {
+        log.push(`[late_nudge] skipped — weekend (IST dow=${istDow})`);
+        await writeHealthLog(supabase, { lateNudgesSent, breakNudgesSent, employeesChecked, log });
+        return jsonResponse({ ok: true, lateNudgesSent, breakNudgesSent, employeesChecked, log });
+      }
+
+      // Exclusion #2: skip on public holidays.
+      const { data: holidayRow } = await supabase
+        .from("holidays")
+        .select("id, name")
+        .eq("holiday_date", today)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (holidayRow) {
+        log.push(`[late_nudge] skipped — public holiday (${holidayRow.name})`);
+        await writeHealthLog(supabase, { lateNudgesSent, breakNudgesSent, employeesChecked, log });
+        return jsonResponse({ ok: true, lateNudgesSent, breakNudgesSent, employeesChecked, log });
+      }
+
       const { data: allActiveEmployees } = await supabase
         .from("employees")
         .select("id, user_id, name")
@@ -150,14 +173,29 @@ serve(async (req) => {
         (existingLateNudges ?? []).map((n) => n.user_id)
       );
 
+      // Exclusion #3: skip employees on approved leave today
+      // (covers full-day, half-day, WFH, comp-off — any approved leave_request
+      // covering today means the employee isn't expected to check in normally).
+      const { data: onLeaveRows } = await supabase
+        .from("leave_requests")
+        .select("employee_id")
+        .eq("status", "approved")
+        .lte("start_date", today)
+        .gte("end_date", today);
+
+      const onLeaveEmployeeIds = new Set(
+        (onLeaveRows ?? []).map((r) => r.employee_id)
+      );
+
       const toNudge = (allActiveEmployees ?? []).filter(
         (e) =>
           e.user_id &&
           !checkedInEmployeeIds.has(e.id) &&
+          !onLeaveEmployeeIds.has(e.id) &&
           !nudgedUserIds.has(e.user_id)
       );
 
-      log.push(`[late_nudge] ${toNudge.length} employees to nudge (${checkedInEmployeeIds.size} already checked in, ${nudgedUserIds.size} already nudged)`);
+      log.push(`[late_nudge] ${toNudge.length} employees to nudge (${checkedInEmployeeIds.size} checked in, ${onLeaveEmployeeIds.size} on approved leave, ${nudgedUserIds.size} already nudged)`);
 
       for (const employee of toNudge) {
         const { error: notifErr } = await supabase.from("notifications").insert({
