@@ -9,7 +9,7 @@
 //                      rejects current KYC submission and emails the customer.
 //
 // Stays on the same Resend-based email pattern as portal-invite-customer.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import {
   EMAIL_RE,
   isDuplicate,
@@ -227,10 +227,12 @@ Deno.serve(async (req) => {
     }
     if (body.action === "order_kyc_status") {
       if (!callerId) return json({ error: "Not authenticated" }, 401);
+      // Read-only status probe used by the KYC badge on every order row.
+      // Any authenticated internal staff role may read it — b2b_customer
+      // is the only role excluded so portal users don't probe arbitrary
+      // order IDs.
       const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", callerId);
-      const allowed = (roles || []).some((r: any) =>
-        ["admin", "sales", "sales_manager"].includes(r.role),
-      );
+      const allowed = (roles || []).some((r: any) => r.role !== "b2b_customer");
       if (!allowed) return json({ error: "Forbidden" }, 403);
       return await orderKycStatus(admin, body.order_id!);
     }
