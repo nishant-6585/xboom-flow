@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing } from 'lucide-react';
+import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing, ShoppingCart } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays, subDays, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subYears } from 'date-fns';
 import { CallButton } from '@/components/calls/CallButton';
@@ -623,7 +623,23 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                                   <span className="text-xs font-bold">OW</span>
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Mark as Order Won</TooltipContent>
+                              <TooltipContent>Convert to Order (mark Order Won)</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {order.status !== 'won' && order.status !== 'lost' && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10"
+                                  onClick={() => setOrderWonDialog(order)}
+                                  title="Convert this lead to an order"
+                                >
+                                  <ShoppingCart className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Convert to Order — opens the full order form with this lead's details prefilled (customer, product, salesperson).</TooltipContent>
                             </Tooltip>
                           )}
                           {order.status !== 'lost' && (

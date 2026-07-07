@@ -127,6 +127,10 @@ export interface OrderFormData {
   payment_terms?: string;
   payment_status?: PaymentStatus;
   payment_due_date?: string;
+  /** Optional payment mode captured at order creation time. When set together with
+   *  amount_paid > 0, we mirror it onto the auto-created initial payment_records
+   *  row so Finance can see how the first receipt came in (cash, UPI, NEFT, …). */
+  payment_mode?: string;
   tracking_number?: string;
   tracking_url?: string;
   courier_name?: string;
@@ -615,11 +619,19 @@ export function useOrders() {
         }
       }
 
-      // If payment files are provided, upload them and create payment records
-      if (paymentFiles && paymentFiles.length > 0 && orderData && formData.amount_paid && formData.amount_paid > 0) {
+      // If payment info was captured at creation time (either screenshots or a
+      // cash mode with no proof), upload / create the initial payment_records row.
+      const hasPaymentFiles = !!(paymentFiles && paymentFiles.length > 0);
+      const isCashMode = formData.payment_mode === 'cash';
+      const shouldCreatePaymentRecord =
+        orderData
+        && formData.amount_paid
+        && formData.amount_paid > 0
+        && (hasPaymentFiles || isCashMode);
+      if (shouldCreatePaymentRecord) {
         try {
           const uploadedPaymentUrls: string[] = [];
-          for (const paymentFile of paymentFiles) {
+          for (const paymentFile of (paymentFiles ?? [])) {
             const payValidation = validateFile(paymentFile, 'screenshots');
             if (!payValidation.valid) { console.error('Skipping invalid payment file:', payValidation.error); continue; }
             const fileExt = paymentFile.name.split('.').pop();
@@ -637,16 +649,19 @@ export function useOrders() {
             }
           }
 
-          if (uploadedPaymentUrls.length > 0) {
-            // Store all URLs as comma-separated string
-            const screenshotUrlsString = uploadedPaymentUrls.join(',');
-
+          const screenshotUrlsString =
+            uploadedPaymentUrls.length > 0 ? uploadedPaymentUrls.join(',') : null;
+          // Only insert if we have proof OR the mode is cash (proof-optional).
+          if (uploadedPaymentUrls.length > 0 || isCashMode) {
             await supabase.from('payment_records').insert({
               order_id: orderData.id,
               amount: formData.amount_paid,
               screenshot_url: screenshotUrlsString,
               submitted_by: user.id,
-              notes: 'Submitted with order creation',
+              payment_mode: formData.payment_mode || null,
+              notes: isCashMode && !hasPaymentFiles
+                ? 'Cash receipt captured at order creation'
+                : 'Submitted with order creation',
             });
           }
         } catch (uploadErr) {

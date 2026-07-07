@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail, Globe, RefreshCw } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail, Globe, RefreshCw, Plus } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { LeadSourceBadge } from '@/components/LeadSourceBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -129,6 +129,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [editingTracking, setEditingTracking] = useState(false);
   const [editingOrderItems, setEditingOrderItems] = useState(false);
   const [editedOrderItems, setEditedOrderItems] = useState<Record<string, any>>({});
+  // Line items added during the current edit session (not yet persisted).
+  // Each has a stable client-side id prefixed with `new-` so React keys are stable
+  // and we can distinguish them from persisted rows in commitOrderItemEdits.
+  const [newOrderItems, setNewOrderItems] = useState<Array<{
+    id: string;
+    product_name: string;
+    product_category: string;
+    quantity: number;
+    unit_price: string;
+    status: string;
+    notes: string;
+    procurement_rate: string;
+    supplier_id: string;
+  }>>([]);
+  // Line items removed during the current edit session — deleted on save.
+  const [deletedOrderItemIds, setDeletedOrderItemIds] = useState<Set<string>>(new Set());
   const [productNameReasonOpen, setProductNameReasonOpen] = useState(false);
   const [productNameReason, setProductNameReason] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
@@ -1016,11 +1032,91 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         await onUpdate(order.id, { product_name: nameChangedToHeader } as Partial<Order>);
       }
 
-      toast.success('Order items updated');
+      // ---- Handle removed line items ----
+      if (order && deletedOrderItemIds.size > 0) {
+        for (const removedId of deletedOrderItemIds) {
+          const removed = orderItems.find(i => i.id === removedId);
+          const { error: delErr } = await supabase.from('order_items').delete().eq('id', removedId);
+          if (delErr) throw delErr;
+          if (removed && user && profile) {
+            await recordChanges('orders', order.id, {
+              [`order_item.removed (${removed.product_name})`]: {
+                old: { qty: removed.quantity, unit_price: removed.unit_price },
+                new: null,
+              },
+            }, profile.name || 'Unknown');
+          }
+        }
+      }
+
+      // ---- Insert newly-added line items ----
+      if (order && newOrderItems.length > 0) {
+        const validNew = newOrderItems.filter(n => n.product_name.trim().length > 0);
+        if (validNew.length !== newOrderItems.length) {
+          toast.error('Every new line item needs a product name.');
+          setLoading(false);
+          return;
+        }
+        if (validNew.length > 0) {
+          const inserts = validNew.map(n => ({
+            order_id: order.id,
+            product_name: n.product_name,
+            product_category: n.product_category || 'Consumer Drones',
+            quantity: Number(n.quantity) || 1,
+            unit_price: n.unit_price ? Number(n.unit_price) : null,
+            procurement_rate: canSeeProcurement && n.procurement_rate ? Number(n.procurement_rate) : null,
+            status: n.status || 'draft',
+            notes: n.notes || null,
+            supplier_id: n.supplier_id || null,
+          }));
+          const { error: insErr } = await supabase.from('order_items').insert(inserts);
+          if (insErr) throw insErr;
+          if (user && profile) {
+            const changesRecord: Record<string, { old: any; new: any }> = {};
+            validNew.forEach(n => {
+              changesRecord[`order_item.added (${n.product_name})`] = {
+                old: null,
+                new: { qty: n.quantity, unit_price: n.unit_price },
+              };
+            });
+            await recordChanges('orders', order.id, changesRecord, profile.name || 'Unknown');
+          }
+        }
+      }
+
+      // ---- Refresh items and recompute order.total_sales_amount ----
       if (order) {
         const refreshedItems = await fetchOrderItems(order.id);
         setOrderItems(refreshedItems);
+
+        const itemsSubtotal = refreshedItems.reduce(
+          (sum, it) => sum + (Number(it.unit_price) || 0) * (Number(it.quantity) || 0),
+          0,
+        );
+        const discount = Number((order as any).discount_amount) || 0;
+        const delivery = Number((order as any).delivery_charges) || 0;
+        const nextTotal = Math.max(0, itemsSubtotal - discount + delivery);
+        const oldTotal = Number((order as any).total_sales_amount) || 0;
+        if (Math.abs(nextTotal - oldTotal) > 0.005) {
+          // The DB guard (guard_orders_sensitive_updates) permits non-privileged
+          // roles to change total_sales_amount ONLY when the new value equals the
+          // recomputed sum of items minus discount plus delivery. Since we compute
+          // it exactly that way here, the write will succeed for sales reps too.
+          const { error: totalErr } = await supabase
+            .from('orders')
+            .update({ total_sales_amount: nextTotal })
+            .eq('id', order.id);
+          if (totalErr) throw totalErr;
+          if (user && profile) {
+            await recordChanges('orders', order.id, {
+              total_sales_amount: { old: oldTotal, new: nextTotal },
+            }, profile.name || 'Unknown');
+          }
+          await onUpdate(order.id, { total_sales_amount: nextTotal } as Partial<Order>);
+        }
       }
+
+      toast.success('Order items updated');
     } catch (error: any) {
       console.error('Error updating order items:', error);
       const msg = String(error?.message || 'Failed to update order items');
@@ -1033,6 +1129,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setLoading(false);
       setEditingOrderItems(false);
       setEditedOrderItems({});
+      setNewOrderItems([]);
+      setDeletedOrderItemIds(new Set());
       setProductNameReasonOpen(false);
       setProductNameReason('');
     }
@@ -1808,6 +1906,29 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   {editingOrderItems && (
                     <div className="flex items-center gap-2">
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newId = `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                          setNewOrderItems(prev => [...prev, {
+                            id: newId,
+                            product_name: '',
+                            product_category: 'Consumer Drones',
+                            quantity: 1,
+                            unit_price: '',
+                            status: 'draft',
+                            notes: '',
+                            procurement_rate: '',
+                            supplier_id: '',
+                          }]);
+                        }}
+                        className="h-8 gap-1"
+                        disabled={loading}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Line
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
@@ -1835,6 +1956,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         onClick={() => {
                           setEditingOrderItems(false);
                           setEditedOrderItems({});
+                          setNewOrderItems([]);
+                          setDeletedOrderItemIds(new Set());
                         }}
                         className="h-8 gap-1"
                       >
@@ -1854,10 +1977,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <TableHead className="text-right">Unit Price</TableHead>
                       {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
                       <TableHead className="text-right">Total</TableHead>
+                      {editingOrderItems && <TableHead className="w-10" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orderItems.map((item) => (
+                    {orderItems.filter(i => !deletedOrderItemIds.has(i.id)).map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>
                           {editingOrderItems ? (
@@ -2022,6 +2146,134 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                           ) : (
                             item.unit_price ? `₹${(item.unit_price * item.quantity).toLocaleString('en-IN')}` : '-'
                           )}
+                        </TableCell>
+                        {editingOrderItems && (
+                          <TableCell className="w-10">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeletedOrderItemIds(prev => {
+                                const next = new Set(prev);
+                                next.add(item.id);
+                                return next;
+                              })}
+                              disabled={loading}
+                              title="Remove this line item"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                    {editingOrderItems && newOrderItems.map((item, idx) => (
+                      <TableRow key={item.id} className="bg-primary/5">
+                        <TableCell>
+                          <div className="space-y-1">
+                            <ProductSelect
+                              value={item.product_name}
+                              onChange={(name, product?: PricelistItem) => {
+                                setNewOrderItems(prev => prev.map((p, i) => i === idx ? {
+                                  ...p,
+                                  product_name: name,
+                                  ...(product ? {
+                                    unit_price: String(product.dealer_price || product.website_price || p.unit_price || ''),
+                                    product_category: product.product_category || p.product_category,
+                                  } : {}),
+                                } : p));
+                              }}
+                              placeholder="Select or type product..."
+                              className="h-8 text-sm"
+                            />
+                            <Input
+                              value={item.notes}
+                              onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, notes: e.target.value } : p))}
+                              className="h-7 text-xs"
+                              placeholder="Notes (optional)"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.status}
+                            onValueChange={(v) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, status: v } : p))}
+                          >
+                            <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {ORDER_ITEM_STATUSES.map(s => (
+                                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.supplier_id || 'none'}
+                            onValueChange={(v) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, supplier_id: v === 'none' ? '' : v } : p))}
+                          >
+                            <SelectTrigger className="h-8 w-[160px] text-sm"><SelectValue placeholder="Select supplier" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Supplier</SelectItem>
+                              {suppliers.map(s => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.name} {s.brand_name ? `(${s.brand_name})` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, Number(e.target.value) || 1) } : p))}
+                            className="h-8 w-20 text-right text-sm"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={item.unit_price}
+                            onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_price: e.target.value } : p))}
+                            className="h-8 w-24 text-right text-sm"
+                            placeholder="₹0"
+                          />
+                        </TableCell>
+                        {canSeeProcurement && (
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={item.procurement_rate}
+                              onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, procurement_rate: e.target.value } : p))}
+                              className="h-8 w-24 text-right text-sm"
+                              placeholder="₹0"
+                            />
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right font-medium">
+                          <span className="text-sm">
+                            {item.unit_price && item.quantity
+                              ? `₹${(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}`
+                              : '-'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="w-10">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setNewOrderItems(prev => prev.filter((_, i) => i !== idx))}
+                            disabled={loading}
+                            title="Discard this new line"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

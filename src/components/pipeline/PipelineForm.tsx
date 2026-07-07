@@ -142,7 +142,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plus className="h-5 w-5" />
-          Add Pipeline Order
+          Add Pipeline Lead
         </CardTitle>
       </CardHeader>
       <CardContent>

@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource, Order } from '@/hooks/useOrders';
+import { PAYMENT_MODES, isScreenshotRequired, getScreenshotHint, type PaymentMode } from '@/lib/paymentModes';
 import { Loader2, Package, ImageIcon, X, Upload, FileText, Plus, Users, CreditCard, Truck, MessageSquare, Check, ChevronRight, ChevronLeft, ShoppingCart } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
@@ -179,6 +180,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     payment_terms: '',
     payment_status: 'pending',
     payment_due_date: '',
+    payment_mode: undefined,
     tracking_number: '',
     tracking_url: '',
     courier_name: '',
@@ -370,6 +372,18 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return;
     }
 
+    // Payment-mode gating: modes like UPI / NEFT / cheque MUST come with proof
+    // when an initial payment is captured. Cash is proof-optional. Leaving the
+    // mode blank is allowed (order can be created before any payment exists).
+    const amtPaid = formData.amount_paid ?? 0;
+    if (amtPaid > 0 && formData.payment_mode) {
+      const needsProof = isScreenshotRequired(formData.payment_mode as PaymentMode);
+      if (needsProof && paymentFiles.length === 0) {
+        toast.error(`Payment screenshot is required for ${formData.payment_mode.toUpperCase()}. Cash payments don't need one.`);
+        return;
+      }
+    }
+
     const firstItem = validItems[0];
     const updatedFormData = {
       ...formData,
@@ -414,6 +428,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         payment_terms: '',
         payment_status: 'pending',
         payment_due_date: '',
+        payment_mode: undefined,
         tracking_number: '',
         tracking_url: '',
         courier_name: '',
@@ -882,6 +897,38 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+
+                  {/* Payment Mode — optional at creation. Feeds the initial
+                      payment_records row so Finance can see how the first
+                      receipt came in. Cash needs no screenshot; digital modes
+                      still require proof (enforced on submit). */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Payment Mode (optional)</Label>
+                      <Select
+                        value={formData.payment_mode ?? 'none'}
+                        onValueChange={v => setFormData(prev => ({
+                          ...prev,
+                          payment_mode: v === 'none' ? undefined : (v as PaymentMode),
+                        }))}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Not captured yet" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Not captured yet</SelectItem>
+                          {PAYMENT_MODES.map(m => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {formData.payment_mode && (
+                        <p className="text-xs text-muted-foreground">
+                          {getScreenshotHint(formData.payment_mode as PaymentMode)}
+                        </p>
+                      )}
                     </div>
                   </div>
 
