@@ -371,6 +371,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     }
   }, [order?.id, fetchOrderItems]);
 
+  // Live payment records for this order — MUST be called before any early
+  // return to keep hook order stable across renders.
+  const { records: livePaymentRecords } = usePaymentRecords(order?.id);
+
   if (!order) return null;
 
   // Calculate profit (only visible to admin)
@@ -378,10 +382,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     ? (order.selling_price - order.procurement_rate) * order.quantity
     : null;
 
-  // Live payment records for this order — drives the "Paid" and balance
-  // display so approval decisions reflect instantly without waiting for the
-  // parent orders query to refetch.
-  const { records: livePaymentRecords } = usePaymentRecords(order.id);
   const livePaidAmount = livePaymentRecords
     .filter((r) => r.status === 'approved')
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
