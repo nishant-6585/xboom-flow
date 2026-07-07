@@ -641,10 +641,23 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={triggerSync} disabled={syncing}>
-              <Download className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Syncing..." : "Backfill Now"}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={triggerSync} disabled={syncing}>
+                  <Download className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
+                  {syncing
+                    ? "Syncing..."
+                    : dateRange?.start
+                      ? "Backfill selected range"
+                      : "Backfill Now"}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {dateRange?.start
+                  ? "Fetches MyOperator logs for the currently filtered date range"
+                  : "Fetches the last 6 hours. Pick a date range above to backfill older days."}
+              </TooltipContent>
+            </Tooltip>
             <Button variant={autoRefresh ? "default" : "outline"} size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
               {autoRefresh ? "Auto-Refresh ON" : "Auto-Refresh OFF"}
             </Button>
