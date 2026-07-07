@@ -13,6 +13,7 @@ import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, Or
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
+import { usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { DeliveryProofCard } from '@/components/orders/DeliveryProofCard';
@@ -377,8 +378,16 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     ? (order.selling_price - order.procurement_rate) * order.quantity
     : null;
 
+  // Live payment records for this order — drives the "Paid" and balance
+  // display so approval decisions reflect instantly without waiting for the
+  // parent orders query to refetch.
+  const { records: livePaymentRecords } = usePaymentRecords(order.id);
+  const livePaidAmount = livePaymentRecords
+    .filter((r) => r.status === 'approved')
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const effectivePaid = Math.max(livePaidAmount, order.amount_paid || 0);
   const balanceAmount = order.total_sales_amount != null
-    ? (order.total_sales_amount || 0) - (order.amount_paid || 0)
+    ? (order.total_sales_amount || 0) - effectivePaid
     : null;
 
   const handleInvoiceUpload = async (file: File) => {
@@ -2168,7 +2177,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   })()}
                   <div>
                     <span className="text-muted-foreground">Paid:</span>
-                    <p className="font-medium text-green-600">₹{(parseFloat(amountPaid) || order.amount_paid || 0).toLocaleString('en-IN')}</p>
+                    <p className="font-medium text-green-600">₹{(parseFloat(amountPaid) || effectivePaid || 0).toLocaleString('en-IN')}</p>
                   </div>
                   {balanceAmount !== null && balanceAmount > 0 && (
                     <div>
