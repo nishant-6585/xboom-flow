@@ -267,6 +267,7 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
         order_id: orderId,
         override_email: customerEmail || undefined,
         force: true,
+        interactive: true,
       },
     });
     setSending(false);

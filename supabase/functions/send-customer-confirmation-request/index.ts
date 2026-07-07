@@ -141,6 +141,10 @@ serve(async (req) => {
             link,
           },
           idempotencyKey,
+          // Human-triggered from the order UI (Send/Resend). Nudge the queue
+          // worker so the row flips to `sent` within seconds instead of
+          // waiting on the next cron tick. Retries/dedup/logging unchanged.
+          interactive: true,
         });
         const ok = resp.ok;
         result.email = ok ? "sent" : `failed:${resp.status}`;

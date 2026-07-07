@@ -413,6 +413,26 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     if (wooStatus !== "pending") {
       await notifySlackWebsiteOrder(orderRow, orderId);
     }
+    // Fire-and-forget: auto-invite for drone orders coming in from the website.
+    // This mirrors the manual create path in useOrders.ts and delegates every
+    // gate (feature flag, drone-only via order_has_drone, cancelled-order skip,
+    // send-once idempotency in kyc_email_log) to kyc-handler itself. We DO NOT
+    // await the response — the Woo webhook must ack fast, and kyc-handler
+    // logs its own outcome.
+    if (wooStatus !== "cancelled" && orderRow.customer_email) {
+      try {
+        // deno-lint-ignore no-explicit-any
+        (supabase as any).functions
+          .invoke("kyc-handler", {
+            body: { action: "onboard_order", order_id: internalId },
+          })
+          .catch((e: unknown) => {
+            console.error("[woo-mirror] kyc onboard invoke failed:", e);
+          });
+      } catch (e) {
+        console.error("[woo-mirror] kyc onboard invoke threw:", e);
+      }
+    }
   }
 
   if (internalId) {

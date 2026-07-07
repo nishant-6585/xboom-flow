@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
   let idempotencyKey: string
   let messageId: string
   let templateData: Record<string, any> = {}
+  let interactive = false
   try {
     const body = await req.json()
     templateName = body.templateName || body.template_name
@@ -115,6 +116,14 @@ Deno.serve(async (req) => {
     if (body.templateData && typeof body.templateData === 'object') {
       templateData = body.templateData
     }
+    // Interactive sends (a human just clicked "Send" — KYC invite, resend,
+    // invoice email, confirmation request) opt in with `interactive: true`
+    // so we can kick the dispatcher immediately after enqueue instead of
+    // waiting for the next cron tick. Retries/dedup/logging all still flow
+    // through the queue exactly as before; this only removes the ~30-60s
+    // "queued" gap the user sees. Cron remains the safety net for every
+    // other send.
+    interactive = body.interactive === true
   } catch {
     return new Response(
       JSON.stringify({ error: 'Invalid JSON in request body' }),
@@ -413,6 +422,26 @@ Deno.serve(async (req) => {
   }
 
   console.log('Transactional email enqueued', { templateName, effectiveRecipient })
+
+  // Instant-dispatch nudge for interactive sends. Fire-and-forget: we do
+  // NOT await, we do NOT surface errors to the caller — the cron worker
+  // will pick the message up on its next tick if this fails for any reason.
+  if (interactive) {
+    try {
+      fetch(`${supabaseUrl}/functions/v1/process-email-queue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({ trigger: 'interactive', message_id: messageId }),
+      }).catch((e) => {
+        console.warn('[send-transactional-email] instant-dispatch nudge failed', e)
+      })
+    } catch (e) {
+      console.warn('[send-transactional-email] instant-dispatch nudge threw', e)
+    }
+  }
 
   return new Response(
     JSON.stringify({ success: true, queued: true }),
