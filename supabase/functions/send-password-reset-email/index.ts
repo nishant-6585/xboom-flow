@@ -10,7 +10,7 @@ interface Body {
   email: string;
   name?: string;
 }
-const FROM = "XBOOM HR <hr@xboom.in>";
+const FROM = "Xboom <no-reply@xboomflow.com>";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

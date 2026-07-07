@@ -264,7 +264,7 @@ const Admin = () => {
       });
       if (error) throw new Error(data?.error || error.message || "Failed to send invite email");
       if (data?.error) throw new Error(data.error);
-      toast({ title: "Invite email sent", description: `Sent to ${email} from hr@xboom.in` });
+      toast({ title: "Invite email sent", description: `Sent to ${email} from no-reply@xboomflow.com` });
       fetchInviteEmailLog();
     } catch (err: any) {
       toast({ title: "Failed to send invite email", description: err?.message || "Unknown error", variant: "destructive" });
@@ -296,7 +296,7 @@ const Admin = () => {
       });
       if (error) throw new Error((data as any)?.error || error.message || "Failed to resend");
       if (data && (data as any).error) throw new Error((data as any).error);
-      toast({ title: "Password reset email sent", description: `Resent to ${email} from hr@xboom.in` });
+      toast({ title: "Password reset email sent", description: `Resent to ${email} from no-reply@xboomflow.com` });
       fetchResetEmailLog();
     } catch (err: any) {
       toast({ title: "Failed to resend", description: err?.message || "Unknown error", variant: "destructive" });
@@ -528,7 +528,7 @@ const Admin = () => {
 
       toast({
         title: "Password Reset Email Sent",
-        description: `Branded reset link sent to ${email} from hr@xboom.in`,
+        description: `Branded reset link sent to ${email} from no-reply@xboomflow.com`,
       });
       fetchResetEmailLog();
     } catch (error: any) {
@@ -951,7 +951,7 @@ const Admin = () => {
                             variant="outline"
                             disabled={resendEmailLoading === invitation.id}
                             onClick={() => handleResendInviteEmail(invitation.id, invitation.email)}
-                            title="Send branded invite email from hr@xboom.in"
+                            title="Send branded invite email from no-reply@xboomflow.com"
                           >
                             {resendEmailLoading === invitation.id
                               ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1003,7 +1003,7 @@ const Admin = () => {
                   <Mail className="w-5 h-5" /> Invite Email Log
                 </CardTitle>
                 <CardDescription>
-                  Branded password-reset / invite emails sent from <strong>hr@xboom.in</strong> via Resend.
+                  Branded password-reset / invite emails sent from <strong>no-reply@xboomflow.com</strong>.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1064,7 +1064,7 @@ const Admin = () => {
                   <KeyRound className="w-5 h-5" /> Password Reset Email Log
                 </CardTitle>
                 <CardDescription>
-                  Reset emails sent from <strong>hr@xboom.in</strong> via Resend. Retry failed sends here.
+                  Reset emails sent from <strong>no-reply@xboomflow.com</strong>. Retry failed sends here.
                 </CardDescription>
               </CardHeader>
               <CardContent>

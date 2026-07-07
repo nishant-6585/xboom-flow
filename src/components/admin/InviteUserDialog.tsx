@@ -164,8 +164,8 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
             setAutoSendResult({ ok: false, message: msg });
             toast({ title: "Invite email failed", description: msg, variant: "destructive" });
           } else {
-            setAutoSendResult({ ok: true, message: `Sent to ${formData.email} from hr@xboom.in` });
-            toast({ title: "Invite email sent", description: `Sent to ${formData.email} from hr@xboom.in` });
+            setAutoSendResult({ ok: true, message: `Sent to ${formData.email} from no-reply@xboomflow.com` });
+            toast({ title: "Invite email sent", description: `Sent to ${formData.email} from no-reply@xboomflow.com` });
           }
         } catch (e: any) {
           setAutoSendResult({ ok: false, message: e?.message || "Failed to send invite email" });
@@ -349,7 +349,7 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                       Automatically send branded invite email
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Sends a set-password link from <strong>hr@xboom.in</strong> via Resend.
+                      Sends a set-password link from <strong>no-reply@xboomflow.com</strong>.
                     </p>
                   </div>
                 </div>
