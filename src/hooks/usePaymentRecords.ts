@@ -43,6 +43,7 @@ const extractStoragePath = (url: string): string => {
 export function usePaymentRecords(orderId?: string) {
   const [records, setRecords] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -76,7 +77,10 @@ export function usePaymentRecords(orderId?: string) {
     }
 
     try {
-      setLoading(true);
+      // Silent-update: only show the loader on the very first fetch.
+      // Subsequent refetches (post-submit, realtime, cross-tab events)
+      // keep the current list rendered to avoid flicker.
+      setLoading((prev) => (hasFetchedOnce ? false : true));
       let query = supabase
         .from('payment_records')
         .select('*')
@@ -135,17 +139,52 @@ export function usePaymentRecords(orderId?: string) {
         })
       );
 
-      setRecords(recordsWithSignedUrls);
+      setRecords((prev) => {
+        // Equality-check to avoid unnecessary re-renders when nothing changed.
+        if (prev.length === recordsWithSignedUrls.length) {
+          const same = prev.every((p, i) => {
+            const n = recordsWithSignedUrls[i];
+            return (
+              p.id === n.id &&
+              p.status === n.status &&
+              p.amount === n.amount &&
+              p.reviewed_at === n.reviewed_at &&
+              p.rejection_reason === n.rejection_reason &&
+              p.screenshot_url === n.screenshot_url
+            );
+          });
+          if (same) return prev;
+        }
+        return recordsWithSignedUrls;
+      });
     } catch (error: any) {
       console.error('Error fetching payment records:', error);
     } finally {
       setLoading(false);
+      setHasFetchedOnce(true);
     }
-  }, [user, orderId]);
+  }, [user, orderId, hasFetchedOnce]);
 
   useEffect(() => {
     fetchRecords();
   }, [fetchRecords]);
+
+  // Cross-instance broadcast: every hook instance for the same orderId
+  // (e.g. PaymentUploadDialog and PaymentRecordsList) refetches immediately
+  // when a submit/approve/reject/delete happens anywhere in the page, without
+  // waiting for the realtime round-trip.
+  useEffect(() => {
+    if (!user) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ orderId?: string }>).detail;
+      if (!detail) return;
+      if (!orderId || !detail.orderId || detail.orderId === orderId) {
+        fetchRecords();
+      }
+    };
+    window.addEventListener('payment_records:changed', handler);
+    return () => window.removeEventListener('payment_records:changed', handler);
+  }, [user, orderId, fetchRecords]);
 
   // Realtime: any payment_records change anywhere (this order or others)
   // refreshes the local list AND invalidates downstream caches.
