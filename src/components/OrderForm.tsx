@@ -899,6 +899,38 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                     </div>
                   </div>
 
+                  {/* Payment Mode — optional at creation. Feeds the initial
+                      payment_records row so Finance can see how the first
+                      receipt came in. Cash needs no screenshot; digital modes
+                      still require proof (enforced on submit). */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Payment Mode (optional)</Label>
+                      <Select
+                        value={formData.payment_mode ?? 'none'}
+                        onValueChange={v => setFormData(prev => ({
+                          ...prev,
+                          payment_mode: v === 'none' ? undefined : (v as PaymentMode),
+                        }))}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Not captured yet" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Not captured yet</SelectItem>
+                          {PAYMENT_MODES.map(m => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {formData.payment_mode && (
+                        <p className="text-xs text-muted-foreground">
+                          {getScreenshotHint(formData.payment_mode as PaymentMode)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>Total Amount (₹)</Label>
