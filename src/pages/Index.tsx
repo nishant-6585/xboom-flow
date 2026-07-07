@@ -25,6 +25,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
 import { HRPendingApprovalsWidget } from "@/components/dashboard/HRPendingApprovalsWidget";
 import { OnLeaveTodayWidget } from "@/components/dashboard/OnLeaveTodayWidget";
+import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
 import {
   useEnquiries,
   Enquiry,
@@ -423,6 +424,9 @@ const Index = () => {
                   </div>
                   <div>
                     <DashboardNoticesWidget />
+                    <div className="mt-4">
+                      <BirthdayCard />
+                    </div>
                     <div className="mt-4">
                       <OnLeaveTodayWidget />
                     </div>
