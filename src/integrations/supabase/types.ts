@@ -16944,6 +16944,17 @@ export type Database = {
       }
       get_compoff_balance: { Args: { _employee_id: string }; Returns: number }
       get_cron_secret: { Args: never; Returns: string }
+      get_current_month_birthdays: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          birth_day: number
+          birth_month: number
+          department: string
+          employee_id: string
+          name: string
+        }[]
+      }
       get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
       get_employee_kpi: {
         Args: { p_employee_id: string; p_month?: string }
