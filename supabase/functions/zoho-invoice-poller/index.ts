@@ -280,6 +280,7 @@ Deno.serve(async (req) => {
     // Steady-state deltas rarely exceed this; leftovers pick up next tick.
     const ENRICH_CAP = 50;
     let enriched = 0;
+    let capHit = false;
 
     for (const inv of collected) {
       const advanceCursor = () => {
@@ -291,6 +292,7 @@ Deno.serve(async (req) => {
         if (enriched >= ENRICH_CAP) {
           // Enrichment budget spent. Leftover invoices resume next tick.
           stats.errors.push(`enrichment_cap_hit at ${enriched}/${collected.length}`);
+          capHit = true;
           break;
         }
 
@@ -541,6 +543,27 @@ Deno.serve(async (req) => {
         .not("linked_order_id", "is", null)
         .neq("status", "void");
       (stats as any).backfill_remaining = remaining ?? 0;
+    } else {
+      capHit = true;
+    }
+
+    // Cursor advance policy:
+    //   - Mirror rows for the ENTIRE fetched window are already bulk-upserted
+    //     and matched via match_zoho_invoices_to_orders() above, so a tick that
+    //     completes without hitting the enrichment cap has fully handled the
+    //     window even if some invoices got a `continue` in the per-invoice
+    //     loop (PDF fetch flake, transient upload error, unmatched).
+    //     Advance the cursor to the max last_modified_time of the batch so we
+    //     don't re-scan the same window every tick.
+    //   - If the enrichment cap DID truncate the loop, leave maxSeen at the
+    //     last fully-handled invoice (per-invoice advanceCursor()) so leftover
+    //     PDF/attach work resumes cleanly next tick.
+    if (!capHit && collected.length > 0) {
+      for (const inv of collected) {
+        if (inv.last_modified_time && inv.last_modified_time > maxSeen) {
+          maxSeen = inv.last_modified_time;
+        }
+      }
     }
 
     // Advance cursor on success
