@@ -650,7 +650,20 @@ export function useOrders() {
               amount: formData.amount_paid,
               screenshot_url: screenshotUrlsString,
               submitted_by: user.id,
+              payment_mode: formData.payment_mode || null,
               notes: 'Submitted with order creation',
+            });
+          }
+          // If the user picked CASH (no screenshot required) and skipped uploads,
+          // still write a payment_records row so the mode is captured for Finance.
+          if (uploadedPaymentUrls.length === 0 && formData.payment_mode === 'cash') {
+            await supabase.from('payment_records').insert({
+              order_id: orderData.id,
+              amount: formData.amount_paid,
+              screenshot_url: null,
+              submitted_by: user.id,
+              payment_mode: 'cash',
+              notes: 'Cash receipt captured at order creation',
             });
           }
         } catch (uploadErr) {
