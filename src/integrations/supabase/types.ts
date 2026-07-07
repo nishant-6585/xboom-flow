@@ -11597,6 +11597,7 @@ export type Database = {
           id: string
           is_approved: boolean
           name: string
+          profile_pic_prompt_dismissed_at: string | null
           reporting_manager_id: string | null
           slack_user_id: string | null
           updated_at: string
@@ -11609,6 +11610,7 @@ export type Database = {
           id?: string
           is_approved?: boolean
           name: string
+          profile_pic_prompt_dismissed_at?: string | null
           reporting_manager_id?: string | null
           slack_user_id?: string | null
           updated_at?: string
@@ -11621,6 +11623,7 @@ export type Database = {
           id?: string
           is_approved?: boolean
           name?: string
+          profile_pic_prompt_dismissed_at?: string | null
           reporting_manager_id?: string | null
           slack_user_id?: string | null
           updated_at?: string
