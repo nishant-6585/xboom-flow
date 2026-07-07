@@ -2177,7 +2177,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   })()}
                   <div>
                     <span className="text-muted-foreground">Paid:</span>
-                    <p className="font-medium text-green-600">₹{(parseFloat(amountPaid) || order.amount_paid || 0).toLocaleString('en-IN')}</p>
+                    <p className="font-medium text-green-600">₹{(parseFloat(amountPaid) || effectivePaid || 0).toLocaleString('en-IN')}</p>
                   </div>
                   {balanceAmount !== null && balanceAmount > 0 && (
                     <div>
