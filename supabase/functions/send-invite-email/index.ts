@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const FROM = "XBOOM HR <hr@xboom.in>";  // Retained for log rows only; platform sends via the queue's configured sender.
+const FROM = "Xboom <no-reply@xboomflow.com>";  // Retained for log rows only; platform sends via the queue's configured sender.
 
 interface Body {
   invitation_id: string;
