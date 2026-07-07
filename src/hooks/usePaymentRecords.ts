@@ -214,6 +214,7 @@ export function usePaymentRecords(orderId?: string) {
         () => {
           fetchRecords();
           invalidatePaymentDerivedCaches();
+      broadcastChange(orderIdParam ?? record?.order_id ?? orderId);
         }
       )
       .subscribe();
@@ -281,6 +282,7 @@ export function usePaymentRecords(orderId?: string) {
       toast.success('Payment submitted for approval');
       await fetchRecords();
       invalidatePaymentDerivedCaches();
+      broadcastChange(orderIdParam ?? record?.order_id ?? orderId);
       return true;
     } catch (error: any) {
       console.error('Error submitting payment:', error);
@@ -307,6 +309,7 @@ export function usePaymentRecords(orderId?: string) {
       toast.success('Payment approved');
       await fetchRecords();
       invalidatePaymentDerivedCaches();
+      broadcastChange(orderIdParam ?? record?.order_id ?? orderId);
       return true;
     } catch (error: any) {
       console.error('Error approving payment:', error);
@@ -334,6 +337,7 @@ export function usePaymentRecords(orderId?: string) {
       toast.success('Payment rejected');
       await fetchRecords();
       invalidatePaymentDerivedCaches();
+      broadcastChange(orderIdParam ?? record?.order_id ?? orderId);
       return true;
     } catch (error: any) {
       console.error('Error rejecting payment:', error);
@@ -361,6 +365,7 @@ export function usePaymentRecords(orderId?: string) {
       toast.success('Payment moved back to pending');
       await fetchRecords();
       invalidatePaymentDerivedCaches();
+      broadcastChange(orderIdParam ?? record?.order_id ?? orderId);
       return true;
     } catch (error: any) {
       console.error('Error disapproving payment:', error);
@@ -401,6 +406,7 @@ export function usePaymentRecords(orderId?: string) {
       toast.success('Payment record deleted');
       await fetchRecords();
       invalidatePaymentDerivedCaches();
+      broadcastChange(orderIdParam ?? record?.order_id ?? orderId);
       return true;
     } catch (error: any) {
       console.error('Error deleting payment record:', error);
@@ -448,6 +454,7 @@ export function usePaymentRecords(orderId?: string) {
       toast.success('Payment resubmitted for approval');
       await fetchRecords();
       invalidatePaymentDerivedCaches();
+      broadcastChange(orderIdParam ?? record?.order_id ?? orderId);
       return true;
     } catch (error: any) {
       console.error('Error updating payment record:', error);
