@@ -6,7 +6,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(2);
+select plan(3);
 
 set local role postgres;
 
@@ -60,6 +60,12 @@ select is(
   (select auth_user_id from public.get_portal_contacts_with_auth_login() where id = :'contact_uid'::uuid),
   :'portal_uid'::uuid,
   'email-only portal contact exposes matched auth user id to prevent Never-login UI state'
+);
+
+select is(
+  (select count(*)::int from public.get_my_portal_team_with_auth_login()),
+  0,
+  'staff-only helper does not leak customer team data without a portal admin caller'
 );
 
 select * from finish();
