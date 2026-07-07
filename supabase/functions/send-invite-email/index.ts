@@ -46,7 +46,7 @@ function buildHtml(opts: { name: string; actionLink: string; siteUrl: string }) 
           <p style="margin:0 0 20px 0;font-size:12px;color:#374151;word-break:break-all;">${escapeHtml(actionLink)}</p>
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
           <p style="margin:0;font-size:12px;color:#6b7280;">
-            Having trouble? Reply to this email or contact HR at hr@xboom.in.<br/>
+            Having trouble? Contact your HR administrator.<br/>
             Portal: <a href="${escapeHtml(siteUrl)}" style="color:#0f172a;">${escapeHtml(siteUrl)}</a>
           </p>
         </td></tr>

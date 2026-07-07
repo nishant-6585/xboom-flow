@@ -7,8 +7,8 @@ import type { TemplateEntry } from './registry.ts'
 
 // HR staff/internal invite. Copy, CTA and subject match the legacy Resend
 // HTML in send-invite-email/index.ts (buildHtml). Internal HR contact
-// wording ("Reply to this email or contact HR at hr@xboom.in") is
-// preserved — this is an internal staff invite, not a customer email.
+// wording ("Contact your HR administrator") is preserved — this is an
+// internal staff invite, not a customer email.
 
 interface Props {
   name?: string
@@ -43,7 +43,7 @@ const Email = (p: Props = {}) => {
             </Text>
             <Hr style={hr} />
             <Text style={fine}>
-              Having trouble? Reply to this email or contact HR at hr@xboom.in.<br />
+              Having trouble? Contact your HR administrator.<br />
               Portal: <Link href={site} style={{ color: '#0f172a' }}>{site}</Link>
             </Text>
           </Section>

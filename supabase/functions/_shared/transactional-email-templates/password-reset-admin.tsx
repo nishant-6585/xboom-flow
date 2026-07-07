@@ -7,9 +7,9 @@ import type { TemplateEntry } from './registry.ts'
 
 // Admin-triggered password reset. Copy, CTA and subject match the legacy
 // Resend HTML in send-password-reset-email/index.ts (buildHtml). Internal
-// contact wording ("contact HR at hr@xboom.in") is preserved — this is a
-// staff-facing password reset for XBOOM Flow accounts, not a customer
-// portal reset.
+// contact wording ("contact your HR administrator") is preserved — this
+// is a staff-facing password reset for XBOOM Flow accounts, not a
+// customer portal reset.
 
 interface Props {
   name?: string
@@ -44,7 +44,7 @@ const Email = (p: Props = {}) => {
             </Text>
             <Hr style={hr} />
             <Text style={fine}>
-              Didn't request this? You can safely ignore this email or contact HR at hr@xboom.in.<br />
+              Didn't request this? You can safely ignore this email or contact your HR administrator.<br />
               Portal: <Link href={site} style={{ color: '#0f172a' }}>{site}</Link>
             </Text>
           </Section>
