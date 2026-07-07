@@ -304,11 +304,19 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
     try {
       const { validateFile } = await import("@/lib/fileValidation");
       const uploadedPaths: string[] = [];
+      // Storage RLS on `ticket-attachments` requires the first path segment
+      // to equal auth.uid(). Uploading under `tickets/...` fails silently.
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id;
+      if (!uid) {
+        toast.error("Please sign in again to upload attachments");
+        return;
+      }
       for (const file of Array.from(files)) {
         const validation = validateFile(file, "documents");
         if (!validation.valid) { toast.error(validation.error || "Invalid file"); continue; }
         const safeName = file.name.replace(/\s+/g, "-");
-        const storagePath = `tickets/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+        const storagePath = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
         const { error } = await supabase.storage.from("ticket-attachments").upload(storagePath, file);
         if (error) throw error;
         uploadedPaths.push(storagePath);
