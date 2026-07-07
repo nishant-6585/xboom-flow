@@ -905,6 +905,7 @@ const Index = () => {
       <ErrorBoundary fallback={null}><NoticePopup /></ErrorBoundary>
       <ErrorBoundary fallback={null}><MonthlyPulsePopup /></ErrorBoundary>
       <ErrorBoundary fallback={null}><HolidayPopup /></ErrorBoundary>
+      <ErrorBoundary fallback={null}><ProfilePicturePrompt /></ErrorBoundary>
     </div>
   );
 };
