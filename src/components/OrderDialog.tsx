@@ -13,6 +13,7 @@ import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, Or
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
+import { usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { DeliveryProofCard } from '@/components/orders/DeliveryProofCard';
