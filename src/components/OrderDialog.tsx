@@ -129,6 +129,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [editingTracking, setEditingTracking] = useState(false);
   const [editingOrderItems, setEditingOrderItems] = useState(false);
   const [editedOrderItems, setEditedOrderItems] = useState<Record<string, any>>({});
+  // Line items added during the current edit session (not yet persisted).
+  // Each has a stable client-side id prefixed with `new-` so React keys are stable
+  // and we can distinguish them from persisted rows in commitOrderItemEdits.
+  const [newOrderItems, setNewOrderItems] = useState<Array<{
+    id: string;
+    product_name: string;
+    product_category: string;
+    quantity: number;
+    unit_price: string;
+    status: string;
+    notes: string;
+    procurement_rate: string;
+    supplier_id: string;
+  }>>([]);
+  // Line items removed during the current edit session — deleted on save.
+  const [deletedOrderItemIds, setDeletedOrderItemIds] = useState<Set<string>>(new Set());
   const [productNameReasonOpen, setProductNameReasonOpen] = useState(false);
   const [productNameReason, setProductNameReason] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
