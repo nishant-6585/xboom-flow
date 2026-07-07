@@ -17198,6 +17198,15 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_todays_birthdays: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          department: string
+          employee_id: string
+          name: string
+        }[]
+      }
       get_user_activity_summary: {
         Args: { p_end_date?: string; p_start_date?: string }
         Returns: {
