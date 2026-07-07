@@ -346,6 +346,14 @@ export default function PortalCustomers() {
         if (hasLogin) return false;
       }
       if (newThisMonthOnly && r.created_at < monthStart) return false;
+      if (dateFrom) {
+        const s = startOfDay(dateFrom).toISOString();
+        if (r.created_at < s) return false;
+      }
+      if (dateTo) {
+        const e = endOfDay(dateTo).toISOString();
+        if (r.created_at > e) return false;
+      }
       if (q) {
         const hay = [
           r.company_name, r.primary?.full_name, r.primary?.email,
@@ -355,7 +363,7 @@ export default function PortalCustomers() {
       }
       return true;
     });
-  }, [rows, search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, monthStart]);
+  }, [rows, search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, monthStart]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -394,7 +402,7 @@ export default function PortalCustomers() {
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, sortKey, sortDir]);
 
   // ----- stats -----
   const stats = useMemo(() => {
