@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Camera, User, Upload, Save, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -12,54 +13,48 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-// One-time nudge to upload a profile picture. Dismissal is stored per-user in
-// localStorage so the prompt never reappears once the user acts on it.
-const STORAGE_KEY = "xboom_profile_pic_prompt_dismissed_v1";
-
-function isDismissed(userId: string): boolean {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    const set = JSON.parse(raw) as string[];
-    return Array.isArray(set) && set.includes(userId);
-  } catch {
-    return false;
-  }
-}
-
-function markDismissed(userId: string) {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const set: string[] = raw ? JSON.parse(raw) : [];
-    if (!set.includes(userId)) set.push(userId);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(set));
-  } catch {
-    /* ignore */
-  }
-}
+// One-time nudge to upload a profile picture. Dismissal is stored on the
+// user's profile row so it follows them across devices and sessions.
 
 export function ProfilePicturePrompt() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user?.id || !profile) return;
     if (profile.avatar_url) return; // already has a photo
-    if (isDismissed(user.id)) return;
+    if (profile.profile_pic_prompt_dismissed_at) return; // already dismissed on any device
     // Small delay so it doesn't fight the initial dashboard render.
     const t = setTimeout(() => setOpen(true), 1200);
     return () => clearTimeout(t);
   }, [user?.id, profile]);
 
+  const persistDismissal = async () => {
+    if (!user?.id) return;
+    setSaving(true);
+    try {
+      await supabase
+        .from("profiles")
+        .update({ profile_pic_prompt_dismissed_at: new Date().toISOString() })
+        .eq("user_id", user.id);
+      await refreshProfile();
+    } catch {
+      /* non-fatal: prompt will re-show at most once next login */
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const dismiss = () => {
-    if (user?.id) markDismissed(user.id);
     setOpen(false);
+    void persistDismissal();
   };
 
   const goToProfile = () => {
-    if (user?.id) markDismissed(user.id);
     setOpen(false);
+    void persistDismissal();
     navigate("/profile");
   };
 
@@ -112,10 +107,10 @@ export function ProfilePicturePrompt() {
         </ol>
 
         <DialogFooter className="mt-4 gap-2 sm:gap-2">
-          <Button variant="ghost" onClick={dismiss} className="gap-2">
+          <Button variant="ghost" onClick={dismiss} disabled={saving} className="gap-2">
             <X className="w-4 h-4" /> Maybe later
           </Button>
-          <Button onClick={goToProfile} className="gap-2">
+          <Button onClick={goToProfile} disabled={saving} className="gap-2">
             <Camera className="w-4 h-4" /> Upload photo
           </Button>
         </DialogFooter>
