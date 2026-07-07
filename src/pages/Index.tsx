@@ -21,6 +21,7 @@ import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { MonthlyPulsePopup } from "@/components/dashboard/MonthlyPulsePopup";
 import { HolidayCalendarWidget } from "@/components/dashboard/HolidayCalendarWidget";
 import { HolidayPopup } from "@/components/dashboard/HolidayPopup";
+import { ProfilePicturePrompt } from "@/components/ProfilePicturePrompt";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
 import { HRPendingApprovalsWidget } from "@/components/dashboard/HRPendingApprovalsWidget";
