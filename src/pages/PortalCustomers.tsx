@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { startOfDay, endOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -198,6 +200,13 @@ export default function PortalCustomers() {
   const initNever = spGet("never") === "1";
   const initNew = spGet("new") === "1";
   const initSearch = spGet("q");
+  const parseDate = (v: string) => {
+    if (!v) return undefined;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  const initFrom = parseDate(spGet("from"));
+  const initTo = parseDate(spGet("to"));
 
   const [rows, setRows] = useState<EnrichedRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,6 +218,8 @@ export default function PortalCustomers() {
   const [repFilter, setRepFilter] = useState<RepFilter>(initRep);
   const [neverLoginOnly, setNeverLoginOnly] = useState(initNever);
   const [newThisMonthOnly, setNewThisMonthOnly] = useState(initNew);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(initFrom);
+  const [dateTo, setDateTo] = useState<Date | undefined>(initTo);
   const [page, setPage] = useState(1);
 
   // Reflect filter state back into the URL so links are shareable.
@@ -220,11 +231,13 @@ export default function PortalCustomers() {
     if (repFilter !== "all") next.set("rep", repFilter);
     if (neverLoginOnly) next.set("never", "1");
     if (newThisMonthOnly) next.set("new", "1");
+    if (dateFrom) next.set("from", dateFrom.toISOString().slice(0, 10));
+    if (dateTo) next.set("to", dateTo.toISOString().slice(0, 10));
     const q = search.trim();
     if (q) next.set("q", q);
     // Avoid noisy history entries — replace instead of push.
     setSearchParams(next, { replace: true });
-  }, [statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, search, setSearchParams]);
+  }, [statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, search, setSearchParams]);
 
   // Sorting
   type SortKey = "customer" | "account" | "kyc" | "lastLogin" | "status" | "created";
