@@ -722,7 +722,7 @@ async function reviewKyc(admin: ReturnType<typeof createClient>, callerId: strin
   // Role check
   const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", callerId);
   const allowed = (roles || []).some((r: any) =>
-    ["admin", "finance", "sales", "sales_manager"].includes(r.role),
+    ["admin", "finance"].includes(r.role),
   );
   if (!allowed) return json({ error: "Forbidden" }, 403);
 
