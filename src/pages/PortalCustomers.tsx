@@ -714,6 +714,16 @@ export default function PortalCustomers() {
           {/* Filters */}
           <Card>
             <CardContent className="p-4">
+              <div className="mb-4 pb-4 border-b">
+                <div className="text-xs font-medium text-muted-foreground mb-2">Filter by created date</div>
+                <DateRangeFilter
+                  startDate={dateFrom}
+                  endDate={dateTo}
+                  onStartDateChange={setDateFrom}
+                  onEndDateChange={setDateTo}
+                  onClear={() => { setDateFrom(undefined); setDateTo(undefined); }}
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 <div className="relative md:col-span-2">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
