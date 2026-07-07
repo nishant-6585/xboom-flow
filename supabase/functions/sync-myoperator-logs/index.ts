@@ -77,8 +77,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Calculate time range: default last 15 minutes, but accept optional
-    // { from, to } ISO strings in request body for backfills.
+    // Calculate time range: default last 6 HOURS (MyOperator's /search index
+    // lags well beyond 15 min — a short window systematically misses calls).
+    // Dedup by call_id / (caller_number+start_time) prevents re-inserts.
+    // Accept optional { from, to } ISO strings in request body for backfills.
     let fromIso: string | null = null;
     let toIso: string | null = null;
     try {
@@ -90,7 +92,7 @@ Deno.serve(async (req) => {
     } catch (_) { /* no body */ }
 
     const now = new Date();
-    const from = fromIso ? new Date(fromIso) : new Date(now.getTime() - 15 * 60 * 1000);
+    const from = fromIso ? new Date(fromIso) : new Date(now.getTime() - 6 * 60 * 60 * 1000);
     const to = toIso ? new Date(toIso) : now;
     const fromEpoch = Math.floor(from.getTime() / 1000);
     const toEpoch = Math.floor(to.getTime() / 1000);
