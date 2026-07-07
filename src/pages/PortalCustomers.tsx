@@ -233,6 +233,12 @@ export default function PortalCustomers() {
   const [dateTo, setDateTo] = useState<Date | undefined>(initTo);
   const [page, setPage] = useState(1);
 
+  // Debounce free-text search and date-range changes so cards/table don't
+  // recompute / rewrite the URL on every keystroke or rapid preset click.
+  const debouncedSearch = useDebounce(search, 300);
+  const debouncedDateFrom = useDebounce(dateFrom, 300);
+  const debouncedDateTo = useDebounce(dateTo, 300);
+
   // Reflect filter state back into the URL so links are shareable.
   useEffect(() => {
     const next = new URLSearchParams();
@@ -242,15 +248,16 @@ export default function PortalCustomers() {
     if (repFilter !== "all") next.set("rep", repFilter);
     if (neverLoginOnly) next.set("never", "1");
     if (newThisMonthOnly) next.set("new", "1");
-    if (dateFrom) next.set("from", dateFrom.toISOString().slice(0, 10));
-    if (dateTo) next.set("to", dateTo.toISOString().slice(0, 10));
-    const q = search.trim();
+    if (debouncedDateFrom) next.set("from", debouncedDateFrom.toISOString().slice(0, 10));
+    if (debouncedDateTo) next.set("to", debouncedDateTo.toISOString().slice(0, 10));
+    const q = debouncedSearch.trim();
     if (q) next.set("q", q);
     // Avoid noisy history entries — replace instead of push.
     setSearchParams(next, { replace: true });
-  }, [statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, search, setSearchParams]);
+  }, [statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, debouncedDateFrom, debouncedDateTo, debouncedSearch, setSearchParams]);
 
   // Sorting
+
   type SortKey = "customer" | "account" | "kyc" | "lastLogin" | "status" | "created";
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
