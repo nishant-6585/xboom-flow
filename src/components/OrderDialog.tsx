@@ -1824,6 +1824,29 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   {editingOrderItems && (
                     <div className="flex items-center gap-2">
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newId = `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                          setNewOrderItems(prev => [...prev, {
+                            id: newId,
+                            product_name: '',
+                            product_category: 'Consumer Drones',
+                            quantity: 1,
+                            unit_price: '',
+                            status: 'draft',
+                            notes: '',
+                            procurement_rate: '',
+                            supplier_id: '',
+                          }]);
+                        }}
+                        className="h-8 gap-1"
+                        disabled={loading}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Line
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
@@ -1851,6 +1874,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         onClick={() => {
                           setEditingOrderItems(false);
                           setEditedOrderItems({});
+                          setNewOrderItems([]);
+                          setDeletedOrderItemIds(new Set());
                         }}
                         className="h-8 gap-1"
                       >
