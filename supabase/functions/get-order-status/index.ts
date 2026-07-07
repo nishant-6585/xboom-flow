@@ -97,6 +97,16 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Reject order IDs that contain PostgREST filter separators (`,`, `(`, `)`,
+  // `.`, quotes) — the value is interpolated into an `.or()` filter string
+  // below and a crafted value could otherwise inject extra clauses.
+  if (orderId && !/^[A-Za-z0-9_-]{1,64}$/.test(orderId)) {
+    return json(400, {
+      error: "Invalid input",
+      message: "Invalid order ID format.",
+    });
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
