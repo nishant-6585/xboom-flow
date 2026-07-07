@@ -17,6 +17,8 @@ import { Loader2, RefreshCw, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { DlqAlertCard } from "@/components/admin/DlqAlertCard";
+import { Header } from "@/components/Header";
+import AdminTabsNav from "@/components/admin/AdminTabsNav";
 
 interface Row {
   id: string;
@@ -150,17 +152,20 @@ export default function KycEmailLogs() {
   if (!isAllowed) return <Navigate to="/admin" replace />;
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto">
-      <div>
+    <div className="min-h-screen">
+      <Header />
+      <AdminTabsNav active="kyc-emails" />
+      <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto">
+        <div>
         <h1 className="text-2xl font-bold">KYC Email Log</h1>
         <p className="text-sm text-muted-foreground">
           Every customer KYC / portal-invite email attempt sent on order creation or via staff resend.
         </p>
-      </div>
+        </div>
 
-      <DlqAlertCard />
+        <DlqAlertCard />
 
-      <Card>
+        <Card>
         <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="lg:col-span-2">
             <Label>Order number</Label>
@@ -215,9 +220,9 @@ export default function KycEmailLogs() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+        </Card>
 
-      <Card>
+        <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center justify-between">
             <span>{total.toLocaleString()} entries</span>
@@ -312,7 +317,8 @@ export default function KycEmailLogs() {
             </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
