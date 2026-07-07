@@ -94,6 +94,12 @@ Deno.serve(async (req) => {
 
   if (!order_id) return json(400, { error: "order_id is required" });
 
+  // Reject order IDs containing PostgREST filter separators — the value is
+  // interpolated into an `.or()` filter below on a service-role client.
+  if (typeof order_id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(order_id)) {
+    return json(400, { error: "Invalid order_id" });
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
