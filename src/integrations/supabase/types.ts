@@ -17088,6 +17088,23 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_portal_contacts_with_auth_login: {
+        Args: never
+        Returns: {
+          account_id: string
+          auth_user_id: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          invited_at: string
+          is_active: boolean
+          last_login_at: string
+          phone: string
+          role: string
+          whatsapp_number: string
+        }[]
+      }
       get_sales_leaderboard:
         | {
             Args: { end_date?: string; start_date?: string }

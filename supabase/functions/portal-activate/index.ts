@@ -1,7 +1,7 @@
 // Portal activation — non-consuming invite link handler.
 // Validates a portal_invite_tokens row (exists, not used, not expired),
 // sets the user's password, marks the token used, and signs the user in.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     // Look up the invite token
     const { data: row, error: rowErr } = await admin
       .from("portal_invite_tokens")
-      .select("token, auth_user_id, email, expires_at, used_at")
+      .select("token, auth_user_id, email, account_id, expires_at, used_at")
       .eq("token", invite)
       .maybeSingle();
     if (rowErr) {
@@ -77,6 +77,21 @@ Deno.serve(async (req) => {
       }
       console.error("[portal-activate] update error:", raw);
       return json({ error: friendly }, 200);
+    }
+
+    // Ensure the portal contact is linked even for legacy/unlinked rows or
+    // recovery paths that created the auth user before the contact was linked.
+    const contactUpdate = admin
+      .from("portal_contacts")
+      .update({ auth_user_id: row.auth_user_id })
+      .ilike("email", row.email)
+      .or(`auth_user_id.is.null,auth_user_id.eq.${row.auth_user_id}`);
+    const { error: linkErr } = row.account_id
+      ? await contactUpdate.eq("account_id", row.account_id)
+      : await contactUpdate;
+    if (linkErr) {
+      console.error("[portal-activate] contact-link error:", linkErr.message);
+      return json({ error: "Could not link portal access. Please ask your account manager to resend the invite." }, 200);
     }
 
     // Mark token used (best-effort: still proceed if it fails)
