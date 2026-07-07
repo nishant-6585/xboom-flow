@@ -45,6 +45,24 @@ serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Authorization: must be an approved internal user with a CRM-relevant role.
+    const { data: isApproved } = await admin.rpc("is_user_approved", { _user_id: user.id });
+    if (!isApproved) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const allowedRoles = ["admin", "sales", "sales_manager", "supply_chain", "finance"];
+    const roleChecks = await Promise.all(
+      allowedRoles.map((r) => admin.rpc("has_role", { _user_id: user.id, _role: r }))
+    );
+    const hasAllowedRole = roleChecks.some((r) => r.data === true);
+    if (!hasAllowedRole) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const [{ data: company }, { data: orders }, { data: activities }, { data: contacts }] = await Promise.all([
       admin.from("companies").select("*").eq("id", company_id).maybeSingle(),
       admin.from("orders").select("order_number, product_name, total_sales_amount, status, order_date").eq("company_id", company_id).order("order_date", { ascending: false }).limit(20),
