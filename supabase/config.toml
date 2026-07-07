@@ -29,6 +29,10 @@ project_id = "mxsotxddcvmeluqonuuj"
     verify_jwt = false
   [functions.demand-forecast]
     verify_jwt = false
+  [functions.digilocker-callback]
+    verify_jwt = false
+  [functions.digilocker-initiate]
+    verify_jwt = false
   [functions.elevenlabs-call-summary]
     verify_jwt = false
   [functions.facebook-leads-webhook]
