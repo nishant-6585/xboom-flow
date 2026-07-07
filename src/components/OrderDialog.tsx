@@ -1895,10 +1895,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <TableHead className="text-right">Unit Price</TableHead>
                       {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
                       <TableHead className="text-right">Total</TableHead>
+                      {editingOrderItems && <TableHead className="w-10" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orderItems.map((item) => (
+                    {orderItems.filter(i => !deletedOrderItemIds.has(i.id)).map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>
                           {editingOrderItems ? (
