@@ -214,7 +214,6 @@ export function usePaymentRecords(orderId?: string) {
         () => {
           fetchRecords();
           invalidatePaymentDerivedCaches();
-      broadcastChange(orderIdParam ?? record?.order_id ?? orderId);
         }
       )
       .subscribe();
