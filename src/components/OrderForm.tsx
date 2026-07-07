@@ -372,6 +372,18 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return;
     }
 
+    // Payment-mode gating: modes like UPI / NEFT / cheque MUST come with proof
+    // when an initial payment is captured. Cash is proof-optional. Leaving the
+    // mode blank is allowed (order can be created before any payment exists).
+    const amtPaid = formData.amount_paid ?? 0;
+    if (amtPaid > 0 && formData.payment_mode) {
+      const needsProof = isScreenshotRequired(formData.payment_mode as PaymentMode);
+      if (needsProof && paymentFiles.length === 0) {
+        toast.error(`Payment screenshot is required for ${formData.payment_mode.toUpperCase()}. Cash payments don't need one.`);
+        return;
+      }
+    }
+
     const firstItem = validItems[0];
     const updatedFormData = {
       ...formData,
