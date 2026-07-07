@@ -574,9 +574,30 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const triggerSync = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-myoperator-logs', { method: 'POST' });
+      // If the user has an active date-range filter, backfill exactly that window.
+      // Otherwise use the function's default 6h rolling window.
+      const body: Record<string, string> = {};
+      if (dateRange?.start) {
+        const from = new Date(dateRange.start);
+        from.setHours(0, 0, 0, 0);
+        body.from = from.toISOString();
+      }
+      if (dateRange?.end) {
+        const to = new Date(dateRange.end);
+        to.setHours(23, 59, 59, 999);
+        body.to = to.toISOString();
+      } else if (body.from) {
+        body.to = new Date().toISOString();
+      }
+      const { data, error } = await supabase.functions.invoke('sync-myoperator-logs', {
+        method: 'POST',
+        body: Object.keys(body).length ? body : undefined,
+      });
       if (error) throw error;
-      toast.success(`Sync complete: ${data?.inserted || 0} new, ${data?.updated || 0} updated`);
+      const range = body.from
+        ? ` (${body.from.slice(0, 10)} → ${body.to?.slice(0, 10)})`
+        : '';
+      toast.success(`Sync complete${range}: ${data?.inserted || 0} new, ${data?.updated || 0} updated`);
       fetchLogs();
     } catch (err: any) {
       toast.error(err.message || 'Sync failed');
