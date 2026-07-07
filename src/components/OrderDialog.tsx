@@ -1032,11 +1032,91 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         await onUpdate(order.id, { product_name: nameChangedToHeader } as Partial<Order>);
       }
 
-      toast.success('Order items updated');
+      // ---- Handle removed line items ----
+      if (order && deletedOrderItemIds.size > 0) {
+        for (const removedId of deletedOrderItemIds) {
+          const removed = orderItems.find(i => i.id === removedId);
+          const { error: delErr } = await supabase.from('order_items').delete().eq('id', removedId);
+          if (delErr) throw delErr;
+          if (removed && user && profile) {
+            await recordChanges('orders', order.id, {
+              [`order_item.removed (${removed.product_name})`]: {
+                old: { qty: removed.quantity, unit_price: removed.unit_price },
+                new: null,
+              },
+            }, profile.name || 'Unknown');
+          }
+        }
+      }
+
+      // ---- Insert newly-added line items ----
+      if (order && newOrderItems.length > 0) {
+        const validNew = newOrderItems.filter(n => n.product_name.trim().length > 0);
+        if (validNew.length !== newOrderItems.length) {
+          toast.error('Every new line item needs a product name.');
+          setLoading(false);
+          return;
+        }
+        if (validNew.length > 0) {
+          const inserts = validNew.map(n => ({
+            order_id: order.id,
+            product_name: n.product_name,
+            product_category: n.product_category || 'Consumer Drones',
+            quantity: Number(n.quantity) || 1,
+            unit_price: n.unit_price ? Number(n.unit_price) : null,
+            procurement_rate: canSeeProcurement && n.procurement_rate ? Number(n.procurement_rate) : null,
+            status: n.status || 'draft',
+            notes: n.notes || null,
+            supplier_id: n.supplier_id || null,
+          }));
+          const { error: insErr } = await supabase.from('order_items').insert(inserts);
+          if (insErr) throw insErr;
+          if (user && profile) {
+            const changesRecord: Record<string, { old: any; new: any }> = {};
+            validNew.forEach(n => {
+              changesRecord[`order_item.added (${n.product_name})`] = {
+                old: null,
+                new: { qty: n.quantity, unit_price: n.unit_price },
+              };
+            });
+            await recordChanges('orders', order.id, changesRecord, profile.name || 'Unknown');
+          }
+        }
+      }
+
+      // ---- Refresh items and recompute order.total_sales_amount ----
       if (order) {
         const refreshedItems = await fetchOrderItems(order.id);
         setOrderItems(refreshedItems);
+
+        const itemsSubtotal = refreshedItems.reduce(
+          (sum, it) => sum + (Number(it.unit_price) || 0) * (Number(it.quantity) || 0),
+          0,
+        );
+        const discount = Number((order as any).discount_amount) || 0;
+        const delivery = Number((order as any).delivery_charges) || 0;
+        const nextTotal = Math.max(0, itemsSubtotal - discount + delivery);
+        const oldTotal = Number((order as any).total_sales_amount) || 0;
+        if (Math.abs(nextTotal - oldTotal) > 0.005) {
+          // The DB guard (guard_orders_sensitive_updates) permits non-privileged
+          // roles to change total_sales_amount ONLY when the new value equals the
+          // recomputed sum of items minus discount plus delivery. Since we compute
+          // it exactly that way here, the write will succeed for sales reps too.
+          const { error: totalErr } = await supabase
+            .from('orders')
+            .update({ total_sales_amount: nextTotal })
+            .eq('id', order.id);
+          if (totalErr) throw totalErr;
+          if (user && profile) {
+            await recordChanges('orders', order.id, {
+              total_sales_amount: { old: oldTotal, new: nextTotal },
+            }, profile.name || 'Unknown');
+          }
+          await onUpdate(order.id, { total_sales_amount: nextTotal } as Partial<Order>);
+        }
       }
+
+      toast.success('Order items updated');
     } catch (error: any) {
       console.error('Error updating order items:', error);
       const msg = String(error?.message || 'Failed to update order items');
@@ -1049,6 +1129,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setLoading(false);
       setEditingOrderItems(false);
       setEditedOrderItems({});
+      setNewOrderItems([]);
+      setDeletedOrderItemIds(new Set());
       setProductNameReasonOpen(false);
       setProductNameReason('');
     }
