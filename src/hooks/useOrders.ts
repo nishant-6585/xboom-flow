@@ -127,6 +127,10 @@ export interface OrderFormData {
   payment_terms?: string;
   payment_status?: PaymentStatus;
   payment_due_date?: string;
+  /** Optional payment mode captured at order creation time. When set together with
+   *  amount_paid > 0, we mirror it onto the auto-created initial payment_records
+   *  row so Finance can see how the first receipt came in (cash, UPI, NEFT, …). */
+  payment_mode?: string;
   tracking_number?: string;
   tracking_url?: string;
   courier_name?: string;
