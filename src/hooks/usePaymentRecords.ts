@@ -69,6 +69,17 @@ export function usePaymentRecords(orderId?: string) {
     keys.forEach((k) => queryClient.invalidateQueries({ queryKey: k }));
   }, [queryClient]);
 
+  // Broadcast a change so every hook instance on the page (dialog, list,
+  // header chip, etc.) refetches immediately — independent of realtime.
+  const broadcastChange = useCallback((changedOrderId?: string | null) => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(
+      new CustomEvent('payment_records:changed', {
+        detail: { orderId: changedOrderId ?? null },
+      }),
+    );
+  }, []);
+
   const fetchRecords = useCallback(async () => {
     if (!user) {
       setRecords([]);
