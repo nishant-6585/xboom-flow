@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Loader2, Plus, Pencil, Trash2, Search, Download, Mail, UserCheck, UserX,
   Building2, User as UserIcon, ShieldCheck, ShieldAlert, Shield, ShieldQuestion,
@@ -187,17 +188,43 @@ export default function PortalCustomers() {
     return m;
   }, [salesUsers]);
 
+  // --- URL-synced filter state (shareable filtered views) ---
+  const [searchParams, setSearchParams] = useSearchParams();
+  const spGet = (k: string) => searchParams.get(k) ?? "";
+  const initStatus = (spGet("status") || "all") as StatusFilter;
+  const initKyc = (spGet("kyc") || "all") as KycFilter;
+  const initType = (spGet("type") || "all") as TypeFilter;
+  const initRep = (spGet("rep") || "all") as RepFilter;
+  const initNever = spGet("never") === "1";
+  const initNew = spGet("new") === "1";
+  const initSearch = spGet("q");
+
   const [rows, setRows] = useState<EnrichedRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [kycFilter, setKycFilter] = useState<KycFilter>("all");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [repFilter, setRepFilter] = useState<RepFilter>("all");
-  const [neverLoginOnly, setNeverLoginOnly] = useState(false);
-  const [newThisMonthOnly, setNewThisMonthOnly] = useState(false);
+  const [search, setSearch] = useState(initSearch);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initStatus);
+  const [kycFilter, setKycFilter] = useState<KycFilter>(initKyc);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>(initType);
+  const [repFilter, setRepFilter] = useState<RepFilter>(initRep);
+  const [neverLoginOnly, setNeverLoginOnly] = useState(initNever);
+  const [newThisMonthOnly, setNewThisMonthOnly] = useState(initNew);
   const [page, setPage] = useState(1);
+
+  // Reflect filter state back into the URL so links are shareable.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (statusFilter !== "all") next.set("status", statusFilter);
+    if (kycFilter !== "all") next.set("kyc", kycFilter);
+    if (typeFilter !== "all") next.set("type", typeFilter);
+    if (repFilter !== "all") next.set("rep", repFilter);
+    if (neverLoginOnly) next.set("never", "1");
+    if (newThisMonthOnly) next.set("new", "1");
+    const q = search.trim();
+    if (q) next.set("q", q);
+    // Avoid noisy history entries — replace instead of push.
+    setSearchParams(next, { replace: true });
+  }, [statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, search, setSearchParams]);
 
   // Sorting
   type SortKey = "customer" | "account" | "kyc" | "lastLogin" | "status" | "created";
