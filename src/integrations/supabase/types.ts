@@ -17079,6 +17079,7 @@ export type Database = {
       get_next_birthday: {
         Args: never
         Returns: {
+          avatar_url: string
           birth_day: number
           birth_month: number
           days_until: number

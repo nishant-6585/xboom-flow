@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Cake, PartyPopper, Gift, Sparkles, Megaphone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ interface NextBirthday {
   employee_id: string;
   name: string;
   department: string | null;
+  avatar_url: string | null;
   birth_month: number;
   birth_day: number;
   days_until: number;
@@ -173,6 +174,7 @@ export function BirthdayCard() {
         ) : (
           <div className="flex items-start gap-3">
             <Avatar className="w-11 h-11 shrink-0 ring-2 ring-pink-500/60">
+              {row.avatar_url ? <AvatarImage src={row.avatar_url} alt={row.name} /> : null}
               <AvatarFallback className="text-sm bg-pink-500/10 text-pink-700 dark:text-pink-300">
                 {initialsOf(row.name) || "🎂"}
               </AvatarFallback>
