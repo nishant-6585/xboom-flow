@@ -303,14 +303,20 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
   // bounced/complained/suppressed). Fall back to the enqueue-time status
   // in kyc_email_log for rows that predate delivery correlation, and for
   // 'skipped' outcomes which never enqueue an email at all.
-  const enqueueStatus = row?.status ?? "pending";
+  //
+  // If there is NO kyc_email_log row at all, the invite was never even
+  // attempted (e.g. Woo-imported orders where the auto-invite hook did
+  // not fire). Show "Not invited" via the KYC chip instead of falsely
+  // claiming the invite is queued.
+  const enqueueStatus = row?.status ?? null;
   const deliveryStatus = info?.last_delivery?.status;
-  const status =
-    enqueueStatus === "skipped" || enqueueStatus === "failed"
-      ? enqueueStatus
-      : (deliveryStatus || enqueueStatus);
-  const meta = STATUS_META[status] ?? STATUS_META.pending;
-  const Icon = meta.Icon;
+  const status = enqueueStatus
+    ? (enqueueStatus === "skipped" || enqueueStatus === "failed"
+        ? enqueueStatus
+        : (deliveryStatus || enqueueStatus))
+    : null;
+  const meta = status ? (STATUS_META[status] ?? STATUS_META.pending) : null;
+  const Icon = meta?.Icon;
 
   const deliveryLine =
     info?.last_delivery
@@ -320,7 +326,7 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
     status === "sent" && info?.last_delivery?.created_at
       ? new Date(info.last_delivery.created_at).toLocaleString()
       : null;
-  const baseTooltip = row
+  const baseTooltip = row && meta
     ? `${meta.label}${sentAt ? ` • sent ${sentAt}` : ""} • enqueued ${new Date(row.created_at).toLocaleString()} • attempts: ${row.attempt_count}${
         row.error ? `\nReason: ${row.error}` : ""
       }${deliveryLine}`
@@ -328,17 +334,17 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
   const tooltipText = isCancelled ? cancelledTooltip : baseTooltip;
 
   if (compact) {
-    const shortLabel = meta.short;
+    const shortLabel = meta?.short ?? "Not invited";
     return (
       <TooltipProvider delayDuration={150}>
         <span className="inline-flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge
-                variant={meta.variant}
-                className={`text-[10px] h-5 px-1.5 gap-1 cursor-default ${meta.cls}`}
+                variant={meta?.variant ?? "outline"}
+                className={`text-[10px] h-5 px-1.5 gap-1 cursor-default ${meta?.cls ?? ""}`}
               >
-                <Icon className="h-3 w-3" />
+                {Icon ? <Icon className="h-3 w-3" /> : <ShieldQuestion className="h-3 w-3" />}
                 {shortLabel}
               </Badge>
             </TooltipTrigger>
@@ -390,17 +396,19 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
           <KIcon className="h-3 w-3 mr-1" />
           {kMeta.label}
         </Badge>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant={meta.variant} className={`text-xs cursor-default ${meta.cls}`}>
-              <Icon className="h-3 w-3 mr-1" />
-              {meta.label}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs whitespace-pre-line text-xs">
-            {tooltipText}
-          </TooltipContent>
-        </Tooltip>
+        {meta && Icon && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant={meta.variant} className={`text-xs cursor-default ${meta.cls}`}>
+                <Icon className="h-3 w-3 mr-1" />
+                {meta.label}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs whitespace-pre-line text-xs">
+              {tooltipText}
+            </TooltipContent>
+          </Tooltip>
+        )}
         {canResend && (
           isApproved ? (
             <Button
