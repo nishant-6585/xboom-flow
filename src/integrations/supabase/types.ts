@@ -17010,6 +17010,18 @@ export type Database = {
         }[]
       }
       get_my_portal_account_id: { Args: never; Returns: string }
+      get_my_portal_team_with_auth_login: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          invited_at: string
+          is_active: boolean
+          last_login_at: string
+          role: string
+        }[]
+      }
       get_my_purchases: {
         Args: never
         Returns: {
