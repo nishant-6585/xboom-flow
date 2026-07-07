@@ -306,14 +306,20 @@ Deno.serve(async (req) => {
       let leadId: string | null = null;
 
       if (normalizedCaller) {
-        const last10 = normalizedCaller.replace(/^\+91/, '').slice(-10);
+        // Digit-only guard: `last10` is interpolated into a PostgREST
+        // `.or()` filter, so refuse anything other than exactly 10 digits
+        // to prevent injection of extra filter clauses.
+        const last10Raw = normalizedCaller.replace(/^\+91/, '').slice(-10);
+        const last10 = /^\d{10}$/.test(last10Raw) ? last10Raw : null;
 
-        const { data: existingEnquiry } = await supabase
-          .from('enquiries')
-          .select('id')
-          .or(`customer_name.ilike.%${last10}%,notes.ilike.%${last10}%`)
-          .limit(1)
-          .maybeSingle();
+        const { data: existingEnquiry } = last10
+          ? await supabase
+              .from('enquiries')
+              .select('id')
+              .or(`customer_name.ilike.%${last10}%,notes.ilike.%${last10}%`)
+              .limit(1)
+              .maybeSingle()
+          : { data: null } as { data: null };
 
         if (!existingEnquiry) {
           const { data: newEnquiry, error: enquiryError } = await supabase
