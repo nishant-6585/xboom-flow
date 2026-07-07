@@ -65,6 +65,21 @@ interface EnrichedRow extends AccountRow {
   accountType: "business" | "individual";
 }
 
+type PortalContactWithAuthLogin = {
+  id: string;
+  account_id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  whatsapp_number: string | null;
+  role: string;
+  is_active: boolean;
+  invited_at: string | null;
+  last_login_at: string | null;
+  auth_user_id: string | null;
+  created_at: string;
+};
+
 type StatusFilter = "all" | "active" | "pending" | "suspended" | "archived";
 type KycFilter = "all" | KycStatus;
 type TypeFilter = "all" | "business" | "individual";
@@ -82,6 +97,10 @@ function accountTypeOf(account: AccountRow, primary: ContactRow | null): "busine
 /** Display company name only for real businesses; "—" otherwise. */
 function displayCompany(row: { accountType: "business" | "individual"; company_name: string }): string {
   return row.accountType === "business" ? (row.company_name || "—") : "—";
+}
+
+function hasPortalLogin(contact: ContactRow | null | undefined): boolean {
+  return !!contact?.last_login_at;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -318,14 +337,20 @@ export default function PortalCustomers() {
     let contacts: ContactRow[] = [];
     if (ids.length) {
       const { data: cs, error: cErr } = await supabase
-        .from("portal_contacts")
-        .select("id, account_id, full_name, email, phone, whatsapp_number, role, is_active, invited_at, last_login_at, auth_user_id, created_at")
+        .rpc("get_portal_contacts_with_auth_login")
         .in("account_id", ids)
         .order("created_at", { ascending: true });
       if (cErr) {
         toast({ title: "Failed to load contacts", description: cErr.message, variant: "destructive" });
       } else {
-        contacts = (cs ?? []) as ContactRow[];
+        contacts = (cs ?? []).map((c) => ({
+          ...(c as PortalContactWithAuthLogin),
+          phone: (c as PortalContactWithAuthLogin).phone ?? null,
+          whatsapp_number: (c as PortalContactWithAuthLogin).whatsapp_number ?? null,
+          invited_at: (c as PortalContactWithAuthLogin).invited_at ?? null,
+          last_login_at: (c as PortalContactWithAuthLogin).last_login_at ?? null,
+          auth_user_id: (c as PortalContactWithAuthLogin).auth_user_id ?? null,
+        })) as ContactRow[];
       }
     }
     const byAccount = new Map<string, ContactRow[]>();
@@ -360,7 +385,7 @@ export default function PortalCustomers() {
         else if (r.assigned_rep_id !== repFilter) return false;
       }
       if (neverLoginOnly) {
-        const hasLogin = r.contacts.some((c) => c.last_login_at && c.auth_user_id);
+        const hasLogin = r.contacts.some(hasPortalLogin);
         if (hasLogin) return false;
       }
       if (newThisMonthOnly && r.created_at < monthStart) return false;
@@ -433,7 +458,7 @@ export default function PortalCustomers() {
     const kycPending = src.filter((r) => r.kyc_status === "pending_verification").length;
     const kycApproved = src.filter((r) => r.kyc_status === "approved").length;
     const kycNotSubmitted = src.filter((r) => !r.kyc_status || r.kyc_status === "not_submitted").length;
-    const neverLogin = src.filter((r) => !r.contacts.some((c) => c.last_login_at && c.auth_user_id)).length;
+    const neverLogin = src.filter((r) => !r.contacts.some(hasPortalLogin)).length;
     const newThisMonth = src.filter((r) => r.created_at >= monthStart).length;
     return { total, active, kycPending, kycApproved, kycNotSubmitted, neverLogin, newThisMonth };
   }, [filtered, monthStart]);
@@ -837,7 +862,7 @@ export default function PortalCustomers() {
                     <TableBody>
                       {pageRows.map((r) => {
                         const c = r.primary;
-                        const neverLoggedIn = !c || !c.auth_user_id || !c.last_login_at;
+                        const neverLoggedIn = !hasPortalLogin(c);
                         return (
                           <TableRow
                             key={r.id}
@@ -1191,7 +1216,7 @@ function AccountDrawer({ row, salesUsers, repMap, onAssignRep, onResend, onToggl
           <div className="space-y-2">
             {row.contacts.length === 0 && <p className="text-sm text-muted-foreground">No contacts.</p>}
             {row.contacts.map((c) => {
-              const neverLoggedIn = !c.auth_user_id || !c.last_login_at;
+              const neverLoggedIn = !hasPortalLogin(c);
               return (
                 <div key={c.id} className="rounded-md border p-3 text-sm">
                   <div className="flex items-start justify-between gap-2">

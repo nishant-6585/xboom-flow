@@ -74,10 +74,7 @@ export default function PortalSettings() {
     if (!contact) return;
     setTeamLoading(true);
     const { data, error } = await supabase
-      .from("portal_contacts")
-      .select("id, full_name, email, role, is_active, last_login_at, invited_at")
-      .eq("account_id", contact.account_id)
-      .order("created_at", { ascending: true });
+      .rpc("get_my_portal_team_with_auth_login");
     if (!error) setTeam((data ?? []) as Teammate[]);
     setTeamLoading(false);
   };

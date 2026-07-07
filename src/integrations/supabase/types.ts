@@ -17010,6 +17010,18 @@ export type Database = {
         }[]
       }
       get_my_portal_account_id: { Args: never; Returns: string }
+      get_my_portal_team_with_auth_login: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          invited_at: string
+          is_active: boolean
+          last_login_at: string
+          role: string
+        }[]
+      }
       get_my_purchases: {
         Args: never
         Returns: {
@@ -17086,6 +17098,23 @@ export type Database = {
           name: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
+        }[]
+      }
+      get_portal_contacts_with_auth_login: {
+        Args: never
+        Returns: {
+          account_id: string
+          auth_user_id: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          invited_at: string
+          is_active: boolean
+          last_login_at: string
+          phone: string
+          role: string
+          whatsapp_number: string
         }[]
       }
       get_sales_leaderboard:

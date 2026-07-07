@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +53,20 @@ Deno.serve(async (req) => {
       }
       console.error("[portal-set-password] update error:", raw);
       return new Response(JSON.stringify({ error: friendly }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Close the legacy recovery-link gap: if a portal contact exists by email
+    // but was never linked, attach it to the verified auth user before login.
+    const { error: linkErr } = await admin
+      .from("portal_contacts")
+      .update({ auth_user_id: verifyData.user.id })
+      .ilike("email", verifyData.user.email!)
+      .or(`auth_user_id.is.null,auth_user_id.eq.${verifyData.user.id}`);
+    if (linkErr) {
+      console.error("[portal-set-password] contact-link error:", linkErr.message);
+      return new Response(JSON.stringify({ error: "Could not link portal access. Please ask your account manager to resend the invite." }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
