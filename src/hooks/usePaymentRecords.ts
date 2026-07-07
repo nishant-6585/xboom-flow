@@ -281,7 +281,7 @@ export function usePaymentRecords(orderId?: string) {
       toast.success('Payment submitted for approval');
       await fetchRecords();
       invalidatePaymentDerivedCaches();
-      broadcastChange(orderId ?? null);
+      broadcastChange(orderIdParam ?? orderId ?? null);
       return true;
     } catch (error: any) {
       console.error('Error submitting payment:', error);
