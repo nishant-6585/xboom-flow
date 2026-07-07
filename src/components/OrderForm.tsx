@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource, Order } from '@/hooks/useOrders';
+import { PAYMENT_MODES, isScreenshotRequired, getScreenshotHint, type PaymentMode } from '@/lib/paymentModes';
 import { Loader2, Package, ImageIcon, X, Upload, FileText, Plus, Users, CreditCard, Truck, MessageSquare, Check, ChevronRight, ChevronLeft, ShoppingCart } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
