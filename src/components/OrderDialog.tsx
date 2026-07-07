@@ -2065,6 +2065,134 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             item.unit_price ? `₹${(item.unit_price * item.quantity).toLocaleString('en-IN')}` : '-'
                           )}
                         </TableCell>
+                        {editingOrderItems && (
+                          <TableCell className="w-10">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeletedOrderItemIds(prev => {
+                                const next = new Set(prev);
+                                next.add(item.id);
+                                return next;
+                              })}
+                              disabled={loading}
+                              title="Remove this line item"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                    {editingOrderItems && newOrderItems.map((item, idx) => (
+                      <TableRow key={item.id} className="bg-primary/5">
+                        <TableCell>
+                          <div className="space-y-1">
+                            <ProductSelect
+                              value={item.product_name}
+                              onChange={(name, product?: PricelistItem) => {
+                                setNewOrderItems(prev => prev.map((p, i) => i === idx ? {
+                                  ...p,
+                                  product_name: name,
+                                  ...(product ? {
+                                    unit_price: String(product.dealer_price || product.website_price || p.unit_price || ''),
+                                    product_category: product.product_category || p.product_category,
+                                  } : {}),
+                                } : p));
+                              }}
+                              placeholder="Select or type product..."
+                              className="h-8 text-sm"
+                            />
+                            <Input
+                              value={item.notes}
+                              onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, notes: e.target.value } : p))}
+                              className="h-7 text-xs"
+                              placeholder="Notes (optional)"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.status}
+                            onValueChange={(v) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, status: v } : p))}
+                          >
+                            <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {ORDER_ITEM_STATUSES.map(s => (
+                                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.supplier_id || 'none'}
+                            onValueChange={(v) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, supplier_id: v === 'none' ? '' : v } : p))}
+                          >
+                            <SelectTrigger className="h-8 w-[160px] text-sm"><SelectValue placeholder="Select supplier" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Supplier</SelectItem>
+                              {suppliers.map(s => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.name} {s.brand_name ? `(${s.brand_name})` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, Number(e.target.value) || 1) } : p))}
+                            className="h-8 w-20 text-right text-sm"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={item.unit_price}
+                            onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_price: e.target.value } : p))}
+                            className="h-8 w-24 text-right text-sm"
+                            placeholder="₹0"
+                          />
+                        </TableCell>
+                        {canSeeProcurement && (
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={item.procurement_rate}
+                              onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, procurement_rate: e.target.value } : p))}
+                              className="h-8 w-24 text-right text-sm"
+                              placeholder="₹0"
+                            />
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right font-medium">
+                          <span className="text-sm">
+                            {item.unit_price && item.quantity
+                              ? `₹${(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}`
+                              : '-'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="w-10">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setNewOrderItems(prev => prev.filter((_, i) => i !== idx))}
+                            disabled={loading}
+                            title="Discard this new line"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
