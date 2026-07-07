@@ -708,7 +708,7 @@ export function useOrders() {
       try {
         if (orderData?.id && formData.customer_email) {
           supabase.functions.invoke('kyc-handler', {
-            body: { action: 'onboard_order', order_id: orderData.id },
+            body: { action: 'onboard_order', order_id: orderData.id, interactive: true },
           }).catch((e) => console.error('kyc onboarding failed:', e));
         }
       } catch (e) { console.error('kyc onboarding invoke error:', e); }

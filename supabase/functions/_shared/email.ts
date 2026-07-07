@@ -44,6 +44,15 @@ export interface SendEmailArgs {
    * branch; safe to pass on Resend calls (ignored).
    */
   idempotencyKey?: string;
+  /**
+   * Interactive send — a human just clicked "Send" (KYC invite/resend,
+   * invoice email, confirmation request). The platform branch forwards
+   * this to `send-transactional-email`, which nudges the queue worker
+   * immediately after enqueue so the row flips to `sent` within seconds
+   * instead of on the next cron tick. Retries/dedup/logging are unchanged.
+   * Resend branch ignores it.
+   */
+  interactive?: boolean;
 }
 
 export interface SendEmailResult {
@@ -150,6 +159,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
             recipientEmail: recipient,
             idempotencyKey: recipientKey,
             templateData: args.templateData ?? {},
+          interactive: args.interactive === true,
           }),
         });
         let raw: any = null;

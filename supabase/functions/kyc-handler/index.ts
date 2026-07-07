@@ -67,6 +67,7 @@ async function sendPlatform(args: {
   templateName: string;
   templateData: Record<string, unknown>;
   idempotencyKey: string;
+  interactive?: boolean;
 }) {
   return await sendMailSeam({
     to: args.to,
@@ -77,6 +78,7 @@ async function sendPlatform(args: {
     templateName: args.templateName,
     templateData: args.templateData,
     idempotencyKey: args.idempotencyKey,
+    interactive: args.interactive === true,
   });
 }
 
@@ -189,8 +191,25 @@ Deno.serve(async (req) => {
 
   try {
     if (body.action === "onboard_order") {
-      if (!callerId) return json({ error: "Not authenticated" }, 401);
-      return await onboardOrder(admin, body.order_id!, { triggeredBy: callerId });
+      // onboard_order is invoked in three shapes:
+      //  1. Manual order-create UI (signed-in user) — interactive human send.
+      //  2. Woo webhook mirror (service-role, no user) — automatic send.
+      //  3. Programmatic backfill (service-role, no user) — automatic send.
+      // Callers 2 & 3 legitimately have no user context; accept them when
+      // the request carries a valid service-role bearer. The gateway
+      // already gates who can hit this function.
+      const authHeaderRaw = req.headers.get("Authorization") ?? "";
+      const bearer = authHeaderRaw.startsWith("Bearer ")
+        ? authHeaderRaw.slice(7)
+        : "";
+      const isServiceRole = !!bearer && bearer === SERVICE_KEY;
+      if (!callerId && !isServiceRole) {
+        return json({ error: "Not authenticated" }, 401);
+      }
+      return await onboardOrder(admin, body.order_id!, {
+        triggeredBy: callerId ?? null,
+        interactive: (body as any).interactive === true,
+      });
     }
     if (body.action === "resend_invite") {
       if (!callerId) return json({ error: "Not authenticated" }, 401);
@@ -203,6 +222,7 @@ Deno.serve(async (req) => {
         triggeredBy: callerId,
         force: true,
         overrideEmail: body.override_email,
+        interactive: true,
       });
     }
     if (body.action === "order_kyc_status") {
@@ -233,7 +253,7 @@ Deno.serve(async (req) => {
 async function onboardOrder(
   admin: ReturnType<typeof createClient>,
   orderId: string,
-  opts: { triggeredBy?: string | null; force?: boolean; overrideEmail?: string } = {},
+  opts: { triggeredBy?: string | null; force?: boolean; overrideEmail?: string; interactive?: boolean } = {},
 ) {
   if (!orderId) return json({ error: "order_id required" }, 400);
   // Hard kill-switch (DB-backed). When OFF: no portal_account, no auth
@@ -481,6 +501,7 @@ async function onboardOrder(
       needsConfirmation,
     },
     idempotencyKey: idemKey,
+    interactive: opts.interactive === true,
   });
   if (!order.order_number) {
     // Loud warning: template would render "We've received your order ."
