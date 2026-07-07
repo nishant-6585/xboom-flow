@@ -428,6 +428,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         payment_terms: '',
         payment_status: 'pending',
         payment_due_date: '',
+        payment_mode: undefined,
         tracking_number: '',
         tracking_url: '',
         courier_name: '',
