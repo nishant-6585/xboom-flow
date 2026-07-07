@@ -405,16 +405,19 @@ export default function PortalCustomers() {
   useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, sortKey, sortDir]);
 
   // ----- stats -----
+  // Cards reflect the currently filtered dataset so counts stay in sync
+  // with whatever filters (date range, search, status, KYC, type, rep) are on.
   const stats = useMemo(() => {
-    const total = rows.length;
-    const active = rows.filter((r) => r.status === "active").length;
-    const kycPending = rows.filter((r) => r.kyc_status === "pending_verification").length;
-    const kycApproved = rows.filter((r) => r.kyc_status === "approved").length;
-    const kycNotSubmitted = rows.filter((r) => !r.kyc_status || r.kyc_status === "not_submitted").length;
-    const neverLogin = rows.filter((r) => !r.contacts.some((c) => c.last_login_at && c.auth_user_id)).length;
-    const newThisMonth = rows.filter((r) => r.created_at >= monthStart).length;
+    const src = filtered;
+    const total = src.length;
+    const active = src.filter((r) => r.status === "active").length;
+    const kycPending = src.filter((r) => r.kyc_status === "pending_verification").length;
+    const kycApproved = src.filter((r) => r.kyc_status === "approved").length;
+    const kycNotSubmitted = src.filter((r) => !r.kyc_status || r.kyc_status === "not_submitted").length;
+    const neverLogin = src.filter((r) => !r.contacts.some((c) => c.last_login_at && c.auth_user_id)).length;
+    const newThisMonth = src.filter((r) => r.created_at >= monthStart).length;
     return { total, active, kycPending, kycApproved, kycNotSubmitted, neverLogin, newThisMonth };
-  }, [rows, monthStart]);
+  }, [filtered, monthStart]);
 
   // ----- invite -----
   const resetInvite = () => {
