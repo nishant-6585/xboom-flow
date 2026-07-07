@@ -1322,6 +1322,42 @@ export type Database = {
           },
         ]
       }
+      birthday_flashes: {
+        Row: {
+          created_at: string
+          employee_id: string
+          flash_date: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          flash_date: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          flash_date?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "birthday_flashes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "birthday_flashes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyback_drones: {
         Row: {
           buyback_date: string
@@ -16881,6 +16917,7 @@ export type Database = {
       find_or_create_company:
         | { Args: { _name: string; _owner: string }; Returns: string }
         | { Args: { p_name: string }; Returns: string }
+      flash_my_birthday: { Args: never; Returns: boolean }
       generate_payment_reminders: { Args: never; Returns: undefined }
       generate_salary_sheets: { Args: never; Returns: undefined }
       get_all_company_followups: {
@@ -16944,17 +16981,6 @@ export type Database = {
       }
       get_compoff_balance: { Args: { _employee_id: string }; Returns: number }
       get_cron_secret: { Args: never; Returns: string }
-      get_current_month_birthdays: {
-        Args: never
-        Returns: {
-          avatar_url: string
-          birth_day: number
-          birth_month: number
-          department: string
-          employee_id: string
-          name: string
-        }[]
-      }
       get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
       get_employee_kpi: {
         Args: { p_employee_id: string; p_month?: string }
@@ -17048,6 +17074,20 @@ export type Database = {
           total_sales_amount: number
           tracking_number: string
           tracking_url: string
+        }[]
+      }
+      get_next_birthday: {
+        Args: never
+        Returns: {
+          birth_day: number
+          birth_month: number
+          days_until: number
+          department: string
+          employee_id: string
+          is_flashed: boolean
+          is_owner: boolean
+          is_today: boolean
+          name: string
         }[]
       }
       get_next_proforma_number: { Args: never; Returns: string }
@@ -17207,15 +17247,6 @@ export type Database = {
           products: string
           status: string
           updated_at: string
-        }[]
-      }
-      get_todays_birthdays: {
-        Args: never
-        Returns: {
-          avatar_url: string
-          department: string
-          employee_id: string
-          name: string
         }[]
       }
       get_user_activity_summary: {

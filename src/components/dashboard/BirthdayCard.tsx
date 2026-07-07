@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
-import { Cake, PartyPopper, Gift } from "lucide-react";
+import { Cake, PartyPopper, Gift, Sparkles, Megaphone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-interface Birthday {
+interface NextBirthday {
   employee_id: string;
   name: string;
   department: string | null;
-  avatar_url: string | null;
   birth_month: number;
   birth_day: number;
+  days_until: number;
+  is_today: boolean;
+  is_owner: boolean;
+  is_flashed: boolean;
 }
 
 // Pool of ~15 short, warm birthday wishes (varied tone, no age/year references).
@@ -90,30 +95,43 @@ function initialsOf(name: string): string {
 }
 
 export function BirthdayCard() {
-  const [rows, setRows] = useState<Birthday[] | null>(null);
+  const [row, setRow] = useState<NextBirthday | null | undefined>(undefined);
+  const [revealed, setRevealed] = useState(false);
+  const [flashing, setFlashing] = useState(false);
+
+  const load = async () => {
+    const { data, error } = await supabase.rpc("get_next_birthday" as never);
+    if (error) {
+      setRow(null);
+      return;
+    }
+    const arr = (data as unknown as NextBirthday[]) ?? [];
+    setRow(arr[0] ?? null);
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase.rpc("get_current_month_birthdays");
-      if (cancelled) return;
-      if (error) {
-        setRows([]);
-        return;
-      }
-      setRows((data as Birthday[]) ?? []);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void load();
   }, []);
 
-  // Render nothing (no empty shell) when loading or when zero birthdays this month.
-  if (!rows || rows.length === 0) return null;
+  if (row === undefined) return null; // loading
+  if (row === null) return null; // no upcoming birthday (shouldn't happen if active employees have dob)
 
   const dateKey = istDateKey();
-  const { month: todayMonth, day: todayDay, monthName } = istTodayParts();
-  const todaysCount = rows.filter((r) => r.birth_month === todayMonth && r.birth_day === todayDay).length;
+  const wish = pickWish(row.employee_id, dateKey);
+  const dayLabel = formatDay(row.birth_month, row.birth_day);
+  const showMessage = row.is_today && (row.is_flashed || (row.is_owner && revealed));
+
+  const handleFlash = async () => {
+    setFlashing(true);
+    const { error } = await supabase.rpc("flash_my_birthday" as never);
+    setFlashing(false);
+    if (error) {
+      toast.error("Couldn't flash your birthday", { description: error.message });
+      return;
+    }
+    toast.success("Your birthday wish is now live on the team dashboard 🎉");
+    void load();
+  };
 
   return (
     <Card className="border-pink-200/60 bg-gradient-to-br from-pink-50 via-amber-50 to-white dark:from-pink-950/30 dark:via-amber-950/20 dark:to-background overflow-hidden">
@@ -124,62 +142,99 @@ export function BirthdayCard() {
           </div>
           <div>
             <h3 className="font-semibold text-sm leading-tight">
-              Birthdays in {monthName}
+              {row.is_today ? "Birthday today" : "Upcoming birthday"}
             </h3>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <PartyPopper className="w-3 h-3" />
-              {todaysCount > 0
-                ? `${todaysCount} celebrating today — send them some love`
-                : `${rows.length} teammate${rows.length === 1 ? "" : "s"} to cheer this month`}
+              {row.is_today
+                ? "Send them some love"
+                : row.days_until === 1
+                  ? "Tomorrow — get ready to cheer!"
+                  : `In ${row.days_until} days`}
             </p>
           </div>
         </div>
-        <ul className="space-y-3">
-          {rows.map((b) => {
-            const isToday = b.birth_month === todayMonth && b.birth_day === todayDay;
-            return (
-            <li key={b.employee_id} className="flex items-start gap-3">
-              <Avatar
-                className={
-                  "w-9 h-9 shrink-0 ring-2 " +
-                  (isToday
-                    ? "ring-pink-500/70 dark:ring-pink-400/70"
-                    : "ring-pink-200/60 dark:ring-pink-900/40")
-                }
-              >
-                {b.avatar_url ? <AvatarImage src={b.avatar_url} alt={b.name} /> : null}
-                <AvatarFallback className="text-xs bg-pink-500/10 text-pink-700 dark:text-pink-300">
-                  {initialsOf(b.name) || "🎂"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <p className="font-medium text-sm truncate">{b.name}</p>
-                  {b.department && (
-                    <span className="text-[11px] text-muted-foreground">· {b.department}</span>
-                  )}
-                  <span
-                    className={
-                      "text-[11px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 " +
-                      (isToday
-                        ? "bg-pink-500 text-white"
-                        : "bg-pink-500/10 text-pink-700 dark:text-pink-300")
-                    }
-                  >
-                    {isToday ? <Gift className="w-3 h-3" /> : null}
-                    {isToday ? "Today" : formatDay(b.birth_month, b.birth_day)}
-                  </span>
-                </div>
-                {isToday && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {pickWish(b.employee_id, dateKey)}
-                  </p>
+
+        {/* Owner-on-birthday: hidden surprise until they click */}
+        {row.is_today && row.is_owner && !revealed && !row.is_flashed ? (
+          <button
+            type="button"
+            onClick={() => setRevealed(true)}
+            className="w-full text-left rounded-lg border border-dashed border-pink-400/60 bg-pink-500/5 hover:bg-pink-500/10 transition p-4 flex items-center gap-3"
+          >
+            <div className="w-10 h-10 rounded-full bg-pink-500 text-white flex items-center justify-center shadow-sm">
+              <Gift className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium text-sm">You have a surprise 🎁</p>
+              <p className="text-xs text-muted-foreground">Tap to open your birthday message</p>
+            </div>
+          </button>
+        ) : (
+          <div className="flex items-start gap-3">
+            <Avatar className="w-11 h-11 shrink-0 ring-2 ring-pink-500/60">
+              <AvatarFallback className="text-sm bg-pink-500/10 text-pink-700 dark:text-pink-300">
+                {initialsOf(row.name) || "🎂"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <p className="font-semibold text-sm truncate">{row.name}</p>
+                {row.department && (
+                  <span className="text-[11px] text-muted-foreground">· {row.department}</span>
                 )}
+                <span
+                  className={
+                    "text-[11px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 " +
+                    (row.is_today
+                      ? "bg-pink-500 text-white"
+                      : "bg-pink-500/10 text-pink-700 dark:text-pink-300")
+                  }
+                >
+                  {row.is_today ? <Gift className="w-3 h-3" /> : null}
+                  {row.is_today ? "Today" : dayLabel}
+                </span>
               </div>
-            </li>
-            );
-          })}
-        </ul>
+
+              {row.is_today && !showMessage && !row.is_owner && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  It's {row.name.split(" ")[0]}'s big day — drop them a wish!
+                </p>
+              )}
+
+              {showMessage && (
+                <div className="mt-2 rounded-md bg-white/60 dark:bg-white/5 border border-pink-200/50 dark:border-pink-900/40 p-2.5">
+                  <p className="text-sm flex items-start gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-pink-500 mt-0.5 shrink-0" />
+                    <span>{wish}</span>
+                  </p>
+                  {row.is_flashed && (
+                    <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                      <Megaphone className="w-3 h-3" /> Shared with the team
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Owner controls after reveal */}
+              {row.is_today && row.is_owner && revealed && !row.is_flashed && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Button size="sm" onClick={handleFlash} disabled={flashing} className="h-8">
+                    <Megaphone className="w-3.5 h-3.5 mr-1.5" />
+                    {flashing ? "Sharing…" : "Flash on team dashboard"}
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">Optional</span>
+                </div>
+              )}
+
+              {!row.is_today && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Get ready — {row.name.split(" ")[0]}'s birthday is on {dayLabel}.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
