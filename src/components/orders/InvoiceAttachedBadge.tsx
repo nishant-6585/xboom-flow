@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { FileCheck2, AlertOctagon } from "lucide-react";
@@ -21,42 +22,89 @@ type InvoiceMeta = {
   created_at: string;
 };
 
+type BadgeData = {
+  rows: InvoiceMeta[];
+  voided: boolean;
+};
+
+const queryKey = (orderId: string) => ["invoice-badge", orderId] as const;
+
 /**
  * Compact marker for the order card: shows when at least one invoice
  * (manually uploaded or synced from Zoho Books) is attached to the order.
  * Prefers the most recent tax_invoice; falls back to the most recent row.
+ *
+ * Uses React Query (cache + dedup + refetch on focus/reconnect) plus a
+ * per-order realtime channel so newly synced Zoho invoices appear the
+ * moment the poller writes the order_invoices row — no page refresh.
  */
 export function InvoiceAttachedBadge({ orderId, compact = false }: Props) {
-  const [inv, setInv] = useState<InvoiceMeta | null>(null);
-  const [count, setCount] = useState(0);
-  const [voided, setVoided] = useState(false);
+  const qc = useQueryClient();
 
+  const { data } = useQuery<BadgeData>({
+    queryKey: queryKey(orderId),
+    queryFn: async () => {
+      const [invRes, ordRes] = await Promise.all([
+        supabase
+          .from("order_invoices")
+          .select("invoice_number, source, document_type, created_at")
+          .eq("order_id", orderId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("orders")
+          .select("has_voided_zoho_invoice")
+          .eq("id", orderId)
+          .maybeSingle(),
+      ]);
+      if (invRes.error) throw invRes.error;
+      return {
+        rows: (invRes.data ?? []) as InvoiceMeta[],
+        voided: Boolean(ordRes.data?.has_voided_zoho_invoice),
+      };
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  // Realtime: invalidate this badge when the poller inserts an
+  // order_invoices row or flips the order's voided flag.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from("order_invoices")
-        .select("invoice_number, source, document_type, created_at")
-        .eq("order_id", orderId)
-        .order("created_at", { ascending: false });
-      if (!cancelled && !error && data && data.length > 0) {
-        const rows = data as InvoiceMeta[];
-        const preferred =
-          rows.find((r) => r.document_type === "tax_invoice") ?? rows[0];
-        setInv(preferred);
-        setCount(rows.length);
-      }
-      const { data: ord } = await supabase
-        .from("orders")
-        .select("has_voided_zoho_invoice")
-        .eq("id", orderId)
-        .maybeSingle();
-      if (!cancelled && ord?.has_voided_zoho_invoice) setVoided(true);
-    })();
+    const invalidate = () =>
+      qc.invalidateQueries({ queryKey: queryKey(orderId) });
+    const channel = supabase
+      .channel(`invoice-badge:${orderId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "order_invoices",
+          filter: `order_id=eq.${orderId}`,
+        },
+        invalidate,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `id=eq.${orderId}`,
+        },
+        invalidate,
+      )
+      .subscribe();
     return () => {
-      cancelled = true;
+      supabase.removeChannel(channel);
     };
-  }, [orderId]);
+  }, [orderId, qc]);
+
+  const rows = data?.rows ?? [];
+  const voided = data?.voided ?? false;
+  const count = rows.length;
+  const inv =
+    rows.find((r) => r.document_type === "tax_invoice") ?? rows[0] ?? null;
 
   if (!inv && !voided) return null;
 
