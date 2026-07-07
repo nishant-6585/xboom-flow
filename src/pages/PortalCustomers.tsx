@@ -350,7 +350,7 @@ export default function PortalCustomers() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return rows.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (kycFilter !== "all" && r.kyc_status !== kycFilter) return false;
@@ -364,12 +364,12 @@ export default function PortalCustomers() {
         if (hasLogin) return false;
       }
       if (newThisMonthOnly && r.created_at < monthStart) return false;
-      if (dateFrom) {
-        const s = startOfDay(dateFrom).toISOString();
+      if (debouncedDateFrom) {
+        const s = startOfDay(debouncedDateFrom).toISOString();
         if (r.created_at < s) return false;
       }
-      if (dateTo) {
-        const e = endOfDay(dateTo).toISOString();
+      if (debouncedDateTo) {
+        const e = endOfDay(debouncedDateTo).toISOString();
         if (r.created_at > e) return false;
       }
       if (q) {
@@ -381,7 +381,7 @@ export default function PortalCustomers() {
       }
       return true;
     });
-  }, [rows, search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, monthStart]);
+  }, [rows, debouncedSearch, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, debouncedDateFrom, debouncedDateTo, monthStart]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -420,9 +420,10 @@ export default function PortalCustomers() {
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [search, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, dateFrom, dateTo, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, kycFilter, typeFilter, repFilter, neverLoginOnly, newThisMonthOnly, debouncedDateFrom, debouncedDateTo, sortKey, sortDir]);
 
   // ----- stats -----
+
   // Cards reflect the currently filtered dataset so counts stay in sync
   // with whatever filters (date range, search, status, KYC, type, rep) are on.
   const stats = useMemo(() => {
