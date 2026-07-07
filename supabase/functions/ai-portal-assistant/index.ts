@@ -862,6 +862,24 @@ async function executeToolCall(
   const isHR = roles.includes("hr");
   const isFinance = roles.includes("finance");
 
+  // Sanitize user-controlled args before interpolation into PostgREST filter
+  // strings. Strips characters (`,`, `(`, `)`, `"`) that could inject
+  // additional filter clauses in `.or()`/`.filter()`, and enforces strict
+  // date shapes so args.date_from/date_to cannot contain PostgREST
+  // separators. Applies to every tool branch below.
+  if (typeof args.search === "string") {
+    const cleaned = args.search.replace(/[,()"']/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
+    if (cleaned) args.search = cleaned; else delete args.search;
+  } else if (args.search != null) {
+    delete args.search;
+  }
+  for (const k of ["date_from", "date_to"]) {
+    const v = (args as any)[k];
+    if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      delete (args as any)[k];
+    }
+  }
+
   // Check tiered access level
   const accessLevel = getAccessLevel(toolName, roles);
 
