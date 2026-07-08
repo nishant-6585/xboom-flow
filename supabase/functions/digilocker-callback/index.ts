@@ -18,6 +18,10 @@ import {
 } from "../_shared/kyc-provider.ts";
 import type { KycVerifiedData } from "../_shared/kyc-provider.ts";
 import { matchNames, DEFAULT_THRESHOLD } from "../_shared/name-match.ts";
+import {
+  revokeAccessToken,
+  type DigiLockerExchangeResult,
+} from "../_shared/kyc-providers/digilocker-direct.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,29 +97,66 @@ Deno.serve(async (req) => {
       .update({ consumed_at: new Date().toISOString() })
       .eq("id", (sess as any).id);
 
-    let verified: KycVerifiedData;
+    let verified: DigiLockerExchangeResult;
     try {
-      verified = await provider.exchangeCodeAndFetch(
+      verified = (await provider.exchangeCodeAndFetch(
         code,
         (sess as any).code_verifier,
         (sess as any).redirect_uri,
-      );
+      )) as DigiLockerExchangeResult;
     } catch (e) {
       const isDenied = e instanceof DocumentTypeDeniedError;
+      const reason = isDenied
+        ? ((e as Error).message || "document_type_denied")
+        : "exchange_failed";
+      const action =
+        reason === "hmac_mismatch" ? "hmac_mismatch"
+        : reason === "no_supported_document" ? "no_supported_document"
+        : isDenied ? "document_type_denied"
+        : "exchange_failed";
       await admin.from("kyc_audit_log").insert({
         account_id: accountId,
-        action: isDenied ? "document_type_denied" : "exchange_failed",
+        action,
         actor_role: "system",
         notes: (e as Error).message?.slice(0, 500) ?? null,
         metadata: { method: "digilocker", provider: provider.name, session_id: (sess as any).session_id },
       });
       return redirectToPortal(isDenied ? "denied" : "failure", {
-        reason: isDenied ? "document_type_denied" : "exchange_failed",
+        reason,
       });
     }
 
     const docType = verified.documentType || "unknown";
     const nowIso = new Date().toISOString();
+
+    // ── Upload the certificate PDF into the reviewer-visible bucket so it
+    //    appears in the KYC review UI at parity with manual uploads. ──
+    let filePath = `digilocker://${provider.name}/${(sess as any).session_id}`;
+    let fileName = verified.pdfFilename || `digilocker-${docType}-${(sess as any).session_id}.pdf`;
+    let fileSize = 0;
+    let mimeType = "application/pdf";
+    if (verified.pdf && verified.pdf.byteLength > 0) {
+      const safe = fileName.replace(/[^\w.\-]+/g, "_");
+      const storagePath = `${accountId}/${docType}/${Date.now()}-${safe}`;
+      const { error: upErr } = await admin.storage
+        .from("kyc-documents")
+        .upload(storagePath, verified.pdf, {
+          contentType: "application/pdf",
+          upsert: false,
+        });
+      if (!upErr) {
+        filePath = storagePath;
+        fileSize = verified.pdf.byteLength;
+      } else {
+        console.warn("[digilocker-callback] pdf upload failed:", upErr.message);
+        // Fall back to XML metadata; still record the document row.
+        mimeType = "application/xml";
+        fileName = fileName.replace(/\.pdf$/i, ".xml");
+      }
+    } else {
+      mimeType = "application/xml";
+      fileName = fileName.replace(/\.pdf$/i, ".xml");
+    }
 
     // Supersede prior "current" for this doc type
     await admin
@@ -131,16 +172,15 @@ Deno.serve(async (req) => {
       .eq("account_id", accountId)
       .eq("doc_type", docType);
 
-    const rawJson = JSON.stringify(verified.raw ?? {});
     const { data: doc, error: docErr } = await admin
       .from("kyc_documents")
       .insert({
         account_id: accountId,
         doc_type: docType,
-        file_path: `digilocker://${provider.name}/${(sess as any).session_id}`,
-        file_name: `digilocker-${docType}-${(sess as any).session_id}.xml`,
-        file_size_bytes: rawJson.length,
-        mime_type: "application/xml",
+        file_path: filePath,
+        file_name: fileName,
+        file_size_bytes: fileSize,
+        mime_type: mimeType,
         status: "approved", // may be flipped to pending on name mismatch below
         method: "digilocker",
         provider: provider.name,
@@ -151,6 +191,8 @@ Deno.serve(async (req) => {
           verified_dob: verified.dob,
           document_type: docType,
           masked_document_number: verified.maskedDocumentNumber,
+          doctype_code: verified.doctypeCode,
+          uri: verified.uri,
         },
       })
       .select("id")
@@ -159,14 +201,31 @@ Deno.serve(async (req) => {
       return redirectToPortal("failure", { reason: "persist_failed" });
     }
 
-    // Deny-all sensitive storage — includes full document number for compliance.
-    if (verified.documentNumberFull) {
+    // Deny-all sensitive storage — full doc number + token-response identity.
+    const tokenId = verified.tokenIdentity;
+    if (
+      verified.documentNumberFull ||
+      tokenId?.digilockerid ||
+      tokenId?.dob ||
+      tokenId?.gender ||
+      tokenId?.consentValidTill
+    ) {
       await admin.from("kyc_sensitive_data").insert({
         account_id: accountId,
         document_id: doc.id,
         document_type: docType,
-        document_number_full: verified.documentNumberFull,
+        document_number_full: verified.documentNumberFull || null,
+        digilockerid: tokenId?.digilockerid || null,
+        dob: tokenId?.dob || null,
+        gender: tokenId?.gender || null,
+        consent_valid_till: tokenId?.consentValidTill || null,
       });
+    }
+
+    // Best-effort revoke; never persist refresh_token (adapter strips it).
+    if (verified.accessToken) {
+      // Fire-and-forget; log-only.
+      revokeAccessToken(verified.accessToken).catch(() => {});
     }
 
     await admin.from("kyc_audit_log").insert({
