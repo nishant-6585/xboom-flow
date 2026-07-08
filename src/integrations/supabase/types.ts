@@ -17679,6 +17679,7 @@ export type Database = {
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_phone: { Args: { _raw: string }; Returns: string }
       order_has_drone: { Args: { p_order_id: string }; Returns: boolean }
+      profiles_self_update_identity_lock: { Args: never; Returns: boolean }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
