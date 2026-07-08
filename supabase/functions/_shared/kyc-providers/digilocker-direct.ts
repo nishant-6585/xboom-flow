@@ -31,7 +31,12 @@ function env(name: string, required = true): string {
 }
 
 function baseUrl(): string {
-  return (env("DIGILOCKER_BASE_URL") || "").replace(/\/+$/, "");
+  // Defensive normalisation: trim whitespace and strip any trailing
+  // dots, slashes, or whitespace from the configured base URL. A hostname
+  // with a trailing dot (e.g. "digilocker.meripehchaan.gov.in.") is a
+  // distinct string to TLS and will not match the server certificate,
+  // producing a "connection not private" error in the browser.
+  return (env("DIGILOCKER_BASE_URL") || "").trim().replace(/[.\/\s]+$/, "");
 }
 
 // ── PKCE helpers ──────────────────────────────────────────────────────────
