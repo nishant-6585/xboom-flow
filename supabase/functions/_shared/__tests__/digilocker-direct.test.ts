@@ -43,7 +43,7 @@ function withFetch(handler: (req: Request) => Promise<Response> | Response) {
   return () => { globalThis.fetch = original; };
 }
 
-Deno.test("authorize URL uses PKCE S256 + scope=openid + purpose=kyc + req_doctype", async () => {
+Deno.test("authorize URL uses PKCE S256 + no openid scope + purpose=kyc + req_doctype", async () => {
   const p = new DigiLockerDirectProvider();
   const s = await p.createVerificationSession(
     { accountId: "acc-1", fullName: "Test User", email: "t@example.com" },
@@ -61,7 +61,11 @@ Deno.test("authorize URL uses PKCE S256 + scope=openid + purpose=kyc + req_docty
     "https://example.test/functions/v1/digilocker-callback",
   );
   assert(url.searchParams.get("code_challenge"));
-  assertEquals(url.searchParams.get("scope"), "openid");
+  // scope=openid was removed: the DigiLocker client is configured WITHOUT
+  // openid so the plain /public/oauth2/1/token authorization_code grant
+  // succeeds. Sending openid puts the client into OIDC mode and the
+  // partner endpoint rejects the grant with 'invalid_grant_type'.
+  assertEquals(url.searchParams.get("scope"), null);
   assertEquals(url.searchParams.get("purpose"), "kyc");
   assertEquals(url.searchParams.get("req_doctype"), "DRVLC,PANCR");
 });
@@ -159,7 +163,7 @@ Deno.test("DL happy-path: HMAC-verified XML+PDF returns normalized shape and tok
         access_token: "AT",
         // refresh_token intentionally present here; adapter MUST strip it.
         refresh_token: "MUST_NOT_PERSIST",
-        scope: "openid",
+        scope: "",
         digilockerid: "dl-abc-123",
         name: "Rahul Sharma",
         dob: "01011990",
