@@ -13,6 +13,8 @@ import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ShieldCheck } fro
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type DocType =
   | "aadhaar" | "pan" | "driving_license" | "voter_id"
@@ -71,6 +73,7 @@ function validateNumber(t: DocType, raw: string): string | null {
 
 export default function PortalKyc() {
   const { account, documents, loading, submitting, submitDocument, getSignedUrl } = useMyKyc();
+  const { contact } = usePortalAuth();
   const [docType, setDocType] = useState<DocType>("aadhaar");
   const [docNumber, setDocNumber] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -87,6 +90,10 @@ export default function PortalKyc() {
 
   useEffect(() => {
     let cancelled = false;
+    // Contact email already resolved by usePortalAuth — no need to re-call
+    // supabase.auth.getUser(). Wait until we have it before deciding
+    // allowlist membership.
+    const email = String(contact?.email || "").toLowerCase();
     (async () => {
       const { data: flags } = await supabase
         .from("feature_flags")
@@ -98,16 +105,14 @@ export default function PortalKyc() {
 
       let allowlisted = false;
       const testFlag = map["digilocker_kyc_test_emails"];
-      if (testFlag?.enabled && Array.isArray(testFlag?.metadata)) {
-        const { data: u } = await supabase.auth.getUser();
-        const email = String(u.user?.email || "").toLowerCase();
+      if (testFlag?.enabled && Array.isArray(testFlag?.metadata) && email) {
         allowlisted = (testFlag.metadata as string[])
           .map((e) => String(e).toLowerCase()).includes(email);
       }
       if (!cancelled) setDigilockerVisible(globalOn || allowlisted);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [contact?.email]);
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -116,7 +121,13 @@ export default function PortalKyc() {
   }, []);
 
   async function startDigilocker() {
+    // Show the redirecting state synchronously before awaiting so the button
+    // paints its spinner on the same frame as the click.
     setDlStarting(true);
+    // Yield a tick so React commits the disabled/spinner state before we
+    // start the network round-trip (which can otherwise block paint on
+    // slow connections).
+    await Promise.resolve();
     try {
       const { data, error } = await supabase.functions.invoke("digilocker-initiate", { body: {} });
       if (error) throw error;
@@ -130,7 +141,34 @@ export default function PortalKyc() {
   }
 
   if (loading) {
-    return <PortalLayout><div className="p-10 text-center text-muted-foreground">Loading…</div></PortalLayout>;
+    // Render the page shell + skeletons immediately so first paint is
+    // instant instead of a blank spinner — data fills in as it arrives.
+    return (
+      <PortalLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 ref={titleRef} tabIndex={-1} className="text-2xl font-semibold tracking-tight">KYC Verification</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Verify your identity with a government-issued ID so we can process your orders.
+            </p>
+          </div>
+          <Card>
+            <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
+            <CardContent className="space-y-3">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><Skeleton className="h-5 w-56" /></CardHeader>
+            <CardContent className="space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-10 w-48" />
+            </CardContent>
+          </Card>
+        </div>
+      </PortalLayout>
+    );
   }
 
   const status = account?.kyc_status ?? "not_submitted";
