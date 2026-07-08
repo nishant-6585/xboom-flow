@@ -26,7 +26,11 @@ const SOURCES: SourceCheck[] = [
   { key: "woocommerce", label: "WooCommerce (Xboom Website)", table: "woocommerce_orders", dateColumn: "woo_created_at", staleHours: 12 },
   { key: "shopify", label: "Shopify", table: "shopify_orders", dateColumn: "shopify_created_at", staleHours: 24 },
   { key: "email_leads", label: "Email Leads (Gmail)", table: "email_leads", dateColumn: "ingested_at", staleHours: 24 },
-  { key: "elevenlabs", label: "ElevenLabs (Voice AI)", table: "call_logs", dateColumn: "created_at", staleHours: 48, filterColumn: "lead_source", filterValue: "ElevenLabs" },
+  // Measure ElevenLabs liveness at the webhook boundary. Most conversations
+  // are web-widget chats with no phone leg, so they never produce a
+  // call_logs row (no caller_id). call_webhook_logs captures every
+  // ElevenLabs webhook we receive — the honest "is it alive" signal.
+  { key: "elevenlabs", label: "ElevenLabs (Voice AI)", table: "call_webhook_logs", dateColumn: "created_at", staleHours: 48, filterColumn: "source", filterValue: "elevenlabs" },
   { key: "myoperator", label: "MyOperator (Call Logs)", table: "call_logs", dateColumn: "created_at", staleHours: 6, filterColumn: "raw_payload", filterValue: "__not_null__" },
   { key: "qforms", label: "QForms (Website Forms)", table: "leads", dateColumn: "created_at", staleHours: 24, filterColumn: "form_type", filterValue: "__not_null__" },
 ];
