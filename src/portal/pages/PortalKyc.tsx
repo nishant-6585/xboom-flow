@@ -109,6 +109,12 @@ export default function PortalKyc() {
     return () => { cancelled = true; };
   }, []);
 
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    titleRef.current?.focus({ preventScroll: true });
+  }, []);
+
   async function startDigilocker() {
     setDlStarting(true);
     try {
