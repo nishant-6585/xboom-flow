@@ -5148,6 +5148,7 @@ export type Database = {
         Row: {
           enabled: boolean
           key: string
+          metadata: Json | null
           updated_at: string
           updated_by: string | null
           updated_by_name: string | null
@@ -5155,6 +5156,7 @@ export type Database = {
         Insert: {
           enabled?: boolean
           key: string
+          metadata?: Json | null
           updated_at?: string
           updated_by?: string | null
           updated_by_name?: string | null
@@ -5162,6 +5164,7 @@ export type Database = {
         Update: {
           enabled?: boolean
           key?: string
+          metadata?: Json | null
           updated_at?: string
           updated_by?: string | null
           updated_by_name?: string | null
@@ -7533,6 +7536,63 @@ export type Database = {
           },
         ]
       }
+      kyc_digilocker_sessions: {
+        Row: {
+          account_id: string
+          actor_user_id: string | null
+          code_verifier: string
+          consumed_at: string | null
+          contact_id: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          redirect_uri: string
+          session_id: string
+          state: string
+        }
+        Insert: {
+          account_id: string
+          actor_user_id?: string | null
+          code_verifier: string
+          consumed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          redirect_uri: string
+          session_id: string
+          state: string
+        }
+        Update: {
+          account_id?: string
+          actor_user_id?: string | null
+          code_verifier?: string
+          consumed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          redirect_uri?: string
+          session_id?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_digilocker_sessions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_digilocker_sessions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kyc_documents: {
         Row: {
           account_id: string
@@ -7658,6 +7718,8 @@ export type Database = {
           account_id: string
           created_at: string
           document_id: string | null
+          document_number_full: string | null
+          document_type: string | null
           id: string
         }
         Insert: {
@@ -7665,6 +7727,8 @@ export type Database = {
           account_id: string
           created_at?: string
           document_id?: string | null
+          document_number_full?: string | null
+          document_type?: string | null
           id?: string
         }
         Update: {
@@ -7672,6 +7736,8 @@ export type Database = {
           account_id?: string
           created_at?: string
           document_id?: string | null
+          document_number_full?: string | null
+          document_type?: string | null
           id?: string
         }
         Relationships: [
