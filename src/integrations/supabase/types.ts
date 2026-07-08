@@ -16665,6 +16665,19 @@ export type Database = {
         Args: { p_order_id: string; p_zoho_invoice_id: string }
         Returns: undefined
       }
+      attendance_logs_self_time_lock: {
+        Args: {
+          _break_end_time: string
+          _break_start_time: string
+          _check_in_time: string
+          _check_out_time: string
+          _id: string
+          _notes: string
+          _total_break_minutes: number
+          _working_hours: number
+        }
+        Returns: boolean
+      }
       attendance_logs_self_update_check: {
         Args: {
           _approved_by: string
