@@ -7716,28 +7716,40 @@ export type Database = {
         Row: {
           aadhaar_full: string
           account_id: string
+          consent_valid_till: string | null
           created_at: string
+          digilockerid: string | null
+          dob: string | null
           document_id: string | null
           document_number_full: string | null
           document_type: string | null
+          gender: string | null
           id: string
         }
         Insert: {
           aadhaar_full: string
           account_id: string
+          consent_valid_till?: string | null
           created_at?: string
+          digilockerid?: string | null
+          dob?: string | null
           document_id?: string | null
           document_number_full?: string | null
           document_type?: string | null
+          gender?: string | null
           id?: string
         }
         Update: {
           aadhaar_full?: string
           account_id?: string
+          consent_valid_till?: string | null
           created_at?: string
+          digilockerid?: string | null
+          dob?: string | null
           document_id?: string | null
           document_number_full?: string | null
           document_type?: string | null
+          gender?: string | null
           id?: string
         }
         Relationships: [
@@ -18023,6 +18035,7 @@ export type Database = {
         | "gst"
         | "business_registration"
         | "address_proof"
+        | "driving_license"
       kyc_status:
         | "not_submitted"
         | "pending_verification"
@@ -18381,6 +18394,7 @@ export const Constants = {
         "gst",
         "business_registration",
         "address_proof",
+        "driving_license",
       ],
       kyc_status: [
         "not_submitted",
