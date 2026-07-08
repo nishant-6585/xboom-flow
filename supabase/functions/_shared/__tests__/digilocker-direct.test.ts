@@ -233,3 +233,27 @@ Deno.test("verifyWebhook always false (OAuth adapter has no HMAC path)", async (
   const ok = await p.verifyWebhook(new Request("http://x"), "{}");
   assertEquals(ok, false);
 });
+
+Deno.test("baseUrl normalisation: trailing dot/slash/whitespace stripped from authorize host", async () => {
+  const original = Deno.env.get("DIGILOCKER_BASE_URL") || "";
+  try {
+    for (const dirty of [
+      "https://digilocker.meripehchaan.gov.in.",
+      "https://digilocker.meripehchaan.gov.in/",
+      "https://digilocker.meripehchaan.gov.in.  ",
+      "  https://digilocker.meripehchaan.gov.in./ ",
+    ]) {
+      Deno.env.set("DIGILOCKER_BASE_URL", dirty);
+      const p = new DigiLockerDirectProvider();
+      const s = await p.createVerificationSession(
+        { accountId: "acc-x", fullName: "Test User", email: "t@example.com" },
+        "ignored",
+      );
+      const url = new URL(s.consentUrl);
+      assertEquals(url.host, "digilocker.meripehchaan.gov.in");
+      assertEquals(url.hostname, "digilocker.meripehchaan.gov.in");
+    }
+  } finally {
+    Deno.env.set("DIGILOCKER_BASE_URL", original);
+  }
+});
