@@ -16587,6 +16587,22 @@ export type Database = {
         Args: { p_order_id: string; p_zoho_invoice_id: string }
         Returns: undefined
       }
+      attendance_logs_self_update_check: {
+        Args: {
+          _approved_by: string
+          _approved_by_name: string
+          _auto_checkout_applied: boolean
+          _auto_checkout_time: string
+          _corrected_at: string
+          _corrected_by: string
+          _id: string
+          _is_provisional_checkout: boolean
+          _reconciliation_status: string
+          _source: string
+          _status: string
+        }
+        Returns: boolean
+      }
       attribute_website_order: {
         Args: {
           p_order_id: string
