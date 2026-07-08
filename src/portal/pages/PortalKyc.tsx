@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PortalLayout } from "@/portal/components/PortalLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,18 +15,37 @@ export default function PortalKyc() {
   const { account, documents, loading, submitting, submitAadhaar, getSignedUrl } = useMyKyc();
   const [aadhaar, setAadhaar] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [digilockerEnabled, setDigilockerEnabled] = useState(false);
+  const [digilockerVisible, setDigilockerVisible] = useState(false);
   const [dlStarting, setDlStarting] = useState(false);
+
+  // Show DigiLocker banner about the redirect result, if any.
+  const dlResult = useMemo(() => {
+    const p = new URLSearchParams(window.location.search);
+    const dl = p.get("dl");
+    if (!dl) return null;
+    return { status: dl, reason: p.get("reason") };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      const { data: flags } = await supabase
         .from("feature_flags")
-        .select("enabled")
-        .eq("key", "digilocker_kyc_enabled")
-        .maybeSingle();
-      if (!cancelled) setDigilockerEnabled(!!(data as any)?.enabled);
+        .select("key, enabled, metadata")
+        .in("key", ["digilocker_kyc_enabled", "digilocker_kyc_test_emails"]);
+      const map: Record<string, any> = {};
+      for (const f of (flags as any[]) || []) map[f.key] = f;
+      const globalOn = !!map["digilocker_kyc_enabled"]?.enabled;
+
+      let allowlisted = false;
+      const testFlag = map["digilocker_kyc_test_emails"];
+      if (testFlag?.enabled && Array.isArray(testFlag?.metadata)) {
+        const { data: u } = await supabase.auth.getUser();
+        const email = String(u.user?.email || "").toLowerCase();
+        allowlisted = (testFlag.metadata as string[])
+          .map((e) => String(e).toLowerCase()).includes(email);
+      }
+      if (!cancelled) setDigilockerVisible(globalOn || allowlisted);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -75,6 +94,25 @@ export default function PortalKyc() {
           </p>
         </div>
 
+        {dlResult && (
+          <div
+            className={
+              "p-3 border rounded-md text-sm " +
+              (dlResult.status === "success"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : dlResult.status === "mismatch"
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : "bg-red-50 border-red-200 text-red-800")
+            }
+          >
+            {dlResult.status === "success" && "DigiLocker verification successful — your KYC is approved."}
+            {dlResult.status === "mismatch" && "We received your DigiLocker document but the name doesn't match your account. Our team will review it shortly."}
+            {dlResult.status === "denied" &&
+              "DigiLocker did not release your Driving Licence or PAN. Please make sure one of them is issued in your DigiLocker, or upload manually below."}
+            {dlResult.status === "failure" && `DigiLocker verification failed${dlResult.reason ? ` (${dlResult.reason})` : ""}. Please try again or upload manually.`}
+          </div>
+        )}
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Current status</CardTitle>
@@ -122,22 +160,21 @@ export default function PortalKyc() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {digilockerEnabled && (
+              {digilockerVisible && (
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <ShieldCheck className="h-5 w-5 text-primary mt-0.5" />
                     <div className="text-sm">
                       <div className="font-medium">Verify instantly with DigiLocker</div>
                       <div className="text-muted-foreground">
-                        Fetches your Aadhaar securely from the Government's DigiLocker — no upload,
-                        approved in seconds.
+                        Use your Driving Licence or PAN from DigiLocker.
                       </div>
                     </div>
                   </div>
                   <Button onClick={startDigilocker} disabled={dlStarting} className="w-full sm:w-auto">
                     {dlStarting
                       ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecting…</>
-                      : <><ShieldCheck className="h-4 w-4 mr-2" /> Verify with DigiLocker</>}
+                      : <><ShieldCheck className="h-4 w-4 mr-2" /> Verify instantly with DigiLocker</>}
                   </Button>
                   <div className="text-xs text-muted-foreground">
                     Prefer to upload manually? Use the form below.
