@@ -491,6 +491,20 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
 
   const totalItems = orderItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const totalAmount = formData.total_sales_amount || 0;
+  const subtotalExGst = orderItems.reduce((sum, item) => {
+    const price = item.unit_price || 0;
+    const qty = item.quantity || 0;
+    const line = price * qty;
+    if (item.sales_price_includes_gst) {
+      const gstPerUnit = item.sales_gst_amount || 0;
+      return sum + (line - gstPerUnit * qty);
+    }
+    return sum + line;
+  }, 0);
+  const totalGst = orderItems.reduce(
+    (sum, item) => sum + (item.sales_gst_amount || 0) * (item.quantity || 0),
+    0
+  );
 
   // Step Progress Indicator
   const StepIndicator = () => (
@@ -599,6 +613,18 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
           <span className="text-muted-foreground">Total Quantity</span>
           <span className="font-medium">{totalItems} units</span>
         </div>
+        {totalGst > 0 && (
+          <>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal (excl. GST)</span>
+              <span className="font-medium">₹{subtotalExGst.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">GST</span>
+              <span className="font-medium">₹{totalGst.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            </div>
+          </>
+        )}
         {formData.delivery_charges && formData.delivery_charges > 0 && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">Delivery</span>
@@ -607,8 +633,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         )}
         <Separator className="my-2" />
         <div className="flex justify-between text-base">
-          <span className="font-medium">Total Amount</span>
-          <span className="font-bold text-primary">₹{totalAmount.toLocaleString()}</span>
+          <span className="font-medium">Total Amount (incl. GST)</span>
+          <span className="font-bold text-primary">₹{totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
         </div>
         {formData.customer_name && (
           <>
