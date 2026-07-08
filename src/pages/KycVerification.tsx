@@ -101,7 +101,8 @@ export default function KycVerification() {
                   <TableRow>
                     <TableHead>Order #</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Aadhaar</TableHead>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Number</TableHead>
                     <TableHead>Uploaded</TableHead>
                     <TableHead>Salesperson</TableHead>
                     <TableHead>Status</TableHead>
@@ -123,13 +124,20 @@ export default function KycVerification() {
                           <div className="font-medium">{r.account.primary_contact_name || r.account.company_name}</div>
                           <div className="text-xs text-muted-foreground">{r.customer_email || r.account.company_name}</div>
                         </TableCell>
+                        <TableCell className="text-xs">
+                          {formatDocType(r.document?.doc_type)}
+                        </TableCell>
                         <TableCell className="font-mono text-xs">
-                          {aadhaarMap[r.account.id] ? (
-                            aadhaarMap[r.account.id]
+                          {r.document?.doc_type === "aadhaar" || !r.document ? (
+                            aadhaarMap[r.account.id] ? (
+                              aadhaarMap[r.account.id]
+                            ) : (
+                              <button className="underline text-primary" onClick={() => revealAadhaar(r.account.id)}>
+                                XXXX XXXX {r.account.aadhaar_last4 || "----"}
+                              </button>
+                            )
                           ) : (
-                            <button className="underline text-primary" onClick={() => revealAadhaar(r.account.id)}>
-                              XXXX XXXX {r.account.aadhaar_last4 || "----"}
-                            </button>
+                            (r.document?.metadata as any)?.document_reference || "—"
                           )}
                         </TableCell>
                         <TableCell className="text-sm">
