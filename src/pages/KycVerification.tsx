@@ -14,6 +14,14 @@ import { format } from "date-fns";
 import { Eye, Check, X, Loader2, ShieldCheck, Search } from "lucide-react";
 import { Header } from "@/components/Header";
 
+const REJECT_CATEGORIES: { value: string; label: string }[] = [
+  { value: "document_unclear", label: "Document unclear" },
+  { value: "name_mismatch", label: "Name mismatch" },
+  { value: "expired_invalid", label: "Expired / invalid" },
+  { value: "wrong_document", label: "Wrong document" },
+  { value: "other", label: "Other" },
+];
+
 function formatDocType(t?: string | null): string {
   switch (t) {
     case "aadhaar": return "Aadhaar";
@@ -95,7 +103,7 @@ export default function KycVerification() {
         <ShieldCheck className="h-7 w-7 text-primary" />
         <div>
           <h1 className="text-2xl font-bold tracking-tight">KYC Verification Queue</h1>
-          <p className="text-sm text-muted-foreground">Review customer-submitted Aadhaar documents.</p>
+          <p className="text-sm text-muted-foreground">Review customer-submitted identity documents.</p>
         </div>
         </div>
 
@@ -129,8 +137,14 @@ export default function KycVerification() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((r) => {
-                    const meta = kycStatusMeta(r.account.kyc_status);
-                    const canReview = r.account.kyc_status === "pending_verification" && r.document;
+                    // Prefer per-submission status so approve/reject reflects the latest doc,
+                    // not a stale account-level flag.
+                    const effectiveStatus = (r.document?.status as any) ?? r.account.kyc_status;
+                    const meta = kycStatusMeta(effectiveStatus);
+                    const canReview = effectiveStatus === "pending_verification" && r.document;
+                    const isDlMismatch =
+                      effectiveStatus === "pending_verification" &&
+                      (r.document?.metadata as any)?.method === "digilocker";
                     return (
                       <TableRow
                         key={r.account.id}
@@ -162,7 +176,16 @@ export default function KycVerification() {
                           {r.account.kyc_submitted_at ? format(new Date(r.account.kyc_submitted_at), "dd MMM, HH:mm") : "—"}
                         </TableCell>
                         <TableCell className="text-sm">{r.rep_name || "—"}</TableCell>
-                        <TableCell><Badge variant="outline" className={meta.className}>{meta.label}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1 items-start">
+                            <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
+                            {isDlMismatch && (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-[10px]">
+                                DigiLocker · name mismatch
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             {r.document && (
@@ -209,18 +232,31 @@ export default function KycVerification() {
               </div>
             </div>
             {reviewing?.mode === "reject" && (
-              <div className="space-y-2">
-                <Label htmlFor="reason">Rejection reason <span className="text-red-600">*</span></Label>
-                <Textarea id="reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Document is blurry, name doesn't match…" />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label>Reason category <span className="text-red-600">*</span></Label>
+                  <Select value={reasonCategory} onValueChange={setReasonCategory}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {REJECT_CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reason">Additional notes {reasonCategory === "other" && <span className="text-red-600">*</span>}</Label>
+                  <Textarea id="reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
+                    placeholder="Optional context to help the customer resubmit correctly…" />
+                </div>
+              </>
             )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setReviewing(null)} disabled={busy}>Cancel</Button>
             <Button
               onClick={confirm}
-              disabled={busy || (reviewing?.mode === "reject" && !reason.trim())}
+              disabled={busy || (reviewing?.mode === "reject" && reasonCategory === "other" && !reason.trim())}
               className={reviewing?.mode === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
               variant={reviewing?.mode === "reject" ? "destructive" : "default"}
             >
