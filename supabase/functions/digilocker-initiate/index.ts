@@ -34,6 +34,18 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  // Cheap warmup ping — keeps the isolate hot during business hours so
+  // real customer clicks don't pay the cold-start tax. Returns before any
+  // client init or DB work. Callers pass { warmup: true } with the
+  // CRON_SECRET header, matching the pattern used by sync-health-check.
+  const cronSecret = req.headers.get("x-cron-secret");
+  const expectedCronSecret = Deno.env.get("CRON_SECRET");
+  if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
+    let body: any = null;
+    try { body = await req.clone().json(); } catch { /* ignore */ }
+    if (body?.warmup === true) return json({ ok: true, warm: true });
+  }
+
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -51,20 +63,25 @@ Deno.serve(async (req) => {
   const callerId = userData?.user?.id;
   if (!callerId) return json({ error: "Unauthorized" }, 401);
 
-  // Resolve portal account for caller
-  const { data: contact } = await admin
-    .from("portal_contacts")
-    .select("id, account_id, full_name, email")
-    .eq("auth_user_id", callerId)
-    .eq("is_active", true)
-    .maybeSingle();
+  // Parallelise the two independent reads (contact + feature flags).
+  // portal_accounts still comes after because it needs contact.account_id.
+  const [contactRes, flagsRes] = await Promise.all([
+    admin
+      .from("portal_contacts")
+      .select("id, account_id, full_name, email")
+      .eq("auth_user_id", callerId)
+      .eq("is_active", true)
+      .maybeSingle(),
+    admin
+      .from("feature_flags")
+      .select("key, enabled, metadata")
+      .in("key", ["digilocker_kyc_enabled", "digilocker_kyc_test_emails"]),
+  ]);
+  const contact = contactRes.data;
   if (!(contact as any)?.account_id) return json({ error: "No portal account" }, 403);
 
   // Feature flag: global enabled OR caller email in test allow-list.
-  const { data: flags } = await admin
-    .from("feature_flags")
-    .select("key, enabled, metadata")
-    .in("key", ["digilocker_kyc_enabled", "digilocker_kyc_test_emails"]);
+  const flags = flagsRes.data;
   const flagMap: Record<string, any> = {};
   for (const f of (flags as any[]) || []) flagMap[f.key] = f;
   const globalOn = !!flagMap["digilocker_kyc_enabled"]?.enabled;
@@ -84,6 +101,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   try {
+    const t0 = Date.now();
     const provider = getKycProvider();
     const redirectUrl = `${PORTAL_BASE}/portal/kyc?dl=return`;
     const session = await provider.createVerificationSession(
@@ -127,6 +145,7 @@ Deno.serve(async (req) => {
       },
     });
 
+    console.log(`[digilocker-initiate] session created in ${Date.now() - t0}ms`);
     return json({ consent_url: session.consentUrl, session_id: session.sessionId });
   } catch (e) {
     console.error("[digilocker-initiate] failed:", e);
