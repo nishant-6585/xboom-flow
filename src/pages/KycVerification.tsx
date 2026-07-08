@@ -13,6 +13,19 @@ import { format } from "date-fns";
 import { Eye, Check, X, Loader2, ShieldCheck, Search } from "lucide-react";
 import { Header } from "@/components/Header";
 
+function formatDocType(t?: string | null): string {
+  switch (t) {
+    case "aadhaar": return "Aadhaar";
+    case "pan": return "PAN";
+    case "driving_license": return "Driving Licence";
+    case "voter_id": return "Voter ID";
+    case "passport": return "Passport";
+    case "rental_agreement": return "Rental Agreement";
+    case "other_gov_id": return "Other Govt ID";
+    default: return t ? t : "—";
+  }
+}
+
 export default function KycVerification() {
   const { rows, loading, review, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
