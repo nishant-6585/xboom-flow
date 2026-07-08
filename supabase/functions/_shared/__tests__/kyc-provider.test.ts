@@ -1,9 +1,16 @@
 import { assertEquals, assert } from "https://deno.land/std@0.208.0/assert/mod.ts";
 import { getKycProvider, type KycProvider, type KycVerifiedData } from "../kyc-provider.ts";
 
-Deno.test("seam returns configured provider (defaults to surepass)", () => {
-  const p = getKycProvider();
-  assertEquals(p.name, "surepass");
+Deno.test("seam registry exposes both surepass and digilocker_direct adapters", () => {
+  assertEquals(getKycProvider("surepass").name, "surepass");
+  assertEquals(getKycProvider("digilocker_direct").name, "digilocker_direct");
+});
+
+Deno.test("seam defaults to surepass when KYC_PROVIDER env is unset", () => {
+  const prev = Deno.env.get("KYC_PROVIDER");
+  Deno.env.delete("KYC_PROVIDER");
+  try { assertEquals(getKycProvider().name, "surepass"); }
+  finally { if (prev !== undefined) Deno.env.set("KYC_PROVIDER", prev); }
 });
 
 Deno.test("seam throws on unknown provider", () => {
