@@ -14,6 +14,7 @@ import {
   EMAIL_RE,
   isDuplicate,
 } from "./helpers.ts";
+import { validateManualInput } from "./manualValidators.ts";
 
 // Kill switch for customer-facing KYC emails. Source of truth is the
 // `feature_flags` row with key='kyc_customer_emails_enabled' (DB-backed
@@ -589,53 +590,11 @@ async function onboardOrder(
 
 // ============ SUBMIT (customer) ============
 async function submitKyc(admin: ReturnType<typeof createClient>, callerId: string, body: Body) {
-  // Accept a generic doc_type. Legacy callers may still send aadhaar_number
-  // without doc_type — treat that as Aadhaar.
-  const ALLOWED_TYPES = [
-    "aadhaar", "pan", "driving_license", "voter_id",
-    "passport", "rental_agreement", "other_gov_id",
-  ] as const;
-  type DT = typeof ALLOWED_TYPES[number];
-  const docType = (body.document_type || (body.aadhaar_number ? "aadhaar" : "")) as DT;
-  if (!ALLOWED_TYPES.includes(docType)) {
-    return json({ error: "Invalid document_type" }, 400);
-  }
-
+  const docType = body.document_type || (body.aadhaar_number ? "aadhaar" : "");
   const rawNumber = (body.document_number ?? body.aadhaar_number ?? "").trim();
-  const cleanedDigits = rawNumber.replace(/\s+/g, "");
-  const upper = cleanedDigits.toUpperCase();
-
-  // Per-type validation of the identifier
-  let aadhaarFull: string | null = null;
-  let documentReference: string | null = null;
-  switch (docType) {
-    case "aadhaar":
-      if (!/^\d{12}$/.test(cleanedDigits)) return json({ error: "Aadhaar must be exactly 12 digits" }, 400);
-      aadhaarFull = cleanedDigits;
-      break;
-    case "pan":
-      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(upper)) return json({ error: "PAN must be in format AAAAA9999A" }, 400);
-      documentReference = upper;
-      break;
-    case "driving_license":
-      // Basic sanity: 5–20 alphanumerics (state/RTO formats vary widely).
-      if (!/^[A-Z0-9\-\s]{5,20}$/i.test(rawNumber)) return json({ error: "Driving Licence number looks invalid" }, 400);
-      documentReference = rawNumber.toUpperCase();
-      break;
-    case "passport":
-      if (!/^[A-PR-WYa-pr-wy][0-9]{7}$/.test(rawNumber)) return json({ error: "Passport must be 1 letter + 7 digits" }, 400);
-      documentReference = rawNumber.toUpperCase();
-      break;
-    case "voter_id":
-      if (!/^[A-Z0-9]{6,20}$/i.test(rawNumber)) return json({ error: "Voter ID looks invalid" }, 400);
-      documentReference = rawNumber.toUpperCase();
-      break;
-    case "rental_agreement":
-    case "other_gov_id":
-      // Reference is optional/free-text for these.
-      documentReference = rawNumber ? rawNumber.slice(0, 120) : null;
-      break;
-  }
+  const validated = validateManualInput(docType, rawNumber);
+  if ("error" in validated) return json({ error: validated.error }, 400);
+  const { aadhaarFull, documentReference } = validated.value;
 
   if (!body.file_path || !body.file_name || !body.file_size) {
     return json({ error: "file_path, file_name, file_size required" }, 400);
