@@ -35,6 +35,7 @@ export interface KycDocumentRow {
   reviewed_at: string | null;
   version: number;
   is_current: boolean;
+  metadata?: Record<string, any> | null;
 }
 
 /** Status label + Tailwind classes shared across portal & flow */
@@ -97,9 +98,12 @@ export function useMyKyc() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const submitAadhaar = useCallback(async (aadhaarNumber: string, file: File) => {
-    const cleaned = aadhaarNumber.replace(/\s+/g, "");
-    if (!/^\d{12}$/.test(cleaned)) { toast.error("Aadhaar must be exactly 12 digits"); return false; }
+  const submitDocument = useCallback(async (opts: {
+    documentType: string;
+    documentNumber: string;
+    file: File;
+  }) => {
+    const { documentType, documentNumber, file } = opts;
     if (file.size > MAX_BYTES) { toast.error("File exceeds 10MB"); return false; }
     if (!ALLOWED_MIME.includes(file.type)) { toast.error("Only PDF / JPG / JPEG / PNG allowed"); return false; }
     if (!account?.id) { toast.error("No portal account found"); return false; }
@@ -107,7 +111,7 @@ export function useMyKyc() {
     setSubmitting(true);
     try {
       const safe = file.name.replace(/[^\w.\-]+/g, "_");
-      const path = `${account.id}/aadhaar/${Date.now()}-${safe}`;
+      const path = `${account.id}/${documentType}/${Date.now()}-${safe}`;
       const { error: upErr } = await supabase.storage
         .from(BUCKET)
         .upload(path, file, { contentType: file.type, upsert: false });
@@ -116,7 +120,8 @@ export function useMyKyc() {
       const { error } = await supabase.functions.invoke("kyc-handler", {
         body: {
           action: "submit",
-          aadhaar_number: cleaned,
+          document_type: documentType,
+          document_number: documentNumber,
           file_path: path,
           file_name: file.name,
           file_size: file.size,
@@ -141,7 +146,7 @@ export function useMyKyc() {
     return data.signedUrl;
   }, []);
 
-  return { account, documents, loading, submitting, refresh, submitAadhaar, getSignedUrl };
+  return { account, documents, loading, submitting, refresh, submitDocument, getSignedUrl };
 }
 
 /** Flow-facing: queue of pending KYC submissions for staff review */
