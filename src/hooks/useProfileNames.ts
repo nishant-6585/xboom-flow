@@ -15,14 +15,17 @@ export function useProfileNames() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, name, email")
+        .select("user_id, name, email, avatar_url")
         .limit(2000);
       if (error) throw error;
-      const map = new Map<string, string>();
+      const names = new Map<string, string>();
+      const avatars = new Map<string, string | null>();
       (data ?? []).forEach((p: any) => {
-        if (p?.user_id) map.set(p.user_id, p.name || p.email || "Unknown");
+        if (!p?.user_id) return;
+        names.set(p.user_id, p.name || p.email || "Unknown");
+        avatars.set(p.user_id, p.avatar_url ?? null);
       });
-      return map;
+      return { names, avatars };
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -30,8 +33,19 @@ export function useProfileNames() {
 
   const resolveName = (userId: string | null | undefined): string => {
     if (!userId) return "Unassigned";
-    return data?.get(userId) ?? "—";
+    return data?.names.get(userId) ?? "—";
   };
 
-  return { profilesMap: data ?? new Map<string, string>(), resolveName, isLoading };
+  const resolveAvatar = (userId: string | null | undefined): string | null => {
+    if (!userId) return null;
+    return data?.avatars.get(userId) ?? null;
+  };
+
+  return {
+    profilesMap: data?.names ?? new Map<string, string>(),
+    avatarsMap: data?.avatars ?? new Map<string, string | null>(),
+    resolveName,
+    resolveAvatar,
+    isLoading,
+  };
 }

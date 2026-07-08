@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Messages() {
   const { threadId } = useParams<{ threadId?: string }>();
@@ -39,7 +40,7 @@ export default function Messages() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, name, email")
+        .select("user_id, name, email, avatar_url")
         .limit(2000);
       if (error) throw error;
       return (data ?? [])
@@ -48,6 +49,7 @@ export default function Messages() {
           id: p.user_id as string,
           name: (p.name as string) || (p.email as string) || "Unknown",
           email: (p.email as string) ?? null,
+          avatar_url: (p.avatar_url as string | null) ?? null,
         }));
     },
     staleTime: 60_000,
@@ -262,9 +264,12 @@ export default function Messages() {
                       <Checkbox checked={isSelected} className="shrink-0" />
                     )}
                     <div className="relative shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-primary/15 text-primary grid place-items-center text-sm font-medium">
-                        {initials || "?"}
-                      </div>
+                      <Avatar className="h-10 w-10">
+                        {p.avatar_url ? <AvatarImage src={p.avatar_url} alt={p.name} /> : null}
+                        <AvatarFallback className="bg-primary/15 text-primary text-sm font-medium">
+                          {initials || "?"}
+                        </AvatarFallback>
+                      </Avatar>
                       <span
                         title={isOnline ? "Online" : "Offline"}
                         className={cn(

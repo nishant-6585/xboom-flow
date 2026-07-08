@@ -8,6 +8,7 @@ import { Send } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 function formatTime(d: string) {
   const date = new Date(d);
@@ -19,7 +20,7 @@ function formatTime(d: string) {
 export function ChatWindow({ threadId, otherUserId }: { threadId: string; otherUserId: string | undefined }) {
   const { user } = useAuth();
   const { messages, isLoading, send, isSending } = useDmMessages(threadId);
-  const { resolveName } = useProfileNames();
+  const { resolveName, resolveAvatar } = useProfileNames();
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -55,9 +56,14 @@ export function ChatWindow({ threadId, otherUserId }: { threadId: string; otherU
   return (
     <div className="flex flex-col h-full">
       <div className="border-b px-4 py-3 flex items-center gap-2">
-        <div className="h-9 w-9 rounded-full bg-primary/15 text-primary grid place-items-center text-sm font-medium">
-          {(resolveName(otherUserId) || "?").slice(0, 2).toUpperCase()}
-        </div>
+        <Avatar className="h-9 w-9">
+          {resolveAvatar(otherUserId) ? (
+            <AvatarImage src={resolveAvatar(otherUserId) as string} alt={resolveName(otherUserId)} />
+          ) : null}
+          <AvatarFallback className="bg-primary/15 text-primary text-sm font-medium">
+            {(resolveName(otherUserId) || "?").slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
         <div className="font-medium">{resolveName(otherUserId)}</div>
       </div>
 
