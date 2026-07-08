@@ -25,7 +25,9 @@ import type {
 import { DocumentTypeDeniedError } from "../kyc-provider.ts";
 
 function env(name: string, required = true): string {
-  const v = Deno.env.get(name) || "";
+  // Trim whitespace defensively — a stray space/newline in the stored
+  // secret would silently break signature checks and token exchange.
+  const v = (Deno.env.get(name) || "").trim();
   if (!v && required) throw new Error(`${name} is not configured`);
   return v;
 }
@@ -37,6 +39,30 @@ function baseUrl(): string {
   // distinct string to TLS and will not match the server certificate,
   // producing a "connection not private" error in the browser.
   return (env("DIGILOCKER_BASE_URL") || "").trim().replace(/[.\/\s]+$/, "");
+}
+
+// ── Fetch timeout ─────────────────────────────────────────────────────────
+// Per-request timeout so a stuck MeriPehchaan endpoint can never hang the
+// callback edge function (which must always return a 302 quickly).
+const DIGILOCKER_FETCH_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit = {},
+  timeoutMs = DIGILOCKER_FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: ctrl.signal });
+  } catch (e) {
+    if ((e as Error)?.name === "AbortError") {
+      throw new Error(`[digilocker_direct] request timed out after ${timeoutMs}ms: ${input}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ── PKCE helpers ──────────────────────────────────────────────────────────
@@ -266,7 +292,6 @@ export class DigiLockerDirectProvider implements OAuthKycProvider {
       state,
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
-      scope: "openid",
       purpose: "kyc",
       // Limit consent to the two document types we're authorised for.
       req_doctype: "DRVLC,PANCR",
@@ -307,7 +332,7 @@ export class DigiLockerDirectProvider implements OAuthKycProvider {
     const clientId = env("DIGILOCKER_CLIENT_ID");
     const clientSecret = env("DIGILOCKER_CLIENT_SECRET");
 
-    const tokenRes = await fetch(`${baseUrl()}/public/oauth2/1/token`, {
+    const tokenRes = await fetchWithTimeout(`${baseUrl()}/public/oauth2/1/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -343,7 +368,7 @@ export class DigiLockerDirectProvider implements OAuthKycProvider {
     };
 
     // 1. List issued documents (V2 endpoint per spec)
-    const listRes = await fetch(`${baseUrl()}/public/oauth2/2/files/issued`, {
+    const listRes = await fetchWithTimeout(`${baseUrl()}/public/oauth2/2/files/issued`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!listRes.ok) {
@@ -375,7 +400,7 @@ export class DigiLockerDirectProvider implements OAuthKycProvider {
       if (!kind) continue;
 
       // 2a. XML with HMAC verification
-      const xmlRes = await fetch(
+      const xmlRes = await fetchWithTimeout(
         `${baseUrl()}/public/oauth2/1/xml/${encodeURIComponent(uri)}`,
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
@@ -394,7 +419,7 @@ export class DigiLockerDirectProvider implements OAuthKycProvider {
       const xml = new TextDecoder().decode(xmlBuf);
 
       // 2b. PDF (file) with HMAC verification
-      const fileRes = await fetch(
+      const fileRes = await fetchWithTimeout(
         `${baseUrl()}/public/oauth2/1/file/${encodeURIComponent(uri)}`,
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
