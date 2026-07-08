@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useKycQueue, kycStatusMeta, type KycQueueRow } from "@/hooks/useKyc";
@@ -33,6 +34,7 @@ export default function KycVerification() {
   const [search, setSearch] = useState("");
   const [reviewing, setReviewing] = useState<{ row: KycQueueRow; mode: "approve" | "reject" } | null>(null);
   const [reason, setReason] = useState("");
+  const [reasonCategory, setReasonCategory] = useState<string>("document_unclear");
   const [busy, setBusy] = useState(false);
   const [aadhaarMap, setAadhaarMap] = useState<Record<string, string>>({});
 
@@ -72,14 +74,17 @@ export default function KycVerification() {
   async function confirm() {
     if (!reviewing || !reviewing.row.document) return;
     setBusy(true);
+    const finalReason = reviewing.mode === "reject"
+      ? `${REJECT_CATEGORIES.find((c) => c.value === reasonCategory)?.label ?? reasonCategory}${reason.trim() ? ` — ${reason.trim()}` : ""}`
+      : undefined;
     const ok = await review(
       reviewing.row.account.id,
       reviewing.row.document.id,
       reviewing.mode,
-      reviewing.mode === "reject" ? reason : undefined,
+      finalReason,
     );
     setBusy(false);
-    if (ok) { setReviewing(null); setReason(""); }
+    if (ok) { setReviewing(null); setReason(""); setReasonCategory("document_unclear"); }
   }
 
   return (
