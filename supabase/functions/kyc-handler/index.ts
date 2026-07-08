@@ -151,6 +151,8 @@ interface Body {
   force?: boolean;
   // submit
   aadhaar_number?: string;
+  document_type?: string;
+  document_number?: string;
   file_path?: string;
   file_name?: string;
   file_size?: number;
