@@ -16682,15 +16682,10 @@ export type Database = {
         Args: {
           _approved_by: string
           _approved_by_name: string
-          _auto_checkout_applied: boolean
-          _auto_checkout_time: string
           _corrected_at: string
           _corrected_by: string
           _id: string
-          _is_provisional_checkout: boolean
           _reconciliation_status: string
-          _source: string
-          _status: string
         }
         Returns: boolean
       }
