@@ -220,6 +220,28 @@ export default function PortalKyc() {
         </Card>
 
         {canSubmit && (
+          digilockerVisible && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-primary" /> Verify instantly with DigiLocker
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Use your Driving Licence or PAN from DigiLocker to verify in seconds — no manual upload needed.
+                </p>
+                <Button onClick={startDigilocker} disabled={dlStarting} className="w-full sm:w-auto">
+                  {dlStarting
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecting…</>
+                    : <><ShieldCheck className="h-4 w-4 mr-2" /> Verify instantly with DigiLocker</>}
+                </Button>
+              </CardContent>
+            </Card>
+          )
+        )}
+
+        {canSubmit && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -227,27 +249,6 @@ export default function PortalKyc() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {digilockerVisible && (
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-4 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <ShieldCheck className="h-5 w-5 text-primary mt-0.5" />
-                    <div className="text-sm">
-                      <div className="font-medium">Verify instantly with DigiLocker</div>
-                      <div className="text-muted-foreground">
-                        Use your Driving Licence or PAN from DigiLocker.
-                      </div>
-                    </div>
-                  </div>
-                  <Button onClick={startDigilocker} disabled={dlStarting} className="w-full sm:w-auto">
-                    {dlStarting
-                      ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecting…</>
-                      : <><ShieldCheck className="h-4 w-4 mr-2" /> Verify instantly with DigiLocker</>}
-                  </Button>
-                  <div className="text-xs text-muted-foreground">
-                    Prefer to upload manually? Use the form below.
-                  </div>
-                </div>
-              )}
               <div className="space-y-2">
                 <Label htmlFor="doc-type">Document Type <span className="text-red-600">*</span></Label>
                 <Select value={docType} onValueChange={(v) => { setDocType(v as DocType); setDocNumber(""); }}>
