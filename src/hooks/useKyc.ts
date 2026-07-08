@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
 
 export type KycStatus =
   | "not_submitted"
@@ -60,41 +61,43 @@ const MAX_BYTES = 10 * 1024 * 1024;
 
 /** Portal-facing: current customer's own KYC */
 export function useMyKyc() {
+  // Reuse the portal auth context — it already resolved the caller's
+  // portal_contact + portal_account on login, so we don't need to re-run
+  // supabase.auth.getUser() + a portal_contacts lookup on every page.
+  const { account: portalAccount, loading: portalLoading } = usePortalAuth();
+  const accountId = portalAccount?.id ?? null;
+
   const [account, setAccount] = useState<KycAccountSummary | null>(null);
   const [documents, setDocuments] = useState<KycDocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const refresh = useCallback(async () => {
+    if (!accountId) {
+      // Portal context not resolved yet, or user isn't a portal customer.
+      // Keep loading true while portal auth is still hydrating.
+      if (!portalLoading) setLoading(false);
+      return;
+    }
     setLoading(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) { setLoading(false); return; }
-    const { data: contact } = await supabase
-      .from("portal_contacts")
-      .select("account_id")
-      .eq("auth_user_id", u.user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (!contact?.account_id) { setLoading(false); return; }
-
     const [acctRes, docRes] = await Promise.all([
       supabase
         .from("portal_accounts")
         .select(
           "id, company_name, primary_contact_name, kyc_status, aadhaar_last4, kyc_submitted_at, kyc_reviewed_at, kyc_rejection_reason, assigned_rep_id",
         )
-        .eq("id", contact.account_id)
+        .eq("id", accountId)
         .maybeSingle(),
       supabase
         .from("kyc_documents")
         .select("*")
-        .eq("account_id", contact.account_id)
+        .eq("account_id", accountId)
         .order("uploaded_at", { ascending: false }),
     ]);
     setAccount((acctRes.data as any) ?? null);
     setDocuments(((docRes.data as any) ?? []) as KycDocumentRow[]);
     setLoading(false);
-  }, []);
+  }, [accountId, portalLoading]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
