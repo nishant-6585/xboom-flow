@@ -5,15 +5,74 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useMyKyc, kycStatusMeta } from "@/hooks/useKyc";
 import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type DocType =
+  | "aadhaar" | "pan" | "driving_license" | "voter_id"
+  | "passport" | "rental_agreement" | "other_gov_id";
+
+const DOC_TYPES: { value: DocType; label: string }[] = [
+  { value: "aadhaar", label: "Aadhaar Card" },
+  { value: "pan", label: "PAN Card" },
+  { value: "driving_license", label: "Driving Licence" },
+  { value: "voter_id", label: "Voter ID" },
+  { value: "passport", label: "Passport" },
+  { value: "rental_agreement", label: "Rental Agreement (address proof)" },
+  { value: "other_gov_id", label: "Other Govt-issued ID" },
+];
+
+function fieldConfig(t: DocType) {
+  switch (t) {
+    case "aadhaar":
+      return { label: "Aadhaar Number", placeholder: "XXXX XXXX XXXX", required: true, hint: "12 digits, numeric only." };
+    case "pan":
+      return { label: "PAN Number", placeholder: "AAAAA9999A", required: true, hint: "Format: 5 letters, 4 digits, 1 letter." };
+    case "driving_license":
+      return { label: "Driving Licence Number", placeholder: "e.g. KA01 20230001234", required: true, hint: "As printed on the licence." };
+    case "voter_id":
+      return { label: "Voter ID (EPIC) Number", placeholder: "e.g. ABC1234567", required: true, hint: "As printed on the card." };
+    case "passport":
+      return { label: "Passport Number", placeholder: "e.g. M1234567", required: true, hint: "1 letter followed by 7 digits." };
+    case "rental_agreement":
+      return { label: "Document reference (optional)", placeholder: "Agreement number if any", required: false, hint: "Any reference or leave blank." };
+    default:
+      return { label: "Document reference (optional)", placeholder: "Any reference number", required: false, hint: "Optional." };
+  }
+}
+
+function validateNumber(t: DocType, raw: string): string | null {
+  const v = raw.trim();
+  if (!v) {
+    if (t === "rental_agreement" || t === "other_gov_id") return null;
+    return "This field is required";
+  }
+  switch (t) {
+    case "aadhaar":
+      return /^\d{12}$/.test(v.replace(/\s+/g, "")) ? null : "Aadhaar must be exactly 12 digits";
+    case "pan":
+      return /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(v.toUpperCase()) ? null : "PAN must be in the format AAAAA9999A";
+    case "driving_license":
+      return /^[A-Z0-9\-\s]{5,20}$/i.test(v) ? null : "Driving Licence number looks invalid";
+    case "passport":
+      return /^[A-PR-WYa-pr-wy][0-9]{7}$/.test(v) ? null : "Passport must be 1 letter followed by 7 digits";
+    case "voter_id":
+      return /^[A-Z0-9]{6,20}$/i.test(v) ? null : "Voter ID looks invalid";
+    default:
+      return null;
+  }
+}
+
 export default function PortalKyc() {
-  const { account, documents, loading, submitting, submitAadhaar, getSignedUrl } = useMyKyc();
-  const [aadhaar, setAadhaar] = useState("");
+  const { account, documents, loading, submitting, submitDocument, getSignedUrl } = useMyKyc();
+  const [docType, setDocType] = useState<DocType>("aadhaar");
+  const [docNumber, setDocNumber] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [digilockerVisible, setDigilockerVisible] = useState(false);
   const [dlStarting, setDlStarting] = useState(false);
@@ -74,10 +133,18 @@ export default function PortalKyc() {
     status === "not_submitted" || status === "rejected" || status === "resubmission_required";
   const currentDoc = documents.find((d) => d.is_current) ?? documents[0] ?? null;
 
+  const cfg = fieldConfig(docType);
+  const numberError = validateNumber(docType, docNumber);
+  const canSend = !!file && !numberError && (!cfg.required || docNumber.trim().length > 0);
+
   async function handleSubmit() {
-    if (!file) return;
-    const ok = await submitAadhaar(aadhaar, file);
-    if (ok) { setAadhaar(""); setFile(null); }
+    if (!file || !canSend) return;
+    const ok = await submitDocument({
+      documentType: docType,
+      documentNumber: docNumber.trim(),
+      file,
+    });
+    if (ok) { setDocNumber(""); setFile(null); }
   }
 
   async function viewDoc(path: string) {
@@ -90,7 +157,7 @@ export default function PortalKyc() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">KYC Verification</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Verify your identity with your Aadhaar card so we can process orders smoothly.
+            Verify your identity with a government-issued ID so we can process your orders.
           </p>
         </div>
 
@@ -156,7 +223,7 @@ export default function PortalKyc() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {status === "not_submitted" ? "Submit Aadhaar" : "Re-upload Aadhaar"}
+                {status === "not_submitted" ? "Upload a document manually" : "Re-upload a document"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -182,23 +249,40 @@ export default function PortalKyc() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="aadhaar">Aadhaar Number <span className="text-red-600">*</span></Label>
-                <Input
-                  id="aadhaar"
-                  inputMode="numeric"
-                  maxLength={14}
-                  placeholder="XXXX XXXX XXXX"
-                  value={aadhaar}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, "").slice(0, 12);
-                    const fmt = v.replace(/(\d{4})(?=\d)/g, "$1 ");
-                    setAadhaar(fmt);
-                  }}
-                />
-                <p className="text-xs text-muted-foreground">12 digits, numeric only.</p>
+                <Label htmlFor="doc-type">Document Type <span className="text-red-600">*</span></Label>
+                <Select value={docType} onValueChange={(v) => { setDocType(v as DocType); setDocNumber(""); }}>
+                  <SelectTrigger id="doc-type"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DOC_TYPES.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="file">Aadhaar document <span className="text-red-600">*</span></Label>
+                <Label htmlFor="doc-number">
+                  {cfg.label}{cfg.required && <span className="text-red-600"> *</span>}
+                </Label>
+                <Input
+                  id="doc-number"
+                  inputMode={docType === "aadhaar" ? "numeric" : "text"}
+                  placeholder={cfg.placeholder}
+                  value={docNumber}
+                  onChange={(e) => {
+                    if (docType === "aadhaar") {
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 12);
+                      setDocNumber(v.replace(/(\d{4})(?=\d)/g, "$1 "));
+                    } else {
+                      setDocNumber(e.target.value.slice(0, 120));
+                    }
+                  }}
+                />
+                <p className={`text-xs ${numberError && docNumber ? "text-red-600" : "text-muted-foreground"}`}>
+                  {numberError && docNumber ? numberError : cfg.hint}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="file">Document file <span className="text-red-600">*</span></Label>
                 <Input
                   id="file"
                   type="file"
@@ -209,11 +293,14 @@ export default function PortalKyc() {
               </div>
               <Button
                 onClick={handleSubmit}
-                disabled={submitting || !file || aadhaar.replace(/\s/g, "").length !== 12}
+                disabled={submitting || !canSend}
                 className="w-full sm:w-auto"
               >
                 {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</> : <><Upload className="h-4 w-4 mr-2" /> Submit for verification</>}
               </Button>
+              <p className="text-xs text-muted-foreground">
+                Manual uploads are reviewed by our team before approval.
+              </p>
             </CardContent>
           </Card>
         )}

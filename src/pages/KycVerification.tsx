@@ -13,6 +13,19 @@ import { format } from "date-fns";
 import { Eye, Check, X, Loader2, ShieldCheck, Search } from "lucide-react";
 import { Header } from "@/components/Header";
 
+function formatDocType(t?: string | null): string {
+  switch (t) {
+    case "aadhaar": return "Aadhaar";
+    case "pan": return "PAN";
+    case "driving_license": return "Driving Licence";
+    case "voter_id": return "Voter ID";
+    case "passport": return "Passport";
+    case "rental_agreement": return "Rental Agreement";
+    case "other_gov_id": return "Other Govt ID";
+    default: return t ? t : "—";
+  }
+}
+
 export default function KycVerification() {
   const { rows, loading, review, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
@@ -101,7 +114,8 @@ export default function KycVerification() {
                   <TableRow>
                     <TableHead>Order #</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Aadhaar</TableHead>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Number</TableHead>
                     <TableHead>Uploaded</TableHead>
                     <TableHead>Salesperson</TableHead>
                     <TableHead>Status</TableHead>
@@ -123,13 +137,20 @@ export default function KycVerification() {
                           <div className="font-medium">{r.account.primary_contact_name || r.account.company_name}</div>
                           <div className="text-xs text-muted-foreground">{r.customer_email || r.account.company_name}</div>
                         </TableCell>
+                        <TableCell className="text-xs">
+                          {formatDocType(r.document?.doc_type)}
+                        </TableCell>
                         <TableCell className="font-mono text-xs">
-                          {aadhaarMap[r.account.id] ? (
-                            aadhaarMap[r.account.id]
+                          {r.document?.doc_type === "aadhaar" || !r.document ? (
+                            aadhaarMap[r.account.id] ? (
+                              aadhaarMap[r.account.id]
+                            ) : (
+                              <button className="underline text-primary" onClick={() => revealAadhaar(r.account.id)}>
+                                XXXX XXXX {r.account.aadhaar_last4 || "----"}
+                              </button>
+                            )
                           ) : (
-                            <button className="underline text-primary" onClick={() => revealAadhaar(r.account.id)}>
-                              XXXX XXXX {r.account.aadhaar_last4 || "----"}
-                            </button>
+                            (r.document?.metadata as any)?.document_reference || "—"
                           )}
                         </TableCell>
                         <TableCell className="text-sm">

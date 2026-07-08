@@ -14,6 +14,7 @@ import {
   EMAIL_RE,
   isDuplicate,
 } from "./helpers.ts";
+import { validateManualInput } from "./manualValidators.ts";
 
 // Kill switch for customer-facing KYC emails. Source of truth is the
 // `feature_flags` row with key='kyc_customer_emails_enabled' (DB-backed
@@ -151,6 +152,8 @@ interface Body {
   force?: boolean;
   // submit
   aadhaar_number?: string;
+  document_type?: string;
+  document_number?: string;
   file_path?: string;
   file_name?: string;
   file_size?: number;
@@ -587,8 +590,12 @@ async function onboardOrder(
 
 // ============ SUBMIT (customer) ============
 async function submitKyc(admin: ReturnType<typeof createClient>, callerId: string, body: Body) {
-  const aadhaar = (body.aadhaar_number || "").replace(/\s+/g, "");
-  if (!/^\d{12}$/.test(aadhaar)) return json({ error: "Aadhaar must be exactly 12 digits" }, 400);
+  const docType = body.document_type || (body.aadhaar_number ? "aadhaar" : "");
+  const rawNumber = (body.document_number ?? body.aadhaar_number ?? "").trim();
+  const validated = validateManualInput(docType, rawNumber);
+  if ("error" in validated) return json({ error: validated.error }, 400);
+  const { aadhaarFull, documentReference } = validated.value;
+
   if (!body.file_path || !body.file_name || !body.file_size) {
     return json({ error: "file_path, file_name, file_size required" }, 400);
   }
@@ -607,25 +614,24 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
     .maybeSingle();
   if (!contact?.account_id) return json({ error: "No portal account for this user" }, 403);
 
-  // Mark previous current docs as non-current
+  // Mark previous current docs (any type) as non-current — one active submission at a time.
   await admin
     .from("kyc_documents")
     .update({ is_current: false })
     .eq("account_id", contact.account_id)
-    .eq("doc_type", "aadhaar")
     .eq("is_current", true);
 
   const { data: prevCount } = await admin
     .from("kyc_documents")
     .select("id", { count: "exact", head: true })
     .eq("account_id", contact.account_id)
-    .eq("doc_type", "aadhaar");
+    .eq("doc_type", docType);
 
   const { data: doc, error: docErr } = await admin
     .from("kyc_documents")
     .insert({
       account_id: contact.account_id,
-      doc_type: "aadhaar",
+      doc_type: docType,
       file_path: body.file_path,
       file_name: body.file_name,
       file_size_bytes: body.file_size,
@@ -633,6 +639,7 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
       status: "pending_verification",
       uploaded_by: callerId,
       version: ((prevCount as any) ?? 0) + 1 || 1,
+      metadata: { document_reference: documentReference },
     })
     .select("id")
     .single();
@@ -641,17 +648,22 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
   await admin.from("kyc_sensitive_data").insert({
     account_id: contact.account_id,
     document_id: doc.id,
-    aadhaar_full: aadhaar,
+    aadhaar_full: aadhaarFull,
+    document_reference: documentReference,
   });
+
+  // Only persist aadhaar_last4 when the submission was actually an Aadhaar.
+  // Manual uploads NEVER auto-approve — always pending_verification for staff review.
+  const acctUpdate: Record<string, unknown> = {
+    kyc_status: "pending_verification",
+    kyc_submitted_at: new Date().toISOString(),
+    kyc_rejection_reason: null,
+  };
+  if (aadhaarFull) acctUpdate.aadhaar_last4 = aadhaarFull.slice(-4);
 
   await admin
     .from("portal_accounts")
-    .update({
-      kyc_status: "pending_verification",
-      aadhaar_last4: aadhaar.slice(-4),
-      kyc_submitted_at: new Date().toISOString(),
-      kyc_rejection_reason: null,
-    })
+    .update(acctUpdate)
     .eq("id", contact.account_id);
 
   await admin.from("kyc_audit_log").insert({
@@ -660,7 +672,11 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
     action: "submitted",
     actor_id: callerId,
     actor_role: "customer",
-    metadata: { aadhaar_last4: aadhaar.slice(-4), version: doc.id ? undefined : undefined },
+    metadata: {
+      doc_type: docType,
+      aadhaar_last4: aadhaarFull ? aadhaarFull.slice(-4) : null,
+      document_reference: documentReference,
+    },
   });
 
   // Notify salesperson (assigned rep on account → fallback to latest order's sales_person)

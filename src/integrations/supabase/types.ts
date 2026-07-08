@@ -7714,7 +7714,7 @@ export type Database = {
       }
       kyc_sensitive_data: {
         Row: {
-          aadhaar_full: string
+          aadhaar_full: string | null
           account_id: string
           consent_valid_till: string | null
           created_at: string
@@ -7722,12 +7722,13 @@ export type Database = {
           dob: string | null
           document_id: string | null
           document_number_full: string | null
+          document_reference: string | null
           document_type: string | null
           gender: string | null
           id: string
         }
         Insert: {
-          aadhaar_full: string
+          aadhaar_full?: string | null
           account_id: string
           consent_valid_till?: string | null
           created_at?: string
@@ -7735,12 +7736,13 @@ export type Database = {
           dob?: string | null
           document_id?: string | null
           document_number_full?: string | null
+          document_reference?: string | null
           document_type?: string | null
           gender?: string | null
           id?: string
         }
         Update: {
-          aadhaar_full?: string
+          aadhaar_full?: string | null
           account_id?: string
           consent_valid_till?: string | null
           created_at?: string
@@ -7748,6 +7750,7 @@ export type Database = {
           dob?: string | null
           document_id?: string | null
           document_number_full?: string | null
+          document_reference?: string | null
           document_type?: string | null
           gender?: string | null
           id?: string
@@ -18045,6 +18048,10 @@ export type Database = {
         | "business_registration"
         | "address_proof"
         | "driving_license"
+        | "voter_id"
+        | "passport"
+        | "rental_agreement"
+        | "other_gov_id"
       kyc_status:
         | "not_submitted"
         | "pending_verification"
@@ -18404,6 +18411,10 @@ export const Constants = {
         "business_registration",
         "address_proof",
         "driving_license",
+        "voter_id",
+        "passport",
+        "rental_agreement",
+        "other_gov_id",
       ],
       kyc_status: [
         "not_submitted",
