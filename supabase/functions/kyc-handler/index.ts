@@ -801,7 +801,7 @@ async function reviewKyc(admin: ReturnType<typeof createClient>, callerId: strin
     await admin
       .from("portal_accounts")
       .update({
-        kyc_status: "resubmission_required",
+        kyc_status: "rejected",
         kyc_reviewed_at: reviewedAt,
         kyc_reviewed_by: callerId,
         kyc_rejection_reason: reason,
