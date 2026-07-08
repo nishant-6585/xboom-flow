@@ -1,19 +1,22 @@
-// digilocker-callback — provider webhook receiver.
+// digilocker-callback — dual-path DigiLocker receiver.
 //
-// 1. Verifies webhook signature via the KYC provider seam. Fails closed:
-//    an unsigned or wrong-signature request is rejected with 401 and no
-//    side effects.
-// 2. Resolves the account from the provider-echoed client_ref (or session
-//    lookup), fetches normalized verified data via the seam.
-// 3. Persists the sensitive payload (aadhaar_full) via the existing
-//    deny-all kyc_sensitive_data table using the service role, inserts a
-//    kyc_documents row with method='digilocker', provider=<seam name>.
-// 4. Fuzzy-matches the verified name against portal_accounts.primary_contact_name
-//    (fallback: latest order.customer_name). Match → auto-approve; mismatch
-//    → pending_verification and notify the KYC reviewer role.
+// * Direct DigiLocker (OAuth 2.0 + PKCE): GET redirect from MeriPehchaan
+//   with `?code=...&state=...`. Validate state against kyc_digilocker_sessions,
+//   exchange the code server-side, fetch a Driving Licence or PAN record,
+//   then run the SAME downstream (persist doc + sensitive row + name-match
+//   guard + auto-approve or reviewer queue). Ends in a 302 back to the
+//   portal KYC page with a status query param the UI renders.
+//
+// * Legacy webhook providers (Surepass etc.): POST with HMAC signature.
+//   Preserved unchanged.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { getKycProvider } from "../_shared/kyc-provider.ts";
+import {
+  getKycProvider,
+  isOAuthKycProvider,
+  DocumentTypeDeniedError,
+} from "../_shared/kyc-provider.ts";
+import type { KycVerifiedData } from "../_shared/kyc-provider.ts";
 import { matchNames, DEFAULT_THRESHOLD } from "../_shared/name-match.ts";
 
 const corsHeaders = {
@@ -29,6 +32,16 @@ function json(body: unknown, status = 200) {
   });
 }
 
+const PORTAL_KYC_URL = "https://xboomflow.com/portal/kyc";
+
+function redirectToPortal(status: string, extra: Record<string, string> = {}) {
+  const p = new URLSearchParams({ dl: status, ...extra });
+  return new Response(null, {
+    status: 302,
+    headers: { ...corsHeaders, Location: `${PORTAL_KYC_URL}?${p.toString()}` },
+  });
+}
+
 interface WebhookPayload {
   session_id?: string;
   client_id?: string;
@@ -40,7 +53,6 @@ interface WebhookPayload {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -48,8 +60,227 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const rawBody = await req.text();
   const provider = getKycProvider();
+
+  // ── DIRECT (OAuth) PATH ────────────────────────────────────────────────
+  if (req.method === "GET" && isOAuthKycProvider(provider)) {
+    const url = new URL(req.url);
+    const code = url.searchParams.get("code") || "";
+    const state = url.searchParams.get("state") || "";
+    const errParam = url.searchParams.get("error");
+    if (errParam) {
+      return redirectToPortal("failure", { reason: errParam.slice(0, 80) });
+    }
+    if (!code || !state) return redirectToPortal("failure", { reason: "missing_code_or_state" });
+
+    // Look up + validate the state token
+    const { data: sess } = await admin
+      .from("kyc_digilocker_sessions")
+      .select("id, session_id, account_id, contact_id, code_verifier, redirect_uri, expires_at, consumed_at")
+      .eq("state", state)
+      .maybeSingle();
+    if (!sess) return redirectToPortal("failure", { reason: "invalid_state" });
+    if ((sess as any).consumed_at) return redirectToPortal("failure", { reason: "state_already_used" });
+    if (new Date((sess as any).expires_at).getTime() < Date.now()) {
+      return redirectToPortal("failure", { reason: "state_expired" });
+    }
+
+    const accountId = (sess as any).account_id as string;
+
+    // Single-use: mark consumed immediately.
+    await admin
+      .from("kyc_digilocker_sessions")
+      .update({ consumed_at: new Date().toISOString() })
+      .eq("id", (sess as any).id);
+
+    let verified: KycVerifiedData;
+    try {
+      verified = await provider.exchangeCodeAndFetch(
+        code,
+        (sess as any).code_verifier,
+        (sess as any).redirect_uri,
+      );
+    } catch (e) {
+      const isDenied = e instanceof DocumentTypeDeniedError;
+      await admin.from("kyc_audit_log").insert({
+        account_id: accountId,
+        action: isDenied ? "document_type_denied" : "exchange_failed",
+        actor_role: "system",
+        notes: (e as Error).message?.slice(0, 500) ?? null,
+        metadata: { method: "digilocker", provider: provider.name, session_id: (sess as any).session_id },
+      });
+      return redirectToPortal(isDenied ? "denied" : "failure", {
+        reason: isDenied ? "document_type_denied" : "exchange_failed",
+      });
+    }
+
+    const docType = verified.documentType || "unknown";
+    const nowIso = new Date().toISOString();
+
+    // Supersede prior "current" for this doc type
+    await admin
+      .from("kyc_documents")
+      .update({ is_current: false })
+      .eq("account_id", accountId)
+      .eq("doc_type", docType)
+      .eq("is_current", true);
+
+    const { count: prevCount } = await admin
+      .from("kyc_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("account_id", accountId)
+      .eq("doc_type", docType);
+
+    const rawJson = JSON.stringify(verified.raw ?? {});
+    const { data: doc, error: docErr } = await admin
+      .from("kyc_documents")
+      .insert({
+        account_id: accountId,
+        doc_type: docType,
+        file_path: `digilocker://${provider.name}/${(sess as any).session_id}`,
+        file_name: `digilocker-${docType}-${(sess as any).session_id}.xml`,
+        file_size_bytes: rawJson.length,
+        mime_type: "application/xml",
+        status: "approved", // may be flipped to pending on name mismatch below
+        method: "digilocker",
+        provider: provider.name,
+        version: (prevCount ?? 0) + 1,
+        metadata: {
+          session_id: (sess as any).session_id,
+          verified_name: verified.name,
+          verified_dob: verified.dob,
+          document_type: docType,
+          masked_document_number: verified.maskedDocumentNumber,
+        },
+      })
+      .select("id")
+      .single();
+    if (docErr) {
+      return redirectToPortal("failure", { reason: "persist_failed" });
+    }
+
+    // Deny-all sensitive storage — includes full document number for compliance.
+    if (verified.documentNumberFull) {
+      await admin.from("kyc_sensitive_data").insert({
+        account_id: accountId,
+        document_id: doc.id,
+        document_type: docType,
+        document_number_full: verified.documentNumberFull,
+      });
+    }
+
+    await admin.from("kyc_audit_log").insert({
+      account_id: accountId,
+      document_id: doc.id,
+      action: "verified",
+      actor_role: "system",
+      metadata: {
+        method: "digilocker",
+        provider: provider.name,
+        session_id: (sess as any).session_id,
+        document_type: docType,
+        masked_document_number: verified.maskedDocumentNumber,
+      },
+    });
+
+    // Name-match guard (reuse existing logic + reviewer notify)
+    const { data: acct } = await admin
+      .from("portal_accounts")
+      .select("id, primary_contact_name, company_name")
+      .eq("id", accountId)
+      .maybeSingle();
+    let expectedName = (acct as any)?.primary_contact_name || null;
+    if (!expectedName) {
+      const { data: contact } = await admin
+        .from("portal_contacts")
+        .select("email")
+        .eq("account_id", accountId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      const email = (contact as any)?.email;
+      if (email) {
+        const { data: order } = await admin
+          .from("orders")
+          .select("customer_name")
+          .ilike("customer_email", email)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        expectedName = (order as any)?.customer_name || null;
+      }
+    }
+
+    const match = matchNames(verified.name, expectedName);
+
+    if (!match.matches) {
+      await admin.from("kyc_documents")
+        .update({ status: "pending_verification" })
+        .eq("id", doc.id);
+      await admin.from("portal_accounts").update({
+        kyc_status: "pending_verification",
+        kyc_submitted_at: nowIso,
+        kyc_rejection_reason: null,
+      }).eq("id", accountId);
+      await admin.from("kyc_audit_log").insert({
+        account_id: accountId,
+        document_id: doc.id,
+        action: "name_mismatch",
+        actor_role: "system",
+        notes: `Verified "${verified.name || "?"}" vs expected "${expectedName || "?"}" (score ${match.score.toFixed(2)})`,
+        metadata: {
+          method: "digilocker",
+          provider: provider.name,
+          score: match.score,
+          threshold: DEFAULT_THRESHOLD,
+          document_type: docType,
+        },
+      });
+      await admin.from("notifications").insert([
+        {
+          target_role: "admin",
+          type: "kyc_name_mismatch",
+          title: "KYC name mismatch needs review",
+          message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+        },
+        {
+          target_role: "sales_manager",
+          type: "kyc_name_mismatch",
+          title: "KYC name mismatch needs review",
+          message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+        },
+      ]);
+      return redirectToPortal("mismatch");
+    }
+
+    await admin.from("portal_accounts").update({
+      kyc_status: "approved",
+      kyc_submitted_at: nowIso,
+      kyc_reviewed_at: nowIso,
+      kyc_rejection_reason: null,
+    }).eq("id", accountId);
+
+    await admin.from("kyc_audit_log").insert({
+      account_id: accountId,
+      document_id: doc.id,
+      action: "auto_approved",
+      actor_role: "system",
+      metadata: {
+        method: "digilocker",
+        provider: provider.name,
+        score: match.score,
+        threshold: DEFAULT_THRESHOLD,
+        document_type: docType,
+      },
+    });
+    return redirectToPortal("success");
+  }
+
+  // ── LEGACY WEBHOOK PATH ────────────────────────────────────────────────
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const rawBody = await req.text();
 
   // 1. Signature — fail closed
   let ok = false;
