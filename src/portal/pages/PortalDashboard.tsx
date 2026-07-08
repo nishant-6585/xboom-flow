@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PortalLayout } from "@/portal/components/PortalLayout";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,16 @@ const TILES = [
   { to: "/portal/tickets", label: "Support", icon: MessageSquare, hint: "Raise & track tickets" },
 ];
 
+function sanitizePlainText(input: string | null | undefined): string {
+  if (!input) return "";
+  return input
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
 export default function PortalDashboard() {
   const { contact, account } = usePortalAuth();
   const { data: pending } = usePendingConfirmations();
@@ -22,6 +33,10 @@ export default function PortalDashboard() {
   const { account: kycAccount } = useMyKyc();
   const { data: orders } = usePortalOrders();
   const kycStatus = kycAccount?.kyc_status ?? "not_submitted";
+  const rejectionReason = useMemo(
+    () => sanitizePlainText(kycAccount?.kyc_rejection_reason),
+    [kycAccount?.kyc_rejection_reason]
+  );
   const hasOrders = (orders?.length ?? 0) > 0;
 
   return (
@@ -35,18 +50,27 @@ export default function PortalDashboard() {
       {kycStatus === "rejected" && (
         <Card className="mb-6 border-red-400 bg-red-50">
           <CardContent className="py-4 px-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3 min-w-0">
               <ShieldAlert className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium text-red-900">KYC Resubmission Required</p>
-                <p className="text-sm text-red-800/90 mt-0.5">
-                  {kycAccount?.kyc_rejection_reason
-                    ? `Reason: ${kycAccount.kyc_rejection_reason}`
+                <p
+                  id="kyc-rejection-reason"
+                  className="text-sm text-red-800/90 mt-0.5 break-words line-clamp-3"
+                  title={rejectionReason || undefined}
+                >
+                  {rejectionReason
+                    ? `Reason: ${rejectionReason}`
                     : "Your last KYC submission could not be approved. Please resubmit to continue."}
                 </p>
               </div>
             </div>
-            <Button asChild variant="destructive">
+            <Button
+              asChild
+              variant="destructive"
+              className="w-full sm:w-auto shrink-0"
+              aria-describedby="kyc-rejection-reason"
+            >
               <Link to="/portal/kyc">Update KYC</Link>
             </Button>
           </CardContent>
@@ -57,9 +81,9 @@ export default function PortalDashboard() {
         <Card className="mb-6 border-amber-400 bg-amber-50">
           <CardContent className="py-4 px-5 flex items-start gap-3">
             <Clock className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-            <div>
+            <div className="min-w-0">
               <p className="font-medium text-amber-900">KYC under review</p>
-              <p className="text-sm text-amber-800/80 mt-0.5">
+              <p className="text-sm text-amber-800/80 mt-0.5 break-words">
                 We've received your documents and our team is verifying them. This typically takes a few hours.
               </p>
             </div>
@@ -70,16 +94,16 @@ export default function PortalDashboard() {
       {(kycStatus === "not_submitted" || kycStatus === "resubmission_required") && hasOrders && (
         <Card className="mb-6 border-amber-400 bg-amber-50">
           <CardContent className="py-4 px-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3 min-w-0">
               <ShieldCheck className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium text-amber-900">Complete your KYC to process your order</p>
-                <p className="text-sm text-amber-800/80 mt-0.5">
+                <p className="text-sm text-amber-800/80 mt-0.5 break-words">
                   Verify your identity so we can dispatch your order without delay.
                 </p>
               </div>
             </div>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto shrink-0">
               <Link to="/portal/kyc">Start KYC</Link>
             </Button>
           </CardContent>

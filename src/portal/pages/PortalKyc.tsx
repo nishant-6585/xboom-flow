@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PortalLayout } from "@/portal/components/PortalLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,12 @@ export default function PortalKyc() {
     return () => { cancelled = true; };
   }, []);
 
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    titleRef.current?.focus({ preventScroll: true });
+  }, []);
+
   async function startDigilocker() {
     setDlStarting(true);
     try {
@@ -155,7 +161,7 @@ export default function PortalKyc() {
     <PortalLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">KYC Verification</h1>
+          <h1 ref={titleRef} tabIndex={-1} className="text-2xl font-semibold tracking-tight">KYC Verification</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Verify your identity with a government-issued ID so we can process your orders.
           </p>
