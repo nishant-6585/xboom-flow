@@ -589,8 +589,54 @@ async function onboardOrder(
 
 // ============ SUBMIT (customer) ============
 async function submitKyc(admin: ReturnType<typeof createClient>, callerId: string, body: Body) {
-  const aadhaar = (body.aadhaar_number || "").replace(/\s+/g, "");
-  if (!/^\d{12}$/.test(aadhaar)) return json({ error: "Aadhaar must be exactly 12 digits" }, 400);
+  // Accept a generic doc_type. Legacy callers may still send aadhaar_number
+  // without doc_type — treat that as Aadhaar.
+  const ALLOWED_TYPES = [
+    "aadhaar", "pan", "driving_license", "voter_id",
+    "passport", "rental_agreement", "other_gov_id",
+  ] as const;
+  type DT = typeof ALLOWED_TYPES[number];
+  const docType = (body.document_type || (body.aadhaar_number ? "aadhaar" : "")) as DT;
+  if (!ALLOWED_TYPES.includes(docType)) {
+    return json({ error: "Invalid document_type" }, 400);
+  }
+
+  const rawNumber = (body.document_number ?? body.aadhaar_number ?? "").trim();
+  const cleanedDigits = rawNumber.replace(/\s+/g, "");
+  const upper = cleanedDigits.toUpperCase();
+
+  // Per-type validation of the identifier
+  let aadhaarFull: string | null = null;
+  let documentReference: string | null = null;
+  switch (docType) {
+    case "aadhaar":
+      if (!/^\d{12}$/.test(cleanedDigits)) return json({ error: "Aadhaar must be exactly 12 digits" }, 400);
+      aadhaarFull = cleanedDigits;
+      break;
+    case "pan":
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(upper)) return json({ error: "PAN must be in format AAAAA9999A" }, 400);
+      documentReference = upper;
+      break;
+    case "driving_license":
+      // Basic sanity: 5–20 alphanumerics (state/RTO formats vary widely).
+      if (!/^[A-Z0-9\-\s]{5,20}$/i.test(rawNumber)) return json({ error: "Driving Licence number looks invalid" }, 400);
+      documentReference = rawNumber.toUpperCase();
+      break;
+    case "passport":
+      if (!/^[A-PR-WYa-pr-wy][0-9]{7}$/.test(rawNumber)) return json({ error: "Passport must be 1 letter + 7 digits" }, 400);
+      documentReference = rawNumber.toUpperCase();
+      break;
+    case "voter_id":
+      if (!/^[A-Z0-9]{6,20}$/i.test(rawNumber)) return json({ error: "Voter ID looks invalid" }, 400);
+      documentReference = rawNumber.toUpperCase();
+      break;
+    case "rental_agreement":
+    case "other_gov_id":
+      // Reference is optional/free-text for these.
+      documentReference = rawNumber ? rawNumber.slice(0, 120) : null;
+      break;
+  }
+
   if (!body.file_path || !body.file_name || !body.file_size) {
     return json({ error: "file_path, file_name, file_size required" }, 400);
   }
@@ -609,25 +655,24 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
     .maybeSingle();
   if (!contact?.account_id) return json({ error: "No portal account for this user" }, 403);
 
-  // Mark previous current docs as non-current
+  // Mark previous current docs (any type) as non-current — one active submission at a time.
   await admin
     .from("kyc_documents")
     .update({ is_current: false })
     .eq("account_id", contact.account_id)
-    .eq("doc_type", "aadhaar")
     .eq("is_current", true);
 
   const { data: prevCount } = await admin
     .from("kyc_documents")
     .select("id", { count: "exact", head: true })
     .eq("account_id", contact.account_id)
-    .eq("doc_type", "aadhaar");
+    .eq("doc_type", docType);
 
   const { data: doc, error: docErr } = await admin
     .from("kyc_documents")
     .insert({
       account_id: contact.account_id,
-      doc_type: "aadhaar",
+      doc_type: docType,
       file_path: body.file_path,
       file_name: body.file_name,
       file_size_bytes: body.file_size,
@@ -635,6 +680,7 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
       status: "pending_verification",
       uploaded_by: callerId,
       version: ((prevCount as any) ?? 0) + 1 || 1,
+      metadata: { document_reference: documentReference },
     })
     .select("id")
     .single();
@@ -643,17 +689,22 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
   await admin.from("kyc_sensitive_data").insert({
     account_id: contact.account_id,
     document_id: doc.id,
-    aadhaar_full: aadhaar,
+    aadhaar_full: aadhaarFull,
+    document_reference: documentReference,
   });
+
+  // Only persist aadhaar_last4 when the submission was actually an Aadhaar.
+  // Manual uploads NEVER auto-approve — always pending_verification for staff review.
+  const acctUpdate: Record<string, unknown> = {
+    kyc_status: "pending_verification",
+    kyc_submitted_at: new Date().toISOString(),
+    kyc_rejection_reason: null,
+  };
+  if (aadhaarFull) acctUpdate.aadhaar_last4 = aadhaarFull.slice(-4);
 
   await admin
     .from("portal_accounts")
-    .update({
-      kyc_status: "pending_verification",
-      aadhaar_last4: aadhaar.slice(-4),
-      kyc_submitted_at: new Date().toISOString(),
-      kyc_rejection_reason: null,
-    })
+    .update(acctUpdate)
     .eq("id", contact.account_id);
 
   await admin.from("kyc_audit_log").insert({
@@ -662,7 +713,11 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
     action: "submitted",
     actor_id: callerId,
     actor_role: "customer",
-    metadata: { aadhaar_last4: aadhaar.slice(-4), version: doc.id ? undefined : undefined },
+    metadata: {
+      doc_type: docType,
+      aadhaar_last4: aadhaarFull ? aadhaarFull.slice(-4) : null,
+      document_reference: documentReference,
+    },
   });
 
   // Notify salesperson (assigned rep on account → fallback to latest order's sales_person)
