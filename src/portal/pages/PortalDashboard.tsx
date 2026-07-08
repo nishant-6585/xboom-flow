@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PortalLayout } from "@/portal/components/PortalLayout";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,16 @@ const TILES = [
   { to: "/portal/tickets", label: "Support", icon: MessageSquare, hint: "Raise & track tickets" },
 ];
 
+function sanitizePlainText(input: string | null | undefined): string {
+  if (!input) return "";
+  return input
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
 export default function PortalDashboard() {
   const { contact, account } = usePortalAuth();
   const { data: pending } = usePendingConfirmations();
@@ -22,6 +33,10 @@ export default function PortalDashboard() {
   const { account: kycAccount } = useMyKyc();
   const { data: orders } = usePortalOrders();
   const kycStatus = kycAccount?.kyc_status ?? "not_submitted";
+  const rejectionReason = useMemo(
+    () => sanitizePlainText(kycAccount?.kyc_rejection_reason),
+    [kycAccount?.kyc_rejection_reason]
+  );
   const hasOrders = (orders?.length ?? 0) > 0;
 
   return (
