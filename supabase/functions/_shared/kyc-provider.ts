@@ -6,6 +6,7 @@
 // at it. No callers change.
 
 import { SurepassProvider } from "./kyc-providers/surepass.ts";
+import { DigiLockerDirectProvider } from "./kyc-providers/digilocker-direct.ts";
 
 export interface KycCustomerInput {
   accountId: string;
@@ -40,6 +41,12 @@ export interface KycVerifiedData {
   address: string | null;
   maskedAadhaar: string | null; // e.g. "XXXX XXXX 1234"
   aadhaarLast4: string | null;
+  /** For direct-DigiLocker: 'driving_license' | 'pan' | 'aadhaar' */
+  documentType?: string | null;
+  /** Masked form of the document number regardless of type (e.g. "XXXX 1234"). */
+  maskedDocumentNumber?: string | null;
+  /** Full document number for compliance retrieval (deny-all storage). */
+  documentNumberFull?: string | null;
   /** Full raw provider payload (opaque to callers). */
   raw: unknown;
 }
@@ -56,10 +63,40 @@ export interface KycProvider {
   verifyWebhook(req: Request, rawBody: string): Promise<boolean> | boolean;
 }
 
+/**
+ * OAuth-shaped adapter (direct DigiLocker / MeriPehchaan style).
+ *
+ * When `oauth === true`, the callback edge function drives the flow as an
+ * OAuth 2.0 authorization-code grant (GET redirect with ?code&state), rather
+ * than a webhook POST. `createVerificationSession` returns an authorize URL
+ * as `consentUrl` and MUST also emit `state` + `codeVerifier` for the
+ * initiate function to persist server-side.
+ */
+export interface OAuthKycProvider extends KycProvider {
+  readonly oauth: true;
+  /** Exchange authorization code for tokens and fetch the verified document. */
+  exchangeCodeAndFetch(
+    code: string,
+    codeVerifier: string,
+    redirectUri: string,
+  ): Promise<KycVerifiedData>;
+}
+
+export function isOAuthKycProvider(p: KycProvider): p is OAuthKycProvider {
+  return (p as OAuthKycProvider).oauth === true;
+}
+
+/** Distinct thrown error the callback maps to audit reason 'document_type_denied'. */
+export class DocumentTypeDeniedError extends Error {
+  constructor(msg = "DigiLocker refused the requested document") {
+    super(msg);
+    this.name = "DocumentTypeDeniedError";
+  }
+}
+
 const REGISTRY: Record<string, () => KycProvider> = {
   surepass: () => new SurepassProvider(),
-  // setu: () => new SetuProvider(),
-  // digilocker_direct: () => new DigiLockerDirectProvider(),
+  digilocker_direct: () => new DigiLockerDirectProvider(),
 };
 
 export function getKycProvider(name?: string): KycProvider {
