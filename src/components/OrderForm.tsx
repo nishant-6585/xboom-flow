@@ -196,7 +196,13 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     const itemsTotal = orderItems.reduce((sum, item) => {
       const price = item.unit_price || 0;
       const qty = item.quantity || 0;
-      return sum + (price * qty);
+      const base = price * qty;
+      // If price already includes GST, don't add GST again.
+      // Otherwise add per-unit GST amount * qty.
+      const gst = item.sales_price_includes_gst
+        ? 0
+        : (item.sales_gst_amount || 0) * qty;
+      return sum + base + gst;
     }, 0);
     const delivery = formData.delivery_charges || 0;
     const discount = formData.discount_amount || 0;
