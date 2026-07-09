@@ -249,10 +249,33 @@ async function handleWebhook(req: Request): Promise<Response> {
   // query params. The token is only verified when the user actually submits the
   // form on our page (via verifyOtp), so a prefetch cannot consume it.
   let safeConfirmationUrl = payload.data.url as string
-  const redirectTo = payload.data.redirect_to as string | undefined
-  const tokenHash = payload.data.token_hash as string | undefined
-  const actionType = (payload.data.email_action_type ||
+  // The Lovable email webhook parser may expose these fields at the top of
+  // `payload.data`, or (for some auth event shapes) they only exist inside
+  // the raw Supabase /verify URL in `payload.data.url`. Fall back to parsing
+  // the /verify URL query string so we always build a scanner-safe link.
+  let redirectTo = payload.data.redirect_to as string | undefined
+  let tokenHash = payload.data.token_hash as string | undefined
+  let actionType = (payload.data.email_action_type ||
     payload.data.action_type) as string | undefined
+  if ((!redirectTo || !tokenHash || !actionType) && payload.data.url) {
+    try {
+      const verifyUrl = new URL(payload.data.url as string)
+      redirectTo = redirectTo || verifyUrl.searchParams.get('redirect_to') || undefined
+      tokenHash = tokenHash ||
+        verifyUrl.searchParams.get('token_hash') ||
+        verifyUrl.searchParams.get('token') ||
+        undefined
+      actionType = actionType || verifyUrl.searchParams.get('type') || undefined
+    } catch (e) {
+      console.warn('Failed to parse payload.data.url', { error: (e as Error).message })
+    }
+  }
+  console.log('URL builder inputs', {
+    hasRedirectTo: !!redirectTo,
+    hasTokenHash: !!tokenHash,
+    hasActionType: !!actionType,
+    run_id,
+  })
   if (redirectTo && tokenHash && actionType) {
     try {
       const u = new URL(redirectTo)
