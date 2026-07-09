@@ -218,12 +218,42 @@ async function handleWebhook(req: Request): Promise<Response> {
     )
   }
 
+  // Build a scanner-safe confirmation URL.
+  //
+  // payload.data.url points at Supabase's /verify endpoint, which consumes the
+  // single-use OTP on the FIRST GET. Email link scanners (Outlook Safe Links,
+  // Gmail preview, corporate proxies) prefetch that URL within seconds of
+  // delivery, so by the time the user clicks the link the token has already
+  // been burned and the app shows "link expired".
+  //
+  // Instead, link directly to the app's redirect_to with token_hash + type as
+  // query params. The token is only verified when the user actually submits the
+  // form on our page (via verifyOtp), so a prefetch cannot consume it.
+  let safeConfirmationUrl = payload.data.url as string
+  const redirectTo = payload.data.redirect_to as string | undefined
+  const tokenHash = payload.data.token_hash as string | undefined
+  const actionType = (payload.data.email_action_type ||
+    payload.data.action_type) as string | undefined
+  if (redirectTo && tokenHash && actionType) {
+    try {
+      const u = new URL(redirectTo)
+      u.searchParams.set('token_hash', tokenHash)
+      u.searchParams.set('type', actionType)
+      safeConfirmationUrl = u.toString()
+    } catch (e) {
+      console.warn('Failed to build safe confirmation URL, falling back', {
+        error: (e as Error).message,
+        redirectTo,
+      })
+    }
+  }
+
   // Build template props from payload.data (HookData structure)
   const templateProps = {
     siteName: SITE_NAME,
     siteUrl: `https://${ROOT_DOMAIN}`,
     recipient: payload.data.email,
-    confirmationUrl: payload.data.url,
+    confirmationUrl: safeConfirmationUrl,
     token: payload.data.token,
     email: payload.data.email,
     oldEmail: payload.data.old_email,
