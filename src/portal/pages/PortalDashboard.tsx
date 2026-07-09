@@ -30,9 +30,21 @@ export default function PortalDashboard() {
   const { contact, account } = usePortalAuth();
   const { data: pending } = usePendingConfirmations();
   const pendingCount = pending?.length ?? 0;
-  const { account: kycAccount } = useMyKyc();
+  const { account: kycAccount, loading: kycLoading } = useMyKyc();
   const { data: orders } = usePortalOrders();
   const kycStatus = kycAccount?.kyc_status ?? "not_submitted";
+
+  // TEMP debug — remove once dashboard KYC card is confirmed rendering
+  // for a rejected account. Logs on every re-render.
+  if (typeof window !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.log("[PortalDashboard][KYC-DEBUG]", {
+      kycLoading,
+      kycAccountId: kycAccount?.id ?? null,
+      kycStatus,
+      accountFromCtx: account?.id ?? null,
+    });
+  }
   const rejectionReason = useMemo(
     () => sanitizePlainText(kycAccount?.kyc_rejection_reason),
     [kycAccount?.kyc_rejection_reason]
