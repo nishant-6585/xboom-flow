@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FileText, MessageSquare, FileQuestion, Settings, LogOut, ShieldCheck, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, FileText, MessageSquare, FileQuestion, Settings, LogOut, ShieldCheck, ShoppingBag, UserCircle2 } from "lucide-react";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
 import { Button } from "@/components/ui/button";
 
@@ -71,11 +71,24 @@ export function PortalLayout({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="pt-4 border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
-            <div className="text-xs text-white/70 mb-1">{account?.company_name}</div>
-            <div className="text-sm font-medium mb-3 truncate">{contact?.full_name}</div>
+            <div className="text-sm font-medium truncate" title={contact?.full_name ?? undefined}>
+              {contact?.full_name}
+            </div>
+            {contact?.email && (
+              <div className="text-xs text-white/70 truncate mt-0.5" title={contact.email}>
+                {contact.email}
+              </div>
+            )}
+            <NavLink
+              to="/portal/settings"
+              className="flex items-center gap-2 text-xs text-white/70 hover:text-white mt-3"
+            >
+              <UserCircle2 className="h-3.5 w-3.5" />
+              View full profile
+            </NavLink>
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-2 text-xs text-white/70 hover:text-white"
+              className="flex items-center gap-2 text-xs text-white/70 hover:text-white mt-2"
             >
               <LogOut className="h-3.5 w-3.5" />
               Sign out
