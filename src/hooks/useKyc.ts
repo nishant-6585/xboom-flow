@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
@@ -66,40 +67,48 @@ export function useMyKyc() {
   // supabase.auth.getUser() + a portal_contacts lookup on every page.
   const { account: portalAccount, loading: portalLoading } = usePortalAuth();
   const accountId = portalAccount?.id ?? null;
-
-  const [account, setAccount] = useState<KycAccountSummary | null>(null);
-  const [documents, setDocuments] = useState<KycDocumentRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!accountId) {
-      // Portal context not resolved yet, or user isn't a portal customer.
-      // Keep loading true while portal auth is still hydrating.
-      if (!portalLoading) setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const [acctRes, docRes] = await Promise.all([
-      supabase
-        .from("portal_accounts")
-        .select(
-          "id, company_name, primary_contact_name, kyc_status, aadhaar_last4, kyc_submitted_at, kyc_reviewed_at, kyc_rejection_reason, assigned_rep_id",
-        )
-        .eq("id", accountId)
-        .maybeSingle(),
-      supabase
-        .from("kyc_documents")
-        .select("*")
-        .eq("account_id", accountId)
-        .order("uploaded_at", { ascending: false }),
-    ]);
-    setAccount((acctRes.data as any) ?? null);
-    setDocuments(((docRes.data as any) ?? []) as KycDocumentRow[]);
-    setLoading(false);
-  }, [accountId, portalLoading]);
+  // Shared react-query cache keyed on accountId — every page (dashboard,
+  // KYC verification, confirm) hits the SAME cache, so they can't drift
+  // out of sync the way per-component useState hooks could.
+  const query = useQuery({
+    queryKey: ["portal", "my-kyc", accountId],
+    enabled: !!accountId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const [acctRes, docRes] = await Promise.all([
+        supabase
+          .from("portal_accounts")
+          .select(
+            "id, company_name, primary_contact_name, kyc_status, aadhaar_last4, kyc_submitted_at, kyc_reviewed_at, kyc_rejection_reason, assigned_rep_id",
+          )
+          .eq("id", accountId as string)
+          .maybeSingle(),
+        supabase
+          .from("kyc_documents")
+          .select("*")
+          .eq("account_id", accountId as string)
+          .order("uploaded_at", { ascending: false }),
+      ]);
+      if (acctRes.error) throw acctRes.error;
+      return {
+        account: (acctRes.data as KycAccountSummary | null) ?? null,
+        documents: ((docRes.data as any) ?? []) as KycDocumentRow[],
+      };
+    },
+  });
 
-  useEffect(() => { refresh(); }, [refresh]);
+  const account = query.data?.account ?? null;
+  const documents = query.data?.documents ?? [];
+  // "loading" is true while portal auth hasn't resolved OR while the KYC
+  // query is in-flight for a resolved accountId.
+  const loading = portalLoading || (!!accountId && query.isLoading);
+
+  const refresh = useCallback(async () => {
+    await qc.invalidateQueries({ queryKey: ["portal", "my-kyc", accountId] });
+  }, [qc, accountId]);
 
   const submitDocument = useCallback(async (opts: {
     documentType: string;
