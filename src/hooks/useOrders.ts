@@ -526,6 +526,9 @@ export function useOrders() {
       
       // Remove is_website_order from the data as it's not a database field
       delete (sanitizedData as any).is_website_order;
+      // payment_mode is captured on payment_records, not orders — strip it
+      // to avoid PostgREST schema-cache errors when creating the order.
+      delete (sanitizedData as any).payment_mode;
 
       const { data: orderData, error } = await supabase
         .from('orders')
