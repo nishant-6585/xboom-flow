@@ -35,6 +35,25 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
   reauthentication: ReauthenticationEmail,
 }
 
+function formatIstTimestamp(date: Date): string {
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+function buildSubject(emailType: string, requestedAt: string): string {
+  if (emailType === 'recovery') {
+    return `Reset your xboom portal password - ${requestedAt} IST`
+  }
+
+  return EMAIL_SUBJECTS[emailType] || 'Notification'
+}
+
 // Configuration
 const SITE_NAME = "xboom-flow"
 const SENDER_DOMAIN = "notify.xboomflow.com"
@@ -249,11 +268,14 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 
   // Build template props from payload.data (HookData structure)
+  const requestedAt = formatIstTimestamp(new Date())
+
   const templateProps = {
     siteName: SITE_NAME,
     siteUrl: `https://${ROOT_DOMAIN}`,
     recipient: payload.data.email,
     confirmationUrl: safeConfirmationUrl,
+    requestedAt,
     token: payload.data.token,
     email: payload.data.email,
     oldEmail: payload.data.old_email,
@@ -290,7 +312,7 @@ async function handleWebhook(req: Request): Promise<Response> {
       to: payload.data.email,
       from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
-      subject: EMAIL_SUBJECTS[emailType] || 'Notification',
+      subject: buildSubject(emailType, requestedAt),
       html,
       text,
       purpose: 'transactional',

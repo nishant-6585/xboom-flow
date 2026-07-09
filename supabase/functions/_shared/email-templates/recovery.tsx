@@ -16,11 +16,13 @@ import {
 interface RecoveryEmailProps {
   siteName: string
   confirmationUrl: string
+  requestedAt?: string
 }
 
 export const RecoveryEmail = ({
   siteName,
   confirmationUrl,
+  requestedAt,
 }: RecoveryEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
@@ -32,9 +34,16 @@ export const RecoveryEmail = ({
           We received a request to reset your password for {siteName}. Click
           the button below to choose a new password.
         </Text>
+        {requestedAt && (
+          <Text style={metaText}>Requested at {requestedAt} IST.</Text>
+        )}
         <Button style={button} href={confirmationUrl}>
           Reset Password
         </Button>
+        <Text style={fallbackText}>
+          If the button does not open, copy and paste this link into your browser:
+          {' '}{confirmationUrl}
+        </Text>
         <Text style={footer}>
           If you didn't request a password reset, you can safely ignore this
           email. Your password will not be changed.
@@ -66,6 +75,12 @@ const text = {
   lineHeight: '1.6',
   margin: '0 0 20px',
 }
+const metaText = {
+  fontSize: '13px',
+  color: '#78716c',
+  lineHeight: '1.5',
+  margin: '0 0 20px',
+}
 const button = {
   backgroundColor: '#f97316',
   color: '#ffffff',
@@ -75,6 +90,13 @@ const button = {
   padding: '13px 24px',
   textDecoration: 'none',
   display: 'inline-block',
+}
+const fallbackText = {
+  fontSize: '12px',
+  color: '#78716c',
+  lineHeight: '1.5',
+  margin: '24px 0 0',
+  wordBreak: 'break-all' as const,
 }
 const footer = {
   fontSize: '12px',
