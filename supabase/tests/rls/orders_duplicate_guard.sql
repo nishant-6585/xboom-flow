@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(5);
+select plan(7);
 
 set local role postgres;
 
@@ -156,6 +156,59 @@ select lives_ok(
       'Dup Guard Customer', '+919999000011', 'Test Drone Pro',
       'TDP-1', current_date, 50000)$$,
   'sales user can call find_duplicate_orders'
+);
+
+-- 6) Repeat-purchase path: an existing order that is 10 days old, same
+--    customer + product + amount, must be visible to find_duplicate_orders
+--    (90-day lookback) WITHOUT the 'same date (±3d)' reason, so the client
+--    can show the amber confirm dialog rather than the red block.
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+\set old_id 'eeeeeeee-1111-2222-3333-444444444444'
+insert into public.orders
+  (id, product_name, product_code, product_category, quantity,
+   customer_name, customer_phone, customer_company,
+   sales_person_id, sales_person_name,
+   order_type, customer_type, status,
+   total_sales_amount, order_date, source, external_id, created_by)
+values
+  (:'old_id'::uuid, 'Test Drone Pro', 'TDP-1', 'drone', 1,
+   'Repeat Buyer', '+919999000033', 'Repeat Co',
+   :'sales_uid'::uuid, 'Sales Rep',
+   'prepaid', 'b2c', 'delivery_done',
+   50000, current_date - 10, null, null, :'sales_uid'::uuid);
+
+-- 6a) find_duplicate_orders returns the 10-day-old match with days_apart=10
+--     and NO 'same date (±3d)' reason.
+select pg_temp.as_user(:'sales_uid'::uuid);
+select results_eq(
+  $$select days_apart,
+           ('same date (±3d)' = ANY(match_reasons))::boolean as has_date_reason
+      from public.find_duplicate_orders(
+        'Repeat Buyer', '+919999000033', 'Test Drone Pro',
+        'TDP-1', current_date, 50000)
+     where id = 'eeeeeeee-1111-2222-3333-444444444444'::uuid$$,
+  $$values (10, false)$$,
+  'find_duplicate_orders returns 10-day-old match with days_apart=10 and NO same-date reason'
+);
+
+-- 6b) Sales user inserting a new order matching that 10-day-old row
+--     SUCCEEDS at the DB level (hard-block trigger requires ±3d).
+select lives_ok(
+  $$insert into public.orders
+     (product_name, product_code, product_category, quantity,
+      customer_name, customer_phone, customer_company,
+      sales_person_id, sales_person_name,
+      order_type, customer_type, status,
+      total_sales_amount, order_date, created_by)
+   values
+     ('Test Drone Pro', 'TDP-1', 'drone', 1,
+      'Repeat Buyer', '+919999000033', 'Repeat Co',
+      'aaaaaaaa-1111-2222-3333-444444444444'::uuid, 'Guard Tester',
+      'prepaid', 'b2c', 'po_received',
+      50000, current_date, 'aaaaaaaa-1111-2222-3333-444444444444'::uuid)$$,
+  'sales insert matching a 10-day-old order (repeat purchase) is NOT blocked by trigger'
 );
 
 select * from finish();
