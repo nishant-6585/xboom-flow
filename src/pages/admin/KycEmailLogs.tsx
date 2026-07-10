@@ -104,7 +104,7 @@ export default function KycEmailLogs() {
       );
       if (missing.length) {
         const { data: profs } = await (supabase.from("profiles") as any)
-          .select("user_id, full_name, email")
+          .select("user_id, name, email")
           .in("user_id", missing);
         if (profs) {
           setSenderNames((prev) => {
