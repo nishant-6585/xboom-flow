@@ -46,7 +46,7 @@ export function OrderAttributionPanel({
   const { role, user } = useAuth();
   const { data: order } = useInternalOrderForAttribution({ internalOrderId, externalId });
   const { data: myRequest } = useMyAttributionRequest(order?.id);
-  const isManager = role === 'admin' || role === 'sales_manager';
+  const isManager = role === 'admin' || role === 'sales_manager' || role === 'supply_chain';
   const isSalesRep = role === 'sales';
 
   const [assignOpen, setAssignOpen] = useState(false);
