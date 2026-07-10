@@ -29,6 +29,7 @@ import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
 import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
+import { ProspectAutoFollowupPanel } from "@/components/sales/ProspectAutoFollowupPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
 import { FollowupsPanel } from "@/components/sales/FollowupsPanel";
 import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
@@ -324,7 +325,14 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="prospects" className="space-y-6">
-            <ProspectsPanel selectedLeadId={urlLeadId} />
+            <Tabs defaultValue="prospects-list" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="prospects-list">🎯 Prospects</TabsTrigger>
+                <TabsTrigger value="prospects-auto">🤖 Auto Follow-up</TabsTrigger>
+              </TabsList>
+              <TabsContent value="prospects-list"><ProspectsPanel selectedLeadId={urlLeadId} /></TabsContent>
+              <TabsContent value="prospects-auto"><ProspectAutoFollowupPanel /></TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="followups" className="space-y-6">
