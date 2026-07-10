@@ -7,16 +7,17 @@ import { Package, User, Calendar, Hash, Boxes } from "lucide-react";
 import { getSlaStatus, getTimeRemainingString, UrgencyLevel } from "@/lib/sla";
 import { Badge } from "./ui/badge";
 import { LeadSourceBadge } from "./LeadSourceBadge";
-import { StickyNote } from "lucide-react";
+import { StickyNote, MessageSquare } from "lucide-react";
 import { formatDistanceToNow as fmtRel } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface EnquiryCardProps {
   enquiry: Enquiry;
   onClick?: () => void;
+  unreadMessages?: number;
 }
 
-export function EnquiryCard({ enquiry, onClick }: EnquiryCardProps) {
+export function EnquiryCard({ enquiry, onClick, unreadMessages = 0 }: EnquiryCardProps) {
   const createdAt = new Date(enquiry.created_at);
   const respondedAt = enquiry.responded_at ? new Date(enquiry.responded_at) : null;
   const isResponded = enquiry.status !== "pending";
@@ -58,6 +59,12 @@ export function EnquiryCard({ enquiry, onClick }: EnquiryCardProps) {
             </div>
           </div>
           <StatusBadge status={enquiry.status} />
+            {unreadMessages > 0 && (
+              <Badge className="bg-blue-600 hover:bg-blue-600 text-white gap-1 mt-1">
+                <MessageSquare className="w-3 h-3" />
+                {unreadMessages} new
+              </Badge>
+            )}
         </div>
         {enquiry.lead_source && (
           <div className="mt-2">
