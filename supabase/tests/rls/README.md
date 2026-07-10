@@ -26,3 +26,8 @@ Add one file per table/policy area. Files must end in `.sql` and live under
   - the same employee CANNOT update `monthly_salary` or `role`
   - HR CAN update `monthly_salary` and `role`
   - each bank/IFSC change writes an `employee_bank_audit_log` row
+- `enquiries_sales_followup_update.sql` — sales-role narrow update guard on
+  `enquiries` (added 2026-07-10). Verifies:
+  - sales user CAN update their own `followup_note` fields
+  - sales user CANNOT change `status` or `response_pricing`
+  - sales user CANNOT update another salesperson's enquiry note
