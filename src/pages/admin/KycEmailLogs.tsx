@@ -104,13 +104,13 @@ export default function KycEmailLogs() {
       );
       if (missing.length) {
         const { data: profs } = await (supabase.from("profiles") as any)
-          .select("user_id, full_name, email")
+          .select("user_id, name, email")
           .in("user_id", missing);
         if (profs) {
           setSenderNames((prev) => {
             const next = { ...prev };
             (profs as any[]).forEach((p) => {
-              next[p.user_id] = p.full_name || p.email || p.user_id;
+              next[p.user_id] = p.name || p.email || p.user_id;
             });
             return next;
           });
