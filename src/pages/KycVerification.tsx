@@ -342,7 +342,7 @@ export default function KycVerification() {
                   <div className="flex flex-wrap gap-1 pt-1">
                     {reviewing.row.ai_review.flags.map((f) => (
                       <Badge key={f} variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-[10px]">
-                        {f.replaceAll("_", " ")}
+                        {f.split("_").join(" ")}
                       </Badge>
                     ))}
                   </div>
