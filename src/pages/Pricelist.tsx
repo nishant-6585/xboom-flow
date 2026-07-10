@@ -95,6 +95,18 @@ export default function Pricelist() {
   const [enquiryNotes, setEnquiryNotes] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<{ added: number; updated: number; removed: number; skipped?: number; failed?: number; at: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "pricelist_last_sync")
+        .maybeSingle();
+      if (data?.value) setLastSync(data.value as any);
+    })();
+  }, [syncing]);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
