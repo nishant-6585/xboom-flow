@@ -45,7 +45,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { format, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
-import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, Timer, CheckCircle2, AlertTriangle, Flame, Thermometer, Snowflake, Star, Sparkles } from "lucide-react";
+import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, Timer, CheckCircle2, AlertTriangle, Flame, Thermometer, Snowflake, Star, Sparkles, MessageSquare } from "lucide-react";
+import { Badge } from "./ui/badge";
 import { StatusBadge } from "./StatusBadge";
 import { LeadTemperatureBadge, LEAD_TEMPERATURES } from "./LeadTemperatureBadge";
 import { LeadSourceBadge } from "./LeadSourceBadge";
@@ -67,6 +68,7 @@ interface EnquiryTableProps {
   onEnquiryClick: (enquiry: Enquiry) => void;
   onUpdateTemperature?: (enquiryId: string, temperature: LeadTemperature) => Promise<boolean>;
   onToggleMegaDeal?: (enquiryId: string, isMegaDeal: boolean) => Promise<boolean>;
+  unreadMessageCounts?: Record<string, number>;
 }
 
 interface RelatedRecords {
@@ -81,7 +83,8 @@ export function EnquiryTable({
   onUpdateStatus, 
   onEnquiryClick,
   onUpdateTemperature,
-  onToggleMegaDeal
+  onToggleMegaDeal,
+  unreadMessageCounts = {},
 }: EnquiryTableProps) {
   const { role } = useAuth();
   const navigate = useNavigate();
@@ -340,6 +343,14 @@ export function EnquiryTable({
                       {enquiry.lead_source && (
                         <div className="mt-1">
                           <LeadSourceBadge source={enquiry.lead_source} size="xs" fallback="hide" />
+                        </div>
+                      )}
+                      {unreadMessageCounts[enquiry.id] > 0 && (
+                        <div className="mt-1">
+                          <Badge className="bg-blue-600 hover:bg-blue-600 text-white gap-1">
+                            <MessageSquare className="w-3 h-3" />
+                            {unreadMessageCounts[enquiry.id]} new
+                          </Badge>
                         </div>
                       )}
                     </TableCell>

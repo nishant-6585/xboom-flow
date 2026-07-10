@@ -58,13 +58,15 @@ export function EnquiryCard({ enquiry, onClick, unreadMessages = 0 }: EnquiryCar
               {enquiry.product_code}
             </div>
           </div>
-          <StatusBadge status={enquiry.status} />
+          <div className="flex flex-col items-end gap-1">
+            <StatusBadge status={enquiry.status} />
             {unreadMessages > 0 && (
-              <Badge className="bg-blue-600 hover:bg-blue-600 text-white gap-1 mt-1">
+              <Badge className="bg-blue-600 hover:bg-blue-600 text-white gap-1">
                 <MessageSquare className="w-3 h-3" />
                 {unreadMessages} new
               </Badge>
             )}
+          </div>
         </div>
         {enquiry.lead_source && (
           <div className="mt-2">
