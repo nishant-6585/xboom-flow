@@ -433,10 +433,8 @@ export function EnquiryDialog({
               </div>
             )}
 
-            {/* Discussion Thread - show after initial response */}
-            {enquiry.responded_at && (
-              <EnquiryMessageThread enquiryId={enquiry.id} />
-            )}
+            {/* Discussion Thread — available from the moment the enquiry exists */}
+            <EnquiryMessageThread enquiryId={enquiry.id} />
 
             {/* Response Form - Only show for supply chain or admin */}
             {canRespond && (
