@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Users can view own temp permissions" ON public.ai_temp_permissions;
