@@ -475,8 +475,10 @@ export function useOrders() {
           await presentDuplicateDialog('hard', matches);
           return null;
         }
-        if (severity === 'soft') {
-          const decision = await presentDuplicateDialog('soft', matches);
+        if (severity === 'repeat' || severity === 'soft') {
+          // Repeat purchase (customer+product match outside ±3d) → amber confirm.
+          // Soft (within 3d but amount differs >5%) → generic warning.
+          const decision = await presentDuplicateDialog(severity, matches);
           if (decision !== 'proceed') return null;
         }
       }

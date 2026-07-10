@@ -5,7 +5,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Ban, ArrowRight, ExternalLink, HandCoins } from 'lucide-react';
+import { AlertTriangle, Ban, ArrowRight, ExternalLink, HandCoins, RefreshCw } from 'lucide-react';
 import {
   DUPLICATE_ORDER_EVENT,
   type DuplicateOrderEventDetail,
@@ -15,6 +15,13 @@ import {
 function formatMoney(n: number | null | undefined) {
   if (n == null) return '—';
   return `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+}
+
+function formatDaysAgo(d: number | null | undefined): string {
+  if (d == null) return '';
+  if (d === 0) return 'today';
+  if (d === 1) return '1 day ago';
+  return `${d} days ago`;
 }
 
 function MatchCard({ m, onView, onRequestTransfer }: {
@@ -39,6 +46,11 @@ function MatchCard({ m, onView, onRequestTransfer }: {
             Salesperson: <span className="font-medium">{m.sales_person_name || 'unknown'}</span> ·
             {' '}Total: <span className="font-medium">{formatMoney(m.total_sales_amount)}</span> ·
             {' '}Order date: <span className="font-medium">{m.order_date || m.created_at?.slice(0, 10)}</span>
+            {m.days_apart != null && (
+              <>
+                {' '}· <span className="font-medium">{formatDaysAgo(m.days_apart)}</span>
+              </>
+            )}
           </div>
         </div>
         <Badge variant={m.amount_diff_pct <= 5 ? 'destructive' : 'secondary'} className="shrink-0">
@@ -91,32 +103,56 @@ export function DuplicateOrderGuardModal() {
 
   if (!state) return null;
   const hard = state.severity === 'hard';
+  const repeat = state.severity === 'repeat';
   const primaryMatch = state.matches[0];
+
+  // Sort repeat matches newest-first for the listing.
+  const displayMatches = repeat
+    ? [...state.matches].sort((a, b) => {
+        const da = (a.days_apart ?? Number.POSITIVE_INFINITY);
+        const db = (b.days_apart ?? Number.POSITIVE_INFINITY);
+        return da - db;
+      })
+    : state.matches;
+
+  const titleTone = hard
+    ? 'text-destructive'
+    : repeat
+      ? 'text-amber-600 dark:text-amber-400'
+      : 'text-warning';
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) close('cancel'); }}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className={`flex items-center gap-2 ${hard ? 'text-destructive' : 'text-warning'}`}>
-            {hard ? <Ban className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+          <DialogTitle className={`flex items-center gap-2 ${titleTone}`}>
+            {hard
+              ? <Ban className="h-5 w-5" />
+              : repeat
+                ? <RefreshCw className="h-5 w-5" />
+                : <AlertTriangle className="h-5 w-5" />}
             {hard
               ? 'Order creation blocked — duplicate detected'
-              : 'Possible duplicate order'}
+              : repeat
+                ? 'Repeat purchase — confirm before creating'
+                : 'Possible duplicate order'}
           </DialogTitle>
           <DialogDescription>
             {hard
               ? 'This order matches an existing one on customer, product, date and amount. If the website already recorded it, request a transfer instead of creating a new order.'
-              : 'We found a similar recent order. Please check before proceeding.'}
+              : repeat
+                ? 'An order for this customer and product already exists. Confirm this is a genuine repeat purchase before creating a new one.'
+                : 'We found a similar recent order. Please check before proceeding.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2 max-h-[45vh] overflow-y-auto">
-          {state.matches.length === 0 && primaryMatch === undefined ? (
+          {displayMatches.length === 0 && primaryMatch === undefined ? (
             <div className="rounded-lg border bg-muted/50 p-3 text-sm">
               {state.triggerMessage || 'A matching order was rejected server-side.'}
             </div>
           ) : (
-            state.matches.map((m, i) => (
+            displayMatches.map((m, i) => (
               <MatchCard
                 key={(m.id || m.order_number || String(i))}
                 m={m}
@@ -128,8 +164,17 @@ export function DuplicateOrderGuardModal() {
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => close('cancel')}>Close</Button>
-          {!hard && (
+          <Button variant="outline" onClick={() => close('cancel')}>Cancel</Button>
+          {repeat && (
+            <Button
+              variant="default"
+              onClick={() => close('proceed')}
+              className="gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Yes, create new order <ArrowRight className="h-4 w-4" />
+            </Button>
+          )}
+          {!hard && !repeat && (
             <Button variant="default" onClick={() => close('proceed')} className="gap-2">
               Proceed anyway <ArrowRight className="h-4 w-4" />
             </Button>

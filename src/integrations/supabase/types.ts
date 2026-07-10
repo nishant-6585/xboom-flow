@@ -17373,6 +17373,7 @@ export type Database = {
           created_at: string
           customer_name: string
           customer_phone: string
+          days_apart: number
           external_id: string
           id: string
           match_reasons: string[]
