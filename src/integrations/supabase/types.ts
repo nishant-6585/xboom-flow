@@ -4721,6 +4721,9 @@ export type Database = {
           escalated_by: string | null
           escalated_by_name: string | null
           escalation_reason: string | null
+          followup_note: string | null
+          followup_note_updated_at: string | null
+          followup_note_updated_by_name: string | null
           google_lead_id: string | null
           id: string
           is_converted: boolean
@@ -4780,6 +4783,9 @@ export type Database = {
           escalated_by?: string | null
           escalated_by_name?: string | null
           escalation_reason?: string | null
+          followup_note?: string | null
+          followup_note_updated_at?: string | null
+          followup_note_updated_by_name?: string | null
           google_lead_id?: string | null
           id?: string
           is_converted?: boolean
@@ -4839,6 +4845,9 @@ export type Database = {
           escalated_by?: string | null
           escalated_by_name?: string | null
           escalation_reason?: string | null
+          followup_note?: string | null
+          followup_note_updated_at?: string | null
+          followup_note_updated_by_name?: string | null
           google_lead_id?: string | null
           id?: string
           is_converted?: boolean
