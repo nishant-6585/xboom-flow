@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useKycQueue, kycStatusMeta, type KycQueueRow } from "@/hooks/useKyc";
-import { format } from "date-fns";
-import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles } from "lucide-react";
+import { format, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks } from "date-fns";
+import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw } from "lucide-react";
 import { Header } from "@/components/Header";
 
 const REJECT_CATEGORIES: { value: string; label: string }[] = [
@@ -71,30 +71,130 @@ function AiRecommendationBadge({ ai }: { ai: NonNullable<KycQueueRow["ai_review"
   );
 }
 
+function StatCard({ label, value, tone, onClick, active }: {
+  label: string;
+  value: number;
+  tone?: "green" | "orange" | "red";
+  onClick?: () => void;
+  active?: boolean;
+}) {
+  const toneCls =
+    tone === "green" ? "text-emerald-600" :
+    tone === "orange" ? "text-orange-500" :
+    tone === "red" ? "text-red-600" :
+    "text-foreground";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left rounded-lg border bg-card p-3 transition hover:border-primary/60 hover:shadow-sm ${active ? "border-primary ring-1 ring-primary/40" : "border-border"}`}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`text-2xl font-bold mt-1 ${toneCls}`}>{value}</div>
+    </button>
+  );
+}
+
 export default function KycVerification() {
   const { rows, loading, review, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
   const focusAccount = params.get("account");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [docTypeFilter, setDocTypeFilter] = useState<string>("all");
+  const [methodFilter, setMethodFilter] = useState<string>("all");
+  const [repFilter, setRepFilter] = useState<string>("all");
+  const [aiFilter, setAiFilter] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<string>("all");
   const [reviewing, setReviewing] = useState<{ row: KycQueueRow; mode: "approve" | "reject" } | null>(null);
   const [reason, setReason] = useState("");
   const [reasonCategory, setReasonCategory] = useState<string>("document_unclear");
   const [busy, setBusy] = useState(false);
   const [aadhaarMap, setAadhaarMap] = useState<Record<string, string>>({});
 
+  const effStatus = (r: KycQueueRow) => (r.document?.status as any) ?? r.account.kyc_status;
+  const rowMethod = (r: KycQueueRow): "digilocker" | "manual" | null => {
+    if (!r.document) return null;
+    const m = r.document.method || (r.document.metadata as any)?.method;
+    return m === "digilocker" ? "digilocker" : "manual";
+  };
+
+  const repOptions = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => { if (r.rep_name) set.add(r.rep_name); });
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const inDateRange = (r: KycQueueRow) => {
+    if (dateRange === "all") return true;
+    const ts = r.account.kyc_submitted_at ? new Date(r.account.kyc_submitted_at) : null;
+    if (!ts) return false;
+    const now = new Date();
+    switch (dateRange) {
+      case "today": return isToday(ts);
+      case "yesterday": return isYesterday(ts);
+      case "this_week": return ts >= startOfWeek(now, { weekStartsOn: 1 }) && ts <= endOfWeek(now, { weekStartsOn: 1 });
+      case "last_week": {
+        const lw = subWeeks(now, 1);
+        return ts >= startOfWeek(lw, { weekStartsOn: 1 }) && ts <= endOfWeek(lw, { weekStartsOn: 1 });
+      }
+      case "this_month": return ts >= startOfMonth(now) && ts <= endOfMonth(now);
+      default: return true;
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = rows;
-    if (q) {
-      list = list.filter((r) =>
-        [r.account.company_name, r.account.primary_contact_name, r.latest_order_number, r.customer_email, r.rep_name]
+    let list = rows.filter((r) => {
+      if (q) {
+        const hit = [r.account.company_name, r.account.primary_contact_name, r.latest_order_number, r.customer_email, r.rep_name]
           .filter(Boolean)
-          .some((v) => (v as string).toLowerCase().includes(q)),
-      );
-    }
+          .some((v) => (v as string).toLowerCase().includes(q));
+        if (!hit) return false;
+      }
+      if (statusFilter !== "all" && effStatus(r) !== statusFilter) return false;
+      if (docTypeFilter !== "all" && r.document?.doc_type !== docTypeFilter) return false;
+      if (methodFilter !== "all" && rowMethod(r) !== methodFilter) return false;
+      if (repFilter !== "all" && (r.rep_name || "") !== repFilter) return false;
+      if (aiFilter !== "all") {
+        if (aiFilter === "none") { if (r.ai_review) return false; }
+        else if (r.ai_review?.recommendation !== aiFilter) return false;
+      }
+      if (!inDateRange(r)) return false;
+      return true;
+    });
     if (focusAccount) list = [...list].sort((a, b) => (a.account.id === focusAccount ? -1 : b.account.id === focusAccount ? 1 : 0));
     return list;
-  }, [rows, search, focusAccount]);
+  }, [rows, search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange, focusAccount]);
+
+  const stats = useMemo(() => {
+    let total = 0, pending = 0, approved = 0, rejected = 0;
+    let digilocker = 0, manual = 0;
+    let aiApprove = 0, aiReject = 0, aiUnclear = 0;
+    let todayCount = 0;
+    rows.forEach((r) => {
+      total++;
+      const s = effStatus(r);
+      if (s === "pending_verification") pending++;
+      else if (s === "approved") approved++;
+      else if (s === "rejected") rejected++;
+      const m = rowMethod(r);
+      if (m === "digilocker") digilocker++;
+      else if (m === "manual") manual++;
+      if (r.ai_review && s === "pending_verification") {
+        if (r.ai_review.recommendation === "likely_approve") aiApprove++;
+        else if (r.ai_review.recommendation === "likely_reject") aiReject++;
+        else aiUnclear++;
+      }
+      if (r.account.kyc_submitted_at && isToday(new Date(r.account.kyc_submitted_at))) todayCount++;
+    });
+    return { total, pending, approved, rejected, digilocker, manual, aiApprove, aiReject, aiUnclear, todayCount };
+  }, [rows]);
+
+  const filtersActive = search || statusFilter !== "all" || docTypeFilter !== "all" || methodFilter !== "all" || repFilter !== "all" || aiFilter !== "all" || dateRange !== "all";
+  const resetFilters = () => {
+    setSearch(""); setStatusFilter("all"); setDocTypeFilter("all"); setMethodFilter("all"); setRepFilter("all"); setAiFilter("all"); setDateRange("all");
+  };
 
   useEffect(() => {
     if (focusAccount && rows.length) {
@@ -143,12 +243,106 @@ export default function KycVerification() {
         </div>
         </div>
 
+      {/* Analytics stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <StatCard label="Total" value={stats.total} onClick={() => setStatusFilter("all")} active={statusFilter === "all"} />
+        <StatCard label="Pending" value={stats.pending} tone="orange" onClick={() => setStatusFilter("pending_verification")} active={statusFilter === "pending_verification"} />
+        <StatCard label="Approved" value={stats.approved} tone="green" onClick={() => setStatusFilter("approved")} active={statusFilter === "approved"} />
+        <StatCard label="Rejected" value={stats.rejected} tone="red" onClick={() => setStatusFilter("rejected")} active={statusFilter === "rejected"} />
+        <StatCard label="DigiLocker" value={stats.digilocker} onClick={() => setMethodFilter("digilocker")} active={methodFilter === "digilocker"} />
+        <StatCard label="Manual upload" value={stats.manual} onClick={() => setMethodFilter("manual")} active={methodFilter === "manual"} />
+        <StatCard label="AI · likely approve" value={stats.aiApprove} tone="green" onClick={() => setAiFilter("likely_approve")} active={aiFilter === "likely_approve"} />
+        <StatCard label="AI · likely reject" value={stats.aiReject} tone="red" onClick={() => setAiFilter("likely_reject")} active={aiFilter === "likely_reject"} />
+        <StatCard label="AI · unclear" value={stats.aiUnclear} onClick={() => setAiFilter("unclear")} active={aiFilter === "unclear"} />
+        <StatCard label="Uploaded today" value={stats.todayCount} onClick={() => setDateRange("today")} active={dateRange === "today"} />
+      </div>
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle className="text-base">{filtered.length} {filtered.length === 1 ? "account" : "accounts"}</CardTitle>
-          <div className="relative w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Search customer, order…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <CardHeader className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="text-base">{filtered.length} of {rows.length} {rows.length === 1 ? "account" : "accounts"}</CardTitle>
+            <div className="flex items-center gap-2">
+              {filtersActive && (
+                <Button variant="ghost" size="sm" onClick={resetFilters}>
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
+                </Button>
+              )}
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-8" placeholder="Search customer, order…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { v: "all", l: "All time" },
+              { v: "today", l: "Today" },
+              { v: "yesterday", l: "Yesterday" },
+              { v: "this_week", l: "This week" },
+              { v: "last_week", l: "Last week" },
+              { v: "this_month", l: "This month" },
+            ].map((d) => (
+              <Button
+                key={d.v}
+                size="sm"
+                variant={dateRange === d.v ? "default" : "outline"}
+                onClick={() => setDateRange(d.v)}
+              >
+                {d.l}
+              </Button>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending_verification">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="not_submitted">Not submitted</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={docTypeFilter} onValueChange={setDocTypeFilter}>
+              <SelectTrigger><SelectValue placeholder="Document type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All documents</SelectItem>
+                <SelectItem value="aadhaar">Aadhaar</SelectItem>
+                <SelectItem value="pan">PAN</SelectItem>
+                <SelectItem value="driving_license">Driving Licence</SelectItem>
+                <SelectItem value="voter_id">Voter ID</SelectItem>
+                <SelectItem value="passport">Passport</SelectItem>
+                <SelectItem value="rental_agreement">Rental Agreement</SelectItem>
+                <SelectItem value="other_gov_id">Other Govt ID</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={methodFilter} onValueChange={setMethodFilter}>
+              <SelectTrigger><SelectValue placeholder="Method" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All methods</SelectItem>
+                <SelectItem value="digilocker">DigiLocker</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={repFilter} onValueChange={setRepFilter}>
+              <SelectTrigger><SelectValue placeholder="Salesperson" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All salespersons</SelectItem>
+                {repOptions.map((r) => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={aiFilter} onValueChange={setAiFilter}>
+              <SelectTrigger><SelectValue placeholder="AI recommendation" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All AI</SelectItem>
+                <SelectItem value="likely_approve">Likely approve</SelectItem>
+                <SelectItem value="likely_reject">Likely reject</SelectItem>
+                <SelectItem value="unclear">Unclear</SelectItem>
+                <SelectItem value="none">No AI review</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>

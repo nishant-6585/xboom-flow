@@ -1,72 +1,47 @@
-# Zoho Books Invoice Poller — Phase 2
+## Goal
+Add at-a-glance analytics and filters to `/kyc` (KYC Verification Queue) similar to the Portal Customers page, so reviewers can slice the queue quickly.
 
-Reuses the existing Zoho OAuth connection (`zoho_tokens`, org `862649719`, `.com` API domain). No new self-client, no new client secrets.
+## Scope
+Frontend-only change to `src/pages/KycVerification.tsx`. No schema, no RLS, no API changes — data is already available from `useKycQueue`.
 
-## 1. Database changes (one migration)
+## 1. Analytics stat cards (top of page)
+A row of compact cards computed from `rows`:
 
-- Add columns to `zoho_books_invoices`:
-  - `match_status text` — `matched` | `unmatched` | `pending` (default `pending`)
-  - `pdf_attached_invoice_id uuid` — FK to `order_invoices(id)` for idempotency
-  - `pdf_synced_at timestamptz`
-  - `pdf_hash text` — sha256 of last uploaded PDF bytes, so we only re-upload when Zoho changed the PDF
-- Add columns to `order_invoices`:
-  - `zoho_invoice_id text UNIQUE` — links the attachment back to Zoho (one order_invoices row per Zoho invoice)
-- New table `zoho_poller_state` (single row): `last_polled_at timestamptz`, `last_success_at timestamptz`, `last_error text`
-- Extend `match_zoho_invoices_to_orders()` RPC to also write `match_status='matched'` when a link is found and keep unmatched rows at `unmatched` after a first pass.
+- **Total submissions** — `rows.length`
+- **Pending review** — effective status `pending_verification`
+- **Approved** — effective status `approved`
+- **Rejected** — effective status `rejected`
+- **DigiLocker** — `document.method === 'digilocker'` (auto-verified vs pending name-mismatch split shown as sub-line)
+- **Manual upload** — `document.method !== 'digilocker'`
+- **AI: likely approve / reject / unclear** — from `ai_review.recommendation` on pending rows
+- **Today's uploads** — `kyc_submitted_at` within today
 
-## 2. New edge function `zoho-invoice-poller`
+Cards are clickable → set the matching status/method filter.
 
-Config: `verify_jwt = false`, cron-authenticated via existing `isAuthorizedCron` (`X-Cron-Secret`).
+## 2. Filter bar (above table, replacing the current single search input)
+- Search (existing)
+- Status: All / Pending / Approved / Rejected / Not submitted
+- Document type: All / Aadhaar / PAN / Driving Licence / Voter ID / Passport / Rental Agreement / Other
+- Method: All / DigiLocker / Manual
+- Salesperson: All / (unique `rep_name` list from rows)
+- AI recommendation: All / Likely approve / Likely reject / Unclear / No AI review
+- Date range chips: All Time / Today / Yesterday / This Week / Last Week / This Month + custom From/To
+- "Reset filters" button (only visible when any filter is active)
 
-Flow per invocation:
+Result count updates the existing "{n} accounts" label.
 
-1. Read `zoho_poller_state.last_polled_at` (fallback: 24h ago on first run).
-2. `getValidToken()` (same helper as `zoho-books-sync`).
-3. `GET {api_domain}/books/v3/invoices?organization_id=…&last_modified_time=<cursor>&sort_column=last_modified_time&sort_order=A&per_page=200` — paginate via `page_context.has_more_page`.
-4. Upsert each into `zoho_books_invoices` (same shape as `zoho-books-sync`).
-5. For each new/updated invoice:
-   - `GET /books/v3/invoices/{id}?accept=pdf` → fetch bytes, sha256 hash.
-   - Skip if `pdf_hash` unchanged (idempotent short-circuit).
-   - Determine matching order:
-     - (a) `orders.order_number == invoice.reference_number`
-     - (b) else `orders.customer_email == invoice.email` AND `abs(orders.total_sales_amount - invoice.total) <= 1`
-     - (c) else mark `match_status='unmatched'` — skip PDF attach.
-   - If matched: upload PDF to `invoices` bucket at `zoho/{order_id}/{invoice_number}.pdf`, upsert into `order_invoices` keyed on `zoho_invoice_id` (`source='zoho'`, `document_type='tax_invoice'`), update `zoho_books_invoices` with `linked_order_id/number`, `match_method`, `match_status='matched'`, `pdf_attached_invoice_id`, `pdf_hash`, `pdf_synced_at`.
-   - Call existing `send-invoice-email` with the new `order_invoices.id` — same idempotency/logging as manual Zoho uploads.
-6. Never throw on individual invoice failure — log to `zoho_sync_log`, continue.
-7. On overall success, advance `last_polled_at` to `max(last_modified_time)` of processed batch; on failure, leave cursor alone and log to `zoho_sync_log`.
+## 3. Filtering logic
+Extend the existing `useMemo(filtered, …)` to apply all filters in one pass, using the same "effective status" logic already in the table (per-submission status falls back to account status).
 
-Manual invocation path: allow admin/finance JWT (same role check as `zoho-books-sync`) with a `?since=<iso>` override for backfills.
+## 4. UI/styling
+- Reuse existing `Card`, `Badge`, `Select`, `Input`, `Button` primitives — no new deps.
+- Match the visual style of Portal Customers stat cards (label uppercase, big number, color hints: green for approved, orange for pending, red for rejected).
+- Filter bar wraps on mobile.
 
-## 3. Cron
+## 5. Persistence (light)
+Filter state stays in component state (not URL) to keep this change small; the existing `?account=` deep-link behavior is preserved.
 
-Insert one `pg_cron` job hitting `zoho-invoice-poller` every 15 min via `net.http_post` with the vault `CRON_SECRET` (same pattern as other scheduled functions). Installed via `supabase--insert` (not migration) so it can pull the vault secret at install time.
-
-## 4. Admin UI
-
-New card `UnmatchedZohoInvoicesPanel.tsx` in the Zoho Books settings area:
-- Lists `zoho_books_invoices WHERE match_status='unmatched'`
-- Each row: invoice #, date, customer, total, "Attach to order…" combobox (searches orders by number/customer), on select → calls a small new RPC `attach_zoho_invoice_to_order(zoho_invoice_id, order_id)` that fetches the PDF (via a new lightweight edge fn `zoho-invoice-attach`), uploads, inserts `order_invoices`, updates link + `match_status='matched'`, and fires `send-invoice-email`.
-- RLS: admin/finance only.
-
-Existing `ZohoInvoiceCard` on order detail already renders these — no changes there because it reads `linked_order_number`.
-
-## 5. Verification
-
-After deploy, manually POST to `zoho-invoice-poller` with the cron secret, then report: invoices scanned, new/updated, matched, unmatched, PDFs attached, emails queued.
-
-## Files touched
-
-- `supabase/migrations/…_zoho_poller.sql` — schema changes above + RPC update
-- `supabase/functions/zoho-invoice-poller/index.ts` — new
-- `supabase/functions/zoho-invoice-attach/index.ts` — new (manual-attach path for the admin UI)
-- `supabase/config.toml` — add `verify_jwt = false` blocks for the two new functions
-- `src/components/admin/UnmatchedZohoInvoicesPanel.tsx` — new
-- `src/components/admin/ZohoBooksSettingsPanel.tsx` — mount the new panel
-
-## Non-goals
-
-- `zoho-invoice-webhook` is left untouched (dormant).
-- No changes to the existing `zoho-books-sync` "sync now" button — the two coexist; the poller is the always-on incremental path.
-
-Say **go** and I'll build it in one pass.
+## Out of scope
+- CSV export
+- Server-side pagination (queue is small, ~17 rows today)
+- New DB columns or RPCs
