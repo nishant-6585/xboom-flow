@@ -84,6 +84,8 @@ import PortalTicketAdminDetail from "./pages/admin/PortalTicketAdminDetail";
 import KycEmailLogs from "./pages/admin/KycEmailLogs";
 import ZohoInvoices from "./pages/admin/ZohoInvoices";
 import DevConsole from "./pages/admin/DevConsole";
+import DuplicateOrderReview from "./pages/admin/DuplicateOrderReview";
+import { DuplicateOrderGuardModal } from "@/components/orders/DuplicateOrderGuardModal";
 
 import { PortalAuthProvider } from "@/portal/hooks/usePortalAuth";
 import { PortalProtectedRoute } from "@/portal/components/PortalProtectedRoute";
@@ -117,6 +119,7 @@ function AppInner() {
   
   return (
     <>
+      <DuplicateOrderGuardModal />
       <Routes>
         <Route path="/auth" element={<Auth />} />
         <Route path="/unsubscribe" element={<Unsubscribe />} />
@@ -173,6 +176,7 @@ function AppInner() {
         <Route path="/admin/kyc-emails" element={<ProtectedRoute><KycEmailLogs /></ProtectedRoute>} />
         <Route path="/admin/zoho-invoices" element={<ProtectedRoute><ZohoInvoices /></ProtectedRoute>} />
         <Route path="/admin/dev-console" element={<ProtectedRoute><DevConsole /></ProtectedRoute>} />
+        <Route path="/admin/duplicate-orders" element={<ProtectedRoute><DuplicateOrderReview /></ProtectedRoute>} />
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
