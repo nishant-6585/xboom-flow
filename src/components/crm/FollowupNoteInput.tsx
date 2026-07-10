@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, ChevronsUpDown, Pencil, X } from "lucide-react";
@@ -68,9 +68,23 @@ export function FollowupNoteInput({ value, onChange, options, placeholder = "Pic
           <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[280px] p-0" align="start">
+      <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
-          <CommandList className="max-h-64 overflow-y-auto">
+          <CommandInput placeholder="Search or type custom…" className="text-xs" />
+          <CommandList className="max-h-[320px] overflow-y-auto">
+            <CommandGroup heading="Custom">
+              <CommandItem
+                value="__write_custom__ write custom note free form"
+                onSelect={() => {
+                  setCustomMode(true);
+                  setOpen(false);
+                }}
+                className="text-xs text-primary font-medium"
+              >
+                <Pencil className="mr-2 h-3 w-3" />
+                ✏️ Write custom note…
+              </CommandItem>
+            </CommandGroup>
             <CommandGroup heading="Preset notes">
               {options.map((opt) => (
                 <CommandItem
@@ -86,19 +100,6 @@ export function FollowupNoteInput({ value, onChange, options, placeholder = "Pic
                   {opt}
                 </CommandItem>
               ))}
-            </CommandGroup>
-            <CommandGroup heading="Custom">
-              <CommandItem
-                value="__write_custom__"
-                onSelect={() => {
-                  setCustomMode(true);
-                  setOpen(false);
-                }}
-                className="text-xs text-primary"
-              >
-                <Pencil className="mr-2 h-3 w-3" />
-                Write custom note…
-              </CommandItem>
             </CommandGroup>
             <CommandEmpty className="text-xs py-3">No options</CommandEmpty>
           </CommandList>
