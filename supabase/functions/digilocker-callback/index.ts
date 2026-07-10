@@ -504,15 +504,17 @@ Deno.serve(async (req) => {
       .from("kyc_documents")
       .update({ status: "pending_verification" })
       .eq("id", doc.id);
-    await admin
-      .from("portal_accounts")
-      .update({
-        kyc_status: "pending_verification",
-        aadhaar_last4: verified.aadhaarLast4,
-        kyc_submitted_at: nowIso,
-        kyc_rejection_reason: null,
-      })
-      .eq("id", accountId);
+    const { data: acctPrev2 } = await admin
+      .from("portal_accounts").select("kyc_status").eq("id", accountId).maybeSingle();
+    const acctUpd2: Record<string, unknown> = {
+      aadhaar_last4: verified.aadhaarLast4,
+      kyc_submitted_at: nowIso,
+      kyc_rejection_reason: null,
+    };
+    if ((acctPrev2 as any)?.kyc_status !== "approved") {
+      acctUpd2.kyc_status = "pending_verification";
+    }
+    await admin.from("portal_accounts").update(acctUpd2).eq("id", accountId);
 
     await admin.from("kyc_audit_log").insert({
       account_id: accountId,
