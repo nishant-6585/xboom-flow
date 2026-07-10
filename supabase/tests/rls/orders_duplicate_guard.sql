@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(9);
 
 set local role postgres;
 
@@ -209,6 +209,59 @@ select lives_ok(
       'prepaid', 'b2c', 'po_received',
       50000, current_date, 'aaaaaaaa-1111-2222-3333-444444444444'::uuid)$$,
   'sales insert matching a 10-day-old order (repeat purchase) is NOT blocked by trigger'
+);
+
+-- 7) HARD BLOCK path: 1-day-old seed, new insert same day, amount within 5%.
+--    Must be rejected by guard_orders_duplicate_creation (P0001 DUPLICATE_ORDER).
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+\set hard_id 'ffffffff-1111-2222-3333-444444444444'
+insert into public.orders
+  (id, product_name, product_code, product_category, quantity,
+   customer_name, customer_phone, customer_company,
+   sales_person_id, sales_person_name,
+   order_type, customer_type, status,
+   total_sales_amount, order_date, source, external_id, created_by)
+values
+  (:'hard_id'::uuid, 'Test Drone Pro', 'TDP-1', 'drone', 1,
+   'Hard Block Buyer', '+919999000044', 'Hard Block Co',
+   :'sales_uid'::uuid, 'Sales Rep',
+   'prepaid', 'b2c', 'po_received',
+   50000, current_date - 1, null, null, :'sales_uid'::uuid);
+
+-- 7a) find_duplicate_orders returns the 1-day-old seed with days_apart=1
+--     AND 'same date (±3d)' in match_reasons (this is what the trigger keys on).
+select pg_temp.as_user(:'sales_uid'::uuid);
+select results_eq(
+  $$select days_apart,
+           ('same date (±3d)' = ANY(match_reasons))::boolean as has_date_reason
+      from public.find_duplicate_orders(
+        'Hard Block Buyer', '+919999000044', 'Test Drone Pro',
+        'TDP-1', current_date, 51000)
+     where id = 'ffffffff-1111-2222-3333-444444444444'::uuid$$,
+  $$values (1, true)$$,
+  'find_duplicate_orders returns 1-day-old match with days_apart=1 and same-date reason'
+);
+
+-- 7b) Sales user inserting a matching order (same customer + product, +2% amount,
+--     today vs 1 day ago) is HARD-BLOCKED by the trigger.
+select throws_ok(
+  $$insert into public.orders
+     (product_name, product_code, product_category, quantity,
+      customer_name, customer_phone, customer_company,
+      sales_person_id, sales_person_name,
+      order_type, customer_type, status,
+      total_sales_amount, order_date, created_by)
+   values
+     ('Test Drone Pro', 'TDP-1', 'drone', 1,
+      'Hard Block Buyer', '+919999000044', 'Hard Block Co',
+      'aaaaaaaa-1111-2222-3333-444444444444'::uuid, 'Guard Tester',
+      'prepaid', 'b2c', 'po_received',
+      51000, current_date, 'aaaaaaaa-1111-2222-3333-444444444444'::uuid)$$,
+  'P0001',
+  NULL,
+  'sales insert 1 day after seed with amount within 5% is HARD-BLOCKED'
 );
 
 select * from finish();
