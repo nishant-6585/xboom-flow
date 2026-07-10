@@ -193,7 +193,20 @@ Deno.serve(async (req) => {
   // Auth: accept either CRON_SECRET header (from pg_cron) or service-role bearer
   const cronHeader = req.headers.get('x-cron-secret') || ''
   const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
-  const ok = (CRON_SECRET && cronHeader === CRON_SECRET) || (bearer && bearer === SUPABASE_SERVICE_ROLE_KEY)
+  let ok = (CRON_SECRET && cronHeader === CRON_SECRET) || (bearer && bearer === SUPABASE_SERVICE_ROLE_KEY)
+  // Also allow admin users (for the "Run now" button in the admin UI)
+  if (!ok && bearer) {
+    try {
+      const authClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+      const { data: u } = await authClient.auth.getUser(bearer)
+      const uid = u?.user?.id
+      if (uid) {
+        const { data: roles } = await authClient.from('user_roles').select('role').eq('user_id', uid)
+        const allowed = new Set(['admin', 'sales_manager', 'sales'])
+        if ((roles || []).some((r: any) => allowed.has(r.role))) ok = true
+      }
+    } catch { /* ignore */ }
+  }
   if (!ok) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
