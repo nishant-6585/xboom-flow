@@ -38,6 +38,7 @@ import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useEnquiryUnreadCounts } from "@/hooks/useEnquiryUnreadCounts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -127,6 +128,20 @@ const Index = () => {
       setSearchParams({});
     }
   }, [searchParams, setSearchParams]);
+
+  // Deep-link: /?enquiry=<uuid> opens the dialog directly (from notifications)
+  useEffect(() => {
+    const enquiryParam = searchParams.get("enquiry");
+    if (!enquiryParam || enquiries.length === 0) return;
+    const match = enquiries.find((e) => e.id === enquiryParam);
+    if (match) {
+      setSelectedEnquiry(match);
+      setDialogOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("enquiry");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, enquiries, setSearchParams]);
 
   // Fetch sales team for filter dropdown (admin/supply_chain/finance only)
   useEffect(() => {
