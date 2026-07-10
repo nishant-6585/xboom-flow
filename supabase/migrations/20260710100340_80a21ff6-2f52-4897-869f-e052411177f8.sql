@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trigger_notify_enquiry_message ON public.enquiry_messages;
