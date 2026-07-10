@@ -4,6 +4,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { toast } from 'sonner';
 
+function navigateToNotification(notification: Notification) {
+  if (notification.enquiry_id) {
+    window.location.assign(`/?enquiry=${notification.enquiry_id}`);
+    return;
+  }
+  if (notification.order_id) {
+    window.location.assign(`/orders?order_id=${notification.order_id}`);
+  }
+}
+
 export interface Notification {
   id: string;
   order_id: string | null;
@@ -53,8 +63,8 @@ export function useNotifications() {
       action: {
         label: 'View',
         onClick: () => {
-          // Mark as read when clicked
           markAsRead(notification.id);
+          navigateToNotification(notification);
         },
       },
     });

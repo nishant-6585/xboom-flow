@@ -125,6 +125,22 @@ function NotificationItem({
               </Button>
             </div>
           )}
+          {(isEnquiryResponse || isEnquiryMessage) && notification.enquiry_id && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => {
+                  if (!notification.is_read) onMarkAsRead(notification.id);
+                  navigate(`/?enquiry=${notification.enquiry_id}`);
+                }}
+              >
+                View enquiry
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2">
             <span className="text-xs text-muted-foreground">
               {formatDistanceToNow(new Date(notification.created_at), {
