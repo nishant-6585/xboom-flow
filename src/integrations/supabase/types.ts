@@ -8894,6 +8894,80 @@ export type Database = {
         }
         Relationships: []
       }
+      order_duplicate_candidates: {
+        Row: {
+          amount_diff: number | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          manual_order_id: string
+          match_reasons: string[]
+          notes: string | null
+          payment_records_on_manual: number
+          status: string
+          updated_at: string
+          website_order_id: string
+        }
+        Insert: {
+          amount_diff?: number | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          manual_order_id: string
+          match_reasons?: string[]
+          notes?: string | null
+          payment_records_on_manual?: number
+          status?: string
+          updated_at?: string
+          website_order_id: string
+        }
+        Update: {
+          amount_diff?: number | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          manual_order_id?: string
+          match_reasons?: string[]
+          notes?: string | null
+          payment_records_on_manual?: number
+          status?: string
+          updated_at?: string
+          website_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_duplicate_candidates_manual_order_id_fkey"
+            columns: ["manual_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_duplicate_candidates_manual_order_id_fkey"
+            columns: ["manual_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_duplicate_candidates_website_order_id_fkey"
+            columns: ["website_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_duplicate_candidates_website_order_id_fkey"
+            columns: ["website_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_invoices: {
         Row: {
           amount_paid: number | null
@@ -17129,6 +17203,31 @@ export type Database = {
           match_type: string
           product_name: string
           similarity_score: number
+        }[]
+      }
+      find_duplicate_orders: {
+        Args: {
+          p_customer_name: string
+          p_customer_phone: string
+          p_order_date: string
+          p_product_code: string
+          p_product_name: string
+          p_total: number
+        }
+        Returns: {
+          amount_diff_pct: number
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          external_id: string
+          id: string
+          match_reasons: string[]
+          order_date: string
+          order_number: string
+          product_name: string
+          sales_person_name: string
+          source: string
+          total_sales_amount: number
         }[]
       }
       find_or_create_company:
