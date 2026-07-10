@@ -228,6 +228,13 @@ export default function KycVerification() {
                             {r.ai_review && effectiveStatus === "pending_verification" && (
                               <AiRecommendationBadge ai={r.ai_review} />
                             )}
+                            {!r.ai_review
+                              && effectiveStatus === "pending_verification"
+                              && r.document?.doc_type === "aadhaar" && (
+                              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 text-[10px]">
+                                Manual review (AI skipped for Aadhaar)
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-xs align-top max-w-[220px]">
@@ -350,6 +357,16 @@ export default function KycVerification() {
                 {reviewing.row.ai_review.error && (
                   <div className="text-xs text-red-700">AI error: {reviewing.row.ai_review.error}</div>
                 )}
+              </div>
+            )}
+            {reviewing && !reviewing.row.ai_review && reviewing.row.document?.doc_type === "aadhaar" && (
+              <div className="rounded-md border bg-slate-50 p-3 text-xs text-slate-700">
+                <div className="font-semibold uppercase tracking-wide text-[11px] text-slate-500 mb-1">
+                  AI analysis
+                </div>
+                Manual review — AI is intentionally skipped for Aadhaar to keep the
+                document off the external vision provider (data-localization).
+                Please verify the holder name and last-4 against the customer's declared value.
               </div>
             )}
             {reviewing?.mode === "reject" && (

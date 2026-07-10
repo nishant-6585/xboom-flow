@@ -35,6 +35,7 @@ const MODEL = "google/gemini-2.5-flash";
 const NAME_MATCH_THRESHOLD = 0.85;
 const AI_CONFIDENCE_THRESHOLD = 0.85;
 const KYC_BUCKET = "kyc-documents";
+const AADHAAR_FLAG_KEY = "ai_kyc_aadhaar_enabled";
 
 type Decision = "auto_approved" | "pending" | "error";
 type Recommendation = "likely_approve" | "likely_reject" | "unclear";
@@ -149,6 +150,40 @@ async function runReview(
 
   const declaredType = normalizeDeclaredType((doc as any).doc_type);
   const isAadhaar = declaredType === "aadhaar";
+
+  // Aadhaar data-localization short-circuit: do NOT send the Aadhaar image
+  // to the external vision provider. Gated behind ai_kyc_aadhaar_enabled
+  // (default OFF) so we can flip it later if an India-hosted / redaction
+  // pipeline is added — without a code change.
+  if (isAadhaar) {
+    const { data: flagRow } = await admin
+      .from("feature_flags")
+      .select("enabled")
+      .eq("key", AADHAAR_FLAG_KEY)
+      .maybeSingle();
+    const aadhaarAiEnabled = Boolean((flagRow as any)?.enabled);
+    if (!aadhaarAiEnabled) {
+      console.log("[ai-kyc-review] aadhaar skipped for data-localization", {
+        accountId,
+        documentId,
+      });
+      await admin.from("kyc_audit_log").insert({
+        account_id: accountId,
+        document_id: documentId,
+        action: "ai_skipped",
+        actor_role: "system",
+        notes: "aadhaar_skipped_ai_localization",
+        metadata: {
+          reason: "aadhaar_skipped_ai_localization",
+          declared_doc_type: declaredType,
+          flag: AADHAAR_FLAG_KEY,
+          flag_enabled: false,
+        },
+      });
+      return json({ skipped: "aadhaar_localization" });
+    }
+  }
+
   const declaredNumberRaw: string | null =
     (isAadhaar ? (sens as any)?.aadhaar_full : (sens as any)?.document_reference) || null;
 
