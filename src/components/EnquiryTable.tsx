@@ -279,7 +279,7 @@ export function EnquiryTable({
           <TableBody>
             {enquiries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canUpdateStatus ? 10 : 9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canUpdateStatus ? 11 : 10} className="text-center py-8 text-muted-foreground">
                   No enquiries found
                 </TableCell>
               </TableRow>
