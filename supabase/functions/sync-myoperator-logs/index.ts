@@ -160,7 +160,6 @@ Deno.serve(async (req) => {
       { user_id: 'a790b58d-8e3d-4333-b6d6-08be631c865d', name: 'Narasimha' },
       { user_id: '457fc2d5-9fc5-439a-938e-5b998549b811', name: 'mohammed musthak' },
       { user_id: '456e91f8-34cc-4f92-a1c1-a092f2bbed39', name: 'suman das' },
-      { user_id: 'e05f9afe-0160-4956-bb1f-496028386062', name: 'Arjav chauhan' },
       { user_id: '74930912-193a-4081-a87f-46902ee96c4d', name: 'Srishti Suman' },
       { user_id: '7bc60110-5d57-4ae1-bc9f-bf4dd3787a90', name: 'Manoj Kumar' },
     ];
