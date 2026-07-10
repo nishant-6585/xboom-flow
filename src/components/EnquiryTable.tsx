@@ -378,6 +378,62 @@ export function EnquiryTable({
                         </Tooltip>
                       </TooltipProvider>
                     </TableCell>
+                    <TableCell>
+                      {(enquiry.notes || enquiry.followup_note) ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1 px-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <FileText className="w-3.5 h-3.5 text-primary/70" />
+                              <span className="text-xs">View</span>
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-80 space-y-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {enquiry.followup_note && (
+                              <div>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <StickyNote className="w-3.5 h-3.5 text-primary/70" />
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Follow-up note
+                                  </p>
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap break-words">
+                                  {enquiry.followup_note}
+                                </p>
+                                {enquiry.followup_note_updated_at && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    updated {formatDistanceToNow(new Date(enquiry.followup_note_updated_at), { addSuffix: true })}
+                                    {enquiry.followup_note_updated_by_name ? ` by ${enquiry.followup_note_updated_by_name}` : ""}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            {enquiry.notes && (
+                              <div>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <FileText className="w-3.5 h-3.5 text-primary/70" />
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Enquiry notes
+                                  </p>
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap break-words">
+                                  {enquiry.notes}
+                                </p>
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     {canUpdateStatus && (
                       <TableCell>
                         <DropdownMenu>
