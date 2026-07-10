@@ -35,6 +35,22 @@ function formatDocType(t?: string | null): string {
   }
 }
 
+/** Best-effort extraction of the identifier to display in the "Number" column.
+ * DigiLocker submissions store a masked value under metadata.masked_document_number
+ * (e.g. "XXXXXX 917M"); manual submissions store the number under metadata.document_reference.
+ * Aadhaar is handled separately via the reveal button. */
+function extractDocNumber(doc: any): string | null {
+  const meta = (doc?.metadata as any) || {};
+  const raw =
+    meta.masked_document_number ||
+    meta.document_reference ||
+    meta.document_number ||
+    null;
+  if (!raw || typeof raw !== "string") return null;
+  const v = raw.trim();
+  return v.length ? v : null;
+}
+
 export default function KycVerification() {
   const { rows, loading, review, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
@@ -132,6 +148,7 @@ export default function KycVerification() {
                     <TableHead>Uploaded</TableHead>
                     <TableHead>Salesperson</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Approved / Reviewed by</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -145,6 +162,10 @@ export default function KycVerification() {
                     const isDlMismatch =
                       effectiveStatus === "pending_verification" &&
                       (r.document?.metadata as any)?.method === "digilocker";
+                    const isDigilocker =
+                      (r.document?.method === "digilocker") ||
+                      ((r.document?.metadata as any)?.method === "digilocker");
+                    const docNumber = extractDocNumber(r.document);
                     return (
                       <TableRow
                         key={r.account.id}
@@ -169,7 +190,7 @@ export default function KycVerification() {
                               </button>
                             )
                           ) : (
-                            (r.document?.metadata as any)?.document_reference || "—"
+                            docNumber || "—"
                           )}
                         </TableCell>
                         <TableCell className="text-sm">
@@ -185,6 +206,31 @@ export default function KycVerification() {
                               </Badge>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="text-xs align-top max-w-[220px]">
+                          {effectiveStatus === "approved" || effectiveStatus === "rejected" ? (
+                            <div className="flex flex-col gap-0.5">
+                              {r.document?.reviewed_by ? (
+                                <span className="font-medium">{r.reviewer_name || "Staff"}</span>
+                              ) : isDigilocker ? (
+                                <span className="font-medium text-emerald-700">DigiLocker (auto)</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                              {r.document?.reviewed_at && (
+                                <span className="text-muted-foreground">
+                                  {format(new Date(r.document.reviewed_at), "dd MMM, HH:mm")}
+                                </span>
+                              )}
+                              {effectiveStatus === "rejected" && r.document?.rejection_reason && (
+                                <span className="text-red-700 whitespace-normal break-words">
+                                  Reason: {r.document.rejection_reason}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">

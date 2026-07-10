@@ -35,6 +35,8 @@ export interface KycDocumentRow {
   rejection_reason: string | null;
   uploaded_at: string;
   reviewed_at: string | null;
+  reviewed_by: string | null;
+  method: string | null;
   version: number;
   is_current: boolean;
   metadata?: Record<string, any> | null;
@@ -168,6 +170,7 @@ export interface KycQueueRow {
   customer_email: string | null;
   latest_order_number: string | null;
   rep_name: string | null;
+  reviewer_name: string | null;
 }
 
 export function useKycQueue() {
@@ -209,6 +212,21 @@ export function useKycQueue() {
     const contacts = (contactsRes.data as any[]) || [];
     const profiles = ((profilesRes as any).data as any[]) || [];
 
+    // Resolve reviewer names for docs that were manually reviewed by staff.
+    const reviewerIds = Array.from(
+      new Set(docs.map((d) => d.reviewed_by).filter(Boolean) as string[]),
+    );
+    let reviewerMap: Record<string, string> = {};
+    if (reviewerIds.length) {
+      const { data: reviewers } = await supabase
+        .from("profiles")
+        .select("user_id, name")
+        .in("user_id", reviewerIds);
+      for (const p of (reviewers as any[]) || []) {
+        if (p?.user_id) reviewerMap[p.user_id] = p.name ?? null;
+      }
+    }
+
     // Fetch latest order_number per email
     const emails = Array.from(new Set(contacts.map((c: any) => c.email).filter(Boolean)));
     let ordersByEmail: Record<string, string> = {};
@@ -236,6 +254,7 @@ export function useKycQueue() {
           customer_email: email,
           latest_order_number: email ? ordersByEmail[email.toLowerCase()] || null : null,
           rep_name: rep?.name ?? null,
+          reviewer_name: doc?.reviewed_by ? reviewerMap[doc.reviewed_by] ?? null : null,
         };
       }),
     );
