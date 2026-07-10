@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useKycQueue, kycStatusMeta, type KycQueueRow } from "@/hooks/useKyc";
 import { format } from "date-fns";
-import { Eye, Check, X, Loader2, ShieldCheck, Search } from "lucide-react";
+import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles } from "lucide-react";
 import { Header } from "@/components/Header";
 
 const REJECT_CATEGORIES: { value: string; label: string }[] = [
@@ -49,6 +49,26 @@ function extractDocNumber(doc: any): string | null {
   if (!raw || typeof raw !== "string") return null;
   const v = raw.trim();
   return v.length ? v : null;
+}
+
+function AiRecommendationBadge({ ai }: { ai: NonNullable<KycQueueRow["ai_review"]> }) {
+  const map: Record<string, string> = {
+    likely_approve: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    likely_reject: "bg-red-50 text-red-800 border-red-200",
+    unclear: "bg-slate-50 text-slate-700 border-slate-200",
+  };
+  const label: Record<string, string> = {
+    likely_approve: "AI: likely approve",
+    likely_reject: "AI: likely reject",
+    unclear: "AI: unclear",
+  };
+  const cls = map[ai.recommendation] ?? map.unclear;
+  const text = label[ai.recommendation] ?? `AI: ${ai.recommendation}`;
+  return (
+    <Badge variant="outline" className={`${cls} text-[10px] flex items-center gap-1`}>
+      <Sparkles className="h-3 w-3" /> {text}
+    </Badge>
+  );
 }
 
 export default function KycVerification() {
@@ -205,6 +225,9 @@ export default function KycVerification() {
                                 DigiLocker · name mismatch
                               </Badge>
                             )}
+                            {r.ai_review && effectiveStatus === "pending_verification" && (
+                              <AiRecommendationBadge ai={r.ai_review} />
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-xs align-top max-w-[220px]">
@@ -277,6 +300,58 @@ export default function KycVerification() {
                 {reviewing?.row.account.primary_contact_name || reviewing?.row.account.company_name}
               </div>
             </div>
+            {reviewing?.row.ai_review && (
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5" /> AI analysis
+                  <AiRecommendationBadge ai={reviewing.row.ai_review} />
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="text-muted-foreground">Extracted name</div>
+                  <div className="font-medium">{reviewing.row.ai_review.extracted_holder_name || "—"}</div>
+                  <div className="text-muted-foreground">Expected name</div>
+                  <div>{reviewing.row.ai_review.expected_name || "—"}</div>
+                  <div className="text-muted-foreground">Name match score</div>
+                  <div>
+                    {reviewing.row.ai_review.name_match_score != null
+                      ? `${(reviewing.row.ai_review.name_match_score * 100).toFixed(0)}%`
+                      : "—"}
+                  </div>
+                  <div className="text-muted-foreground">AI confidence</div>
+                  <div>
+                    {reviewing.row.ai_review.ai_confidence != null
+                      ? `${(reviewing.row.ai_review.ai_confidence * 100).toFixed(0)}%`
+                      : "—"}
+                  </div>
+                  <div className="text-muted-foreground">Extracted type</div>
+                  <div>{reviewing.row.ai_review.extracted_doc_type || "—"}
+                    {reviewing.row.ai_review.type_match === false && (
+                      <span className="ml-1 text-red-700">(mismatch)</span>
+                    )}
+                  </div>
+                  <div className="text-muted-foreground">Extracted number</div>
+                  <div className="font-mono">{reviewing.row.ai_review.extracted_number_masked || "—"}
+                    {reviewing.row.ai_review.number_match === false && (
+                      <span className="ml-1 text-red-700 font-sans">(mismatch)</span>
+                    )}
+                  </div>
+                  <div className="text-muted-foreground">Legibility</div>
+                  <div>{reviewing.row.ai_review.legibility || "—"}</div>
+                </div>
+                {reviewing.row.ai_review.flags?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {reviewing.row.ai_review.flags.map((f) => (
+                      <Badge key={f} variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-[10px]">
+                        {f.replaceAll("_", " ")}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {reviewing.row.ai_review.error && (
+                  <div className="text-xs text-red-700">AI error: {reviewing.row.ai_review.error}</div>
+                )}
+              </div>
+            )}
             {reviewing?.mode === "reject" && (
               <>
                 <div className="space-y-2">
