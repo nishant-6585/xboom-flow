@@ -4,7 +4,7 @@
 > Update this file as tasks complete. Newest entries at the top of each section.
 > Status legend: ✅ done · 🟡 in progress · ⏳ pending / not started · ❗ blocker
 
-Last updated: 2026-07-03
+Last updated: 2026-07-10
 
 ---
 
@@ -226,6 +226,20 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 ---
 
 ## ✅ Completed work
+
+### 2026-07-10 — Enquiry source + follow-up note ✅ (by Lovable, verified)
+- `enquiries.lead_source` exposed on New Enquiry form (reused existing column + `LeadSourceBadge`, new `qform` key); `followup_note`/`_updated_at`/`_updated_by_name` columns; shared constants `src/lib/followupNotes.ts`. Shown on EnquiryTable, EnquiryCard, dashboard table, EnquiryDialog (inline edit).
+- Sales may update ONLY the 3 follow-up columns on OWN enquiries: narrow RLS policy + `guard_enquiries_sales_followup_only()` — first shipped as deny-list (missed `is_converted`, `conversion_value`, `created_at` etc.), caught in review, **rewritten to jsonb allow-list** (migration `20260710094646`). pgTAP as sales role: 7 checks incl. conversion/created_at rejections.
+
+### 2026-07-10 — Enquiry discussion thread: notifications + interactivity ✅ (by Lovable, verified)
+Root cause: `notify_on_enquiry_message` targeted `user_id = responded_by` → after the 2026-07-07 notification privacy RLS, only that one user could ever see it. Fixed (migration `20260710094122`): sales sender → role-broadcast to supply_chain (`user_id NULL`); supply/admin sender → personal to `sales_person_id`. Plus: `notifications.enquiry_id` + deep link `/?enquiry=<uuid>` auto-opens dialog; `mark_enquiry_messages_read` SECURITY DEFINER RPC (old direct is_read update was silently RLS-blocked); unread "N new" badges (useEnquiryUnreadCounts + realtime) on table/card; thread available pre-response and mounted in QueryResponseDialog. **Double-trigger bug caught in review** (old `trigger_notify_enquiry_message` from 20260410 left alongside the new one → 2 rows/message) — dropped in `20260710100340`.
+
+### 2026-07-10 — Duplicate order prevention (WooCommerce vs manual) ✅ (by Lovable, verified)
+Salespeople duplicated website orders manually instead of using the attribution/transfer flow. Website orders = `orders.source='website'` + `external_id` (Woo id).
+- Prevention (migration `20260710102636`): `find_duplicate_orders()` (phone/name + product similarity ≥0.6 + date ±3d, 14-day lookback) + `guard_orders_duplicate_creation` BEFORE INSERT trigger — hard match (amount Δ≤5%) → P0001 `DUPLICATE_ORDER:` for sales (admin bypass; service-role/website ingest never blocked). Client: pre-insert RPC check + blocking modal (View / Request transfer — no "create anyway" for sales), soft match = warn+proceed; trigger error mapped to same modal. pgTAP: 3 cases as sales role.
+- Reconciliation Phase 1: `order_duplicate_candidates` (admin RLS) + `/admin/duplicate-orders` review UI. 2 pairs found: Woo 141260↔ORD2600281 (₹63,540), Woo 142695↔ORD2600317 (₹72,998), both 0 payment_records on manual.
+- **DECISION (Nishant): Phase 2 merge PARKED — live with the 2 existing duplicates; prevention only.**
+- **❗OPEN: `find_duplicate_orders` is SECURITY DEFINER granted to `authenticated` with no staff gate — portal customers could enumerate order data via RPC. Fix prompt given to Lovable; verify gate (is_user_approved + staff role, 42501) when it ships.**
 
 ### 2026-07-04 — Portal Customers refinements ✅ + email-provider decision (by Lovable / Claude-verified)
 - Refinement pass verified: `displayCompany()` rule (company only for Business accounts — list/CSV/drawer/delete-confirm), drawer "Recent Orders" now reads public.orders by contact-email match (B2B section only when portal_orders exist), invite dialog Individual/Business toggle, WhatsApp capture (invite + drawer inline editor); onboardOrder sets primary_contact_name. Small fixes: confirmation chip whitespace-nowrap; KYC page got main Header/tab bar.
