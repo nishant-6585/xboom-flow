@@ -152,7 +152,9 @@ export default function Orders() {
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
   const paymentTermsOptions = [...new Set(orders.map(o => o.payment_terms).filter(Boolean))] as string[];
-  const salesPersonOptions = [...new Set(orders.map(o => o.sales_person_name).filter(Boolean))] as string[];
+  const salesPersonOptions = [...new Set(
+    orders.map(o => (o.sales_person_name ?? '').trim()).filter(Boolean)
+  )].sort() as string[];
   const categoryOptions = [...new Set(orders.map(o => o.product_category).filter(Boolean))] as string[];
 
   // Derived: filtering
