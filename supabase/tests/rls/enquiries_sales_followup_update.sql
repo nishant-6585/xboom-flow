@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(4);
+select plan(7);
 
 set local role postgres;
 
@@ -78,6 +78,30 @@ select throws_ok(
      where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd' $$,
   '42501', null,
   'sales user CANNOT change response_pricing on own enquiry'
+);
+
+-- Guard: cannot flip is_converted
+select throws_ok(
+  $$ update public.enquiries set is_converted = true
+     where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd' $$,
+  '42501', null,
+  'sales user CANNOT set is_converted on own enquiry'
+);
+
+-- Guard: cannot set conversion_value
+select throws_ok(
+  $$ update public.enquiries set conversion_value = 999999
+     where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd' $$,
+  '42501', null,
+  'sales user CANNOT set conversion_value on own enquiry'
+);
+
+-- Guard: cannot backdate created_at to game SLA
+select throws_ok(
+  $$ update public.enquiries set created_at = now() - interval '30 days'
+     where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd' $$,
+  '42501', null,
+  'sales user CANNOT backdate created_at on own enquiry'
 );
 
 -- Guard: cannot update another salesperson's row (RLS filter -> 0 rows updated
