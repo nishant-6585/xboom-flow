@@ -272,6 +272,13 @@ const Index = () => {
   const salesUserEnquiries =
     isSales && user ? filteredEnquiries.filter((e) => e.sales_person_id === user.id) : filteredEnquiries;
 
+  // Unread message counts for the currently visible enquiries
+  const visibleEnquiryIds = useMemo(
+    () => filteredEnquiries.map((e) => e.id),
+    [filteredEnquiries]
+  );
+  const unreadMessageCounts = useEnquiryUnreadCounts(visibleEnquiryIds);
+
   const handleEnquiryClick = (enquiry: Enquiry) => {
     setSelectedEnquiry(enquiry);
     setDialogOpen(true);
@@ -547,7 +554,7 @@ const Index = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredEnquiries.slice(0, 6).map((enquiry) => (
-                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} />
+                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} unreadMessages={unreadMessageCounts[enquiry.id] || 0} />
                     ))}
                   </div>
                 )}
@@ -848,11 +855,12 @@ const Index = () => {
                     onEnquiryClick={handleEnquiryClick}
                     onUpdateTemperature={updateLeadTemperature}
                     onToggleMegaDeal={toggleMegaDeal}
+                    unreadMessageCounts={unreadMessageCounts}
                   />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredEnquiries.map((enquiry) => (
-                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} />
+                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} unreadMessages={unreadMessageCounts[enquiry.id] || 0} />
                     ))}
                   </div>
                 )}
