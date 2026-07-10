@@ -171,6 +171,29 @@ export interface KycQueueRow {
   latest_order_number: string | null;
   rep_name: string | null;
   reviewer_name: string | null;
+  ai_review: AiKycReview | null;
+}
+
+export interface AiKycReview {
+  id: string;
+  document_id: string;
+  extracted_doc_type: string | null;
+  extracted_holder_name: string | null;
+  extracted_number_masked: string | null;
+  declared_doc_type: string | null;
+  declared_number_masked: string | null;
+  expected_name: string | null;
+  name_match_score: number | null;
+  number_match: boolean | null;
+  type_match: boolean | null;
+  legibility: string | null;
+  ai_confidence: number | null;
+  recommendation: "likely_approve" | "likely_reject" | "unclear" | string;
+  decision: "auto_approved" | "pending" | "error" | string;
+  flags: string[];
+  model: string | null;
+  error: string | null;
+  created_at: string;
 }
 
 export function useKycQueue() {
@@ -211,6 +234,20 @@ export function useKycQueue() {
     const docs = (docsRes.data as any as KycDocumentRow[]) || [];
     const contacts = (contactsRes.data as any[]) || [];
     const profiles = ((profilesRes as any).data as any[]) || [];
+
+    // Latest AI review per document (most recent row wins).
+    const docIds = docs.map((d) => d.id);
+    let aiReviewByDoc: Record<string, AiKycReview> = {};
+    if (docIds.length) {
+      const { data: aiRows } = await (supabase as any)
+        .from("ai_kyc_reviews")
+        .select("*")
+        .in("document_id", docIds)
+        .order("created_at", { ascending: false });
+      for (const r of (aiRows as any[]) || []) {
+        if (!aiReviewByDoc[r.document_id]) aiReviewByDoc[r.document_id] = r as AiKycReview;
+      }
+    }
 
     // Resolve reviewer names for docs that were manually reviewed by staff.
     const reviewerIds = Array.from(
@@ -255,6 +292,7 @@ export function useKycQueue() {
           latest_order_number: email ? ordersByEmail[email.toLowerCase()] || null : null,
           rep_name: rep?.name ?? null,
           reviewer_name: doc?.reviewed_by ? reviewerMap[doc.reviewed_by] ?? null : null,
+          ai_review: doc ? aiReviewByDoc[doc.id] ?? null : null,
         };
       }),
     );

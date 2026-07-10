@@ -459,6 +459,96 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_kyc_reviews: {
+        Row: {
+          account_id: string
+          ai_confidence: number | null
+          created_at: string
+          decision: string
+          declared_doc_type: string | null
+          declared_number_masked: string | null
+          document_id: string
+          error: string | null
+          expected_name: string | null
+          extracted_doc_type: string | null
+          extracted_holder_name: string | null
+          extracted_number_masked: string | null
+          flags: Json
+          id: string
+          legibility: string | null
+          model: string | null
+          name_match_score: number | null
+          number_match: boolean | null
+          raw_response: Json | null
+          recommendation: string
+          type_match: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          ai_confidence?: number | null
+          created_at?: string
+          decision?: string
+          declared_doc_type?: string | null
+          declared_number_masked?: string | null
+          document_id: string
+          error?: string | null
+          expected_name?: string | null
+          extracted_doc_type?: string | null
+          extracted_holder_name?: string | null
+          extracted_number_masked?: string | null
+          flags?: Json
+          id?: string
+          legibility?: string | null
+          model?: string | null
+          name_match_score?: number | null
+          number_match?: boolean | null
+          raw_response?: Json | null
+          recommendation?: string
+          type_match?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          ai_confidence?: number | null
+          created_at?: string
+          decision?: string
+          declared_doc_type?: string | null
+          declared_number_masked?: string | null
+          document_id?: string
+          error?: string | null
+          expected_name?: string | null
+          extracted_doc_type?: string | null
+          extracted_holder_name?: string | null
+          extracted_number_masked?: string | null
+          flags?: Json
+          id?: string
+          legibility?: string | null
+          model?: string | null
+          name_match_score?: number | null
+          number_match?: boolean | null
+          raw_response?: Json | null
+          recommendation?: string
+          type_match?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_kyc_reviews_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_kyc_reviews_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_learning_logs: {
         Row: {
           context: Json | null
