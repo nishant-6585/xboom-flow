@@ -654,11 +654,22 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
 
   // Only persist aadhaar_last4 when the submission was actually an Aadhaar.
   // Manual uploads NEVER auto-approve — always pending_verification for staff review.
+  // BUT: if the account is already approved (an earlier doc passed review), do
+  // NOT downgrade the account-level status to pending. The new document is
+  // still queued for review (kyc_documents.status='pending_verification') but
+  // the customer's account remains approved so the portal doesn't regress.
+  const { data: existingAcct } = await admin
+    .from("portal_accounts")
+    .select("kyc_status")
+    .eq("id", contact.account_id)
+    .maybeSingle();
+  const alreadyApproved = (existingAcct as any)?.kyc_status === "approved";
+
   const acctUpdate: Record<string, unknown> = {
-    kyc_status: "pending_verification",
     kyc_submitted_at: new Date().toISOString(),
     kyc_rejection_reason: null,
   };
+  if (!alreadyApproved) acctUpdate.kyc_status = "pending_verification";
   if (aadhaarFull) acctUpdate.aadhaar_last4 = aadhaarFull.slice(-4);
 
   await admin
