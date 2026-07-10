@@ -135,6 +135,7 @@ Deno.serve(async (req) => {
     let linked = 0;
     let skipped = 0;
     let failed = 0;
+    const seenWooIds = new Set<number>();
 
     // Hard page cap so a runaway never loops forever.
     while (page <= 100) {
@@ -157,6 +158,10 @@ Deno.serve(async (req) => {
 
       const products = await resp.json();
       if (!Array.isArray(products) || products.length === 0) break;
+      for (const p of products) {
+        const id = Number((p as { id?: unknown })?.id);
+        if (Number.isFinite(id) && id > 0) seenWooIds.add(id);
+      }
       const productsWithStorefrontPrices = await withStorefrontPrices(base, products);
 
       // Process page in parallel batches to stay well under the 150s edge timeout.
@@ -196,15 +201,33 @@ Deno.serve(async (req) => {
       page++;
     }
 
+    // Count pricelist rows previously synced from Woo whose IDs no longer
+    // appear in the live catalog (unpublished / trashed on the website).
+    // Report-only — we do NOT delete, since orders may still reference them.
+    let removed = 0;
+    try {
+      const { data: linkedRows } = await supabase
+        .from("pricelist")
+        .select("woo_product_id")
+        .not("woo_product_id", "is", null);
+      const seen = seenWooIds;
+      removed = (linkedRows || []).filter((r) => {
+        const id = Number((r as { woo_product_id?: unknown }).woo_product_id);
+        return Number.isFinite(id) && id > 0 && !seen.has(id);
+      }).length;
+    } catch (e) {
+      console.warn("[woocommerce-products-backfill] removed-count probe failed", e);
+    }
+
     await supabase.from("woo_sync_logs").insert({
       event_type: "product_backfill",
       direction: "in",
       status: "success",
-      payload: { created, updated, linked, skipped, failed },
+      payload: { created, updated, linked, skipped, failed, removed },
     });
 
     return new Response(
-      JSON.stringify({ success: true, created, updated, linked, skipped, failed }),
+      JSON.stringify({ success: true, created, updated, linked, skipped, failed, removed }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
