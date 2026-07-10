@@ -38,7 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { differenceInHours, differenceInMinutes, differenceInDays } from "date-fns";
 import { formatDistanceToNow } from "date-fns";
 import { LeadSourceBadge } from "./LeadSourceBadge";
-import { ContactFieldCombo } from "./crm/ContactFieldCombo";
+import { FollowupNoteInput } from "./crm/FollowupNoteInput";
 import { FOLLOWUP_NOTE_OPTIONS } from "@/lib/followupNotes";
 
 interface EnquiryDialogProps {
@@ -313,10 +313,10 @@ export function EnquiryDialog({
               {canEditFollowup ? (
                 <div className="flex flex-col sm:flex-row gap-2">
                   <div className="flex-1">
-                    <ContactFieldCombo
+                    <FollowupNoteInput
                       value={followupNote}
                       onChange={setFollowupNote}
-                      options={[...FOLLOWUP_NOTE_OPTIONS]}
+                      options={FOLLOWUP_NOTE_OPTIONS}
                       placeholder="Pick or type a note…"
                     />
                   </div>

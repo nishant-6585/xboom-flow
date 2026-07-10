@@ -18,6 +18,7 @@ import { PricelistItem } from "@/hooks/usePricelist";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ContactFieldCombo } from "@/components/crm/ContactFieldCombo";
+import { FollowupNoteInput } from "@/components/crm/FollowupNoteInput";
 import { FOLLOWUP_NOTE_OPTIONS, ENQUIRY_SOURCE_OPTIONS } from "@/lib/followupNotes";
 
 interface QueryFormProps {
@@ -408,10 +409,10 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="followupNote">Follow-up Note</Label>
-                    <ContactFieldCombo
+                    <FollowupNoteInput
                       value={formData.followupNote || ""}
                       onChange={(v) => setFormData({ ...formData, followupNote: v })}
-                      options={[...FOLLOWUP_NOTE_OPTIONS]}
+                      options={FOLLOWUP_NOTE_OPTIONS}
                       placeholder="Pick or type…"
                     />
                   </div>
