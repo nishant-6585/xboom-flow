@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { usePricelist, PricelistFormData } from "@/hooks/usePricelist";
@@ -95,6 +96,18 @@ export default function Pricelist() {
   const [enquiryNotes, setEnquiryNotes] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<{ added: number; updated: number; removed: number; skipped?: number; failed?: number; at: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "pricelist_last_sync")
+        .maybeSingle();
+      if (data?.value) setLastSync(data.value as any);
+    })();
+  }, [syncing]);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -467,12 +480,28 @@ export default function Pricelist() {
                 const d = new Date(it.website_synced_at);
                 return !acc || d > acc ? d : acc;
               }, null);
-              if (!last) return null;
+              const stampedAt = lastSync?.at ? new Date(lastSync.at) : last;
+              if (!stampedAt) return null;
               return (
-                <p className="text-xs text-muted-foreground mt-1">
-                  <RefreshCw className="inline w-3 h-3 mr-1 align-[-2px]" />
-                  Last synced from website: <span className="font-medium text-foreground">{last.toLocaleString()}</span>
-                </p>
+                <div className="mt-1 space-y-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    <RefreshCw className="inline w-3 h-3 mr-1 align-[-2px]" />
+                    Last synced from website: <span className="font-medium text-foreground">{stampedAt.toLocaleString()}</span>
+                  </p>
+                  {lastSync && (
+                    <p className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span><span className="font-semibold text-emerald-600">{lastSync.added}</span> added</span>
+                      <span><span className="font-semibold text-blue-600">{lastSync.updated}</span> updated</span>
+                      <span><span className="font-semibold text-red-600">{lastSync.removed}</span> removed</span>
+                      {typeof lastSync.skipped === "number" && lastSync.skipped > 0 && (
+                        <span><span className="font-semibold">{lastSync.skipped}</span> skipped</span>
+                      )}
+                      {typeof lastSync.failed === "number" && lastSync.failed > 0 && (
+                        <span className="text-destructive"><span className="font-semibold">{lastSync.failed}</span> failed</span>
+                      )}
+                    </p>
+                  )}
+                </div>
               );
             })()}
           </div>

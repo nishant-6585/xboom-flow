@@ -253,9 +253,22 @@ export function usePricelist() {
       const { data, error } = await supabase.functions.invoke('woocommerce-products-backfill');
       if (error) throw error;
 
-      const { created = 0, updated = 0, linked = 0, skipped = 0, failed = 0 } = data || {};
+      const { created = 0, updated = 0, linked = 0, skipped = 0, failed = 0, removed = 0 } = data || {};
+      const stats = {
+        added: created,
+        updated: updated + linked,
+        removed,
+        skipped,
+        failed,
+        at: new Date().toISOString(),
+      };
+      // Persist last-sync summary so all users see it in the header
+      await supabase.from('app_settings').upsert(
+        { key: 'pricelist_last_sync', value: stats as any, description: 'Last website pricelist sync summary' },
+        { onConflict: 'key' },
+      );
       toast.success(
-        `Website sync complete — ${created} added, ${updated + linked} updated, ${skipped} skipped` +
+        `Website sync complete — ${stats.added} added, ${stats.updated} updated, ${stats.removed} removed, ${skipped} skipped` +
           (failed ? `, ${failed} failed` : ''),
       );
       await fetchItems();
