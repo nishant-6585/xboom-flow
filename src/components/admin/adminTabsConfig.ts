@@ -2,7 +2,7 @@ import {
   BarChart3, CreditCard, Receipt, Users, MessageSquare, ClipboardList,
   Bell, KeyRound, Activity, Building2, CalendarClock, CalendarDays,
   History, UserCog, Shield, Briefcase, FileQuestion, Package, ToggleLeft,
-  Mail, Terminal,
+  Mail, Terminal, Copy,
 } from "lucide-react";
 
 export type AdminTabDef = {
@@ -46,6 +46,7 @@ export const ADMIN_TABS: AdminTabDef[] = [
   { value: "portal-orders", label: "Portal Orders", icon: Package, to: "/admin/portal-orders" },
   { value: "portal-dispatch", label: "Dispatch Queue", icon: Briefcase, to: "/admin/portal-dispatch" },
   { value: "portal-tickets", label: "Portal Tickets", icon: MessageSquare, to: "/admin/portal-tickets" },
+  { value: "duplicate-orders", label: "Duplicate Orders", icon: Copy, to: "/admin/duplicate-orders" },
   { value: "kyc-emails", label: "KYC Emails", icon: Mail, to: "/admin/kyc-emails", financeOk: true },
   { value: "dev-console", label: "Dev Console", icon: Terminal, to: "/admin/dev-console" },
 ];
