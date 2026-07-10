@@ -66,6 +66,10 @@ export interface Enquiry {
   outcome_updated_by: string | null;
   lead_temperature: LeadTemperature;
   is_mega_deal: boolean;
+  lead_source: string | null;
+  followup_note: string | null;
+  followup_note_updated_at: string | null;
+  followup_note_updated_by_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -120,6 +124,8 @@ export interface EnquiryFormData {
   notes: string;
   leadTemperature?: LeadTemperature;
   isMegaDeal?: boolean;
+  leadSource?: string | null;
+  followupNote?: string | null;
 }
 
 export interface EnquiryResponse {
@@ -212,6 +218,10 @@ export function useEnquiries() {
         status: "pending",
         lead_temperature: formData.leadTemperature || "warm",
         is_mega_deal: formData.isMegaDeal || false,
+        lead_source: formData.leadSource || null,
+        followup_note: formData.followupNote || null,
+        followup_note_updated_at: formData.followupNote ? new Date().toISOString() : null,
+        followup_note_updated_by_name: formData.followupNote ? profile.name : null,
       });
 
       if (error) throw error;
@@ -670,6 +680,28 @@ export function useEnquiries() {
     }
   };
 
+  const updateFollowupNote = async (enquiryId: string, note: string | null) => {
+    if (!user || !profile) return false;
+    try {
+      const trimmed = note?.trim() || null;
+      const { error } = await supabase
+        .from("enquiries")
+        .update({
+          followup_note: trimmed,
+          followup_note_updated_at: new Date().toISOString(),
+          followup_note_updated_by_name: profile.name,
+        })
+        .eq("id", enquiryId);
+      if (error) throw error;
+      toast({ title: "Follow-up note saved" });
+      return true;
+    } catch (err) {
+      console.error("Error updating follow-up note:", err);
+      toast({ title: "Error", description: "Failed to save follow-up note", variant: "destructive" });
+      return false;
+    }
+  };
+
   return {
     enquiries,
     loading,
@@ -681,6 +713,7 @@ export function useEnquiries() {
     submitAdminResponse,
     updateLeadTemperature,
     toggleMegaDeal,
+    updateFollowupNote,
     refetch: fetchEnquiries,
   };
 }
