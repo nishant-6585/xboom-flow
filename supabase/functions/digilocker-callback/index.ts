@@ -277,11 +277,16 @@ Deno.serve(async (req) => {
       await admin.from("kyc_documents")
         .update({ status: "pending_verification" })
         .eq("id", doc.id);
-      await admin.from("portal_accounts").update({
-        kyc_status: "pending_verification",
+      const { data: acctPrev1 } = await admin
+        .from("portal_accounts").select("kyc_status").eq("id", accountId).maybeSingle();
+      const acctUpd1: Record<string, unknown> = {
         kyc_submitted_at: nowIso,
         kyc_rejection_reason: null,
-      }).eq("id", accountId);
+      };
+      if ((acctPrev1 as any)?.kyc_status !== "approved") {
+        acctUpd1.kyc_status = "pending_verification";
+      }
+      await admin.from("portal_accounts").update(acctUpd1).eq("id", accountId);
       await admin.from("kyc_audit_log").insert({
         account_id: accountId,
         document_id: doc.id,
