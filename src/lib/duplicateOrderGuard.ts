@@ -19,6 +19,7 @@ export interface DuplicateOrderMatch {
   customer_phone: string | null;
   product_name: string | null;
   amount_diff_pct: number;
+  days_apart?: number | null;
   match_reasons: string[];
 }
 
@@ -31,7 +32,7 @@ export interface DuplicateOrderCheckInput {
   total_sales_amount?: number | null;
 }
 
-export type DuplicateSeverity = 'hard' | 'soft';
+export type DuplicateSeverity = 'hard' | 'repeat' | 'soft';
 export type DuplicateDecision = 'proceed' | 'cancel';
 
 export interface DuplicateOrderEventDetail {
@@ -51,10 +52,29 @@ function isHardMatch(m: DuplicateOrderMatch): boolean {
   return customer && product && date && Number(m.amount_diff_pct ?? 100) <= 5;
 }
 
+function isRepeatMatch(m: DuplicateOrderMatch): boolean {
+  // Same customer + same product, but OUTSIDE the ±3-day window.
+  const has = (r: string) => m.match_reasons?.includes(r);
+  const customer = has('same phone') || has('same customer name');
+  const product = has('similar product') || has('same product code');
+  const outsideDateWindow = !has('same date (±3d)');
+  return customer && product && outsideDateWindow;
+}
+
 export function classifyMatches(matches: DuplicateOrderMatch[]): DuplicateSeverity | null {
   if (!matches?.length) return null;
   if (matches.some(isHardMatch)) return 'hard';
+  if (matches.some(isRepeatMatch)) return 'repeat';
   return 'soft';
+}
+
+/**
+ * Split matches into the two soft-severity buckets. Callers use this to
+ * pick which subset to show inside the "repeat purchase" confirm dialog
+ * vs. the generic "similar recent order" warning.
+ */
+export function filterRepeatMatches(matches: DuplicateOrderMatch[]): DuplicateOrderMatch[] {
+  return (matches ?? []).filter(isRepeatMatch);
 }
 
 /**
