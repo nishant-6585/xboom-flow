@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/tooltip";
 import { format, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
 import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, Timer, CheckCircle2, AlertTriangle, Flame, Thermometer, Snowflake, Star, Sparkles, MessageSquare } from "lucide-react";
+import { FileText } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "./ui/badge";
 import { StatusBadge } from "./StatusBadge";
 import { LeadTemperatureBadge, LEAD_TEMPERATURES } from "./LeadTemperatureBadge";
@@ -270,6 +272,7 @@ export function EnquiryTable({
               <TableHead>Status</TableHead>
               <TableHead>Response Time</TableHead>
               <TableHead>SLA Status</TableHead>
+              <TableHead>Notes</TableHead>
               {canUpdateStatus && <TableHead className="w-[100px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
