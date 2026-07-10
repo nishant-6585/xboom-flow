@@ -38,6 +38,7 @@ import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useEnquiryUnreadCounts } from "@/hooks/useEnquiryUnreadCounts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -127,6 +128,20 @@ const Index = () => {
       setSearchParams({});
     }
   }, [searchParams, setSearchParams]);
+
+  // Deep-link: /?enquiry=<uuid> opens the dialog directly (from notifications)
+  useEffect(() => {
+    const enquiryParam = searchParams.get("enquiry");
+    if (!enquiryParam || enquiries.length === 0) return;
+    const match = enquiries.find((e) => e.id === enquiryParam);
+    if (match) {
+      setSelectedEnquiry(match);
+      setDialogOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("enquiry");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, enquiries, setSearchParams]);
 
   // Fetch sales team for filter dropdown (admin/supply_chain/finance only)
   useEffect(() => {
@@ -256,6 +271,13 @@ const Index = () => {
   // Filter enquiries for sales user to show only their own
   const salesUserEnquiries =
     isSales && user ? filteredEnquiries.filter((e) => e.sales_person_id === user.id) : filteredEnquiries;
+
+  // Unread message counts for the currently visible enquiries
+  const visibleEnquiryIds = useMemo(
+    () => filteredEnquiries.map((e) => e.id),
+    [filteredEnquiries]
+  );
+  const unreadMessageCounts = useEnquiryUnreadCounts(visibleEnquiryIds);
 
   const handleEnquiryClick = (enquiry: Enquiry) => {
     setSelectedEnquiry(enquiry);
@@ -532,7 +554,7 @@ const Index = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredEnquiries.slice(0, 6).map((enquiry) => (
-                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} />
+                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} unreadMessages={unreadMessageCounts[enquiry.id] || 0} />
                     ))}
                   </div>
                 )}
@@ -833,11 +855,12 @@ const Index = () => {
                     onEnquiryClick={handleEnquiryClick}
                     onUpdateTemperature={updateLeadTemperature}
                     onToggleMegaDeal={toggleMegaDeal}
+                    unreadMessageCounts={unreadMessageCounts}
                   />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredEnquiries.map((enquiry) => (
-                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} />
+                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} unreadMessages={unreadMessageCounts[enquiry.id] || 0} />
                     ))}
                   </div>
                 )}

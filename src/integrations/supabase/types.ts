@@ -8806,6 +8806,7 @@ export type Database = {
       notifications: {
         Row: {
           created_at: string
+          enquiry_id: string | null
           id: string
           is_read: boolean
           message: string
@@ -8817,6 +8818,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          enquiry_id?: string | null
           id?: string
           is_read?: boolean
           message: string
@@ -8828,6 +8830,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          enquiry_id?: string | null
           id?: string
           is_read?: boolean
           message?: string
@@ -8838,6 +8841,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_order_id_fkey"
             columns: ["order_id"]
@@ -17637,6 +17647,10 @@ export type Database = {
           _user_agent: string
         }
         Returns: string
+      }
+      mark_enquiry_messages_read: {
+        Args: { p_enquiry_id: string }
+        Returns: number
       }
       mark_old_woo_leads_as_lost: { Args: never; Returns: number }
       mark_website_order_paid: {

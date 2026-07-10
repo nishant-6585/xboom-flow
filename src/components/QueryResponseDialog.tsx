@@ -21,6 +21,7 @@ import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { useToast } from "@/hooks/use-toast";
 import { Package, User, Building2, Hash, Boxes, DollarSign, Clock, CheckCircle } from "lucide-react";
+import { EnquiryMessageThread } from "./enquiry/EnquiryMessageThread";
 
 interface QueryResponseDialogProps {
   query: ProductQuery | null;
@@ -193,6 +194,9 @@ export function QueryResponseDialog({
               />
             </div>
           </div>
+
+          {/* Discussion Thread */}
+          <EnquiryMessageThread enquiryId={query.id} />
 
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>

@@ -41,16 +41,12 @@ export function EnquiryMessageThread({ enquiryId }: EnquiryMessageThreadProps) {
 
     if (!error && data) {
       setMessages(data as EnquiryMessage[]);
-      // Mark unread messages as read
-      const unreadIds = (data as EnquiryMessage[])
-        .filter(m => !m.is_read && m.sender_id !== user?.id)
-        .map(m => m.id);
-      if (unreadIds.length > 0) {
-        supabase
-          .from("enquiry_messages")
-          .update({ is_read: true })
-          .in("id", unreadIds)
-          .then(() => {});
+      const hasUnreadFromOthers = (data as EnquiryMessage[]).some(
+        (m) => !m.is_read && m.sender_id !== user?.id
+      );
+      if (hasUnreadFromOthers) {
+        // SECURITY DEFINER RPC — RLS blocks direct UPDATE of other users' messages
+        supabase.rpc("mark_enquiry_messages_read", { p_enquiry_id: enquiryId }).then(() => {});
       }
     }
     setLoading(false);
