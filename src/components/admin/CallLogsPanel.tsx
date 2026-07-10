@@ -318,7 +318,6 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     "suman das",
     "narasimha",
     "musthak",
-    "arjav",
     "srishti",
     "manoj kumar",
   ];
@@ -343,7 +342,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     logs.forEach(log => {
       if (log.sales_person_name) {
         const trimmed = log.sales_person_name.trim();
-        if (trimmed) spSet.add(trimmed);
+        if (trimmed && !trimmed.toLowerCase().includes("arjav")) spSet.add(trimmed);
       }
       const info = deriveCallInfo(log);
       if (info.finalAgent) agSet.add(info.finalAgent.trim());
