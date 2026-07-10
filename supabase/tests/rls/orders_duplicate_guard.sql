@@ -7,13 +7,14 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(3);
+select plan(5);
 
 set local role postgres;
 
 \set sales_uid 'aaaaaaaa-1111-2222-3333-444444444444'
 \set web_id    'bbbbbbbb-1111-2222-3333-444444444444'
 \set man_id    'cccccccc-1111-2222-3333-444444444444'
+\set portal_uid 'dddddddd-1111-2222-3333-444444444444'
 
 insert into auth.users (id, email, instance_id, aud, role) values
   (:'sales_uid'::uuid, 'rls-dupguard-sales@test.local',
@@ -26,6 +27,17 @@ on conflict (user_id, role) do nothing;
 
 insert into public.profiles (id, full_name, is_approved) values
   (:'sales_uid'::uuid, 'Guard Tester', true)
+on conflict (id) do update set is_approved = true;
+
+-- Portal-style authenticated user: exists in auth, approved profile,
+-- but has NO staff role in user_roles.
+insert into auth.users (id, email, instance_id, aud, role) values
+  (:'portal_uid'::uuid, 'rls-dupguard-portal@test.local',
+   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated')
+on conflict (id) do nothing;
+
+insert into public.profiles (id, full_name, is_approved) values
+  (:'portal_uid'::uuid, 'Portal Customer', true)
 on conflict (id) do update set is_approved = true;
 
 -- Seed an existing WEBSITE order (as postgres → auth.uid() null, so guard skips).
@@ -123,6 +135,27 @@ select lives_ok(
       50000, current_date, 'website', 'WOO-999002',
       'aaaaaaaa-1111-2222-3333-444444444444'::uuid)$$,
   'service-role website ingest matching a manual order is NOT blocked'
+);
+
+-- 4) Portal-style authenticated user (no staff role) calling
+--    find_duplicate_orders → must raise 42501.
+select pg_temp.as_user(:'portal_uid'::uuid);
+select throws_ok(
+  $$select * from public.find_duplicate_orders(
+      'Dup Guard Customer', '+919999000011', 'Test Drone Pro',
+      'TDP-1', current_date, 50000)$$,
+  '42501',
+  NULL,
+  'portal user without staff role cannot call find_duplicate_orders'
+);
+
+-- 5) Sales user calling find_duplicate_orders → succeeds.
+select pg_temp.as_user(:'sales_uid'::uuid);
+select lives_ok(
+  $$select * from public.find_duplicate_orders(
+      'Dup Guard Customer', '+919999000011', 'Test Drone Pro',
+      'TDP-1', current_date, 50000)$$,
+  'sales user can call find_duplicate_orders'
 );
 
 select * from finish();
