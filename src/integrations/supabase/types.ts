@@ -11993,6 +11993,160 @@ export type Database = {
         }
         Relationships: []
       }
+      prospect_followup_settings: {
+        Row: {
+          ai_model: string
+          cc_emails: string[]
+          created_at: string
+          enabled: boolean
+          id: boolean
+          max_attempts: number
+          send_window_end: string
+          send_window_start: string
+          shadow_mode: boolean
+          updated_at: string
+          weekdays_only: boolean
+        }
+        Insert: {
+          ai_model?: string
+          cc_emails?: string[]
+          created_at?: string
+          enabled?: boolean
+          id?: boolean
+          max_attempts?: number
+          send_window_end?: string
+          send_window_start?: string
+          shadow_mode?: boolean
+          updated_at?: string
+          weekdays_only?: boolean
+        }
+        Update: {
+          ai_model?: string
+          cc_emails?: string[]
+          created_at?: string
+          enabled?: boolean
+          id?: boolean
+          max_attempts?: number
+          send_window_end?: string
+          send_window_start?: string
+          shadow_mode?: boolean
+          updated_at?: string
+          weekdays_only?: boolean
+        }
+        Relationships: []
+      }
+      prospect_followup_state: {
+        Row: {
+          attempts_sent: number
+          last_sent_at: string | null
+          next_scheduled_at: string | null
+          paused: boolean
+          prospect_id: string
+          stop_reason: string | null
+          stopped: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          attempts_sent?: number
+          last_sent_at?: string | null
+          next_scheduled_at?: string | null
+          paused?: boolean
+          prospect_id: string
+          stop_reason?: string | null
+          stopped?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          attempts_sent?: number
+          last_sent_at?: string | null
+          next_scheduled_at?: string | null
+          paused?: boolean
+          prospect_id?: string
+          stop_reason?: string | null
+          stopped?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_followup_state_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: true
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_followups: {
+        Row: {
+          ai_meta: Json
+          ai_model: string | null
+          attempt_no: number
+          body_html: string
+          body_text: string
+          cc_emails: string[]
+          created_at: string
+          email_message_id: string | null
+          error_message: string | null
+          id: string
+          prospect_id: string
+          recipient_email: string
+          scheduled_for: string
+          sent_at: string | null
+          skip_reason: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          ai_meta?: Json
+          ai_model?: string | null
+          attempt_no: number
+          body_html: string
+          body_text: string
+          cc_emails?: string[]
+          created_at?: string
+          email_message_id?: string | null
+          error_message?: string | null
+          id?: string
+          prospect_id: string
+          recipient_email: string
+          scheduled_for?: string
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          ai_meta?: Json
+          ai_model?: string | null
+          attempt_no?: number
+          body_html?: string
+          body_text?: string
+          cc_emails?: string[]
+          created_at?: string
+          email_message_id?: string | null
+          error_message?: string | null
+          id?: string
+          prospect_id?: string
+          recipient_email?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_followups_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prospects: {
         Row: {
           a_category_marked_at: string | null

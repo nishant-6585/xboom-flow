@@ -1,47 +1,109 @@
+# Auto Follow-up for Sales Prospects
+
 ## Goal
-Add at-a-glance analytics and filters to `/kyc` (KYC Verification Queue) similar to the Portal Customers page, so reviewers can slice the queue quickly.
+Automatically send smart, personalized follow-up emails to prospects with `status = 'active'`, using Lovable AI (Gemini) to draft context-aware copy from the product enquired, prior notes, urgency, timeline, quote, and past touchpoints. Every send is CC'd to `amit@xboom.in`.
 
-## Scope
-Frontend-only change to `src/pages/KycVerification.tsx`. No schema, no RLS, no API changes — data is already available from `useKycQueue`.
+## Scope & Rules
+- **Eligible**: `prospects.status = 'active'` AND `email IS NOT NULL`.
+- **Excluded**: won/lost/dropped, missing email, unsubscribed (`suppressed_emails`), or a reply/inbound touchpoint received after the last outbound.
+- **Stop conditions** (any one halts the sequence):
+  - status changes to non-active
+  - prospect replies (inbound touchpoint / thread reply)
+  - 4 attempts sent
+  - manually paused
 
-## 1. Analytics stat cards (top of page)
-A row of compact cards computed from `rows`:
+## Smart Cadence (AI-decided, bounded)
+Base schedule adjusted by signals:
 
-- **Total submissions** — `rows.length`
-- **Pending review** — effective status `pending_verification`
-- **Approved** — effective status `approved`
-- **Rejected** — effective status `rejected`
-- **DigiLocker** — `document.method === 'digilocker'` (auto-verified vs pending name-mismatch split shown as sub-line)
-- **Manual upload** — `document.method !== 'digilocker'`
-- **AI: likely approve / reject / unclear** — from `ai_review.recommendation` on pending rows
-- **Today's uploads** — `kyc_submitted_at` within today
+| Signal | Effect |
+|---|---|
+| `urgency = high` or `requested_timeline` within 7d | tighter: D+1, D+3, D+6, D+10 |
+| `is_a_category = true` or `lead_quality = hot` | tighter + richer context |
+| Default | D+2, D+5, D+10, D+18 |
+| `quoted_price` present + no reply | attempt 2 references the quote & offers a call |
+| Last touchpoint > 21d and no reply | final "closing loop" attempt, then stop |
 
-Cards are clickable → set the matching status/method filter.
+Send window: 10:00–18:00 IST, weekdays only.
 
-## 2. Filter bar (above table, replacing the current single search input)
-- Search (existing)
-- Status: All / Pending / Approved / Rejected / Not submitted
-- Document type: All / Aadhaar / PAN / Driving Licence / Voter ID / Passport / Rental Agreement / Other
-- Method: All / DigiLocker / Manual
-- Salesperson: All / (unique `rep_name` list from rows)
-- AI recommendation: All / Likely approve / Likely reject / Unclear / No AI review
-- Date range chips: All Time / Today / Yesterday / This Week / Last Week / This Month + custom From/To
-- "Reset filters" button (only visible when any filter is active)
+## AI Draft Inputs (per prospect, per attempt)
+Passed to Gemini 2.5 Flash via Lovable AI gateway:
+- Prospect: name, company, city, customer_type, prospect_type
+- Product: product_name, product_category, product_code, quantity, purpose_of_purchase
+- Commercial: default_price, quoted_price, discount
+- Intent: urgency, requested_timeline, lead_source, lead_quality
+- History: `notes`, last N `contact_touchpoints` / `crm_contact_activities` for this phone/email, prior follow-up subjects & summaries
+- Attempt number & days since last touch
 
-Result count updates the existing "{n} accounts" label.
+AI returns strict JSON: `{ subject, body_html, body_text, tone_used, key_hooks[] }`. Guardrails: no fabricated prices/dates, no discounts beyond what's on record, respectful and concise, single clear CTA (reply / book call).
 
-## 3. Filtering logic
-Extend the existing `useMemo(filtered, …)` to apply all filters in one pass, using the same "effective status" logic already in the table (per-submission status falls back to account status).
+## Architecture
 
-## 4. UI/styling
-- Reuse existing `Card`, `Badge`, `Select`, `Input`, `Button` primitives — no new deps.
-- Match the visual style of Portal Customers stat cards (label uppercase, big number, color hints: green for approved, orange for pending, red for rejected).
-- Filter bar wraps on mobile.
+```text
+pg_cron (every 15 min IST business hours)
+        │
+        ▼
+edge fn: prospects-auto-followup-scheduler
+  • picks eligible prospects due for next attempt
+  • enqueues one job per prospect into prospect_followup_queue
+        │
+        ▼
+edge fn: prospects-auto-followup-worker (batch, throttled)
+  • loads context (prospect + touchpoints + prior followups)
+  • calls Lovable AI (gemini-2.5-flash) for draft
+  • invokes existing send-transactional-email
+       template: prospect-followup, CC: amit@xboom.in
+  • writes prospect_followups row (attempt, subject, body, ai_meta, message_id)
+  • logs contact_touchpoints entry (channel=email, direction=outbound)
+```
 
-## 5. Persistence (light)
-Filter state stays in component state (not URL) to keep this change small; the existing `?account=` deep-link behavior is preserved.
+## Data Model (new)
 
-## Out of scope
-- CSV export
-- Server-side pagination (queue is small, ~17 rows today)
-- New DB columns or RPCs
+`public.prospect_followup_settings` (single row, admin-tunable)
+- `enabled boolean default true`
+- `max_attempts int default 4`
+- `cc_email text default 'amit@xboom.in'`
+- `send_window_start time`, `send_window_end time`, `weekdays_only boolean`
+
+`public.prospect_followups`
+- `id, prospect_id, attempt_no, scheduled_for, sent_at`
+- `subject, body_html, body_text`
+- `ai_model, ai_prompt_hash, ai_meta jsonb`
+- `email_message_id, status (queued|sent|skipped|failed), skip_reason`
+- unique(`prospect_id`, `attempt_no`)
+
+`public.prospect_followup_events` (audit) — opens/clicks/replies/stops.
+
+RLS: admin + sales_manager read/write; sales read for their own prospects. GRANTs to authenticated + service_role. Service role writes from edge function.
+
+## Email Template
+Scaffold `prospect-followup` React-Email template (brand styled, plain but warm):
+- Personalized greeting, one-line context ("regarding your enquiry for {product_name}"),
+- AI paragraph, quote reference if present,
+- Single CTA button ("Reply to this email" / "Book a 15-min call"),
+- Signature = assigned salesperson name (fallback: XBoom Sales),
+- CC `amit@xboom.in` always, Reply-To = salesperson email.
+- Unsubscribe footer auto-appended by infra.
+
+## Admin UI (Sales module)
+New tab **Auto Follow-ups** under Prospects:
+- Toggle master enable, edit cadence defaults, edit CC list.
+- Per-prospect: view scheduled next attempt, past sent emails (preview), Pause / Resume / Send now / Skip next.
+- Table: prospect, product, attempt X/4, next send, last status, AI summary.
+
+## Safety & Compliance
+- Suppression check via `suppressed_emails` before every send.
+- Idempotency key: `prospect-followup-{prospect_id}-{attempt_no}`.
+- Rate limit: ≤ 120 emails/min (existing queue default).
+- Kill switch: `prospect_followup_settings.enabled = false` halts scheduler immediately.
+- Full audit trail in `prospect_followups` + `contact_touchpoints` + `domain_events`.
+
+## Rollout
+1. Migration: tables, RLS, GRANTs, settings seed row.
+2. Scaffold `prospect-followup` transactional template + deploy.
+3. Deploy `prospects-auto-followup-scheduler` and `-worker` edge functions.
+4. Schedule pg_cron every 15 min (business hours only via SQL guard).
+5. Admin UI tab + controls.
+6. **Shadow mode first**: `enabled=false` for 24h; scheduler writes `status='queued'` rows without sending so you can review AI drafts. Flip to `enabled=true` after review.
+
+## Out of scope (this iteration)
+WhatsApp/SMS channel, per-salesperson approval queue, A/B copy testing — can layer on later without schema changes.
