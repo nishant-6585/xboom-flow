@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(4);
 
--- set local role postgres; (skipped in sandbox)
+set local role postgres;
 
 \set sales1_uid 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 \set sales2_uid 'cccccccc-cccc-cccc-cccc-cccccccccccc'
