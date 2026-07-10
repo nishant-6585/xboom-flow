@@ -694,6 +694,7 @@ export function useEnquiries() {
         .eq("id", enquiryId);
       if (error) throw error;
       toast({ title: "Follow-up note saved" });
+      await fetchEnquiries();
       return true;
     } catch (err) {
       console.error("Error updating follow-up note:", err);
