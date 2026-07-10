@@ -6,6 +6,12 @@ import { toast } from 'sonner';
 import { sendSlackNotification } from '@/hooks/useSlackSettings';
 import { mapOrderUpdateError } from '@/lib/orderPhone';
 import { callEdgeFunction } from '@/lib/callEdgeFunction';
+import {
+  fetchDuplicateOrderMatches,
+  classifyMatches,
+  presentDuplicateDialog,
+  parseDuplicateTriggerError,
+} from '@/lib/duplicateOrderGuard';
 
 export type OrderStatus = 'po_received' | 'payment_received' | 'partial_payment_received' | 'procurement_to_plan' | 'procurement_in_process' | 'procurement_done' | 'to_ship' | 'in_transit' | 'delivery_done' | 'cancelled';
 export type PaymentStatus = 'pending' | 'partial' | 'full';
@@ -451,6 +457,32 @@ export function useOrders() {
     }
 
     try {
+      // Duplicate detection — skip for website/external ingest and when the
+      // caller explicitly opted out (e.g. user already accepted a soft warning).
+      const isIntegration = formData.source === 'website' || !!formData.external_id;
+      const skipDup = (formData as any)._skipDuplicateCheck === true;
+      if (!isIntegration && !skipDup) {
+        const matches = await fetchDuplicateOrderMatches({
+          customer_name: formData.customer_name,
+          customer_phone: formData.customer_phone,
+          product_name: formData.product_name,
+          product_code: formData.product_name,
+          order_date: (formData as any).order_date || null,
+          total_sales_amount: formData.total_sales_amount,
+        });
+        const severity = classifyMatches(matches);
+        if (severity === 'hard') {
+          await presentDuplicateDialog('hard', matches);
+          return null;
+        }
+        if (severity === 'soft') {
+          const decision = await presentDuplicateDialog('soft', matches);
+          if (decision !== 'proceed') return null;
+        }
+      }
+      // Never persist the internal skip flag.
+      delete (formData as any)._skipDuplicateCheck;
+
       const { validateFile } = await import('@/lib/fileValidation');
       // Upload invoice file if provided
       let invoiceUrl = formData.invoice_url;
@@ -733,7 +765,14 @@ export function useOrders() {
       return orderData as Order;
     } catch (error: any) {
       console.error('Error creating order:', error);
-      toast.error(error.message || 'Failed to create order');
+      const rawMsg: string = error?.message || '';
+      if (rawMsg.includes('DUPLICATE_ORDER:')) {
+        // Server-side trigger caught it — surface the same modal instead of a raw toast.
+        const synthetic = parseDuplicateTriggerError(rawMsg);
+        await presentDuplicateDialog('hard', synthetic ? [synthetic] : [], rawMsg);
+      } else {
+        toast.error(rawMsg || 'Failed to create order');
+      }
       return null;
     }
   };
