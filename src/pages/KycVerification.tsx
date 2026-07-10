@@ -71,6 +71,30 @@ function AiRecommendationBadge({ ai }: { ai: NonNullable<KycQueueRow["ai_review"
   );
 }
 
+function StatCard({ label, value, tone, onClick, active }: {
+  label: string;
+  value: number;
+  tone?: "green" | "orange" | "red";
+  onClick?: () => void;
+  active?: boolean;
+}) {
+  const toneCls =
+    tone === "green" ? "text-emerald-600" :
+    tone === "orange" ? "text-orange-500" :
+    tone === "red" ? "text-red-600" :
+    "text-foreground";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left rounded-lg border bg-card p-3 transition hover:border-primary/60 hover:shadow-sm ${active ? "border-primary ring-1 ring-primary/40" : "border-border"}`}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`text-2xl font-bold mt-1 ${toneCls}`}>{value}</div>
+    </button>
+  );
+}
+
 export default function KycVerification() {
   const { rows, loading, review, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
