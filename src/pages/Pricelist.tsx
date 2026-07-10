@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { usePricelist, PricelistFormData } from "@/hooks/usePricelist";
