@@ -6,6 +6,10 @@ import { formatDistanceToNow } from "date-fns";
 import { Package, User, Calendar, Hash, Boxes } from "lucide-react";
 import { getSlaStatus, getTimeRemainingString, UrgencyLevel } from "@/lib/sla";
 import { Badge } from "./ui/badge";
+import { LeadSourceBadge } from "./LeadSourceBadge";
+import { StickyNote } from "lucide-react";
+import { formatDistanceToNow as fmtRel } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface EnquiryCardProps {
   enquiry: Enquiry;
@@ -55,6 +59,11 @@ export function EnquiryCard({ enquiry, onClick }: EnquiryCardProps) {
           </div>
           <StatusBadge status={enquiry.status} />
         </div>
+        {enquiry.lead_source && (
+          <div className="mt-2">
+            <LeadSourceBadge source={enquiry.lead_source} size="xs" fallback="hide" />
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -86,6 +95,29 @@ export function EnquiryCard({ enquiry, onClick }: EnquiryCardProps) {
               <span className="text-muted-foreground">({enquiry.customer_company})</span>
             )}
           </div>
+          {enquiry.followup_note && (
+            <div className="col-span-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                      <StickyNote className="w-3 h-3 shrink-0 text-primary/70" />
+                      <span className="truncate">{enquiry.followup_note}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">{enquiry.followup_note}</p>
+                    {enquiry.followup_note_updated_at && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        updated {fmtRel(new Date(enquiry.followup_note_updated_at), { addSuffix: true })}
+                        {enquiry.followup_note_updated_by_name ? ` by ${enquiry.followup_note_updated_by_name}` : ""}
+                      </p>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </div>
 
         {enquiry.response_pricing && enquiry.status === "responded" && (

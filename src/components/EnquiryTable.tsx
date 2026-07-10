@@ -48,6 +48,9 @@ import { format, differenceInMinutes, differenceInHours, differenceInDays } from
 import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, Timer, CheckCircle2, AlertTriangle, Flame, Thermometer, Snowflake, Star, Sparkles } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { LeadTemperatureBadge, LEAD_TEMPERATURES } from "./LeadTemperatureBadge";
+import { LeadSourceBadge } from "./LeadSourceBadge";
+import { StickyNote } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { FollowupDrafterDialog } from "./sales/FollowupDrafterDialog";
 import { useNavigate } from "react-router-dom";
 import { getSlaStatus, SLA_HOURS, UrgencyLevel } from "@/lib/sla";
@@ -303,6 +306,27 @@ export function EnquiryTable({
                       <div>
                         <p className="font-medium">{enquiry.customer_name}</p>
                         <p className="text-xs text-muted-foreground">{enquiry.customer_company}</p>
+                        {enquiry.followup_note && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground max-w-[240px]">
+                                  <StickyNote className="w-3 h-3 shrink-0 text-primary/70" />
+                                  <span className="truncate">{enquiry.followup_note}</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-sm">{enquiry.followup_note}</p>
+                                {enquiry.followup_note_updated_at && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    updated {formatDistanceToNow(new Date(enquiry.followup_note_updated_at), { addSuffix: true })}
+                                    {enquiry.followup_note_updated_by_name ? ` by ${enquiry.followup_note_updated_by_name}` : ""}
+                                  </p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell onClick={() => onEnquiryClick(enquiry)}>
@@ -313,6 +337,11 @@ export function EnquiryTable({
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={enquiry.status} />
+                      {enquiry.lead_source && (
+                        <div className="mt-1">
+                          <LeadSourceBadge source={enquiry.lead_source} size="xs" fallback="hide" />
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className={`flex items-center gap-1 text-sm font-medium ${responseTime.colorClass}`}>

@@ -17,6 +17,8 @@ import { ProductSelect } from "@/components/ProductSelect";
 import { PricelistItem } from "@/hooks/usePricelist";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { ContactFieldCombo } from "@/components/crm/ContactFieldCombo";
+import { FOLLOWUP_NOTE_OPTIONS, ENQUIRY_SOURCE_OPTIONS } from "@/lib/followupNotes";
 
 interface QueryFormProps {
   onSubmit: (data: EnquiryFormData) => Promise<boolean>;
@@ -104,6 +106,8 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
     requestedTimeline: "",
     notes: "",
     purposeOfPurchase: "",
+    leadSource: "",
+    followupNote: "",
   });
 
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
@@ -138,6 +142,8 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
         requestedTimeline: "",
         notes: "",
         purposeOfPurchase: "",
+        leadSource: "",
+        followupNote: "",
       });
       setCurrentStep(1);
     }
@@ -378,6 +384,37 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                     disabled={loading}
                     className="bg-background"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="leadSource">Source of Enquiry</Label>
+                    <Select
+                      value={formData.leadSource || ""}
+                      onValueChange={(value) => setFormData({ ...formData, leadSource: value })}
+                      disabled={loading}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Select source (optional)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-lg z-50">
+                        {ENQUIRY_SOURCE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="followupNote">Follow-up Note</Label>
+                    <ContactFieldCombo
+                      value={formData.followupNote || ""}
+                      onChange={(v) => setFormData({ ...formData, followupNote: v })}
+                      options={[...FOLLOWUP_NOTE_OPTIONS]}
+                      placeholder="Pick or type…"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">

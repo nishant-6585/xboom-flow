@@ -82,6 +82,7 @@ const Index = () => {
     submitAdminResponse,
     updateLeadTemperature,
     toggleMegaDeal,
+    updateFollowupNote,
   } = useEnquiries();
   const { pipelineOrders } = usePipelineOrders();
   const { role, user } = useAuth();
@@ -898,6 +899,7 @@ const Index = () => {
         onDelete={deleteEnquiry}
         onEscalate={escalateEnquiry}
         onSubmitAdminResponse={submitAdminResponse}
+        onUpdateFollowupNote={updateFollowupNote}
       />
 
       {/* Notice popup on login */}

@@ -33,9 +33,13 @@ import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { AILeadScoring } from "./AILeadScoring";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck, Timer } from "lucide-react";
+import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck, Timer, StickyNote, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { differenceInHours, differenceInMinutes, differenceInDays } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
+import { LeadSourceBadge } from "./LeadSourceBadge";
+import { ContactFieldCombo } from "./crm/ContactFieldCombo";
+import { FOLLOWUP_NOTE_OPTIONS } from "@/lib/followupNotes";
 
 interface EnquiryDialogProps {
   enquiry: Enquiry | null;
@@ -45,6 +49,7 @@ interface EnquiryDialogProps {
   onDelete: (enquiryId: string) => Promise<boolean>;
   onEscalate: (enquiryId: string, reason: string) => Promise<boolean>;
   onSubmitAdminResponse?: (enquiryId: string, adminResponse: string) => Promise<boolean>;
+  onUpdateFollowupNote?: (enquiryId: string, note: string | null) => Promise<boolean>;
 }
 
 export function EnquiryDialog({
@@ -55,8 +60,9 @@ export function EnquiryDialog({
   onDelete,
   onEscalate,
   onSubmitAdminResponse,
+  onUpdateFollowupNote,
 }: EnquiryDialogProps) {
-  const { role, profile } = useAuth();
+  const { role, profile, user } = useAuth();
   const [status, setStatus] = useState<QueryStatus>("pending");
   const [response, setResponse] = useState({
     pricing: "",
@@ -71,6 +77,8 @@ export function EnquiryDialog({
   const [adminResponseText, setAdminResponseText] = useState("");
   const [lostReason, setLostReason] = useState<LostReason | "">("");
   const [lostReasonNotes, setLostReasonNotes] = useState("");
+  const [followupNote, setFollowupNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   // Reset form when enquiry changes
   useEffect(() => {
@@ -85,6 +93,7 @@ export function EnquiryDialog({
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
       setLostReasonNotes(enquiry.lost_reason_notes || "");
+      setFollowupNote(enquiry.followup_note || "");
     }
   }, [enquiry]);
 
@@ -94,6 +103,12 @@ export function EnquiryDialog({
   const canDelete = role === "admin";
   const canEscalate = (role === "sales" || role === "supply_chain") && !enquiry.is_escalated;
   const canRespondToEscalation = role === "admin" && enquiry.is_escalated && onSubmitAdminResponse;
+  const canEditFollowup = !!onUpdateFollowupNote && (
+    role === "admin" ||
+    role === "supply_chain" ||
+    role === "sales_manager" ||
+    (role === "sales" && enquiry.sales_person_id === user?.id)
+  );
 
   // Calculate response time
   const getResponseTimeInfo = () => {
@@ -233,6 +248,9 @@ export function EnquiryDialog({
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <StatusBadge status={enquiry.status} />
+                  {enquiry.lead_source && (
+                    <LeadSourceBadge source={enquiry.lead_source} size="sm" fallback="hide" />
+                  )}
                   {enquiry.is_escalated && (
                     <Badge variant="destructive" className="text-xs">
                       <AlertTriangle className="w-3 h-3 mr-1" />
@@ -284,6 +302,48 @@ export function EnquiryDialog({
               <div className="pt-2 border-t border-border text-xs text-muted-foreground">
                 Submitted by: {enquiry.sales_person_name}
               </div>
+            </div>
+
+            {/* Follow-up Note Block */}
+            <div className="p-4 rounded-lg border bg-muted/20 space-y-3">
+              <div className="flex items-center gap-2">
+                <StickyNote className="w-4 h-4 text-primary" />
+                <h4 className="font-medium text-sm">Follow-up Note</h4>
+              </div>
+              {canEditFollowup ? (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <ContactFieldCombo
+                      value={followupNote}
+                      onChange={setFollowupNote}
+                      options={[...FOLLOWUP_NOTE_OPTIONS]}
+                      placeholder="Pick or type a note…"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={savingNote || followupNote === (enquiry.followup_note || "")}
+                    onClick={async () => {
+                      if (!onUpdateFollowupNote) return;
+                      setSavingNote(true);
+                      await onUpdateFollowupNote(enquiry.id, followupNote || null);
+                      setSavingNote(false);
+                    }}
+                  >
+                    {savingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                    Save
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm">{enquiry.followup_note || <span className="text-muted-foreground italic">No follow-up note yet</span>}</p>
+              )}
+              {enquiry.followup_note_updated_at && (
+                <p className="text-xs text-muted-foreground">
+                  Updated {formatDistanceToNow(new Date(enquiry.followup_note_updated_at), { addSuffix: true })}
+                  {enquiry.followup_note_updated_by_name ? ` by ${enquiry.followup_note_updated_by_name}` : ""}
+                </p>
+              )}
             </div>
 
             {/* Meetings Panel */}
