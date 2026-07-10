@@ -461,6 +461,20 @@ export default function Pricelist() {
             <p className="text-muted-foreground">
               View products, pricing and raise enquiries for confirmation
             </p>
+            {(() => {
+              const last = items.reduce<Date | null>((acc, it) => {
+                if (!it.website_synced_at) return acc;
+                const d = new Date(it.website_synced_at);
+                return !acc || d > acc ? d : acc;
+              }, null);
+              if (!last) return null;
+              return (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <RefreshCw className="inline w-3 h-3 mr-1 align-[-2px]" />
+                  Last synced from website: <span className="font-medium text-foreground">{last.toLocaleString()}</span>
+                </p>
+              );
+            })()}
           </div>
           {(canSync || canManage) && (
             <div className="flex gap-2">
