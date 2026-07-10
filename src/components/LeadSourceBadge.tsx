@@ -26,6 +26,7 @@ const SOURCE_CONFIG: Record<string, SourceMeta> = {
   website:     { label: "Website",   icon: Globe,         className: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30" },
   website_form:{ label: "Web Form",  icon: FileText,      className: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30" },
   form_lead:   { label: "Form Lead", icon: FileText,      className: "bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-500/30" },
+  qform:       { label: "QForm",     icon: FileText,      className: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30" },
   enquiry:     { label: "Enquiry",   icon: HelpCircle,    className: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30" },
   lead:        { label: "Lead",      icon: UserCheck,     className: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30" },
   referral:    { label: "Referral",  icon: Users,         className: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30" },
