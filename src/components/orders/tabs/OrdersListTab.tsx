@@ -225,6 +225,38 @@ export default function OrdersListTab(props: OrdersListTabProps) {
         </div>
       )}
 
+      <OrdersDashboardStats
+        orders={(() => {
+          const wooMapped = unifiedRows
+            .filter((r) => r.kind === 'woo')
+            .map((r: any) => {
+              const w = r.row;
+              return {
+                id: w.id,
+                order_number: w.order_number,
+                status: (w.order_status || '').toLowerCase(),
+                payment_status: w.payment_status,
+                total_sales_amount: Number(w.total_sales_amount) || 0,
+                amount_paid: Number(w.amount_paid) || 0,
+                sales_person_name: w.assigned_to_name || null,
+                order_date: w.woo_created_at || w.created_at,
+                created_at: w.created_at,
+                // Use a non-'website' token so the analytics-scope toggle
+                // (which strips source='website') does not zero the
+                // Total Orders / Order Value cards when the user is
+                // explicitly viewing Website (Auto) feed.
+                source: 'website_auto',
+              } as any;
+            });
+          return [...filteredOrders, ...wooMapped];
+        })()}
+        allOrders={allOrders}
+        timePeriod={dashTimePeriod}
+        onTimePeriodChange={setDashTimePeriod}
+        salesPersonFilter={dashSalesPersonFilter}
+        onSalesPersonFilterChange={setDashSalesPersonFilter}
+      />
+
       <Card className="border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/10 backdrop-blur-sm">
         <CardContent className="p-5">
           <div className="flex flex-col gap-5">
@@ -373,38 +405,6 @@ export default function OrdersListTab(props: OrdersListTabProps) {
           </div>
         </CardContent>
       </Card>
-
-      <OrdersDashboardStats
-        orders={(() => {
-          const wooMapped = unifiedRows
-            .filter((r) => r.kind === 'woo')
-            .map((r: any) => {
-              const w = r.row;
-              return {
-                id: w.id,
-                order_number: w.order_number,
-                status: (w.order_status || '').toLowerCase(),
-                payment_status: w.payment_status,
-                total_sales_amount: Number(w.total_sales_amount) || 0,
-                amount_paid: Number(w.amount_paid) || 0,
-                sales_person_name: w.assigned_to_name || null,
-                order_date: w.woo_created_at || w.created_at,
-                created_at: w.created_at,
-                // Use a non-'website' token so the analytics-scope toggle
-                // (which strips source='website') does not zero the
-                // Total Orders / Order Value cards when the user is
-                // explicitly viewing Website (Auto) feed.
-                source: 'website_auto',
-              } as any;
-            });
-          return [...filteredOrders, ...wooMapped];
-        })()}
-        allOrders={allOrders}
-        timePeriod={dashTimePeriod}
-        onTimePeriodChange={setDashTimePeriod}
-        salesPersonFilter={dashSalesPersonFilter}
-        onSalesPersonFilterChange={setDashSalesPersonFilter}
-      />
 
       {!loading && filteredOrders.length > 0 && (
         <div className="flex items-center justify-between flex-wrap gap-3">
