@@ -693,6 +693,32 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
   // Notify salesperson (assigned rep on account → fallback to latest order's sales_person)
   await notifySalesperson(admin, contact.account_id, doc.id);
 
+  // Fire-and-forget AI review. The customer response stays fast — the AI
+  // writes ai_kyc_reviews + kyc_audit_log + (on auto-approve) flips
+  // kyc_documents.status/kyc_status via service-role. The portal picks up
+  // changes via the existing realtime + react-query refetch.
+  try {
+    const SUPABASE_URL_INNER = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY_INNER = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const aiPromise = fetch(`${SUPABASE_URL_INNER}/functions/v1/ai-kyc-review`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SERVICE_KEY_INNER}`,
+      },
+      body: JSON.stringify({ account_id: contact.account_id, document_id: doc.id }),
+    }).catch((err) => {
+      console.error("[kyc-handler] ai-kyc-review trigger failed:", err);
+    });
+    // deno-lint-ignore no-explicit-any
+    const edge = (globalThis as any).EdgeRuntime;
+    if (edge && typeof edge.waitUntil === "function") {
+      edge.waitUntil(aiPromise);
+    }
+  } catch (e) {
+    console.error("[kyc-handler] ai-kyc-review dispatch error:", e);
+  }
+
   return json({ ok: true, document_id: doc.id });
 }
 
