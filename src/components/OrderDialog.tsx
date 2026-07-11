@@ -1279,6 +1279,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}
                   <LeadSourceBadge source={order.lead_source || (order as any).source} size="sm" />
+                  {(order as any).external_id && (order as any).source !== 'website' && (
+                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-muted-foreground border-muted">
+                      From website
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-xs">
                     {order.customer_type.toUpperCase()}
                   </Badge>
