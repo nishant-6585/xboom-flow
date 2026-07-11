@@ -129,6 +129,20 @@ const Index = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  // Deep-link from the SLA banner: /?tab=enquiries&sla=at_risk|breached
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const sla = searchParams.get("sla");
+    if (tab === "enquiries") setActiveTab("enquiries");
+    if (sla === "at_risk" || sla === "breached") {
+      setSlaStatusFilter(sla);
+      const next = new URLSearchParams(searchParams);
+      next.delete("sla");
+      next.delete("tab");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Deep-link: /?enquiry=<uuid> opens the dialog directly (from notifications)
   useEffect(() => {
     const enquiryParam = searchParams.get("enquiry");
