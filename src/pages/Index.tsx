@@ -417,6 +417,7 @@ const Index = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-6 sm:py-8 flex-1 overflow-x-hidden">
+        <SlaBanner className="mb-4" />
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-2">Xboom OS Dashboard</h2>
           <p className="text-muted-foreground">
