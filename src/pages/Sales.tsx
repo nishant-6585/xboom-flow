@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
