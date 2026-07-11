@@ -384,6 +384,24 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     return match ? match[1].trim() : 'Unknown';
   };
 
+  /**
+   * Resolve the display label for the Source column.
+   * Prefer the structured `lead_source` column, then fall back to
+   * parsing it out of the free-text `notes` field for legacy rows.
+   * Normalizes to the same labels used by the source filter.
+   */
+  const resolveLeadSource = (lead: any): string => {
+    const raw = String(lead?.lead_source ?? '').trim();
+    const candidate = raw || extractLeadSource(lead?.notes);
+    if (!candidate || candidate.toLowerCase() === 'unknown') return 'Unknown';
+    const key = candidate.toLowerCase();
+    const opt = LEAD_SOURCE_OPTIONS.find(o =>
+      o.matches.some(m => m.toLowerCase() === key) ||
+      o.label.toLowerCase() === key
+    );
+    return opt ? opt.label : candidate;
+  };
+
   const getSourceBadge = (source: string) => {
     if (source.toLowerCase() === 'interakt') {
       return (
@@ -750,7 +768,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                           <span className="font-medium">{lead.quantity}</span>
                         </TableCell>
                         <TableCell>
-                          {getSourceBadge(extractLeadSource(lead.notes))}
+                          {getSourceBadge(resolveLeadSource(lead))}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -793,7 +811,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         colSpan={11}
                         entries={group.duplicates.map((d) => ({
                           id: d.id,
-                          source: extractLeadSource(d.notes),
+                          source: resolveLeadSource(d),
                           status: d.status?.replace(/_/g, ' '),
                           assignedTo: d.sales_person_name,
                           createdAt: d.created_at,
