@@ -28,6 +28,7 @@ import { QFormsElevenLabsConversionAnalytics } from "@/components/sales/QFormsEl
 import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
+import { SlaBanner } from "@/components/sales/SlaBanner";
 import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 import { ProspectAutoFollowupPanel } from "@/components/sales/ProspectAutoFollowupPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
@@ -312,6 +313,7 @@ export default function Sales() {
 
           {canAccessEnquiries && (
           <TabsContent value="enquiries" className="space-y-6">
+            <SlaBanner />
             <EnquiriesPanel selectedLeadId={urlLeadId} />
           </TabsContent>
           )}
