@@ -1,109 +1,90 @@
-# Auto Follow-up for Sales Prospects
-
 ## Goal
-Automatically send smart, personalized follow-up emails to prospects with `status = 'active'`, using Lovable AI (Gemini) to draft context-aware copy from the product enquired, prior notes, urgency, timeline, quote, and past touchpoints. Every send is CC'd to `amit@xboom.in`.
 
-## Scope & Rules
-- **Eligible**: `prospects.status = 'active'` AND `email IS NOT NULL`.
-- **Excluded**: won/lost/dropped, missing email, unsubscribed (`suppressed_emails`), or a reply/inbound touchpoint received after the last outbound.
-- **Stop conditions** (any one halts the sequence):
-  - status changes to non-active
-  - prospect replies (inbound touchpoint / thread reply)
-  - 4 attempts sent
-  - manually paused
+When a WooCommerce website order is attributed to a salesperson, flip it into a manual order everywhere (counts, analytics, dashboards) while keeping `external_id` + `lead_source='website'` as provenance so Woo sync and the "From website" chip still work. Scope is Woo only; Shopify is untouched.
 
-## Smart Cadence (AI-decided, bounded)
-Base schedule adjusted by signals:
+**Invariant:** `external_id IS NOT NULL` = Woo-linked (permanent). `source='website'` = unattributed Woo feed row (mutable, flipped by attribution).
 
-| Signal | Effect |
-|---|---|
-| `urgency = high` or `requested_timeline` within 7d | tighter: D+1, D+3, D+6, D+10 |
-| `is_a_category = true` or `lead_quality = hot` | tighter + richer context |
-| Default | D+2, D+5, D+10, D+18 |
-| `quoted_price` present + no reply | attempt 2 references the quote & offers a call |
-| Last touchpoint > 21d and no reply | final "closing loop" attempt, then stop |
+---
 
-Send window: 10:00–18:00 IST, weekdays only.
+## 1. DB migration
 
-## AI Draft Inputs (per prospect, per attempt)
-Passed to Gemini 2.5 Flash via Lovable AI gateway:
-- Prospect: name, company, city, customer_type, prospect_type
-- Product: product_name, product_category, product_code, quantity, purpose_of_purchase
-- Commercial: default_price, quoted_price, discount
-- Intent: urgency, requested_timeline, lead_source, lead_quality
-- History: `notes`, last N `contact_touchpoints` / `crm_contact_activities` for this phone/email, prior follow-up subjects & summaries
-- Attempt number & days since last touch
+Extend `public._attribute_website_order_core(...)`:
+- In the main UPDATE, add: `source = 'manual'`, `lead_source = COALESCE(lead_source, 'website')`.
+- Do NOT touch `external_id`, attribution log inserts, sales_points logic, or the `woocommerce_orders.assigned_to` mirror.
 
-AI returns strict JSON: `{ subject, body_html, body_text, tone_used, key_hooks[] }`. Guardrails: no fabricated prices/dates, no discounts beyond what's on record, respectful and concise, single clear CTA (reply / book call).
-
-## Architecture
-
-```text
-pg_cron (every 15 min IST business hours)
-        │
-        ▼
-edge fn: prospects-auto-followup-scheduler
-  • picks eligible prospects due for next attempt
-  • enqueues one job per prospect into prospect_followup_queue
-        │
-        ▼
-edge fn: prospects-auto-followup-worker (batch, throttled)
-  • loads context (prospect + touchpoints + prior followups)
-  • calls Lovable AI (gemini-2.5-flash) for draft
-  • invokes existing send-transactional-email
-       template: prospect-followup, CC: amit@xboom.in
-  • writes prospect_followups row (attempt, subject, body, ai_meta, message_id)
-  • logs contact_touchpoints entry (channel=email, direction=outbound)
+One-shot backfill in the same migration:
+```sql
+UPDATE public.orders
+SET source = 'manual', lead_source = COALESCE(lead_source, 'website')
+WHERE source = 'website' AND sales_attribution_locked = true;
 ```
 
-## Data Model (new)
+Verify (no change expected):
+- `guard_orders_duplicate_creation` – skips only on INSERT for `source='website' OR external_id NOT NULL`; attribution is UPDATE → safe.
+- `find_duplicate_orders` – no source filter → still matches transferred orders so a rep can't re-create one manually.
 
-`public.prospect_followup_settings` (single row, admin-tunable)
-- `enabled boolean default true`
-- `max_attempts int default 4`
-- `cc_email text default 'amit@xboom.in'`
-- `send_window_start time`, `send_window_end time`, `weekdays_only boolean`
+## 2. Landmine A — `supabase/functions/_shared/woo-mirror.ts`
 
-`public.prospect_followups`
-- `id, prospect_id, attempt_no, scheduled_for, sent_at`
-- `subject, body_html, body_text`
-- `ai_model, ai_prompt_hash, ai_meta jsonb`
-- `email_message_id, status (queued|sent|skipped|failed), skip_reason`
-- unique(`prospect_id`, `attempt_no`)
+In the existing-order UPDATE branch (after the `.eq("external_id", orderId)` lookup returns a row):
+- Before applying the update, `delete orderRow.source; delete orderRow.lead_source;` so subsequent Woo webhooks never revert the flip.
+- INSERT branch keeps `source: "website"`, `lead_source: "website"` (feed rows still start unattributed).
 
-`public.prospect_followup_events` (audit) — opens/clicks/replies/stops.
+## 3. Landmine B — reverse-sync + peer Woo edge functions
 
-RLS: admin + sales_manager read/write; sales read for their own prospects. GRANTs to authenticated + service_role. Service role writes from edge function.
+`supabase/functions/woocommerce-reverse-sync/index.ts`: change the orders query from `.eq("source","website").not("external_id","is",null)` to just `.not("external_id","is",null)` (drop `source` filter). Safe because `external_id` in `public.orders` is exclusively the Woo id.
 
-## Email Template
-Scaffold `prospect-followup` React-Email template (brand styled, plain but warm):
-- Personalized greeting, one-line context ("regarding your enquiry for {product_name}"),
-- AI paragraph, quote reference if present,
-- Single CTA button ("Reply to this email" / "Book a 15-min call"),
-- Signature = assigned salesperson name (fallback: XBoom Sales),
-- CC `amit@xboom.in` always, Reply-To = salesperson email.
-- Unsubscribe footer auto-appended by infra.
+Audited peer functions (`get-order-status`, `send-order-sms-msg91`, `update-woo-order-status`, `get-woo-order-notes`, `woo-mirror.ts`): grepped — none filter `orders` by `source='website'`. Only `external_id` lookups. No change needed.
 
-## Admin UI (Sales module)
-New tab **Auto Follow-ups** under Prospects:
-- Toggle master enable, edit cadence defaults, edit CC list.
-- Per-prospect: view scheduled next attempt, past sent emails (preview), Pause / Resume / Send now / Skip next.
-- Table: prospect, product, attempt X/4, next send, last status, AI summary.
+## 4. Frontend reclassification
 
-## Safety & Compliance
-- Suppression check via `suppressed_emails` before every send.
-- Idempotency key: `prospect-followup-{prospect_id}-{attempt_no}`.
-- Rate limit: ≤ 120 emails/min (existing queue default).
-- Kill switch: `prospect_followup_settings.enabled = false` halts scheduler immediately.
-- Full audit trail in `prospect_followups` + `contact_touchpoints` + `domain_events`.
+Add shared helper `src/lib/orderSource.ts`:
+```ts
+export const isWooLinked = (o: { external_id?: string | null }) => !!o?.external_id;
+export const isUnattributedWebsiteFeed = (o) => o?.source === 'website';
+```
 
-## Rollout
-1. Migration: tables, RLS, GRANTs, settings seed row.
-2. Scaffold `prospect-followup` transactional template + deploy.
-3. Deploy `prospects-auto-followup-scheduler` and `-worker` edge functions.
-4. Schedule pg_cron every 15 min (business hours only via SQL guard).
-5. Admin UI tab + controls.
-6. **Shadow mode first**: `enabled=false` for 24h; scheduler writes `status='queued'` rows without sending so you can review AI drafts. Flip to `enabled=true` after review.
+### Category (a) — "Woo-linked" → switch to `isWooLinked(o)` (uses `external_id`)
+- `src/components/OrderDialog.tsx` – lines 244, 704, 722 (`isWebsiteOrder`)
+- `src/components/procurement/ProcurementOrderDialog.tsx` – lines 138, 247
+- `src/components/orders/GenerateProformaDialog.tsx` – lines 137, 324
+- `src/hooks/useCanMarkWebsitePayment.ts` – gate on Woo-linked, not source
+- `src/hooks/useOrders.ts:462` – `isIntegration` (already ORs `external_id`, simplify to `isWooLinked`)
+- `src/pages/Orders.tsx:237` – matching internal row to a Woo order: match on `external_id === woo_order_id` only (drop the `source==='website'` clause so attributed rows still resolve)
 
-## Out of scope (this iteration)
-WhatsApp/SMS channel, per-salesperson approval queue, A/B copy testing — can layer on later without schema changes.
+### Category (b) — "Unattributed website feed" → KEEP `source==='website'` (no code change; flipping source auto-removes attributed rows)
+- `src/hooks/useOrders.ts:413` – feed-row hiding for po_received/cancelled
+- `src/hooks/useOrdersFiltering.ts` – `isWebsiteMirror` (49), `sourceCounts`/filters (103, 153, 156, 216) and the `'website_auto'` filter label — leaves attributed orders in the "manual" bucket
+- `src/hooks/useAttributionRequests.ts` – `.eq('source','website')` claimable list (attributed drop out — correct)
+- `src/components/orders/ClaimWebsiteOrderPanel.tsx`
+- `src/pages/Orders.tsx:75` + `OrdersTabsList.tsx` + `OrdersListTab.tsx` (tab plumbing for `'website_auto'`)
+- `OrdersDashboardStats.tsx:88` `p_include_website` toggle
+- Analytics exclusions: KeyMetricsDashboard, KeyMetricsTrendChart, PipelineStatusDashboard, LeadSourcePerformanceDashboard, TallyDashboard
+- `src/lib/duplicateOrderGuard.ts` lines 92/110 (server-side match hint, feed-side)
+- `src/components/orders/DuplicateOrderGuardModal.tsx:32` (`isWebsite` badge on the duplicate candidate — the candidate being displayed is the pre-existing row; if it's still `source='website'` it means unattributed → keep as-is)
+
+`'shopify'` occurrences are out of scope — untouched.
+
+## 5. Provenance UI — "From website" chip
+
+Show a small muted chip `From website` (Tailwind `text-xs text-muted-foreground border rounded px-1.5`) when `external_id && source !== 'website'`, alongside existing `LeadSourceBadge`:
+- `src/components/orders/OrderTable.tsx` row
+- `src/components/orders/OrderCard.tsx`
+- `src/components/OrderDialog.tsx` header
+
+Dedicated Website (Auto) tab continues to filter `source='website'` only.
+
+## 6. Tests / verification
+
+New pgTAP file `supabase/tests/rls/orders_attribution_source_flip.sql`:
+1. Seed an `orders` row with `source='website'`, `external_id='WOO-1'`, `lead_source=null`.
+2. Call `_attribute_website_order_core(...)` as admin → assert `source='manual'`, `lead_source='website'`, `external_id='WOO-1'`, `sales_attribution_locked=true`, and `sales_points` rows exist for the rep.
+3. Simulate the woo-mirror UPDATE path by manually running the same UPDATE the function issues with `orderRow.source`/`lead_source` deleted → assert `source` stays `'manual'` and tracking fields still update.
+4. Log the backfill count via `SELECT count(*) FROM public.orders WHERE source='manual' AND external_id IS NOT NULL AND sales_attribution_locked=true;` in the reply.
+
+Manual smoke: attribute one live website order in preview, confirm it disappears from Website (Auto) tab, appears in the rep's manual list with a "From website" chip, and a follow-up Woo webhook doesn't revert it.
+
+## Out of scope
+
+- `shopify_*` tables, functions, and UI tabs.
+- `external_id`, attribution log, points, or `woocommerce_orders.assigned_to` mirror.
+- Duplicate-guard trigger/RPC logic (verify only).
