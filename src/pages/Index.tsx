@@ -65,6 +65,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth, startOfWeek, format } from "date-fns";
+import { SlaBanner } from "@/components/sales/SlaBanner";
 
 interface SalesTeamMember {
   user_id: string;
@@ -126,6 +127,20 @@ const Index = () => {
       setActiveTab("enquiries");
       // Clear params after applying
       setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Deep-link from the SLA banner: /?tab=enquiries&sla=at_risk|breached
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const sla = searchParams.get("sla");
+    if (tab === "enquiries") setActiveTab("enquiries");
+    if (sla === "at_risk" || sla === "breached") {
+      setSlaStatusFilter(sla);
+      const next = new URLSearchParams(searchParams);
+      next.delete("sla");
+      next.delete("tab");
+      setSearchParams(next, { replace: true });
     }
   }, [searchParams, setSearchParams]);
 
@@ -403,6 +418,7 @@ const Index = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-6 sm:py-8 flex-1 overflow-x-hidden">
+        <SlaBanner className="mb-4" />
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-2">Xboom OS Dashboard</h2>
           <p className="text-muted-foreground">

@@ -40,6 +40,7 @@ import { formatDistanceToNow } from "date-fns";
 import { LeadSourceBadge } from "./LeadSourceBadge";
 import { FollowupNoteInput } from "./crm/FollowupNoteInput";
 import { FOLLOWUP_NOTE_OPTIONS } from "@/lib/followupNotes";
+import { markEnquiryOpen, markEnquiryClosed } from "@/lib/enquiryPresence";
 
 interface EnquiryDialogProps {
   enquiry: Enquiry | null;
@@ -96,6 +97,14 @@ export function EnquiryDialog({
       setFollowupNote(enquiry.followup_note || "");
     }
   }, [enquiry]);
+
+  // Track which enquiry dialog is currently open so toast presenters
+  // can suppress notifications for a thread the user is actively reading.
+  useEffect(() => {
+    if (!enquiry?.id || !open) return;
+    markEnquiryOpen(enquiry.id);
+    return () => markEnquiryClosed(enquiry.id);
+  }, [enquiry?.id, open]);
 
   if (!enquiry) return null;
 
