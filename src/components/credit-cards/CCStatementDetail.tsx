@@ -392,17 +392,52 @@ export function CCStatementDetail({
                         <TableHead className="text-xs">Reference</TableHead>
                         <TableHead className="text-xs">Notes</TableHead>
                         <TableHead className="text-xs">Recorded By</TableHead>
+                        {canManagePayments && <TableHead className="text-xs text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {payments.map(p => (
                         <TableRow key={p.id}>
-                          <TableCell className="text-xs">{new Date(p.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
-                          <TableCell className="text-xs text-right font-bold text-green-600">{fmt(p.amount)}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-[9px] uppercase">{p.payment_mode.replace('_', ' ')}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{p.reference_number || '—'}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{p.notes || '—'}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{p.recorded_by_name}</TableCell>
+                          {editingPaymentId === p.id ? (
+                            <>
+                              <TableCell><Input type="date" value={editDraft.payment_date} onChange={e => setEditDraft(d => ({ ...d, payment_date: e.target.value }))} className="h-7 text-xs" /></TableCell>
+                              <TableCell><Input type="number" value={editDraft.amount} onChange={e => setEditDraft(d => ({ ...d, amount: e.target.value }))} className="h-7 text-xs text-right" /></TableCell>
+                              <TableCell>
+                                <Select value={editDraft.payment_mode} onValueChange={v => setEditDraft(d => ({ ...d, payment_mode: v }))}>
+                                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {PAYMENT_MODES.map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell><Input value={editDraft.reference_number} onChange={e => setEditDraft(d => ({ ...d, reference_number: e.target.value }))} className="h-7 text-xs" placeholder="Ref" /></TableCell>
+                              <TableCell><Input value={editDraft.notes} onChange={e => setEditDraft(d => ({ ...d, notes: e.target.value }))} className="h-7 text-xs" placeholder="Notes" /></TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{p.recorded_by_name}</TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving} onClick={() => saveEditPayment(p.id)}><Check className="h-3.5 w-3.5 text-green-600" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving} onClick={cancelEditPayment}><X className="h-3.5 w-3.5" /></Button>
+                                </div>
+                              </TableCell>
+                            </>
+                          ) : (
+                            <>
+                              <TableCell className="text-xs">{new Date(p.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
+                              <TableCell className="text-xs text-right font-bold text-green-600">{fmt(p.amount)}</TableCell>
+                              <TableCell><Badge variant="outline" className="text-[9px] uppercase">{p.payment_mode.replace('_', ' ')}</Badge></TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{p.reference_number || '—'}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{p.notes || '—'}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{p.recorded_by_name}</TableCell>
+                              {canManagePayments && (
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditPayment(p)} title="Edit payment"><Pencil className="h-3.5 w-3.5" /></Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeletePayment(p.id)} title="Delete payment"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
