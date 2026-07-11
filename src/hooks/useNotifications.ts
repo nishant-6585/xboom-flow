@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { toast } from 'sonner';
+import { isEnquiryOpen } from '@/lib/enquiryPresence';
 
 function navigateToNotification(notification: Notification) {
   if (notification.enquiry_id) {
@@ -46,10 +47,21 @@ export function useNotifications() {
       return;
     }
 
+    // Suppress enquiry_message toast when the user is actively viewing
+    // that enquiry's detail dialog (they're reading the thread live).
+    if (
+      notification.type === 'enquiry_message' &&
+      notification.enquiry_id &&
+      isEnquiryOpen(notification.enquiry_id)
+    ) {
+      return;
+    }
+
     shownToastIds.current.add(notification.id);
 
     const isHotLead = notification.type === 'hot_lead';
     const isEnquiry = notification.type === 'enquiry_response' || notification.type === 'enquiry_message';
+    const isEnquiryMessage = notification.type === 'enquiry_message';
     
     // Play sound alert
     playNotificationSound(isHotLead ? 'hot_lead' : 'mega_deal');
@@ -58,7 +70,10 @@ export function useNotifications() {
     
     toast(notification.title, {
       description: notification.message,
-      duration: 8000,
+      // Enquiry thread messages persist until the user closes them so they
+      // aren't missed. Everything else keeps the default 8s auto-dismiss.
+      duration: isEnquiryMessage ? Infinity : 8000,
+      closeButton: isEnquiryMessage ? true : undefined,
       icon,
       action: {
         label: 'View',
