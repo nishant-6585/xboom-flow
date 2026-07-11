@@ -248,6 +248,43 @@ export function useCreditCards() {
     return { success: true };
   };
 
+  const updatePayment = async (
+    paymentId: string,
+    updates: {
+      amount?: number;
+      payment_date?: string;
+      payment_mode?: string;
+      reference_number?: string | null;
+      notes?: string | null;
+    },
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('cc_payments' as any)
+        .update({ ...updates, updated_at: new Date().toISOString() } as any)
+        .eq('id', paymentId);
+      if (error) return { success: false, error: error.message };
+      await fetchAll();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  };
+
+  const deletePayment = async (paymentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('cc_payments' as any)
+        .delete()
+        .eq('id', paymentId);
+      if (error) return { success: false, error: error.message };
+      await fetchAll();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  };
+
   const getStatementFile = async (uploadId: string): Promise<StatementFilePayload | null> => {
     try {
       const accessToken = await getSessionAccessToken();
@@ -474,5 +511,6 @@ export function useCreditCards() {
     uploadStatement, getSummary, checkDuplicate, refetch: fetchAll,
     recordPayment, getStatementFile, reanalyzeStatement, replaceStatementFile,
     deleteCardWithData, updateStatement, updateCard,
+    updatePayment, deletePayment,
   };
 }

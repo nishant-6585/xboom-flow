@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Document, Page, pdfjs } from 'react-pdf';
 import { CreditCard, CCStatement, CCTransaction, CCPayment, StatementFilePayload, StatementUpload } from '@/hooks/useCreditCards';
 import { getStatementOutstanding } from '@/lib/creditCardMetrics';
-import { Download, FileDown, Loader2, Plus, Receipt, RotateCcw, CreditCard as CardIcon, IndianRupee, Upload } from 'lucide-react';
+import { Download, FileDown, Loader2, Plus, Receipt, RotateCcw, CreditCard as CardIcon, IndianRupee, Upload, Pencil, Trash2, Check, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -29,6 +29,9 @@ interface Props {
   onReanalyze: (data: { uploadId: string; fileUrl: string; fileName: string; guidance?: string }) => Promise<{ success: boolean; error?: string; password_required?: boolean }>;
   onReplaceFile?: (file: File, uploadId: string, password?: string) => Promise<{ success: boolean; error?: string; password_required?: boolean }>;
   upload?: Pick<StatementUpload, 'id' | 'file_url' | 'file_name'>;
+  canManagePayments?: boolean;
+  onUpdatePayment?: (paymentId: string, updates: { amount?: number; payment_date?: string; payment_mode?: string; reference_number?: string | null; notes?: string | null }) => Promise<{ success: boolean; error?: string }>;
+  onDeletePayment?: (paymentId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`;
@@ -74,6 +77,9 @@ export function CCStatementDetail({
   onReanalyze,
   onReplaceFile,
   upload,
+  canManagePayments = false,
+  onUpdatePayment,
+  onDeletePayment,
 }: Props) {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentData, setPaymentData] = useState({
@@ -92,6 +98,59 @@ export function CCStatementDetail({
   const [replacingFile, setReplacingFile] = useState(false);
   const [pageCount, setPageCount] = useState(0);
   const replaceFileRef = useRef<HTMLInputElement>(null);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState({ amount: '', payment_date: '', payment_mode: 'upi', reference_number: '', notes: '' });
+  const [rowSaving, setRowSaving] = useState(false);
+
+  const startEditPayment = (p: CCPayment) => {
+    setEditingPaymentId(p.id);
+    setEditDraft({
+      amount: String(p.amount ?? ''),
+      payment_date: p.payment_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+      payment_mode: p.payment_mode || 'upi',
+      reference_number: p.reference_number || '',
+      notes: p.notes || '',
+    });
+  };
+
+  const cancelEditPayment = () => {
+    setEditingPaymentId(null);
+  };
+
+  const saveEditPayment = async (paymentId: string) => {
+    if (!onUpdatePayment) return;
+    const amt = parseFloat(editDraft.amount);
+    if (!amt || amt <= 0) {
+      toast({ title: 'Invalid amount', variant: 'destructive' });
+      return;
+    }
+    setRowSaving(true);
+    const res = await onUpdatePayment(paymentId, {
+      amount: amt,
+      payment_date: editDraft.payment_date,
+      payment_mode: editDraft.payment_mode,
+      reference_number: editDraft.reference_number || null,
+      notes: editDraft.notes || null,
+    });
+    setRowSaving(false);
+    if (res.success) {
+      toast({ title: 'Payment updated' });
+      setEditingPaymentId(null);
+    } else {
+      toast({ title: 'Failed to update payment', description: res.error, variant: 'destructive' });
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!onDeletePayment) return;
+    if (!confirm('Delete this payment record? This cannot be undone.')) return;
+    const res = await onDeletePayment(paymentId);
+    if (res.success) {
+      toast({ title: 'Payment deleted' });
+    } else {
+      toast({ title: 'Failed to delete payment', description: res.error, variant: 'destructive' });
+    }
+  };
 
   const closeViewer = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -333,17 +392,52 @@ export function CCStatementDetail({
                         <TableHead className="text-xs">Reference</TableHead>
                         <TableHead className="text-xs">Notes</TableHead>
                         <TableHead className="text-xs">Recorded By</TableHead>
+                        {canManagePayments && <TableHead className="text-xs text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {payments.map(p => (
                         <TableRow key={p.id}>
-                          <TableCell className="text-xs">{new Date(p.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
-                          <TableCell className="text-xs text-right font-bold text-green-600">{fmt(p.amount)}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-[9px] uppercase">{p.payment_mode.replace('_', ' ')}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{p.reference_number || '—'}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{p.notes || '—'}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{p.recorded_by_name}</TableCell>
+                          {editingPaymentId === p.id ? (
+                            <>
+                              <TableCell><Input type="date" value={editDraft.payment_date} onChange={e => setEditDraft(d => ({ ...d, payment_date: e.target.value }))} className="h-7 text-xs" /></TableCell>
+                              <TableCell><Input type="number" value={editDraft.amount} onChange={e => setEditDraft(d => ({ ...d, amount: e.target.value }))} className="h-7 text-xs text-right" /></TableCell>
+                              <TableCell>
+                                <Select value={editDraft.payment_mode} onValueChange={v => setEditDraft(d => ({ ...d, payment_mode: v }))}>
+                                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {PAYMENT_MODES.map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell><Input value={editDraft.reference_number} onChange={e => setEditDraft(d => ({ ...d, reference_number: e.target.value }))} className="h-7 text-xs" placeholder="Ref" /></TableCell>
+                              <TableCell><Input value={editDraft.notes} onChange={e => setEditDraft(d => ({ ...d, notes: e.target.value }))} className="h-7 text-xs" placeholder="Notes" /></TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{p.recorded_by_name}</TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving} onClick={() => saveEditPayment(p.id)}><Check className="h-3.5 w-3.5 text-green-600" /></Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving} onClick={cancelEditPayment}><X className="h-3.5 w-3.5" /></Button>
+                                </div>
+                              </TableCell>
+                            </>
+                          ) : (
+                            <>
+                              <TableCell className="text-xs">{new Date(p.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
+                              <TableCell className="text-xs text-right font-bold text-green-600">{fmt(p.amount)}</TableCell>
+                              <TableCell><Badge variant="outline" className="text-[9px] uppercase">{p.payment_mode.replace('_', ' ')}</Badge></TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{p.reference_number || '—'}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{p.notes || '—'}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{p.recorded_by_name}</TableCell>
+                              {canManagePayments && (
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditPayment(p)} title="Edit payment"><Pencil className="h-3.5 w-3.5" /></Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeletePayment(p.id)} title="Delete payment"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
