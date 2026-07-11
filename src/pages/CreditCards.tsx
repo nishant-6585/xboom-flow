@@ -23,6 +23,7 @@ export default function CreditCards() {
     uploadStatement, checkDuplicate, getSummary, refetch,
     recordPayment, getStatementFile, reanalyzeStatement, replaceStatementFile,
     deleteCardWithData, updateStatement, updateCard,
+    updatePayment, deletePayment,
   } = useCreditCards();
   const [processing, setProcessing] = useState(false);
   const [selectedStatement, setSelectedStatement] = useState<CCStatement | null>(null);
@@ -171,6 +172,9 @@ export default function CreditCards() {
             onReanalyze={reanalyzeStatement}
             onReplaceFile={replaceStatementFile}
             upload={selectedUpload}
+            canManagePayments={role === 'admin'}
+            onUpdatePayment={updatePayment}
+            onDeletePayment={deletePayment}
           />
         )}
       </main>
