@@ -768,7 +768,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                           <span className="font-medium">{lead.quantity}</span>
                         </TableCell>
                         <TableCell>
-                          {getSourceBadge(extractLeadSource(lead.notes))}
+                          {getSourceBadge(resolveLeadSource(lead))}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -811,7 +811,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         colSpan={11}
                         entries={group.duplicates.map((d) => ({
                           id: d.id,
-                          source: extractLeadSource(d.notes),
+                          source: resolveLeadSource(d),
                           status: d.status?.replace(/_/g, ' '),
                           assignedTo: d.sales_person_name,
                           createdAt: d.created_at,
