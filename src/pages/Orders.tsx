@@ -233,8 +233,10 @@ export default function Orders() {
   const handleOrderClick = (order: Order) => { setSelectedOrder(order); setDialogOpen(true); };
 
   const handleWooOrderClick = (wooOrder: typeof wooOrders[number]) => {
+    // Match Woo id regardless of attribution state — a transferred order has
+    // source='manual' but external_id still points at the Woo id.
     const mirrored = (orders as any[]).find(
-      (o) => (o.source === 'website') && String(o.external_id || '') === String(wooOrder.woo_order_id || ''),
+      (o) => String(o.external_id || '') === String(wooOrder.woo_order_id || ''),
     );
     if (mirrored) { setSelectedOrder(mirrored as Order); setDialogOpen(true); return; }
     setSelectedWooOrder(wooOrder); setWooDetailOpen(true);

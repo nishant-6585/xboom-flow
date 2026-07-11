@@ -383,6 +383,12 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       delete orderRow.po_number;
       delete orderRow.po_url;
     }
+    // Provenance guard: once an order exists internally, ingest must NEVER
+    // rewrite `source` or `lead_source`. Attribution flips source to 'manual'
+    // and the next webhook must not revert it. `external_id` is the durable
+    // Woo-link marker; it's already set on the existing row.
+    delete orderRow.source;
+    delete orderRow.lead_source;
     const { error: updErr } = await supabase
       .from("orders").update(orderRow).eq("id", existing.id);
     if (updErr) {

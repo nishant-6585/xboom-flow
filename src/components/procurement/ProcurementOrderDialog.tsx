@@ -135,7 +135,7 @@ export function ProcurementOrderDialog({
 
       // Lock manually-edited fields on website orders so the WooCommerce
       // mirror does not overwrite them on the next webhook / backfill.
-      const isWebsite = ((order as any).source || 'manual') === 'website';
+      const isWebsite = !!(order as any).external_id;
       const existingOverrides: string[] = Array.isArray((order as any).manual_overrides)
         ? (order as any).manual_overrides
         : [];
@@ -244,7 +244,7 @@ export function ProcurementOrderDialog({
 
       // Lock manually-edited fields on website orders so the WooCommerce
       // mirror does not silently revert them on the next webhook / backfill.
-      const isWebsite = ((order as any).source || 'manual') === 'website';
+      const isWebsite = !!(order as any).external_id;
       const existingOverrides: string[] = Array.isArray((order as any).manual_overrides)
         ? (order as any).manual_overrides
         : [];
