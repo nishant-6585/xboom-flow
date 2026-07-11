@@ -241,7 +241,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   // render the WooOrderStatusActions control inside the manual dialog so
   // staff can push status changes back to WooCommerce without leaving
   // this screen.
-  const isWebsiteOrder = (order as any)?.source === 'website';
+  // "Woo-linked" — permanent provenance marker. Attribution flips
+  // source to 'manual' but external_id stays, so we key on that.
+  const isWebsiteOrder = !!(order as any)?.external_id;
   const wooOrderId = (order as any)?.external_id ? String((order as any).external_id) : null;
   const [wooStatus, setWooStatus] = useState<string | null>(null);
   // Ref to the Tracking Information card — used to auto-scroll the user there
@@ -701,7 +703,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // procurement_edited = true so the Woo mirror stops overwriting it
     // on subsequent webhook / backfill syncs.
     if (
-      (order as any).source === 'website' &&
+      !!(order as any).external_id &&
       changes['status'] &&
       !(order as any).procurement_edited
     ) {
@@ -719,7 +721,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // website-order tracking card stays in sync.
     if (
       success &&
-      (order as any).source === 'website' &&
+      !!(order as any).external_id &&
       order.order_number &&
       (changes['tracking_number'] || changes['tracking_url'] || changes['courier_name'] || changes['status'])
     ) {
