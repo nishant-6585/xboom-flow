@@ -35,6 +35,7 @@ function NotificationItem({
   const isEnquiryMessage = notification.type === 'enquiry_message';
   const isProformaStale = notification.type === 'proforma_stale';
   const isOrderConfirmed = notification.type === 'order_confirmed_by_customer';
+  const isEmailDlqAlert = notification.type === 'email_dlq_alert';
   const navigate = useNavigate();
 
   const getIcon = () => {
@@ -44,6 +45,7 @@ function NotificationItem({
     if (isEnquiryMessage) return <MessageSquare className="w-4 h-4" />;
     if (isProformaStale) return <FileWarning className="w-4 h-4" />;
     if (isOrderConfirmed) return <ClipboardCheck className="w-4 h-4" />;
+    if (isEmailDlqAlert) return <FileWarning className="w-4 h-4" />;
     if (isOverdue) return <AlertTriangle className="w-4 h-4" />;
     if (isDueToday) return <Clock className="w-4 h-4" />;
     return <CreditCard className="w-4 h-4" />;
@@ -56,6 +58,7 @@ function NotificationItem({
     if (isEnquiryMessage) return 'bg-blue-500/10 text-blue-500';
     if (isProformaStale) return 'bg-amber-500/10 text-amber-600';
     if (isOrderConfirmed) return 'bg-emerald-500/10 text-emerald-600';
+    if (isEmailDlqAlert) return 'bg-destructive/10 text-destructive';
     if (isOverdue) return 'bg-destructive/10 text-destructive';
     if (isDueToday) return 'bg-warning/10 text-warning';
     return 'bg-primary/10 text-primary';
@@ -121,6 +124,22 @@ function NotificationItem({
                 }}
               >
                 Open order
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
+          {isEmailDlqAlert && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                onClick={() => {
+                  if (!notification.is_read) onMarkAsRead(notification.id);
+                  navigate('/admin/kyc-emails');
+                }}
+              >
+                View details
                 <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
