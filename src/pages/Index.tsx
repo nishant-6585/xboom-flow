@@ -24,6 +24,7 @@ import { HolidayPopup } from "@/components/dashboard/HolidayPopup";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
 import { HRPendingApprovalsWidget } from "@/components/dashboard/HRPendingApprovalsWidget";
+import { MyAttendanceAlertsWidget } from "@/components/dashboard/MyAttendanceAlertsWidget";
 import { OnLeaveTodayWidget } from "@/components/dashboard/OnLeaveTodayWidget";
 import { BirthdayCard } from "@/components/dashboard/BirthdayCard";
 import {
@@ -459,6 +460,7 @@ const Index = () => {
                   <div className="lg:col-span-2 space-y-4">
                     <QuickActions />
                     <HRPendingApprovalsWidget />
+                    <MyAttendanceAlertsWidget />
                     <FollowupCallbackWidget />
                   </div>
                   <div>
