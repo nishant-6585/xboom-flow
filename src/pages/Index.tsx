@@ -65,6 +65,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth, startOfWeek, format } from "date-fns";
+import { SlaBanner } from "@/components/sales/SlaBanner";
 
 interface SalesTeamMember {
   user_id: string;
