@@ -244,6 +244,11 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <OrderNumberBadge orderNumber={order.order_number} />
+                        {(order as any).external_id && (order as any).source !== 'website' && (
+                          <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-muted-foreground border-muted">
+                            From website
+                          </Badge>
+                        )}
                         {order.lead_source?.startsWith('shopify:') && (
                           <Badge variant="outline" className="text-xs border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400 h-5 px-1.5 gap-1">
                             <ShoppingBag className="h-3 w-3" />

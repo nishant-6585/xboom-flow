@@ -459,7 +459,9 @@ export function useOrders() {
     try {
       // Duplicate detection — skip for website/external ingest and when the
       // caller explicitly opted out (e.g. user already accepted a soft warning).
-      const isIntegration = (formData as any).source === 'website' || !!(formData as any).external_id;
+      // Skip duplicate detection for any Woo-linked ingest row (Woo already
+      // dedupes on its side, and attribution won't re-run createOrder anyway).
+      const isIntegration = !!(formData as any).external_id || (formData as any).source === 'website';
       const skipDup = (formData as any)._skipDuplicateCheck === true;
       if (!isIntegration && !skipDup) {
         const matches = await fetchDuplicateOrderMatches({

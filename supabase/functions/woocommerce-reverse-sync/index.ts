@@ -71,10 +71,11 @@ Deno.serve(async (req) => {
   const since = new Date(Date.now() - days * 86400_000).toISOString();
 
   // Fetch recently-updated website orders
+  // `external_id IS NOT NULL` = Woo-linked. Do NOT filter by source='website'
+  // — attributed orders flip to source='manual' but must keep reverse-syncing.
   const { data: orders, error: oErr } = await supabase
     .from("orders")
     .select("id, external_id, status, refund_status, is_rto, cancelled_at, actual_delivery, customer_notes, updated_at")
-    .eq("source", "website")
     .not("external_id", "is", null)
     .gte("updated_at", since)
     .order("updated_at", { ascending: false })

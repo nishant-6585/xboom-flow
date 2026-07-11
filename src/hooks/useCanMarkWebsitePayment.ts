@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Returns true when the current user may mark a website (WooCommerce) order
- * as paid. Server-side enforcement still lives in `mark_website_order_paid`;
- * this gate is purely for UI visibility.
+ * as paid. "Website order" here means any Woo-linked order (external_id set),
+ * including ones that have since been attributed to a rep. Server-side
+ * enforcement still lives in `mark_website_order_paid`; this gate is purely
+ * for UI visibility.
  */
 export function useCanMarkWebsitePayment() {
   return useQuery({

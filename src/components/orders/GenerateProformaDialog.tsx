@@ -134,7 +134,7 @@ async function fetchWooPricingSnapshot(order?: Order | null, wooOrder?: WooComme
   }
 
   const externalId = (order as any)?.external_id;
-  if ((order as any)?.source !== 'website' || !externalId) return null;
+  if (!externalId) return null;
   const { data } = await (supabase.from('woocommerce_orders') as any)
     .select('id, woo_order_id, order_number, total_sales_amount, amount_paid, shipping_address, line_items, raw_data')
     .eq('woo_order_id', String(externalId))
@@ -321,7 +321,7 @@ export function GenerateProformaDialog({
               price_includes_gst: includes,
             };
           });
-          setLines((order as any)?.source === 'website'
+          setLines((order as any)?.external_id
             ? appendWooShippingLines(productLines, wooSnapshot)
             : productLines);
         }
