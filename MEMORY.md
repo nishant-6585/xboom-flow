@@ -4,7 +4,7 @@
 > Update this file as tasks complete. Newest entries at the top of each section.
 > Status legend: ✅ done · 🟡 in progress · ⏳ pending / not started · ❗ blocker
 
-Last updated: 2026-07-10
+Last updated: 2026-07-11
 
 ---
 
@@ -226,6 +226,13 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 ---
 
 ## ✅ Completed work
+
+### 2026-07-11 — Website→salesperson transfer = full manual conversion ✅ (by Lovable, verified)
+Attributed WooCommerce orders now count under the rep everywhere. Invariant: `orders.external_id IS NOT NULL` = Woo-linked (permanent, drives sync/UI affordances via `src/lib/orderSource.ts` helpers); `source='website'` = unattributed feed only (mutable). Shopify untouched (separate `shopify_orders` table, never mirrors into orders).
+- Migration `20260711055949`: `_attribute_website_order_core` also sets `source='manual'`, `lead_source=COALESCE(lead_source,'website')`; backfill flipped 12 historical attributed orders (240 unattributed feed rows untouched). Analytics (KeyMetrics/Trend/Pipeline/LeadSourcePerf/Tally/DashboardStats) exclude only `source='website'` → attributed orders count automatically, zero report-code changes.
+- Landmines fixed & verified: woo-mirror UPDATE branch deletes `orderRow.source`/`lead_source` (webhook can't revert flip; INSERT still writes 'website'); reverse-sync filter `source='website'` → `external_id IS NOT NULL`; peer Woo fns audited (none filter by source).
+- Frontend: Woo-linked checks → `isWooLinked()` (OrderDialog, ProcurementOrderDialog, GenerateProformaDialog, useCanMarkWebsitePayment, useOrders integration skip); feed semantics kept on source (claim panel, tabs, feed hiding, dup-guard modal). "From website" chip on OrderTable/OrderCard/OrderDialog for transferred orders.
+- **Smoke test pending (Nishant):** attribute one live website order → moves from Website (Auto) tab to rep's manual list with chip; rep's order-count report includes it; next Woo webhook doesn't revert it.
 
 ### 2026-07-10 — Enquiry source + follow-up note ✅ (by Lovable, verified)
 - `enquiries.lead_source` exposed on New Enquiry form (reused existing column + `LeadSourceBadge`, new `qform` key); `followup_note`/`_updated_at`/`_updated_by_name` columns; shared constants `src/lib/followupNotes.ts`. Shown on EnquiryTable, EnquiryCard, dashboard table, EnquiryDialog (inline edit).
