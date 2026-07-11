@@ -58,8 +58,8 @@ export default function Sales() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const now = new Date();
   const [dashboardDateRange, setDashboardDateRange] = useState({
-    start: format(startOfMonth(now), 'yyyy-MM-dd'),
-    end: format(endOfMonth(now), 'yyyy-MM-dd'),
+    start: format(now, 'yyyy-MM-dd'),
+    end: format(now, 'yyyy-MM-dd'),
   });
   const handleDateRangeChange = useCallback((s: string, e: string) => setDashboardDateRange({ start: s, end: e }), []);
 
