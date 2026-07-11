@@ -227,6 +227,13 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 
 ## ✅ Completed work
 
+### 2026-07-11 — Enquiry alert UX: killed repeating SLA popup, persistent thread snackbars ✅ (by Lovable, verified)
+Supply chain was hammered by `SLAReminderAlert` (60s poll → blocking modal per unresponded enquiry, 30-min re-nudge queue). Client-side only:
+- Deleted SLAReminderAlert; `NewEnquiryAlert` (one-time dialog per new enquiry, realtime + localStorage ack) kept unchanged.
+- Passive replacement: `SlaBanner` (supply_chain only, session-dismissible, Dashboard + Sales>Enquiries) — "N approaching · M past SLA → View" with `?tab=enquiries&sla=` deep link; SLA math shared via `src/lib/enquirySla.ts` wrapping existing `getSlaStatus` (src/lib/sla.ts) — no forked logic.
+- Thread messages: `enquiry_message` sonner toasts now `duration: Infinity` + closeButton (persist across routes until closed, bottom-right); suppressed while that enquiry's dialog is open (`src/lib/enquiryPresence.ts` set, registered by EnquiryDialog); closing toast ≠ read (read flips only via mark_enquiry_messages_read on thread open). Other toast types keep 8s.
+- Verified: no remaining timer→dialog on the enquiry path (FollowupReminderPopup/CallLogsPanel/TeamAttendancePanel intervals are unrelated features). Note: migration `20260711082353` in same batch is unrelated parallel security work (company_contacts RLS tightening to CRM roles).
+
 ### 2026-07-11 — Website→salesperson transfer = full manual conversion ✅ (by Lovable, verified)
 Attributed WooCommerce orders now count under the rep everywhere. Invariant: `orders.external_id IS NOT NULL` = Woo-linked (permanent, drives sync/UI affordances via `src/lib/orderSource.ts` helpers); `source='website'` = unattributed feed only (mutable). Shopify untouched (separate `shopify_orders` table, never mirrors into orders).
 - Migration `20260711055949`: `_attribute_website_order_core` also sets `source='manual'`, `lead_source=COALESCE(lead_source,'website')`; backfill flipped 12 historical attributed orders (240 unattributed feed rows untouched). Analytics (KeyMetrics/Trend/Pipeline/LeadSourcePerf/Tally/DashboardStats) exclude only `source='website'` → attributed orders count automatically, zero report-code changes.
