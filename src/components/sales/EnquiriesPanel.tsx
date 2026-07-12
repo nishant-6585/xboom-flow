@@ -517,13 +517,6 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                   </div>
                 )}
 
-                {/* Notes */}
-                {viewingEnquiry.notes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Notes</p>
-                    <p className="text-sm bg-muted/30 p-3 rounded-lg">{viewingEnquiry.notes}</p>
-                  </div>
-                )}
               </TabsContent>
 
               <TabsContent value="calls" className="mt-4">
