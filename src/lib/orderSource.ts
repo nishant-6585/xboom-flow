@@ -18,3 +18,15 @@ export const isUnattributedWebsiteFeed = (
 export const isTransferredFromWebsite = (
   o?: { external_id?: string | null; source?: string | null } | null,
 ): boolean => isWooLinked(o) && !isUnattributedWebsiteFeed(o);
+
+/**
+ * WooCommerce system ingestion user. Every website order is initially
+ * owned by this profile; attribution flips `sales_person_id` to the real
+ * rep, which is what removes the row from the "WooCommerce (Vishal)"
+ * pool. Keep this constant in one place — do not re-hardcode.
+ */
+export const SYSTEM_USER_ID = 'a8050cc3-7d17-44ac-a083-d8023d505331';
+
+export const isSystemOwned = (
+  o?: { sales_person_id?: string | null } | null,
+): boolean => (o?.sales_person_id ?? null) === SYSTEM_USER_ID;
