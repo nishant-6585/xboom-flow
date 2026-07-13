@@ -750,6 +750,18 @@ export function useHR() {
       // CompOff: flip ledger status on approval, revert on rejection of a previously approved compoff.
       if (leaveReq && leaveReq.leave_type === 'compoff') {
         if (approve) {
+          // Auto-approve the underlying credit (writes to compoff_audit_log via RPC)
+          const { data: linkedLedger } = await supabase
+            .from('compoff_ledger')
+            .select('id, approval_status')
+            .eq('leave_request_id', leaveId)
+            .maybeSingle();
+          if (linkedLedger?.id && linkedLedger.approval_status === 'pending') {
+            await supabase.rpc('approve_compoff_credit', {
+              p_ledger_id: linkedLedger.id,
+              p_comment: comments || 'Approved with leave request',
+            });
+          }
           await supabase
             .from('compoff_ledger')
             .update({ status: 'redeemed', redeemed_on: new Date().toISOString().split('T')[0] })
@@ -759,6 +771,19 @@ export function useHR() {
             .from('compoff_ledger')
             .update({ status: 'available', redeemed_on: null })
             .eq('leave_request_id', leaveId);
+        } else {
+          // Rejecting a submitted compoff leave: reject the pending credit as well
+          const { data: linkedLedger } = await supabase
+            .from('compoff_ledger')
+            .select('id, approval_status')
+            .eq('leave_request_id', leaveId)
+            .maybeSingle();
+          if (linkedLedger?.id && linkedLedger.approval_status === 'pending') {
+            await supabase.rpc('reject_compoff_credit', {
+              p_ledger_id: linkedLedger.id,
+              p_reason: comments || 'Rejected with leave request',
+            });
+          }
         }
       }
 

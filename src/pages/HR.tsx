@@ -13,6 +13,7 @@ import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
 import { BulkLeaveApprovalSection } from "@/components/hr/BulkLeaveApprovalSection";
+import { CompOffApprovalsInbox } from "@/components/hr/CompOffApprovalsInbox";
 import { HRLeaveApplyDialog } from "@/components/hr/HRLeaveApplyDialog";
 
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
@@ -204,6 +205,7 @@ export default function HR() {
           )}
 
           <TabsContent value="leave" className="space-y-4">
+            {isHROrAdmin && <CompOffApprovalsInbox />}
             {isHROrAdmin && pendingLeaves.length > 0 && (
               <BulkLeaveApprovalSection
                 pendingLeaves={pendingLeaves}

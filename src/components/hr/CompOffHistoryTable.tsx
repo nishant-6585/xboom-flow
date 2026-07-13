@@ -109,10 +109,14 @@ export function CompOffHistoryTable({ employeeId }: CompOffHistoryTableProps) {
   return (
     <div className="space-y-3">
       {/* Summary strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <Card className="p-3">
           <div className="text-xs text-muted-foreground">Available</div>
           <div className="text-xl font-bold text-primary">{stats.available}</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-xs text-muted-foreground">Pending HR</div>
+          <div className="text-xl font-bold text-amber-600">{stats.pending}</div>
         </Card>
         <Card className="p-3">
           <div className="text-xs text-muted-foreground">Redeemed</div>
@@ -153,10 +157,13 @@ export function CompOffHistoryTable({ employeeId }: CompOffHistoryTableProps) {
                 const isOpen = openId === r.id;
                 const isExpiringSoon =
                   r.status === 'available' &&
+                  r.approval_status === 'approved' &&
                   r.expires_at >= today &&
                   differenceInCalendarDays(parseISO(r.expires_at), new Date()) <= 14;
-                const effectiveStatus =
-                  r.status === 'available' && r.expires_at < today ? 'expired' : r.status;
+                let effectiveStatus: string = r.status;
+                if (r.approval_status === 'pending') effectiveStatus = 'pending';
+                else if (r.approval_status === 'rejected') effectiveStatus = 'rejected';
+                else if (r.status === 'available' && r.expires_at < today) effectiveStatus = 'expired';
                 return (
                   <>
                     <TableRow
@@ -180,11 +187,16 @@ export function CompOffHistoryTable({ employeeId }: CompOffHistoryTableProps) {
                               ? 'default'
                               : effectiveStatus === 'redeemed'
                                 ? 'secondary'
-                                : 'destructive'
+                                : effectiveStatus === 'pending'
+                                  ? 'outline'
+                                  : 'destructive'
                           }
-                          className="capitalize"
+                          className={cn(
+                            'capitalize',
+                            effectiveStatus === 'pending' && 'border-amber-500 text-amber-700 bg-amber-50',
+                          )}
                         >
-                          {effectiveStatus}
+                          {effectiveStatus === 'pending' ? 'Pending HR' : effectiveStatus}
                         </Badge>
                       </TableCell>
                       <TableCell className={cn('text-xs', isExpiringSoon && 'text-amber-600 font-medium')}>
@@ -199,7 +211,32 @@ export function CompOffHistoryTable({ employeeId }: CompOffHistoryTableProps) {
                       <TableRow key={r.id + '_details'} className="bg-muted/30 hover:bg-muted/30">
                         <TableCell></TableCell>
                         <TableCell colSpan={5} className="py-4">
+                          <div className="space-y-3">
+                            <div className="rounded border bg-background p-3 space-y-1 text-xs">
+                              <div className="text-sm font-medium mb-1">Credit approval</div>
+                              {r.approval_status === 'pending' && (
+                                <div className="text-amber-700">Awaiting HR review — this credit does not count toward your available balance yet.</div>
+                              )}
+                              {r.approval_status === 'approved' && (
+                                <div className="text-green-700">
+                                  Approved{r.approved_by_name ? ` by ${r.approved_by_name}` : ''}
+                                  {r.approved_at ? ` on ${format(parseISO(r.approved_at), 'MMM d, yyyy • h:mm a')}` : ''}
+                                  {r.approval_comment ? ` — “${r.approval_comment}”` : ''}
+                                </div>
+                              )}
+                              {r.approval_status === 'rejected' && (
+                                <div className="text-red-700">
+                                  Rejected{r.approved_by_name ? ` by ${r.approved_by_name}` : ''}
+                                  {r.approved_at ? ` on ${format(parseISO(r.approved_at), 'MMM d, yyyy • h:mm a')}` : ''}
+                                  {r.rejection_reason ? ` — Reason: ${r.rejection_reason}` : ''}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium mb-1">Leave redemption</div>
                           <StatusTimeline request={req} />
+                            </div>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )}
