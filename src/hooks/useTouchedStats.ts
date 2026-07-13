@@ -189,6 +189,21 @@ async function fetchSource(source: TouchedSource): Promise<NormalizedLead[]> {
         updated_at: r.updated_at ?? null,
       }));
     }
+    case "facebook-leads": {
+      const rows = await pull<any>("leads", "id, name, assigned_to, assigned_to_name, status, message, source, created_at, updated_at");
+      return rows
+        .filter((r) => r.source === "Facebook Leads")
+        .map((r) => ({
+          id: r.id,
+          sales_person_id: r.assigned_to ?? null,
+          sales_person_name: r.assigned_to_name ?? null,
+          touched: (r.status && r.status !== "new") || !!norm(r.message),
+          customer_name: r.name ?? null,
+          status: r.status ?? null,
+          created_at: r.created_at ?? null,
+          updated_at: r.updated_at ?? null,
+        }));
+    }
     case "xboom-website": {
       const rows = await pull<any>("woocommerce_orders", "id, customer_name, order_status, internal_notes, sales_notes, created_at, updated_at");
       return rows.map((r) => ({
