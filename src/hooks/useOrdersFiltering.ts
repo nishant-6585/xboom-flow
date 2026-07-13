@@ -2,6 +2,7 @@ import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import type { Order } from '@/hooks/useOrders';
 import type { ShopifyOrder } from '@/hooks/useShopifyOrders';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
+import { SYSTEM_USER_ID } from '@/lib/orderSource';
 
 export type UnifiedRow =
   | { kind: 'manual'; date: number; row: Order }
@@ -46,29 +47,16 @@ const ALL_ORDERS_WEBSITE_STATUSES = new Set([
   'processing', 'on-hold', 'shipped', 'completed', 'delivered',
 ]);
 
-const isWebsiteMirror = (o: Order) => o.source === 'website';
-
-const isWebsiteMirrorPaid = (o: Order) => {
-  const total = Number(o.total_sales_amount) || 0;
-  const paid = Number(o.amount_paid) || 0;
-  return o.payment_status === 'full' || (total > 0 && paid >= total);
-};
-
-// Website-mirror orders that have moved past the initial "PO received" stage
-// should be visible in Orders/Sales views even if payment is still pending,
-// because Procurement has already taken operational action on them.
-const POST_PROCUREMENT_STATUSES = new Set([
-  'procurement_to_plan',
-  'procurement_in_process',
-  'procurement_done',
-  'to_ship',
-  'in_transit',
-  'delivery_done',
-]);
-
-const isWebsiteMirrorVisible = (o: Order) =>
-  isWebsiteMirrorPaid(o) ||
-  POST_PROCUREMENT_STATUSES.has(((o.status as string) || '').toLowerCase());
+// "WooCommerce (Vishal)" bucket is defined by OWNERSHIP, not by source
+// string: any order still assigned to the system ingestion user belongs
+// here regardless of whether it was created as a live website mirror
+// (source='website') or as a manual backfill row (source='manual').
+// Attribution flips sales_person_id to the real rep, which is what
+// removes the row from the pool. Note: the older website-mirror
+// visibility rules (paid / post-procurement + pre-2026-04-30 cutoff)
+// still live in useOrders itself — they apply upstream to source='website'
+// rows before they reach us here.
+const isSystemOwned = (o: Order) => o.sales_person_id === SYSTEM_USER_ID;
 
 export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
   const passesManualOrderFilters = (o: Order) => {
@@ -103,11 +91,8 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
   const websiteAutoManualBucket: Order[] = [];
   for (const o of a.orders) {
     if (!passesManualOrderFilters(o)) continue;
-    if (isWebsiteMirror(o)) {
-      if (isWebsiteMirrorVisible(o)) websiteAutoManualBucket.push(o);
-    } else {
-      manualBucket.push(o);
-    }
+    if (isSystemOwned(o)) websiteAutoManualBucket.push(o);
+    else manualBucket.push(o);
   }
 
   const filteredOrders =
