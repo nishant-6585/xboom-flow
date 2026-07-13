@@ -230,14 +230,14 @@ export function BulkReassignWebsiteAutoDialog({
                       checked={checked}
                       onCheckedChange={(c) => toggleOne(ext, !!c)}
                       disabled={running}
-                      aria-label={`Select order ${o.woo_order_number ?? ext}`}
+                      aria-label={`Select order ${o.order_number ?? ext}`}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">
-                        #{o.woo_order_number ?? ext} · {o.customer_name || 'Unknown customer'}
+                        #{o.order_number ?? ext} · {o.customer_name || 'Unknown customer'}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {o.woo_status ? `status: ${o.woo_status}` : ''} · ₹{Number(o.total_amount || 0).toLocaleString('en-IN')}
+                        {o.order_status ? `status: ${o.order_status}` : ''} · ₹{Number(o.total_sales_amount || 0).toLocaleString('en-IN')}
                       </div>
                     </div>
                   </li>
