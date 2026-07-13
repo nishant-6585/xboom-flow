@@ -32,6 +32,7 @@ const LEAVE_TYPE_LABELS: Record<string, string> = {
   half_day_sick: 'Half Day (Sick)',
   half_day_unpaid: 'Half Day (Unpaid)',
   wfh: 'WFH',
+  compoff: 'Comp-Off',
 };
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -163,6 +164,7 @@ export function LeaveHistoryPanel() {
                 <SelectItem value="sick">Sick Leave</SelectItem>
                 <SelectItem value="unpaid">Unpaid Leave</SelectItem>
                 <SelectItem value="wfh">WFH</SelectItem>
+                <SelectItem value="compoff">Comp-Off</SelectItem>
               </SelectContent>
             </Select>
 
