@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import { useAnalyticsScope } from "@/contexts/AnalyticsScopeContext";
 import { IncludeWebsiteToggle } from "@/components/analytics/IncludeWebsiteToggle";
+import { isAnalyticsWebsite } from "@/lib/orderSource";
 
 interface KeyMetrics {
   // Sales metrics
@@ -77,7 +78,7 @@ export function KeyMetricsDashboard() {
           expectedPaymentsRes
         ] = await Promise.all([
           supabase.from("pipeline_orders").select("id, expected_price, probability, status"),
-          supabase.from("orders").select("id, status, created_at, order_date, payment_status, total_sales_amount, amount_paid, source"),
+          supabase.from("orders").select("id, status, created_at, order_date, payment_status, total_sales_amount, amount_paid, source, sales_person_id"),
           supabase.from("inventory_procurements").select("id, payment_status"),
           supabase.from("supplier_payments").select("id, amount, payment_date"),
           supabase.from("payment_records").select("id, amount, status, created_at"),
@@ -94,7 +95,7 @@ export function KeyMetricsDashboard() {
         const allOrders = ordersRes.data || [];
         const orders = includeWebsite
           ? allOrders
-          : allOrders.filter((o: any) => (o.source ?? "manual") !== "website");
+          : allOrders.filter((o: any) => !isAnalyticsWebsite(o));
         const activeOrders = orders.filter(o => !["delivery_done", "cancelled"].includes(o.status));
         const pendingDelivery = orders.filter(o => o.status === "procurement_done");
         const ordersThisMonth = orders.filter(o => new Date(o.order_date || o.created_at) >= new Date(startOfMonth));
