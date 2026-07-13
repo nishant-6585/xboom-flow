@@ -513,14 +513,11 @@ export function EnquiryDialog({
               </div>
             )}
 
-            {/* Discussion Thread — available from the moment the enquiry exists */}
-            <EnquiryMessageThread enquiryId={enquiry.id} />
-
             {/* Response Form - Only show for supply chain or admin */}
             {canRespond && (
               <div className="space-y-4">
                 <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                  {enquiry.responded_at ? 'Update Response' : 'Supply Chain Response'}
+                  Quote Details
                 </h4>
 
                 <div className="space-y-2">
@@ -639,6 +636,19 @@ export function EnquiryDialog({
                 </div>
               </div>
             )}
+
+            {/* Discussion Thread — chat pattern anchors composer at bottom */}
+            {enquiry.status === 'follow_up' && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-700 dark:text-amber-400">
+                The salesperson has a follow-up question — reply below to mark it Responded.
+              </div>
+            )}
+            {canRespond && enquiry.status === 'pending' && (
+              <p className="text-xs text-muted-foreground">
+                Reply here or submit quote details — either marks this enquiry as Responded.
+              </p>
+            )}
+            <EnquiryMessageThread enquiryId={enquiry.id} />
 
             <div className="flex flex-wrap justify-end gap-3">
               <Button variant="outline" onClick={requestClose}>
