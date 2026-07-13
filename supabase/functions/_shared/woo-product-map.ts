@@ -62,6 +62,15 @@ function mapCategory(woo: Woo): string {
   const match = KNOWN_CATEGORIES.find((c) => c.toLowerCase() === raw.toLowerCase());
   if (match) return match;
 
+  // Brand-only Woo categories (not real product categories) — they leave the
+  // downstream drone-detection with a category that is neither drone nor
+  // component, forcing a fallback to the name branch which historically
+  // over-matched model-named accessories (fixed 2026-07-13 in is_drone_product).
+  // Normalize them to "Uncategorized" so ops can recategorize the pricelist
+  // rows explicitly instead of trusting a store brand as a product category.
+  const BRAND_ONLY_CATEGORIES = new Set(["xboom"]);
+  if (BRAND_ONLY_CATEGORIES.has(raw.toLowerCase())) return "Uncategorized";
+
   // Canonicalize drone-like Woo categories so downstream drone detection
   // (mark_order_requires_confirmation → is_drone_category) matches reliably.
   // Mirrors the SQL helper: contains "drone" AND not an accessory/spare/etc.
