@@ -15,10 +15,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck,
+  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck, Eye,
   Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { LeadRowActions } from "./LeadRowActions";
 import { DispositionBadge } from "./DispositionBadge";
@@ -29,6 +30,7 @@ import {
   LEAD_SOURCES,
   SOURCE_META,
   type LeadSource,
+  type UnifiedLead,
   useUnifiedLeadFeed,
   useUnifiedLeadCounts,
 } from "@/hooks/useUnifiedLeadFeed";
@@ -36,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { useTeamAvailability } from "@/hooks/useTeamAvailability";
 import { groupDuplicates } from "@/lib/leadDeduplication";
 import { DuplicateCountBadge, DuplicateHistoryRow } from "./DuplicateHistoryRow";
+import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 
 const PAGE_SIZES = [50, 100, 250] as const;
 
@@ -87,6 +90,11 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [groupDupes, setGroupDupes] = useState(true);
 
+  // Detail drawer state
+  const [detailLead, setDetailLead] = useState<UnifiedLead | null>(null);
+  const [detailPayload, setDetailPayload] = useState<Record<string, unknown> | null>(null);
+
+
   // last-seen for "new since last visit" indicators
   const [lastSeen, setLastSeen] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -118,6 +126,53 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
     }, 5000);
     return () => clearTimeout(t);
   }, [user?.id]);
+
+  // Load raw payload for the detail drawer (currently only the public.leads table stores a payload column)
+  useEffect(() => {
+    if (!detailLead) return;
+    if (detailLead.source_table !== "leads") return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("payload")
+        .eq("id", Number(detailLead.source_row_id))
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        console.error("[UnifiedLeadInbox] payload fetch failed", error);
+        return;
+      }
+      setDetailPayload((data?.payload as Record<string, unknown> | null) ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detailLead]);
+
+  const openDetail = (lead: UnifiedLead) => {
+    setDetailLead(lead);
+    setDetailPayload(null);
+  };
+  const closeDetail = () => setDetailLead(null);
+
+  const drawerData = useMemo<LeadContactData | null>(() => {
+    if (!detailLead) return null;
+    return {
+      id: detailLead.source_row_id,
+      source_type: "lead",
+      customer_name: detailLead.name || "—",
+      phone: detailLead.phone,
+      email: detailLead.email,
+      company: detailLead.company,
+      product_name: detailLead.subject_or_message,
+      status: detailLead.status,
+      assigned_to_name: detailLead.sales_person_name,
+      created_at: detailLead.created_at,
+      lead_source: SOURCE_META[detailLead.source]?.label ?? detailLead.source,
+      payload: detailPayload,
+    };
+  }, [detailLead, detailPayload]);
 
   const { rows, total, isLoading, error, refetch } = useUnifiedLeadFeed({
     sources: selectedSources.length > 0 ? selectedSources : undefined,
@@ -353,7 +408,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                 const meta = SOURCE_META[lead.source];
                 return (
                   <Fragment key={group.key}>
-                  <TableRow>
+                  <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => openDetail(lead)}>
                     <TableCell>
                       <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
                         {meta.label}
@@ -411,7 +466,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -419,6 +474,10 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(lead); }}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View details
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openInSource(lead)}>
                             <ExternalLink className="h-4 w-4 mr-2" />
                             View in source
@@ -489,6 +548,12 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
           </div>
         </div>
       )}
+
+      <LeadContactDrawer
+        open={!!detailLead}
+        onOpenChange={(open) => { if (!open) closeDetail(); }}
+        lead={drawerData}
+      />
     </div>
   );
 }
