@@ -1341,6 +1341,13 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <GoogleAdsSyncPanel />
         </div>
       </TabsContent>
+
+      <TabsContent value="facebook-leads">
+        <div className="space-y-6">
+        <TouchedDashboard source="facebook-leads" />
+        <UnifiedLeadInbox sources={["facebook"]} />
+        </div>
+      </TabsContent>
     </Tabs>
   );
 }
