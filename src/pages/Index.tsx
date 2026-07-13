@@ -98,8 +98,27 @@ const Index = () => {
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>("all");
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  // Persist enquiry date-filter presets across reloads (per-user localStorage).
+  const ENQUIRY_DATE_LS_KEY = "xboom.enquiries.dateFilter.v1";
+  const TOP_DATE_LS_KEY = "xboom.enquiries.topDateFilter.v1";
+  const readStoredRange = (key: string): { start: Date | undefined; end: Date | undefined } => {
+    if (typeof window === "undefined") return { start: undefined, end: undefined };
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return { start: undefined, end: undefined };
+      const parsed = JSON.parse(raw) as { start?: string | null; end?: string | null };
+      return {
+        start: parsed.start ? new Date(parsed.start) : undefined,
+        end: parsed.end ? new Date(parsed.end) : undefined,
+      };
+    } catch {
+      return { start: undefined, end: undefined };
+    }
+  };
+  const initialEnquiryRange = readStoredRange(ENQUIRY_DATE_LS_KEY);
+  const initialTopRange = readStoredRange(TOP_DATE_LS_KEY);
+  const [startDate, setStartDate] = useState<Date | undefined>(initialEnquiryRange.start);
+  const [endDate, setEndDate] = useState<Date | undefined>(initialEnquiryRange.end);
   const [statusFilter, setStatusFilter] = useState<QueryStatus | "all">("all");
   const [lostReasonFilter, setLostReasonFilter] = useState<LostReason | null>(null);
   const [slaStatusFilter, setSlaStatusFilter] = useState<string>("all");
@@ -108,8 +127,35 @@ const Index = () => {
   const [leadFilter, setLeadFilter] = useState<"all" | LeadTemperature | "mega">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [appliedSearch, setAppliedSearch] = useState<string>("");
-  const [topStartDate, setTopStartDate] = useState<Date | undefined>(undefined);
-  const [topEndDate, setTopEndDate] = useState<Date | undefined>(undefined);
+  const [topStartDate, setTopStartDate] = useState<Date | undefined>(initialTopRange.start);
+  const [topEndDate, setTopEndDate] = useState<Date | undefined>(initialTopRange.end);
+  // Persist ranges whenever they change.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        ENQUIRY_DATE_LS_KEY,
+        JSON.stringify({
+          start: startDate ? startDate.toISOString() : null,
+          end: endDate ? endDate.toISOString() : null,
+        }),
+      );
+    } catch {
+      /* ignore quota / privacy-mode errors */
+    }
+  }, [startDate, endDate]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        TOP_DATE_LS_KEY,
+        JSON.stringify({
+          start: topStartDate ? topStartDate.toISOString() : null,
+          end: topEndDate ? topEndDate.toISOString() : null,
+        }),
+      );
+    } catch {
+      /* ignore quota / privacy-mode errors */
+    }
+  }, [topStartDate, topEndDate]);
   const clearTopDateFilter = () => {
     setTopStartDate(undefined);
     setTopEndDate(undefined);
