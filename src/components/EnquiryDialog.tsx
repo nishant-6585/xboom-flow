@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useMemo } from "react";
 import { LeadMeetingsPanel } from "@/components/meetings/LeadMeetingsPanel";
 import { EnquiryMessageThread } from "@/components/enquiry/EnquiryMessageThread";
 import {
@@ -190,7 +189,7 @@ export function EnquiryDialog({
     const success = await onSubmitResponse(
       enquiry.id, 
       status, 
-      response, 
+      { ...response, notes: enquiry.response_notes || undefined },
       status === "order_lost" ? (lostReason as LostReason) : undefined,
       status === "order_lost" ? lostReasonNotes : undefined
     );
