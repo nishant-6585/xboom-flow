@@ -1573,7 +1573,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             )}
 
             {isWebsiteOrder && (
-              <OrderAttributionPanel internalOrderId={order.id} isMirroredAndPaid />
+              <div id="order-attribution-panel" data-attribution-panel>
+                <OrderAttributionPanel internalOrderId={order.id} isMirroredAndPaid />
+              </div>
             )}
 
             {/* Order Details - Customer Info */}
@@ -1746,7 +1748,28 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Sales:</span>
-                      {editingSalesPerson && isAdmin ? (
+                      {isWebsiteOrder ? (
+                        <>
+                          <span className="font-medium">
+                            {salesPersonName || order.sales_person_name || 'Unattributed'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const el = document.getElementById('order-attribution-panel');
+                              if (el) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                const focusable = el.querySelector<HTMLElement>('button, [role="button"], input, select, a');
+                                focusable?.focus?.();
+                              }
+                            }}
+                            className="text-xs text-muted-foreground italic hover:text-foreground underline underline-offset-2"
+                            title="Sales attribution for website orders is managed in the Sales attribution panel"
+                          >
+                            Change via Sales attribution ↑
+                          </button>
+                        </>
+                      ) : editingSalesPerson && isAdmin ? (
                         <>
                           <Select
                             value={salesPersonId ?? undefined}
