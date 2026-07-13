@@ -21,6 +21,7 @@ export function mapWooStatusToInternal(wooStatus: string): string {
 
 import { sendEmail as sendMailSeam } from "./email.ts";
 import { ensurePortalInvite } from "./portal-invite.ts";
+import { decideWooMirrorAction } from "./woo-mirror-gates.ts";
 
 /**
  * Pull tracking number + URL out of a Woo order payload. Looks at the
@@ -527,12 +528,18 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
         .eq("id", internalId)
         .maybeSingle();
       const isNew = !existing;
-      if (freshOrder && wooStatus !== "cancelled" && freshOrder.customer_email) {
-        // Drone / drone-combo orders: DB trigger flipped requires_confirmation
-        // + confirmation_status='pending'. Fire the confirm-your-order email
-        // (kyc-handler still gates KYC onboarding by drone check internally).
-        if (freshOrder.requires_confirmation === true && freshOrder.confirmation_status === "pending") {
-          // Fire-and-forget kyc onboarding — drone-gated inside kyc-handler.
+      if (freshOrder) {
+        // Single-source gate: see woo-mirror-gates.ts for the truth table.
+        const action = decideWooMirrorAction({
+          order: {
+            requires_confirmation: freshOrder.requires_confirmation,
+            confirmation_status: freshOrder.confirmation_status,
+            customer_email: freshOrder.customer_email,
+          },
+          wooStatus,
+          isNew,
+        });
+        if (action === "send_confirmation") {
           if (isNew) {
             try {
               // deno-lint-ignore no-explicit-any
@@ -542,12 +549,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
             } catch (e) { console.error("[woo-mirror] kyc onboard invoke threw:", e); }
           }
           await invokeCustomerConfirmationFn(freshOrder.id);
-        } else if (isNew && freshOrder.requires_confirmation === false) {
-          // Non-drone website order: no confirmation ask. Still onboard the
-          // customer to the portal so they can track their order — plain
-          // welcome / activation email, no confirm-your-order content.
-          // Idempotent: ensurePortalInvite short-circuits when an activated
-          // portal user already exists.
+        } else if (action === "send_portal_welcome") {
           try {
             await sendPortalWelcomeIfNeeded(supabase, {
               id: freshOrder.id,
