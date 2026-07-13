@@ -52,12 +52,18 @@ function lastSeenKey(userId: string | undefined) {
   return `xboom:lead-inbox:last-seen:${userId ?? "anon"}`;
 }
 
-export function UnifiedLeadInbox() {
+interface UnifiedLeadInboxProps {
+  /** Pre-selected sources. When provided, the source filter chips are hidden and only these sources are queried. */
+  sources?: LeadSource[];
+}
+
+export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const { currentlyUnavailable } = useTeamAvailability();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [selectedSources, setSelectedSources] = useState<LeadSource[]>([]);
+  const isLockedSource = sources && sources.length > 0;
+  const [selectedSources, setSelectedSources] = useState<LeadSource[]>(sources ?? []);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -72,6 +78,11 @@ export function UnifiedLeadInbox() {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(lastSeenKey(user?.id));
   });
+
+  // Keep locked source in sync if prop changes
+  useEffect(() => {
+    if (isLockedSource) setSelectedSources(sources ?? []);
+  }, [sources?.join(",")]);
 
   // Debounce search
   useEffect(() => {
