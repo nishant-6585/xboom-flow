@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { formatDistanceToNow, formatDistance } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
+import { recordAuditLog } from "@/lib/auditLog";
 
 interface Props {
   enquiryId: string;
@@ -20,11 +21,26 @@ function parseCooldown(msg: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// Friendly duration like "1h 23m", "23m", or "less than a minute".
+export function formatRemaining(ms: number): string {
+  if (ms <= 0) return "now";
+  const totalMinutes = Math.floor(ms / 60_000);
+  if (totalMinutes < 1) return "less than a minute";
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
 export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus, visible }: Props) {
+  const { user, profile } = useAuth();
   const [lastNudgeAt, setLastNudgeAt] = useState<string | null>(null);
   const [lastMessageAt, setLastMessageAt] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  // Server-reported next-allowed cooldown time (from nudge_cooldown errors).
+  const [serverCooldownEndsAt, setServerCooldownEndsAt] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     const { data } = await supabase
@@ -51,6 +67,7 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
         () => refresh()
       )
       .subscribe();
+    // Tick every 30s so the friendly countdown updates as time passes.
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => {
       supabase.removeChannel(ch);
@@ -62,10 +79,11 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
 
   const referenceMs = new Date(lastMessageAt ?? enquiryCreatedAt).getTime();
   const stale = now - referenceMs > 2 * 60 * 60 * 1000;
-  const cooldownEndsAt = lastNudgeAt ? new Date(lastNudgeAt).getTime() + 4 * 60 * 60 * 1000 : 0;
+  const localCooldownEndsAt = lastNudgeAt ? new Date(lastNudgeAt).getTime() + 4 * 60 * 60 * 1000 : 0;
+  // Prefer the server-reported cooldown when it's later than the local estimate.
+  const cooldownEndsAt = Math.max(localCooldownEndsAt, serverCooldownEndsAt ?? 0);
   const inCooldown = cooldownEndsAt > now;
 
-  const ready = stale && !inCooldown;
   const preThreshold = !stale && !inCooldown;
   const disabled = sending || inCooldown || preThreshold;
 
@@ -77,9 +95,10 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
     if (error) {
       if (error.message?.includes("nudge_cooldown")) {
         const next = parseCooldown(error.message);
+        if (next) setServerCooldownEndsAt(next.getTime());
         toast.error(
           next
-            ? `You can nudge again ${formatDistanceToNow(next, { addSuffix: true })}`
+            ? `You can nudge again in ${formatRemaining(next.getTime() - Date.now())}`
             : "Nudge on cooldown — try again later"
         );
       } else if (error.message?.includes("not_waiting_on_supply")) {
@@ -93,6 +112,13 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
       return;
     }
     toast.success("Supply chain nudged");
+    // Fire-and-forget audit log for the successful nudge.
+    if (user?.id) {
+      void recordAuditLog(user.id, profile?.full_name ?? user.email ?? "unknown", {
+        action: "enquiry_nudge_sent",
+        details: { enquiry_id: enquiryId },
+      });
+    }
     refresh();
   };
 
@@ -104,6 +130,8 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
       className="h-7 text-xs gap-1"
       onClick={handleClick}
       disabled={disabled}
+      data-testid="enquiry-nudge-button"
+      data-state={preThreshold ? "pre-threshold" : inCooldown ? "cooldown" : "ready"}
     >
       <span>👋</span>
       <span>Nudge supply chain</span>
@@ -111,13 +139,14 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
   );
 
   if (preThreshold) {
-    const nudgeAvailableAt = new Date(referenceMs + 2 * 60 * 60 * 1000);
+    const nudgeAvailableAt = referenceMs + 2 * 60 * 60 * 1000;
+    const remaining = formatRemaining(nudgeAvailableAt - now);
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild><span>{btn}</span></TooltipTrigger>
           <TooltipContent>
-            Nudge available in {formatDistance(now, nudgeAvailableAt)} — supply chain gets 2h to respond before nudging
+            Nudge available in {remaining} — supply chain gets 2h to respond before nudging
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -125,13 +154,14 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
   }
 
   if (inCooldown) {
-    const cooldownEnd = new Date(cooldownEndsAt);
+    const remaining = formatRemaining(cooldownEndsAt - now);
+    const nextAllowed = new Date(cooldownEndsAt);
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild><span>{btn}</span></TooltipTrigger>
           <TooltipContent>
-            You can nudge again {formatDistanceToNow(cooldownEnd, { addSuffix: true })}
+            You can nudge again in {remaining} (at {nextAllowed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
