@@ -27,8 +27,22 @@ BEGIN
     'DJI Air 3S must match brand-scoped "air N"';
   ASSERT public.is_drone_product('GEPRC SPEEDX2 0802 Brushless Motor 17000KV', NULL) = false,
     'FPV motor part must not be a drone';
-  ASSERT public.is_drone_product('DJI Battery Charging Hub for Mavic 3', NULL) = true,
-    'Explicit "mavic" model token beats charging-hub wording per policy';
+  -- Accessory-FOR-model false-positive class (bug fixed 2026-07-13):
+  -- when a component/accessory word is present AND the model token appears
+  -- after "for", the model-bypass is suppressed and the item is NOT a drone.
+  ASSERT public.is_drone_product('DJI Battery Charging Hub for Avata', NULL) = false,
+    'Charging hub FOR Avata is an accessory, not a drone';
+  ASSERT public.is_drone_product('DJI Battery Charging Hub for Mavic 3', NULL) = false,
+    'Charging hub FOR Mavic 3 is an accessory, not a drone';
+  ASSERT public.is_drone_product('ND Filter for Mavic 3', NULL) = false,
+    'ND filter FOR Mavic 3 is an accessory, not a drone';
+  ASSERT public.is_drone_product('Landing gear for Matrice 350', NULL) = false,
+    'Landing gear FOR Matrice 350 is an accessory, not a drone';
+  -- Combos: model token is the SUBJECT (not after "for") → still a drone.
+  ASSERT public.is_drone_product('DJI Avata 2 Fly More Combo', NULL) = true,
+    'DJI Avata 2 Fly More Combo is a drone (model is subject, not after "for")';
+  ASSERT public.is_drone_product('DJI Mavic 3 Fly More Combo (with Smart Controller)', NULL) = true,
+    'DJI Mavic 3 Fly More Combo remains a drone despite "Controller" component word';
   ASSERT public.is_drone_product(NULL, 'Batteries') = false,
     'Bare category "Batteries" is not a drone';
   ASSERT public.is_drone_product(NULL, 'Consumer Drones') = true,
