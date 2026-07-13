@@ -63,23 +63,31 @@ export default function PortalActivate() {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
-      // Wait for the portal_contacts row to be linked & readable before
-      // navigating — PortalProtectedRoute will bounce us back to /portal/login
-      // if it renders while `contact` is still null. onAuthStateChange fires
-      // asynchronously, so setSession returning is NOT proof the hydrate has
-      // completed. Poll up to ~5s.
+      // Wait for the session to be visible AND for portal_contacts hydration
+      // to succeed before navigating — PortalProtectedRoute bounces to
+      // /portal/login if it renders while `contact` is null. onAuthStateChange
+      // is async, so setSession returning is not proof hydrate has finished.
+      const sessionRes = await supabase.auth.getSession();
+      const uid = sessionRes.data.session?.user?.id;
+      if (!uid) {
+        setErr("Sign-in succeeded but the session did not persist. Please open the portal login page and sign in with your new password.");
+        return;
+      }
       const deadline = Date.now() + 5000;
-      // Kick off an explicit hydrate; then confirm the contact row is visible.
-      // eslint-disable-next-line no-await-in-loop
+      let contactRow: { id: string } | null = null;
       while (Date.now() < deadline) {
         const { data: c } = await supabase
           .from("portal_contacts")
           .select("id")
-          .eq("auth_user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+          .eq("auth_user_id", uid)
           .eq("is_active", true)
           .maybeSingle();
-        if (c) break;
+        if (c) { contactRow = c as { id: string }; break; }
         await new Promise((r) => setTimeout(r, 200));
+      }
+      if (!contactRow) {
+        setErr("Your account is set up but portal access hasn't finished linking. Please refresh the page in a moment, or contact your account manager if this persists.");
+        return;
       }
       await refresh();
     }
