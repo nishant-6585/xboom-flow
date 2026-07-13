@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { LeadMeetingsPanel } from "@/components/meetings/LeadMeetingsPanel";
 import { EnquiryMessageThread } from "@/components/enquiry/EnquiryMessageThread";
 import {
@@ -69,11 +70,11 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
-    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [escalateDialogOpen, setEscalateDialogOpen] = useState(false);
+  const [unsavedDialogOpen, setUnsavedDialogOpen] = useState(false);
   const [escalationReason, setEscalationReason] = useState("");
   const [adminResponseText, setAdminResponseText] = useState("");
   const [lostReason, setLostReason] = useState<LostReason | "">("");
@@ -89,7 +90,6 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
-        notes: enquiry.response_notes || "",
       });
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
@@ -107,6 +107,35 @@ export function EnquiryDialog({
   }, [enquiry?.id, open]);
 
   if (!enquiry) return null;
+
+  // Track unsaved changes across the editable form fields.
+  const initialSnapshot = {
+    status: enquiry.status,
+    pricing: enquiry.response_pricing || "",
+    availability: enquiry.response_availability || "",
+    leadTime: enquiry.response_lead_time || "",
+    adminResponseText: enquiry.admin_response || "",
+    lostReason: enquiry.lost_reason || "",
+    lostReasonNotes: enquiry.lost_reason_notes || "",
+  };
+  const isDirty =
+    status !== initialSnapshot.status ||
+    response.pricing !== initialSnapshot.pricing ||
+    response.availability !== initialSnapshot.availability ||
+    response.leadTime !== initialSnapshot.leadTime ||
+    adminResponseText !== initialSnapshot.adminResponseText ||
+    (status === "order_lost" && (
+      lostReason !== initialSnapshot.lostReason ||
+      lostReasonNotes !== initialSnapshot.lostReasonNotes
+    ));
+
+  const requestClose = () => {
+    if (isDirty) {
+      setUnsavedDialogOpen(true);
+    } else {
+      onOpenChange(false);
+    }
+  };
 
   const canRespond = role === "supply_chain" || role === "admin";
   const canDelete = role === "admin";
@@ -205,7 +234,16 @@ export function EnquiryDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next && isDirty) {
+            setUnsavedDialogOpen(true);
+            return;
+          }
+          onOpenChange(next);
+        }}
+      >
         <DialogContent className="max-w-2xl glass max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
