@@ -4960,6 +4960,7 @@ export type Database = {
           created_at: string
           enquiry_id: string
           id: string
+          is_initial: boolean
           is_read: boolean
           message: string
           sender_id: string
@@ -4971,6 +4972,7 @@ export type Database = {
           created_at?: string
           enquiry_id: string
           id?: string
+          is_initial?: boolean
           is_read?: boolean
           message: string
           sender_id: string
@@ -4982,6 +4984,7 @@ export type Database = {
           created_at?: string
           enquiry_id?: string
           id?: string
+          is_initial?: boolean
           is_read?: boolean
           message?: string
           sender_id?: string

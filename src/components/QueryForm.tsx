@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnquiryFormData, UrgencyLevel, PRODUCT_CATEGORIES, ProductCategory } from "@/hooks/useEnquiries";
-import { Send, Package, User, Building2, Loader2, Calendar, Target, Zap, ChevronRight, Check, AlertCircle } from "lucide-react";
+import { Send, Package, User, Building2, Loader2, Calendar, Target, Zap, ChevronRight, Check, AlertCircle, MessageSquare } from "lucide-react";
 import { ProductSelect } from "@/components/ProductSelect";
 import { PricelistItem } from "@/hooks/usePricelist";
 import { cn } from "@/lib/utils";
@@ -109,6 +109,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
     purposeOfPurchase: "",
     leadSource: "",
     followupNote: "",
+    initialMessage: "",
   });
 
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
@@ -123,11 +124,12 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
     }
 
     setLoading(true);
-    // Include purpose of purchase in notes
-    const notesWithPurpose = formData.purposeOfPurchase 
-      ? `Purpose: ${formData.purposeOfPurchase}${formData.notes ? ` | ${formData.notes}` : ''}`
-      : formData.notes;
-    
+    // Purpose-of-purchase remains the sole content of enquiries.notes.
+    // The free-text goes to the discussion thread as the initial message.
+    const notesWithPurpose = formData.purposeOfPurchase
+      ? `Purpose: ${formData.purposeOfPurchase}`
+      : "";
+
     const success = await onSubmit({ ...formData, notes: notesWithPurpose });
     setLoading(false);
 
@@ -145,6 +147,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
         purposeOfPurchase: "",
         leadSource: "",
         followupNote: "",
+        initialMessage: "",
       });
       setCurrentStep(1);
     }
@@ -419,16 +422,24 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Additional Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Any additional information for the supply chain team..."
-                    rows={3}
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    disabled={loading}
-                    className="bg-background resize-none"
-                  />
+                  <Label htmlFor="initialMessage" className="flex items-center gap-1">
+                    <MessageSquare className="w-4 h-4 text-primary" />
+                    Message to Supply Chain
+                  </Label>
+                  <div className="rounded-lg border border-border bg-muted/30 p-2">
+                    <Textarea
+                      id="initialMessage"
+                      placeholder="Type your question or context for the supply chain team..."
+                      rows={3}
+                      value={formData.initialMessage || ""}
+                      onChange={(e) => setFormData({ ...formData, initialMessage: e.target.value })}
+                      disabled={loading}
+                      className="bg-background resize-none border-0 focus-visible:ring-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This starts the discussion thread on the enquiry. Optional.
+                  </p>
                 </div>
 
                 {/* Summary Section */}
@@ -448,6 +459,15 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                       <>
                         <div className="text-muted-foreground">Purpose:</div>
                         <div className="font-medium">{formData.purposeOfPurchase}</div>
+                      </>
+                    )}
+                    {formData.initialMessage && formData.initialMessage.trim() && (
+                      <>
+                        <div className="text-muted-foreground">Message:</div>
+                        <div className="font-medium italic truncate">
+                          {formData.initialMessage.trim().slice(0, 100)}
+                          {formData.initialMessage.trim().length > 100 ? "…" : ""}
+                        </div>
                       </>
                     )}
                     <div className="text-muted-foreground">Urgency:</div>

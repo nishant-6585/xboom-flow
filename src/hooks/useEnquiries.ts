@@ -127,6 +127,8 @@ export interface EnquiryFormData {
   isMegaDeal?: boolean;
   leadSource?: string | null;
   followupNote?: string | null;
+  /** Optional free-text message that becomes the first entry in the enquiry's discussion thread. */
+  initialMessage?: string;
 }
 
 export interface EnquiryResponse {
@@ -204,7 +206,7 @@ export function useEnquiries() {
     }
 
     try {
-      const { error } = await supabase.from("enquiries").insert({
+      const { data: inserted, error } = await supabase.from("enquiries").insert({
         product_name: formData.productName,
         product_code: formData.productCode,
         product_category: formData.productCategory,
@@ -223,9 +225,32 @@ export function useEnquiries() {
         followup_note: formData.followupNote || null,
         followup_note_updated_at: formData.followupNote ? new Date().toISOString() : null,
         followup_note_updated_by_name: formData.followupNote ? profile.name : null,
-      });
+      }).select("id").single();
 
       if (error) throw error;
+
+      // If salesperson typed a message to supply chain, seed it as the first
+      // entry in the discussion thread. A failure here MUST NOT fail the
+      // enquiry creation itself.
+      const initialMessage = (formData.initialMessage || "").trim();
+      if (inserted?.id && initialMessage) {
+        const { error: msgError } = await supabase.from("enquiry_messages").insert({
+          enquiry_id: inserted.id,
+          sender_id: user.id,
+          sender_name: profile.name,
+          sender_role: role || "sales",
+          message: initialMessage,
+          is_initial: true,
+        });
+        if (msgError) {
+          console.error("Failed to seed initial enquiry message:", msgError);
+          toast({
+            title: "Enquiry created — message not posted",
+            description: "Your enquiry was submitted but the initial message could not be added to the thread. You can post it from the enquiry details.",
+            variant: "destructive",
+          });
+        }
+      }
 
       toast({
         title: "Enquiry Submitted",

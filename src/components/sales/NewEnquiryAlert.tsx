@@ -30,6 +30,7 @@ type NewEnquiry = {
   sales_person_name: string | null;
   requested_timeline: string | null;
   created_at: string;
+  initial_message?: string | null;
 };
 
 function loadAcks(): Record<string, true> {
@@ -54,6 +55,26 @@ export function NewEnquiryAlert() {
   const [queue, setQueue] = useState<NewEnquiry[]>([]);
   const [current, setCurrent] = useState<NewEnquiry | null>(null);
   const seenRef = useRef<Set<string>>(new Set());
+
+  // Fetch initial thread message when the current enquiry changes so it
+  // can be surfaced to supply chain before they open the dialog.
+  useEffect(() => {
+    if (!current || current.initial_message !== undefined) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("enquiry_messages")
+        .select("message")
+        .eq("enquiry_id", current.id)
+        .eq("is_initial", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      setCurrent((c) => (c && c.id === current.id ? { ...c, initial_message: data?.message ?? null } : c));
+    })();
+    return () => { cancelled = true; };
+  }, [current]);
 
   const isSupplyChain = roles?.includes("supply_chain");
 
@@ -219,6 +240,18 @@ export function NewEnquiryAlert() {
               <p className="text-xs text-foreground/80 whitespace-pre-wrap">
                 {current.notes}
               </p>
+            )}
+            {current.initial_message && (
+              <div className="rounded-md border-l-2 border-primary bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground mb-1">
+                  Message from {current.sales_person_name ?? "sales"}:
+                </p>
+                <p className="text-sm italic text-foreground/90 whitespace-pre-wrap">
+                  &ldquo;{current.initial_message.length > 200
+                    ? current.initial_message.slice(0, 200) + "…"
+                    : current.initial_message}&rdquo;
+                </p>
+              </div>
             )}
           </div>
 
