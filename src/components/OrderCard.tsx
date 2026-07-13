@@ -25,7 +25,7 @@ const paymentStatusConfig: Record<PaymentStatus, { label: string; className: str
   full: { label: 'Paid in Full', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200/50' },
 };
 
-const outcomeConfig: Record<OrderOutcome, { label: string; className: string; icon: React.ComponentType<{ className?: string }> | null }> = {
+const outcomeConfig: Record<OrderOutcome, { label: string; className: string; icon: ComponentType<{ className?: string }> | null }> = {
   pending: { label: 'Pending', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400', icon: null },
   won: { label: 'Won', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400', icon: Trophy },
   lost: { label: 'Lost', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
