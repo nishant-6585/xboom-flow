@@ -4,6 +4,8 @@
  * `woocommerce-orders-backfill` (cron / manual).
  */
 
+import { htmlToLabel } from "./sanitize-html-label.ts";
+
 // Map WooCommerce status -> internal orders.status enum value
 export function mapWooStatusToInternal(wooStatus: string): string {
   switch (wooStatus) {
@@ -295,7 +297,10 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     amount_paid: isPaid ? totalAmount : 0,
     payment_status: isPaid ? "full" : "pending",
     shipping_address: shippingAddress,
-    payment_terms: payload?.payment_method_title || payload?.payment_method || null,
+    payment_terms:
+      htmlToLabel(payload?.payment_method_title, payload?.payment_method as string | null) ||
+      (payload?.payment_method as string | null) ||
+      null,
     lead_source: "website",
     order_type: "prepaid",
     status: internalStatus,

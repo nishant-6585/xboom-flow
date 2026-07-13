@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
+import { stripHtmlLabel } from '@/lib/stripHtml';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check, Phone, Mail, Globe, RefreshCw, Plus } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { LeadSourceBadge } from '@/components/LeadSourceBadge';
@@ -337,7 +338,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setTotalSalesAmount(order.total_sales_amount?.toString() || '');
       setDiscountAmount(order.discount_amount?.toString() || '');
       setAmountPaid(order.amount_paid?.toString() || '');
-      setPaymentTerms(order.payment_terms || '');
+      setPaymentTerms(stripHtmlLabel(order.payment_terms) || '');
       setTrackingNumber(order.tracking_number || '');
       setTrackingUrl(order.tracking_url || '');
       setCourierName((order as any).courier_name || '');
@@ -2444,12 +2445,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <p className="font-medium text-orange-600">₹{balanceAmount?.toLocaleString('en-IN')}</p>
                     </div>
                   )}
-                  {(paymentTerms || order.payment_terms) && (
-                    <div className="col-span-2 md:col-span-4">
-                      <span className="text-muted-foreground">Terms:</span>
-                      <p className="font-medium">{paymentTerms || order.payment_terms}</p>
-                    </div>
-                  )}
+                   {(paymentTerms || order.payment_terms) && (
+                     <div className="col-span-2 md:col-span-4">
+                       <span className="text-muted-foreground">Terms:</span>
+                       <p className="font-medium">{stripHtmlLabel(paymentTerms || order.payment_terms)}</p>
+                     </div>
+                   )}
                 </div>
               )}
 
