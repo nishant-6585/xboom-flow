@@ -146,6 +146,8 @@ export default function OrdersListTab(props: OrdersListTabProps) {
 
   const [kycFilter, setKycFilter] = useState<KycFilter>('all');
   const [kycMap, setKycMap] = useState<Record<string, KycInfo>>({});
+  const [bulkReassignOpen, setBulkReassignOpen] = useState(false);
+  const canAttributeWebsite = useCanAttributeWebsiteOrder();
 
   // Fetch KYC status for currently-loaded manual orders.
   const orderIdsKey = useMemo(
