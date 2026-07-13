@@ -17252,16 +17252,10 @@ export type Database = {
       }
       cleanup_expired_devices: { Args: never; Returns: undefined }
       cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
-      clear_false_positive_confirmation_flags:
-        | {
-            Args: never
-            Returns: {
-              item_count: number
-              order_id: string
-              order_number: string
-            }[]
-          }
-        | { Args: { p_triggered_by?: string }; Returns: string }
+      clear_false_positive_confirmation_flags: {
+        Args: { p_triggered_by?: string }
+        Returns: string
+      }
       clear_order_confirmation_flag_manual: {
         Args: { p_order_id: string; p_reason: string }
         Returns: undefined

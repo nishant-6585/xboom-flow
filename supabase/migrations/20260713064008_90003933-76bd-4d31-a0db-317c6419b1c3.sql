@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.clear_false_positive_confirmation_flags();
