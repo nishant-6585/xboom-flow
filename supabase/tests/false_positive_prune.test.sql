@@ -22,13 +22,19 @@ DECLARE
   v_drone_flag    boolean;
   v_acc_flag      boolean;
   v_empty_flag    boolean;
+  v_actor         uuid;
 BEGIN
+  SELECT id INTO v_actor FROM auth.users LIMIT 1;
+  IF v_actor IS NULL THEN v_actor := gen_random_uuid(); END IF;
+
   -- Seed a drone order (Mavic 3 Pro combo)
   INSERT INTO public.orders (
-    id, order_number, product_name, quantity, customer_name,
+    id, order_number, product_name, product_code, quantity, customer_name,
+    sales_person_id, sales_person_name, created_by,
     requires_confirmation, confirmation_status, source, status, created_at
   ) VALUES (
-    v_drone_order, 'FPT-DRONE-1', 'DJI Mavic 3 Pro Fly More Combo', 1, 'Test Drone Cust',
+    v_drone_order, 'FPT-DRONE-1', 'DJI Mavic 3 Pro Fly More Combo', 'FPT-DRONE-SKU', 1, 'Test Drone Cust',
+    v_actor, 'Test Sales', v_actor,
     true, 'pending', 'website', 'po_received', now() - interval '2 days'
   );
   INSERT INTO public.order_items (order_id, product_name, product_category, quantity)
@@ -36,10 +42,12 @@ BEGIN
 
   -- Seed an accessory-only order (charging hub FOR Avata — false positive class)
   INSERT INTO public.orders (
-    id, order_number, product_name, quantity, customer_name,
+    id, order_number, product_name, product_code, quantity, customer_name,
+    sales_person_id, sales_person_name, created_by,
     requires_confirmation, confirmation_status, source, status, created_at
   ) VALUES (
-    v_accessory_ord, 'FPT-ACC-1', 'DJI Battery Charging Hub for Avata', 1, 'Test Acc Cust',
+    v_accessory_ord, 'FPT-ACC-1', 'DJI Battery Charging Hub for Avata', 'FPT-ACC-SKU', 1, 'Test Acc Cust',
+    v_actor, 'Test Sales', v_actor,
     true, 'pending', 'website', 'po_received', now() - interval '2 days'
   );
   INSERT INTO public.order_items (order_id, product_name, product_category, quantity)
@@ -47,10 +55,12 @@ BEGIN
 
   -- Seed an order with no items (should be skipped)
   INSERT INTO public.orders (
-    id, order_number, product_name, quantity, customer_name,
+    id, order_number, product_name, product_code, quantity, customer_name,
+    sales_person_id, sales_person_name, created_by,
     requires_confirmation, confirmation_status, source, status, created_at
   ) VALUES (
-    v_empty_order, 'FPT-EMPTY-1', 'Unknown Product', 1, 'Test Empty Cust',
+    v_empty_order, 'FPT-EMPTY-1', 'Unknown Product', 'FPT-EMPTY-SKU', 1, 'Test Empty Cust',
+    v_actor, 'Test Sales', v_actor,
     true, 'pending', 'website', 'po_received', now() - interval '2 days'
   );
 
