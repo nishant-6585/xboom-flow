@@ -17195,6 +17195,7 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      assert_gmail_integrations_grants: { Args: never; Returns: undefined }
       assign_lead_with_sticky: {
         Args: { _email: string; _form_type?: string; _phone: string }
         Returns: Record<string, unknown>
@@ -17240,6 +17241,14 @@ export type Database = {
           p_sales_person_id: string
         }
         Returns: undefined
+      }
+      audit_gmail_integrations_grants: {
+        Args: never
+        Returns: {
+          check_name: string
+          detail: string
+          ok: boolean
+        }[]
       }
       auto_assign_woo_leads: { Args: never; Returns: number }
       available_website_lead_assignees: {

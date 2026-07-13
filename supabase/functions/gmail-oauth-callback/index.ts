@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { encryptToken } from "../_shared/token-encryption.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -208,8 +209,8 @@ Deno.serve(async (req) => {
           {
             user_id: state.user_id,
             email: gmailEmail,
-            access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token || "",
+            access_token: await encryptToken(tokenData.access_token),
+            refresh_token: await encryptToken(tokenData.refresh_token || ""),
             token_expiry: tokenData.expires_in
               ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
               : null,
@@ -231,8 +232,8 @@ Deno.serve(async (req) => {
           await supabase
             .from("gmail_integrations")
             .update({
-              access_token: tokenData.access_token,
-              refresh_token: tokenData.refresh_token || existing.id, // keep old if not returned
+              access_token: await encryptToken(tokenData.access_token),
+              refresh_token: await encryptToken(tokenData.refresh_token || ""),
               token_expiry: tokenData.expires_in
                 ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
                 : null,
@@ -243,8 +244,8 @@ Deno.serve(async (req) => {
           await supabase.from("gmail_integrations").insert({
             user_id: state.user_id,
             email: gmailEmail,
-            access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token || "",
+            access_token: await encryptToken(tokenData.access_token),
+            refresh_token: await encryptToken(tokenData.refresh_token || ""),
             token_expiry: tokenData.expires_in
               ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
               : null,
