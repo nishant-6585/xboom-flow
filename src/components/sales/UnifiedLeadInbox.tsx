@@ -15,10 +15,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck,
+  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck, Eye,
   Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { LeadRowActions } from "./LeadRowActions";
 import { DispositionBadge } from "./DispositionBadge";
