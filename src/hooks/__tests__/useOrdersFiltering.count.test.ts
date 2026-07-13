@@ -7,6 +7,7 @@ import { describe, it, expect } from "vitest";
 import { useOrdersFiltering, type UseOrdersFilteringArgs } from "../useOrdersFiltering";
 import type { Order } from "../useOrders";
 import type { WooCommerceOrder } from "../useWooCommerceOrders";
+import { SYSTEM_USER_ID } from "@/lib/orderSource";
 
 const baseArgs = (
   orders: Order[],
@@ -57,6 +58,7 @@ const mkOrder = (o: Partial<Order>): Order =>
     amount_paid: o.amount_paid ?? 1000,
     source: o.source ?? "manual",
     external_id: o.external_id ?? null,
+    sales_person_id: o.sales_person_id ?? "rep-1",
     ...o,
   }) as unknown as Order;
 
@@ -91,29 +93,32 @@ describe("useOrdersFiltering — website_auto count matches list length", () => 
           source: "website",
           external_id: "W2",
           payment_status: "full",
+          sales_person_id: SYSTEM_USER_ID,
         }),
       ],
       woo: [],
     },
     {
       name: "mirror suppresses matching live-feed row",
-      orders: [mkOrder({ source: "website", external_id: "W3" })],
+      orders: [mkOrder({ source: "website", external_id: "W3", sales_person_id: SYSTEM_USER_ID })],
       woo: [
         mkWoo({ woo_order_id: "W3" }),
         mkWoo({ woo_order_id: "W4" }),
       ],
     },
     {
-      name: "attributed (source='manual') order still suppresses its Woo feed dupe",
+      name: "attributed (rep-owned) order still suppresses its Woo feed dupe and stays out of website_auto",
       orders: [mkOrder({ source: "manual", external_id: "W5" })],
       woo: [mkWoo({ woo_order_id: "W5" })],
     },
     {
-      name: "mix of manual, attributed, mirrored, and live feed",
+      name: "mix of manual, attributed, system-owned backfill, mirrored, and live feed",
       orders: [
         mkOrder({ source: "manual", external_id: null }),
         mkOrder({ source: "manual", external_id: "W6" }),
-        mkOrder({ source: "website", external_id: "W7" }),
+        mkOrder({ source: "website", external_id: "W7", sales_person_id: SYSTEM_USER_ID }),
+        // system-owned but source='manual' (older backfill) — must land in website_auto
+        mkOrder({ source: "manual", external_id: "W9", sales_person_id: SYSTEM_USER_ID }),
       ],
       woo: [mkWoo({ woo_order_id: "W6" }), mkWoo({ woo_order_id: "W8" })],
     },
