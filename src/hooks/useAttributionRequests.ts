@@ -82,7 +82,7 @@ export function useInternalOrderForAttribution(opts: {
         .select(
           'id, external_id, order_number, customer_name, total_sales_amount, sales_person_id, sales_person_name, sales_attribution_locked, sales_attribution_reason, sales_attribution_reason_custom, attributed_by_name, attributed_at',
         )
-        .eq('source', 'website')
+        .not('external_id', 'is', null)
         .limit(1);
       if (internalOrderId) q = q.eq('id', internalOrderId);
       else if (externalId) q = q.eq('external_id', String(externalId));
