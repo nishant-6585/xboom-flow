@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, MessageSquare, Loader2 } from "lucide-react";
+import { Send, MessageSquare, Loader2, HandMetal } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -18,14 +18,16 @@ interface EnquiryMessage {
   message: string;
   is_read: boolean;
   created_at: string;
+  is_nudge?: boolean;
 }
 
 interface EnquiryMessageThreadProps {
   enquiryId: string;
   onMessageSent?: () => void;
+  headerRight?: React.ReactNode;
 }
 
-export function EnquiryMessageThread({ enquiryId, onMessageSent }: EnquiryMessageThreadProps) {
+export function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight }: EnquiryMessageThreadProps) {
   const { user, profile, role } = useAuth();
   const [messages, setMessages] = useState<EnquiryMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -129,6 +131,7 @@ export function EnquiryMessageThread({ enquiryId, onMessageSent }: EnquiryMessag
         {messages.length > 0 && (
           <Badge variant="outline" className="text-xs">{messages.length}</Badge>
         )}
+        {headerRight && <div className="ml-auto">{headerRight}</div>}
       </div>
 
       <div
@@ -146,6 +149,17 @@ export function EnquiryMessageThread({ enquiryId, onMessageSent }: EnquiryMessag
         ) : (
           messages.map((msg) => {
             const isOwn = msg.sender_id === user?.id;
+            if (msg.is_nudge) {
+              return (
+                <div key={msg.id} className="flex items-center justify-center gap-1.5 py-1">
+                  <HandMetal className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[11px] text-muted-foreground italic">
+                    👋 {msg.sender_name} nudged the supply chain team ·{" "}
+                    {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                  </span>
+                </div>
+              );
+            }
             return (
               <div
                 key={msg.id}

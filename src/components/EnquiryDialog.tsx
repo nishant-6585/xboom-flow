@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { LeadMeetingsPanel } from "@/components/meetings/LeadMeetingsPanel";
 import { EnquiryMessageThread } from "@/components/enquiry/EnquiryMessageThread";
+import { EnquiryNudgeButton } from "@/components/enquiry/EnquiryNudgeButton";
 import {
   Dialog,
   DialogContent,
@@ -648,7 +649,20 @@ export function EnquiryDialog({
                 Reply here or submit quote details — either marks this enquiry as Responded.
               </p>
             )}
-            <EnquiryMessageThread enquiryId={enquiry.id} />
+            <EnquiryMessageThread
+              enquiryId={enquiry.id}
+              headerRight={
+                <EnquiryNudgeButton
+                  enquiryId={enquiry.id}
+                  enquiryCreatedAt={enquiry.created_at}
+                  enquiryStatus={enquiry.status}
+                  visible={
+                    (role === "sales" || role === "sales_manager") &&
+                    (enquiry.status === "pending" || enquiry.status === "follow_up")
+                  }
+                />
+              }
+            />
 
             <div className="flex flex-wrap justify-end gap-3">
               <Button variant="outline" onClick={requestClose}>

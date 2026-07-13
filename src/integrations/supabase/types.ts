@@ -5088,6 +5088,7 @@ export type Database = {
           enquiry_id: string
           id: string
           is_initial: boolean
+          is_nudge: boolean
           is_read: boolean
           message: string
           sender_id: string
@@ -5100,6 +5101,7 @@ export type Database = {
           enquiry_id: string
           id?: string
           is_initial?: boolean
+          is_nudge?: boolean
           is_read?: boolean
           message: string
           sender_id: string
@@ -5112,6 +5114,7 @@ export type Database = {
           enquiry_id?: string
           id?: string
           is_initial?: boolean
+          is_nudge?: boolean
           is_read?: boolean
           message?: string
           sender_id?: string
@@ -18261,6 +18264,28 @@ export type Database = {
       needs_step_up_auth: { Args: { p_user_id: string }; Returns: boolean }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_phone: { Args: { _raw: string }; Returns: string }
+      nudge_enquiry: {
+        Args: { p_enquiry_id: string }
+        Returns: {
+          created_at: string
+          enquiry_id: string
+          id: string
+          is_initial: boolean
+          is_nudge: boolean
+          is_read: boolean
+          message: string
+          sender_id: string
+          sender_name: string
+          sender_role: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "enquiry_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       order_has_drone: { Args: { p_order_id: string }; Returns: boolean }
       profiles_self_update_identity_lock: { Args: never; Returns: boolean }
       read_email_batch: {
