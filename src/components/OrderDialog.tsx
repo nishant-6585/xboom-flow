@@ -1281,8 +1281,24 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   {order.product_category}
                   <LeadSourceBadge source={order.lead_source || (order as any).source} size="sm" />
                   {(order as any).external_id && (order as any).source !== 'website' && (
-                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-muted-foreground border-muted">
-                      From website
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] h-5 px-1.5 text-amber-700 dark:text-amber-400 border-amber-500/40 bg-amber-500/10"
+                      title={(() => {
+                        const at = (order as any).attributed_at
+                          ? new Date((order as any).attributed_at).toLocaleString('en-IN')
+                          : 'unknown time';
+                        const by = (order as any).attributed_by_name || 'system';
+                        return `Normalized from WooCommerce (Vishal) — ${at} by ${by}. Direct salesperson edits are locked; use the Sales attribution panel to change credit.`;
+                      })()}
+                      aria-label="This order originated from the website feed and was normalized to a manual attribution"
+                    >
+                      Normalized from website
+                      {(order as any).attributed_at ? (
+                        <span className="ml-1 opacity-80">
+                          · {new Date((order as any).attributed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </span>
+                      ) : null}
                     </Badge>
                   )}
                   <Badge variant="outline" className="text-xs">
