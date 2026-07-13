@@ -43,6 +43,8 @@ export interface LeadContactData {
   lead_source?: string | null;
   // extra fields for display
   extras?: Record<string, string | number | boolean | null>;
+  /** Raw form payload (e.g. Facebook Lead Ads answers). */
+  payload?: Record<string, unknown> | null;
 }
 
 interface LeadContactDrawerProps {
