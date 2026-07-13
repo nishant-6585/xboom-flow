@@ -18070,6 +18070,15 @@ export type Database = {
           user_agent: string
         }[]
       }
+      list_sales_attribution_candidates: {
+        Args: never
+        Returns: {
+          email: string
+          name: string
+          role: string
+          user_id: string
+        }[]
+      }
       log_company_activity: {
         Args: {
           _amount?: number
