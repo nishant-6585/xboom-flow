@@ -543,7 +543,9 @@ export default function KycVerification() {
                         <TableCell className="text-xs align-top max-w-[220px]">
                           {effectiveStatus === "approved" || effectiveStatus === "rejected" ? (
                             <div className="flex flex-col gap-0.5">
-                              {r.document?.reviewed_by ? (
+                              {effectiveStatus === "approved" && isDigilocker ? (
+                                <span className="font-medium text-emerald-700">DigiLocker (auto)</span>
+                              ) : r.document?.reviewed_by ? (
                                 <span className="font-medium">{r.reviewer_name || "Staff"}</span>
                               ) : effectiveStatus === "approved" && r.ai_review && (r.ai_review.decision === "auto_approved" || r.ai_review.recommendation === "likely_approve") ? (
                                 <TooltipProvider delayDuration={150}>
@@ -572,8 +574,6 @@ export default function KycVerification() {
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
-                              ) : isDigilocker ? (
-                                <span className="font-medium text-emerald-700">DigiLocker (auto)</span>
                               ) : (
                                 <span className="text-muted-foreground">—</span>
                               )}
