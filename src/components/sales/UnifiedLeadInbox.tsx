@@ -408,7 +408,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                 const meta = SOURCE_META[lead.source];
                 return (
                   <Fragment key={group.key}>
-                  <TableRow>
+                  <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => openDetail(lead)}>
                     <TableCell>
                       <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
                         {meta.label}
