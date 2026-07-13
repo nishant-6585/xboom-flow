@@ -224,9 +224,8 @@ serve(async (req) => {
       }
     } else if (!order.customer_email) {
       result.email = "no_email";
-    } else if (!hasExistingPortalUser) {
-      // New customer: onboarding email (sent by kyc-handler) carries the
-      // confirmation ask, so we skip and log it for the audit trail.
+    } else if (!hasExistingPortalUser && !needsFreshInvite) {
+      // Live unused invite already exists — that email carries the ask.
       result.email = "sent_via_onboarding";
       await admin.from("order_notifications").insert({
         order_ref: order.id, order_source: "internal",
