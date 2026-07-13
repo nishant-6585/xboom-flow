@@ -1573,7 +1573,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             )}
 
             {isWebsiteOrder && (
-              <OrderAttributionPanel internalOrderId={order.id} isMirroredAndPaid />
+              <div id="order-attribution-panel" data-attribution-panel>
+                <OrderAttributionPanel internalOrderId={order.id} isMirroredAndPaid />
+              </div>
             )}
 
             {/* Order Details - Customer Info */}
