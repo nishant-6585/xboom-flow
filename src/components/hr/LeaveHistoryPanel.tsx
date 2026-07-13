@@ -164,6 +164,7 @@ export function LeaveHistoryPanel() {
                 <SelectItem value="sick">Sick Leave</SelectItem>
                 <SelectItem value="unpaid">Unpaid Leave</SelectItem>
                 <SelectItem value="wfh">WFH</SelectItem>
+                <SelectItem value="compoff">Comp-Off</SelectItem>
               </SelectContent>
             </Select>
 
