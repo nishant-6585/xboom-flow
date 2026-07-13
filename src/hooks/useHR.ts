@@ -761,6 +761,24 @@ export function useHR() {
               p_ledger_id: linkedLedger.id,
               p_comment: comments || 'Approved with leave request',
             });
+            try {
+              const { data: led } = await supabase
+                .from('compoff_ledger')
+                .select('id, employee_id, earned_date, earned_type')
+                .eq('id', linkedLedger.id)
+                .maybeSingle();
+              if (led) {
+                const { sendCompoffDecisionEmail } = await import('@/lib/compoffNotify');
+                void sendCompoffDecisionEmail({
+                  ledger_id: led.id,
+                  employee_id: led.employee_id,
+                  earned_date: led.earned_date,
+                  earned_type: led.earned_type,
+                  decision: 'approved',
+                  comment: comments || 'Approved with leave request',
+                });
+              }
+            } catch {}
           }
           await supabase
             .from('compoff_ledger')
@@ -783,6 +801,24 @@ export function useHR() {
               p_ledger_id: linkedLedger.id,
               p_reason: comments || 'Rejected with leave request',
             });
+            try {
+              const { data: led } = await supabase
+                .from('compoff_ledger')
+                .select('id, employee_id, earned_date, earned_type')
+                .eq('id', linkedLedger.id)
+                .maybeSingle();
+              if (led) {
+                const { sendCompoffDecisionEmail } = await import('@/lib/compoffNotify');
+                void sendCompoffDecisionEmail({
+                  ledger_id: led.id,
+                  employee_id: led.employee_id,
+                  earned_date: led.earned_date,
+                  earned_type: led.earned_type,
+                  decision: 'rejected',
+                  reason: comments || 'Rejected with leave request',
+                });
+              }
+            } catch {}
           }
         }
       }
