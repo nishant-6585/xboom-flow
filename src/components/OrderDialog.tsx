@@ -1276,7 +1276,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     </Button>
                   )}
                 </DialogTitle>
-                <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
+                <DialogDescription className="flex items-center gap-2 mt-3 flex-wrap">
                   {order.product_category}
                   <LeadSourceBadge source={order.lead_source || (order as any).source} size="sm" />
                   {(order as any).external_id && (order as any).source !== 'website' && (
