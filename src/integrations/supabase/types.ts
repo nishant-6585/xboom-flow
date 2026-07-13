@@ -8176,6 +8176,7 @@ export type Database = {
           phone: string | null
           role: string | null
           sector: string | null
+          source: string | null
           status: string
           subject: string | null
           submitted_at: string | null
@@ -8209,6 +8210,7 @@ export type Database = {
           phone?: string | null
           role?: string | null
           sector?: string | null
+          source?: string | null
           status?: string
           subject?: string | null
           submitted_at?: string | null
@@ -8242,6 +8244,7 @@ export type Database = {
           phone?: string | null
           role?: string | null
           sector?: string | null
+          source?: string | null
           status?: string
           subject?: string | null
           submitted_at?: string | null
