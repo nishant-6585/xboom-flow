@@ -112,6 +112,7 @@ Deno.serve(async (req) => {
     || null;
 
   const row = {
+    source:       body.source ?? null,
     form_type:    body.form_type ?? null,
     name:         body.name ?? null,
     email:        email || null,
