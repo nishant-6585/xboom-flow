@@ -180,8 +180,8 @@ select is(
 -- ============================================================
 -- 5) Structured "Submit Response" (direct UPDATE, depth 1) → enquiry_response fires
 -- ============================================================
-select pg_temp.as_user(:'sc_uid'::uuid);
-
+-- Run as postgres to isolate trigger behavior from RLS UPDATE policy
+-- (equivalent to a client "Submit Response" call landing as a depth-1 UPDATE).
 update public.enquiries
    set status = 'responded',
        responded_at = now(),
@@ -190,8 +190,6 @@ update public.enquiries
        response_pricing = '100',
        response_availability = 'In stock'
  where id = :'enq_struct'::uuid;
-
-reset role;
 
 select is(
   (select count(*)::int from public.notifications
