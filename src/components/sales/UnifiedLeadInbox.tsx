@@ -30,6 +30,7 @@ import {
   LEAD_SOURCES,
   SOURCE_META,
   type LeadSource,
+  type UnifiedLead,
   useUnifiedLeadFeed,
   useUnifiedLeadCounts,
 } from "@/hooks/useUnifiedLeadFeed";
