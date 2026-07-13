@@ -24,7 +24,7 @@ DECLARE
   v_empty_flag    boolean;
   v_actor         uuid;
 BEGIN
-  SELECT id INTO v_actor FROM auth.users LIMIT 1;
+  SELECT id INTO v_actor FROM public.profiles LIMIT 1;
   IF v_actor IS NULL THEN v_actor := gen_random_uuid(); END IF;
 
   -- Seed a drone order (Mavic 3 Pro combo)
