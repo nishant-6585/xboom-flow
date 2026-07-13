@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
  * scanners / link previews can hit it safely). */
 export default function PortalActivate() {
   const navigate = useNavigate();
+  const { refresh } = usePortalAuth();
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -61,6 +63,25 @@ export default function PortalActivate() {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
+      // Wait for the portal_contacts row to be linked & readable before
+      // navigating — PortalProtectedRoute will bounce us back to /portal/login
+      // if it renders while `contact` is still null. onAuthStateChange fires
+      // asynchronously, so setSession returning is NOT proof the hydrate has
+      // completed. Poll up to ~5s.
+      const deadline = Date.now() + 5000;
+      // Kick off an explicit hydrate; then confirm the contact row is visible.
+      // eslint-disable-next-line no-await-in-loop
+      while (Date.now() < deadline) {
+        const { data: c } = await supabase
+          .from("portal_contacts")
+          .select("id")
+          .eq("auth_user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+          .eq("is_active", true)
+          .maybeSingle();
+        if (c) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      await refresh();
     }
     window.history.replaceState({}, "", "/portal/activate");
     navigate("/portal/dashboard", { replace: true });
