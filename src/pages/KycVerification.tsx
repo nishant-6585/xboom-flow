@@ -545,6 +545,33 @@ export default function KycVerification() {
                             <div className="flex flex-col gap-0.5">
                               {r.document?.reviewed_by ? (
                                 <span className="font-medium">{r.reviewer_name || "Staff"}</span>
+                              ) : effectiveStatus === "approved" && r.ai_review && (r.ai_review.decision === "auto_approved" || r.ai_review.recommendation === "likely_approve") ? (
+                                <TooltipProvider delayDuration={150}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="font-medium text-violet-700 inline-flex items-center gap-1 cursor-help">
+                                        <Sparkles className="h-3 w-3" /> AI (auto)
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs text-xs">
+                                      <div className="space-y-0.5">
+                                        <div>Auto-approved by AI{r.ai_review.model ? ` · ${r.ai_review.model}` : ""}</div>
+                                        {r.ai_review.ai_confidence != null && (
+                                          <div>Confidence: {(r.ai_review.ai_confidence * 100).toFixed(0)}%</div>
+                                        )}
+                                        {r.ai_review.name_match_score != null && (
+                                          <div>Name match: {(r.ai_review.name_match_score * 100).toFixed(0)}%</div>
+                                        )}
+                                        {r.ai_review.number_match != null && (
+                                          <div>Number match: {r.ai_review.number_match ? "✓" : "✗"}</div>
+                                        )}
+                                        {r.ai_review.type_match != null && (
+                                          <div>Type match: {r.ai_review.type_match ? "✓" : "✗"}</div>
+                                        )}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               ) : isDigilocker ? (
                                 <span className="font-medium text-emerald-700">DigiLocker (auto)</span>
                               ) : (
