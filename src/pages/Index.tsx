@@ -896,6 +896,13 @@ const Index = () => {
                         onEndDateChange={setEndDate}
                         onClear={clearDateFilter}
                       />
+                      <Badge
+                        variant="secondary"
+                        className="h-8 px-2 text-xs"
+                        data-testid="active-preset-label"
+                      >
+                        Active: {activePresetLabel}
+                      </Badge>
                       {(startDate || endDate) && (
                         <Button
                           variant="ghost"
