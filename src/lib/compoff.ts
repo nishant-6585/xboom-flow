@@ -32,6 +32,18 @@ export function friendlyCompoffError(raw?: string | null): string {
   if (/row-level security/i.test(msg)) {
     return 'You do not have permission to create this comp-off credit. Please contact HR.';
   }
+  if (/A rejection reason is required/i.test(msg)) {
+    return 'Please enter a reason before rejecting.';
+  }
+  if (/already rejected/i.test(msg)) {
+    return 'This credit was already rejected earlier.';
+  }
+  if (/already approved/i.test(msg)) {
+    return 'This credit is already approved and cannot be changed.';
+  }
+  if (/Only HR or Admin/i.test(msg)) {
+    return 'Only HR or Admin can review comp-off credit requests.';
+  }
   // Fallback: strip the SQL "ERROR: " prefix if present
   return msg.replace(/^ERROR:\s*/i, '');
 }
