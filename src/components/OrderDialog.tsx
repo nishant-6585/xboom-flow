@@ -1332,10 +1332,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     customerEmail={customerEmail || (order as any).customer_email}
                     orderStatus={order.status}
                   />
+                  <span className="ml-auto mr-8 inline-flex items-center">
+                    <OrderStatusBadge status={order.status} />
+                  </span>
                 </DialogDescription>
-              </div>
-              <div className="mr-8 shrink-0">
-                <OrderStatusBadge status={order.status} />
               </div>
             </div>
           </DialogHeader>
