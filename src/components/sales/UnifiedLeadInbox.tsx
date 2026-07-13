@@ -187,10 +187,19 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
-              <Inbox className="h-5 w-5 text-primary" />
+              {(() => {
+                const Icon = isLockedSource && sources?.length === 1
+                  ? SOURCE_ICON[sources[0]!]
+                  : Inbox;
+                return <Icon className="h-5 w-5 text-primary" />;
+              })()}
             </div>
             <div>
-              <h2 className="text-lg font-semibold">All Leads</h2>
+              <h2 className="text-lg font-semibold">
+                {isLockedSource && sources?.length === 1
+                  ? SOURCE_META[sources[0]!].label
+                  : "All Leads"}
+              </h2>
               <p className="text-xs text-muted-foreground">
                 {isLoading
                   ? "Loading…"
