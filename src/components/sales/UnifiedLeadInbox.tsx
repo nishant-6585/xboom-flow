@@ -548,6 +548,12 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
           </div>
         </div>
       )}
+
+      <LeadContactDrawer
+        open={!!detailLead}
+        onOpenChange={(open) => { if (!open) closeDetail(); }}
+        lead={drawerData}
+      />
     </div>
   );
 }
