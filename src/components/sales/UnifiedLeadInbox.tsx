@@ -89,6 +89,11 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [groupDupes, setGroupDupes] = useState(true);
 
+  // Detail drawer state
+  const [detailLead, setDetailLead] = useState<UnifiedLead | null>(null);
+  const [detailPayload, setDetailPayload] = useState<Record<string, unknown> | null>(null);
+
+
   // last-seen for "new since last visit" indicators
   const [lastSeen, setLastSeen] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
