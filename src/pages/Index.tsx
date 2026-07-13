@@ -595,268 +595,270 @@ const Index = () => {
             ) : (
               <>
                 {/* Filters and View Toggle */}
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <form
-                      className="flex items-center gap-2 w-full sm:w-auto"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        setAppliedSearch(searchQuery);
-                      }}
-                    >
-                      <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="search"
-                          placeholder="Search enquiries..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-8 pr-8"
-                        />
-                        {(searchQuery || appliedSearch) && (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <form
+                        className="flex items-center gap-2 w-full sm:w-auto"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          setAppliedSearch(searchQuery);
+                        }}
+                      >
+                        <div className="relative w-full sm:w-64">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="search"
+                            placeholder="Search enquiries..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-8 pr-8"
+                          />
+                          {(searchQuery || appliedSearch) && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSearchQuery("");
+                                setAppliedSearch("");
+                              }}
+                              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                              aria-label="Clear search"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        <Button type="submit" size="sm" variant="default">
+                          <Search className="h-4 w-4 mr-1" />
+                          Search
+                        </Button>
+                      </form>
+                      <div className="flex items-center gap-3">
+                        <Filter className="w-4 h-4 text-muted-foreground" />
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Filter by category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Categories</SelectItem>
+                            {PRODUCT_CATEGORIES.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as QueryStatus | "all")}>
+                        <SelectTrigger className="w-[160px]">
+                          <ListFilter className="h-4 w-4 mr-2" />
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          {ENQUIRY_STATUSES.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {canFilterBySalesPerson && (
+                        <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+                          <SelectTrigger className="w-[180px]">
+                            <User className="h-4 w-4 mr-2" />
+                            <SelectValue placeholder="Sales Person" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Sales Persons</SelectItem>
+                            {salesTeam.map((member) => (
+                              <SelectItem key={member.user_id} value={member.user_id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <Select value={leadFilter} onValueChange={(value) => setLeadFilter(value as typeof leadFilter)}>
+                        <SelectTrigger className="w-[150px]">
+                          <Flame className="h-4 w-4 mr-2" />
+                          <SelectValue placeholder="Lead Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Leads</SelectItem>
+                          <SelectItem value="hot">
+                            <div className="flex items-center gap-2">
+                              <Flame className="h-3.5 w-3.5 text-orange-500" />
+                              Hot Leads
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="warm">
+                            <div className="flex items-center gap-2">
+                              <Thermometer className="h-3.5 w-3.5 text-yellow-500" />
+                              Warm Leads
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="cold">
+                            <div className="flex items-center gap-2">
+                              <Snowflake className="h-3.5 w-3.5 text-blue-500" />
+                              Cold Leads
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="mega">
+                            <div className="flex items-center gap-2">
+                              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                              Mega Deals
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {lostReasonFilter && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive/20 rounded-md text-sm">
+                          <span className="text-destructive font-medium">Lost: {lostReasonFilter}</span>
                           <Button
-                            type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setSearchQuery("");
-                              setAppliedSearch("");
-                            }}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-                            aria-label="Clear search"
+                            onClick={() => setLostReasonFilter(null)}
+                            className="h-5 w-5 p-0 hover:bg-destructive/20"
                           >
                             <X className="h-3 w-3" />
                           </Button>
-                        )}
-                      </div>
-                      <Button type="submit" size="sm" variant="default">
-                        <Search className="h-4 w-4 mr-1" />
-                        Search
-                      </Button>
-                    </form>
-                    <div className="flex items-center gap-3">
-                      <Filter className="w-4 h-4 text-muted-foreground" />
-                      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Filter by category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Categories</SelectItem>
-                          {PRODUCT_CATEGORIES.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as QueryStatus | "all")}>
-                      <SelectTrigger className="w-[160px]">
-                        <ListFilter className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        {ENQUIRY_STATUSES.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            {status.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {canFilterBySalesPerson && (
-                      <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
-                        <SelectTrigger className="w-[180px]">
-                          <User className="h-4 w-4 mr-2" />
-                          <SelectValue placeholder="Sales Person" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Sales Persons</SelectItem>
-                          {salesTeam.map((member) => (
-                            <SelectItem key={member.user_id} value={member.user_id}>
-                              {member.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <Select value={leadFilter} onValueChange={(value) => setLeadFilter(value as typeof leadFilter)}>
-                      <SelectTrigger className="w-[150px]">
-                        <Flame className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Lead Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Leads</SelectItem>
-                        <SelectItem value="hot">
-                          <div className="flex items-center gap-2">
-                            <Flame className="h-3.5 w-3.5 text-orange-500" />
-                            Hot Leads
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="warm">
-                          <div className="flex items-center gap-2">
-                            <Thermometer className="h-3.5 w-3.5 text-yellow-500" />
-                            Warm Leads
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="cold">
-                          <div className="flex items-center gap-2">
-                            <Snowflake className="h-3.5 w-3.5 text-blue-500" />
-                            Cold Leads
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="mega">
-                          <div className="flex items-center gap-2">
-                            <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                            Mega Deals
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <DateRangeFilter
-                      startDate={startDate}
-                      endDate={endDate}
-                      onStartDateChange={setStartDate}
-                      onEndDateChange={setEndDate}
-                      onClear={clearDateFilter}
-                    />
-                    {lostReasonFilter && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive/20 rounded-md text-sm">
-                        <span className="text-destructive font-medium">Lost: {lostReasonFilter}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLostReasonFilter(null)}
-                          className="h-5 w-5 p-0 hover:bg-destructive/20"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                    {slaStatusFilter !== "all" && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 rounded-md text-sm">
-                        <span className="text-primary font-medium">SLA: {getSlaStatusLabel(slaStatusFilter)}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSlaStatusFilter("all")}
-                          className="h-5 w-5 p-0 hover:bg-primary/20"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                    {valueFilter !== "all" && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/20 rounded-md text-sm">
-                        <IndianRupee className="h-3 w-3 text-success" />
-                        <span className="text-success font-medium">{getValueFilterLabel(valueFilter)}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={clearValueFilter}
-                          className="h-5 w-5 p-0 hover:bg-success/20"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                    {leadFilter !== "all" && (
-                      <div
-                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm ${
-                          leadFilter === "hot"
-                            ? "bg-orange-500/10 border border-orange-500/20"
-                            : leadFilter === "warm"
-                              ? "bg-yellow-500/10 border border-yellow-500/20"
-                              : leadFilter === "cold"
-                                ? "bg-blue-500/10 border border-blue-500/20"
-                                : "bg-amber-500/10 border border-amber-500/20"
-                        }`}
-                      >
-                        {leadFilter === "hot" && <Flame className="h-3 w-3 text-orange-500" />}
-                        {leadFilter === "warm" && <Thermometer className="h-3 w-3 text-yellow-500" />}
-                        {leadFilter === "cold" && <Snowflake className="h-3 w-3 text-blue-500" />}
-                        {leadFilter === "mega" && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
-                        <span
-                          className={`font-medium ${
+                        </div>
+                      )}
+                      {slaStatusFilter !== "all" && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 rounded-md text-sm">
+                          <span className="text-primary font-medium">SLA: {getSlaStatusLabel(slaStatusFilter)}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSlaStatusFilter("all")}
+                            className="h-5 w-5 p-0 hover:bg-primary/20"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      {valueFilter !== "all" && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/20 rounded-md text-sm">
+                          <IndianRupee className="h-3 w-3 text-success" />
+                          <span className="text-success font-medium">{getValueFilterLabel(valueFilter)}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearValueFilter}
+                            className="h-5 w-5 p-0 hover:bg-success/20"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      {leadFilter !== "all" && (
+                        <div
+                          className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm ${
                             leadFilter === "hot"
-                              ? "text-orange-600"
+                              ? "bg-orange-500/10 border border-orange-500/20"
                               : leadFilter === "warm"
-                                ? "text-yellow-600"
+                                ? "bg-yellow-500/10 border border-yellow-500/20"
                                 : leadFilter === "cold"
-                                  ? "text-blue-600"
-                                  : "text-amber-600"
+                                  ? "bg-blue-500/10 border border-blue-500/20"
+                                  : "bg-amber-500/10 border border-amber-500/20"
                           }`}
                         >
-                          {leadFilter === "hot"
-                            ? "Hot"
-                            : leadFilter === "warm"
-                              ? "Warm"
-                              : leadFilter === "cold"
-                                ? "Cold"
-                                : "Mega"}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLeadFilter("all")}
-                          className="h-5 w-5 p-0 hover:bg-muted"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                    {(categoryFilter !== "all" ||
-                      startDate ||
-                      endDate ||
-                      salesPersonFilter !== "all" ||
-                      statusFilter !== "all" ||
-                      lostReasonFilter ||
-                      slaStatusFilter !== "all" ||
-                      valueFilter !== "all" ||
-                      leadFilter !== "all") && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {filteredEnquiries.length} of {enquiries.length}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setCategoryFilter("all");
-                            setSalesPersonFilter("all");
-                            setStatusFilter("all");
-                            setLostReasonFilter(null);
-                            setSlaStatusFilter("all");
-                            setLeadFilter("all");
-                            clearValueFilter();
-                            clearDateFilter();
-                          }}
-                          className="h-6 px-2 text-xs"
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Clear
-                        </Button>
-                      </div>
-                    )}
+                          {leadFilter === "hot" && <Flame className="h-3 w-3 text-orange-500" />}
+                          {leadFilter === "warm" && <Thermometer className="h-3 w-3 text-yellow-500" />}
+                          {leadFilter === "cold" && <Snowflake className="h-3 w-3 text-blue-500" />}
+                          {leadFilter === "mega" && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                          <span
+                            className={`font-medium ${
+                              leadFilter === "hot"
+                                ? "text-orange-600"
+                                : leadFilter === "warm"
+                                  ? "text-yellow-600"
+                                  : leadFilter === "cold"
+                                    ? "text-blue-600"
+                                    : "text-amber-600"
+                            }`}
+                          >
+                            {leadFilter === "hot"
+                              ? "Hot"
+                              : leadFilter === "warm"
+                                ? "Warm"
+                                : leadFilter === "cold"
+                                  ? "Cold"
+                                  : "Mega"}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setLeadFilter("all")}
+                            className="h-5 w-5 p-0 hover:bg-muted"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      {(categoryFilter !== "all" ||
+                        startDate ||
+                        endDate ||
+                        salesPersonFilter !== "all" ||
+                        statusFilter !== "all" ||
+                        lostReasonFilter ||
+                        slaStatusFilter !== "all" ||
+                        valueFilter !== "all" ||
+                        leadFilter !== "all") && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {filteredEnquiries.length} of {enquiries.length}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setCategoryFilter("all");
+                              setSalesPersonFilter("all");
+                              setStatusFilter("all");
+                              setLostReasonFilter(null);
+                              setSlaStatusFilter("all");
+                              setLeadFilter("all");
+                              clearValueFilter();
+                              clearDateFilter();
+                            }}
+                            className="h-6 px-2 text-xs"
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Clear
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={viewMode === "table" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setViewMode("table")}
+                      >
+                        <TableIcon className="w-4 h-4 mr-1" />
+                        Table
+                      </Button>
+                      <Button
+                        variant={viewMode === "cards" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setViewMode("cards")}
+                      >
+                        <LayoutGrid className="w-4 h-4 mr-1" />
+                        Cards
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={viewMode === "table" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setViewMode("table")}
-                    >
-                      <TableIcon className="w-4 h-4 mr-1" />
-                      Table
-                    </Button>
-                    <Button
-                      variant={viewMode === "cards" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setViewMode("cards")}
-                    >
-                      <LayoutGrid className="w-4 h-4 mr-1" />
-                      Cards
-                    </Button>
-                  </div>
+                  <DateRangeFilter
+                    startDate={startDate}
+                    endDate={endDate}
+                    onStartDateChange={setStartDate}
+                    onEndDateChange={setEndDate}
+                    onClear={clearDateFilter}
+                  />
                 </div>
 
                 {filteredEnquiries.length === 0 ? (
