@@ -184,7 +184,7 @@ export const WINDOW_START_ISO = "2026-04-27";
 
 // System "website" sales user (admin) — required by NOT NULL FK columns.
 const SYSTEM_USER_ID = "a8050cc3-7d17-44ac-a083-d8023d505331";
-const SYSTEM_USER_NAME = "Website (Auto)";
+const SYSTEM_USER_NAME = "Vishal (Website)";
 
 // Send a Slack notification to the #sales-order-confirmations channel when a new
 // website order lands. Failures are swallowed — Slack must never block

@@ -289,7 +289,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                   <SelectContent>
                     <SelectItem value="all">All Sources ({sourceCounts.all.toLocaleString()})</SelectItem>
                     <SelectItem value="manual">Manual ({sourceCounts.manual.toLocaleString()})</SelectItem>
-                    <SelectItem value="website_auto">Website (Auto) ({sourceCounts.website_auto.toLocaleString()})</SelectItem>
+                    <SelectItem value="website_auto">WooCommerce (Vishal) ({sourceCounts.website_auto.toLocaleString()})</SelectItem>
                   </SelectContent>
                 </Select>
                 {sourceFilter === 'website_auto' && canAttributeWebsite && unifiedRows.some((u) => u.kind === 'woo') && (
