@@ -98,18 +98,17 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const r = await fetch(`${SUPABASE_URL}/functions/v1/kyc-handler`, {
+      // Route through send-customer-confirmation-request — it now mints a
+      // portal invite (drone-agnostic) and includes the activation link
+      // alongside the confirm link.
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/send-customer-confirmation-request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${SERVICE}`,
           apikey: SERVICE,
         },
-        body: JSON.stringify({
-          action: "onboard_order",
-          order_id: (o as any).id,
-          interactive: false,
-        }),
+        body: JSON.stringify({ order_id: (o as any).id }),
       });
       action = r.ok ? "resent" : "failed";
       await admin.from("order_notifications").insert({
@@ -122,7 +121,7 @@ Deno.serve(async (req) => {
         payload: { reason: "no_portal_user_or_expired_invite" },
         status: r.ok ? "sent" : "failed",
         sent_at: r.ok ? new Date().toISOString() : null,
-        error_message: r.ok ? null : `kyc-handler http ${r.status}`,
+        error_message: r.ok ? null : `send-customer-confirmation-request http ${r.status}`,
         provider: "platform",
       });
       results.push({ order: o.order_number, action, http: r.status });
