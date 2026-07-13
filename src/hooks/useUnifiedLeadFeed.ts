@@ -54,7 +54,7 @@ const COUNTS_KEY = "unified-lead-counts";
 // fire change events).
 const SOURCE_TABLES: { source: LeadSource; table: string; filter?: string }[] = [
   { source: "website", table: "leads" },
-  { source: "facebook", table: "leads", filter: "form_type=eq.Facebook Leads" },
+  { source: "facebook", table: "leads", filter: "source=eq.Facebook Leads" },
   { source: "forms", table: "form_leads" },
   { source: "google_ads", table: "google_ads_leads" },
   { source: "interakt", table: "interakt_leads" },
