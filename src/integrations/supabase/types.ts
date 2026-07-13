@@ -5246,6 +5246,42 @@ export type Database = {
         }
         Relationships: []
       }
+      false_positive_clear_runs: {
+        Row: {
+          cleared_count: number
+          created_at: string
+          error_count: number
+          finished_at: string | null
+          id: string
+          notes: string | null
+          skipped_count: number
+          started_at: string
+          triggered_by: string
+        }
+        Insert: {
+          cleared_count?: number
+          created_at?: string
+          error_count?: number
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          skipped_count?: number
+          started_at?: string
+          triggered_by?: string
+        }
+        Update: {
+          cleared_count?: number
+          created_at?: string
+          error_count?: number
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          skipped_count?: number
+          started_at?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       feature_flags: {
         Row: {
           enabled: boolean
@@ -17217,12 +17253,12 @@ export type Database = {
       cleanup_expired_devices: { Args: never; Returns: undefined }
       cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
       clear_false_positive_confirmation_flags: {
-        Args: never
-        Returns: {
-          item_count: number
-          order_id: string
-          order_number: string
-        }[]
+        Args: { p_triggered_by?: string }
+        Returns: string
+      }
+      clear_order_confirmation_flag_manual: {
+        Args: { p_order_id: string; p_reason: string }
+        Returns: undefined
       }
       compute_contact_key: {
         Args: { _email: string; _phone: string }
@@ -18216,6 +18252,14 @@ export type Database = {
       update_mfa_verified_at_to_null: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      update_pricelist_categories_bulk: {
+        Args: { p_items: Json; p_reason?: string }
+        Returns: {
+          missing: number
+          unchanged: number
+          updated: number
+        }[]
       }
       update_repair_stage: {
         Args: {
