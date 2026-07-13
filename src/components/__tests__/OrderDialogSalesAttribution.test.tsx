@@ -19,7 +19,9 @@ describe("OrderDialog Sales attribution guard for Woo-linked orders", () => {
 
   it("gates the inline Sales editor on isWebsiteOrder", () => {
     // The read-only branch must be reached before editingSalesPerson/isAdmin.
-    expect(SRC).toMatch(/isWebsiteOrder\s*\?[\s\S]{0,400}Change via Sales attribution/);
+    expect(SRC).toMatch(
+      /isWebsiteOrder\s*\?[\s\S]*?Change via Sales attribution[\s\S]*?:\s*editingSalesPerson\s*&&\s*isAdmin/,
+    );
   });
 
   it("read-only branch scrolls the attribution panel into focus", () => {
