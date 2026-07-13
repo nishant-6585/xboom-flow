@@ -38,6 +38,14 @@ import {
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  enquiryDateStorageKey,
+  topDateStorageKey,
+  parseRange,
+  serializeRange,
+  getActivePresetLabel,
+} from "@/lib/enquiryDateFilter";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useEnquiryUnreadCounts } from "@/hooks/useEnquiryUnreadCounts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -98,25 +106,16 @@ const Index = () => {
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>("all");
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
-  // Persist enquiry date-filter presets across reloads (per-user localStorage).
-  const ENQUIRY_DATE_LS_KEY = "xboom.enquiries.dateFilter.v1";
-  const TOP_DATE_LS_KEY = "xboom.enquiries.topDateFilter.v1";
-  const readStoredRange = (key: string): { start: Date | undefined; end: Date | undefined } => {
+  // Persist enquiry date-filter presets across reloads, scoped per-user so
+  // sessions on the same machine don't share filters. Stored as calendar-day
+  // strings (YYYY-MM-DD) — see enquiryDateFilter.ts — to avoid timezone drift
+  // when the browser reloads.
+  const readStored = (key: string) => {
     if (typeof window === "undefined") return { start: undefined, end: undefined };
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (!raw) return { start: undefined, end: undefined };
-      const parsed = JSON.parse(raw) as { start?: string | null; end?: string | null };
-      return {
-        start: parsed.start ? new Date(parsed.start) : undefined,
-        end: parsed.end ? new Date(parsed.end) : undefined,
-      };
-    } catch {
-      return { start: undefined, end: undefined };
-    }
+    return parseRange(window.localStorage.getItem(key));
   };
-  const initialEnquiryRange = readStoredRange(ENQUIRY_DATE_LS_KEY);
-  const initialTopRange = readStoredRange(TOP_DATE_LS_KEY);
+  const initialEnquiryRange = readStored(enquiryDateStorageKey(user?.id));
+  const initialTopRange = readStored(topDateStorageKey(user?.id));
   const [startDate, setStartDate] = useState<Date | undefined>(initialEnquiryRange.start);
   const [endDate, setEndDate] = useState<Date | undefined>(initialEnquiryRange.end);
   const [statusFilter, setStatusFilter] = useState<QueryStatus | "all">("all");
@@ -129,33 +128,42 @@ const Index = () => {
   const [appliedSearch, setAppliedSearch] = useState<string>("");
   const [topStartDate, setTopStartDate] = useState<Date | undefined>(initialTopRange.start);
   const [topEndDate, setTopEndDate] = useState<Date | undefined>(initialTopRange.end);
-  // Persist ranges whenever they change.
+  // Once the user id resolves (may be null on first render), re-hydrate from
+  // that user's key so we don't accidentally show another user's saved range.
+  useEffect(() => {
+    if (!user?.id) return;
+    const eR = readStored(enquiryDateStorageKey(user.id));
+    setStartDate(eR.start);
+    setEndDate(eR.end);
+    const tR = readStored(topDateStorageKey(user.id));
+    setTopStartDate(tR.start);
+    setTopEndDate(tR.end);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        ENQUIRY_DATE_LS_KEY,
-        JSON.stringify({
-          start: startDate ? startDate.toISOString() : null,
-          end: endDate ? endDate.toISOString() : null,
-        }),
+        enquiryDateStorageKey(user?.id),
+        JSON.stringify(serializeRange(startDate, endDate)),
       );
     } catch {
       /* ignore quota / privacy-mode errors */
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, user?.id]);
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        TOP_DATE_LS_KEY,
-        JSON.stringify({
-          start: topStartDate ? topStartDate.toISOString() : null,
-          end: topEndDate ? topEndDate.toISOString() : null,
-        }),
+        topDateStorageKey(user?.id),
+        JSON.stringify(serializeRange(topStartDate, topEndDate)),
       );
     } catch {
       /* ignore quota / privacy-mode errors */
     }
-  }, [topStartDate, topEndDate]);
+  }, [topStartDate, topEndDate, user?.id]);
+  const activePresetLabel = useMemo(
+    () => getActivePresetLabel(startDate, endDate),
+    [startDate, endDate],
+  );
   const clearTopDateFilter = () => {
     setTopStartDate(undefined);
     setTopEndDate(undefined);
