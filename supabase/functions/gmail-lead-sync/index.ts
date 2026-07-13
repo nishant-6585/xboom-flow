@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isAuthorizedCron } from "../_shared/cron-auth.ts";
+import { decryptToken, encryptToken } from "../_shared/token-encryption.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -403,7 +404,8 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (const integration of integrations) {
-      let accessToken = integration.access_token;
+      let accessToken = await decryptToken(integration.access_token);
+      const refreshTokenPlain = await decryptToken(integration.refresh_token);
       let emailsFetched = 0;
       let leadsCreated = 0;
       let blocked = 0;
@@ -415,13 +417,13 @@ Deno.serve(async (req) => {
 
       // Check token expiry and refresh if needed
       if (integration.token_expiry && new Date(integration.token_expiry) <= new Date()) {
-        const refreshed = await refreshAccessToken(integration.refresh_token);
+        const refreshed = await refreshAccessToken(refreshTokenPlain);
         if (refreshed) {
           accessToken = refreshed.access_token;
           await supabase
             .from("gmail_integrations")
             .update({
-              access_token: refreshed.access_token,
+              access_token: await encryptToken(refreshed.access_token),
               token_expiry: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
             })
             .eq("id", integration.id);
