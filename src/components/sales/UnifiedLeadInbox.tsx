@@ -14,7 +14,10 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck } from "lucide-react";
+import {
+  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck,
+  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LeadRowActions } from "./LeadRowActions";
