@@ -450,7 +450,7 @@ export default function KycVerification() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-muted/80 font-bold text-foreground">
                     <TableHead>Order #</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Document</TableHead>
