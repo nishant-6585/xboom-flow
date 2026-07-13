@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { SYSTEM_USER_ID } from '@/lib/orderSource';
 
 export interface AttributionRequest {
   id: string;
@@ -64,8 +65,6 @@ export function useAttributionLog(orderId: string | null | undefined) {
     },
   });
 }
-
-const SYSTEM_USER_ID = 'a8050cc3-7d17-44ac-a083-d8023d505331';
 
 /** Look up an internal website order by external_id (woo_order_id) or internal id. */
 export function useInternalOrderForAttribution(opts: {
