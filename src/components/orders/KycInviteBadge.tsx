@@ -355,9 +355,18 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
   const baseTooltip = isNotRequired
     ? NOT_REQUIRED_TOOLTIP
     : row && meta
-    ? `${meta.label}${sentAt ? ` • sent ${sentAt}` : ""} • enqueued ${new Date(row.created_at).toLocaleString()} • attempts: ${row.attempt_count}${
-        row.error ? `\nReason: ${row.error}` : ""
-      }${deliveryLine}`
+    ? [
+        meta.label,
+        sentAt ? `Sent: ${sentAt}` : null,
+        `Enqueued: ${new Date(row.created_at).toLocaleString()}`,
+        `Attempts: ${row.attempt_count}`,
+        row.error ? `Reason: ${row.error}` : null,
+        info?.last_delivery
+          ? `Delivery: ${info.last_delivery.status} • ${new Date(info.last_delivery.created_at).toLocaleString()}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
     : "No KYC invite sent yet";
   const tooltipText = isCancelled ? cancelledTooltip : baseTooltip;
 
@@ -376,7 +385,7 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
                 {shortLabel}
               </Badge>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs whitespace-pre-line text-xs">
+            <TooltipContent side="top" align="start" className="max-w-[280px] whitespace-pre-line break-words text-xs leading-relaxed">
               {tooltipText}
             </TooltipContent>
           </Tooltip>
@@ -436,7 +445,7 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
                 {meta.label}
               </Badge>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs whitespace-pre-line text-xs">
+            <TooltipContent side="top" align="start" className="max-w-[280px] whitespace-pre-line break-words text-xs leading-relaxed">
               {tooltipText}
             </TooltipContent>
           </Tooltip>
