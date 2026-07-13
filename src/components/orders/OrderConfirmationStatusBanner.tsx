@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertCircle, ShieldCheck, Send, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, ShieldCheck, Send, Loader2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { callEdgeFunction } from "@/lib/callEdgeFunction";
@@ -22,7 +22,38 @@ interface Props {
 export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
   const status: string = order?.confirmation_status || "not_required";
   const [sending, setSending] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  /** null = loading, true = customer has an activated portal user,
+   *  false = no portal account or invite unused. Drives which action
+   *  the admin sees ("Invite customer" vs "Resend confirmation"). */
+  const [hasPortalUser, setHasPortalUser] = useState<boolean | null>(null);
   const [confirmedBy, setConfirmedBy] = useState<{ name: string | null; email: string | null } | null>(null);
+
+  const refreshPortalState = async () => {
+    if (!order?.customer_email) { setHasPortalUser(false); return; }
+    const { data } = await supabase
+      .from("portal_contacts")
+      .select("auth_user_id")
+      .ilike("email", order.customer_email)
+      .not("auth_user_id", "is", null)
+      .maybeSingle();
+    setHasPortalUser(!!data?.auth_user_id);
+  };
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!order?.customer_email || status === "not_required") { if (alive) setHasPortalUser(null); return; }
+      const { data } = await supabase
+        .from("portal_contacts")
+        .select("auth_user_id")
+        .ilike("email", order.customer_email)
+        .not("auth_user_id", "is", null)
+        .maybeSingle();
+      if (alive) setHasPortalUser(!!data?.auth_user_id);
+    })();
+    return () => { alive = false; };
+  }, [order?.customer_email, status]);
 
   useEffect(() => {
     let alive = true;
@@ -48,10 +79,31 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
     try {
       await callEdgeFunction("send-customer-confirmation-request", { body: { order_id: order.id } });
       toast.success("Confirmation request sent to the customer.");
+      await refreshPortalState();
     } catch (e: any) {
       toast.error(e?.message || "Failed to send confirmation request");
     } finally {
       setSending(false);
+    }
+  };
+
+  const invite = async () => {
+    setInviting(true);
+    try {
+      // Same endpoint — it mints portal_account + auth user + invite when
+      // missing, and sends the confirmation email with a "Set your password"
+      // fallback link. Logs to order_notifications (status_trigger=confirmation_request).
+      const res: any = await callEdgeFunction("send-customer-confirmation-request", { body: { order_id: order.id } });
+      if (res?.email && String(res.email).startsWith("failed")) {
+        toast.error(`Invite failed: ${res.email}`);
+      } else {
+        toast.success("Portal invite sent — customer will receive an activation email.");
+      }
+      await refreshPortalState();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to send portal invite");
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -95,12 +147,25 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
         <Badge variant="outline" className="border-amber-500 text-amber-700">
           Awaiting customer
         </Badge>
+        {hasPortalUser === false && (
+          <Badge variant="outline" className="border-orange-500 text-orange-700">
+            No portal account
+          </Badge>
+        )}
       </div>
       {canResend && (
-        <Button size="sm" variant="outline" onClick={resend} disabled={sending}>
-          {sending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
-          Resend confirmation request
-        </Button>
+        <div className="flex items-center gap-2">
+          {hasPortalUser === false && (
+            <Button size="sm" variant="default" onClick={invite} disabled={inviting}>
+              {inviting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <UserPlus className="h-3.5 w-3.5 mr-1" />}
+              Invite customer
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={resend} disabled={sending}>
+            {sending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+            Resend confirmation request
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -25,6 +25,113 @@ function escapeHtml(s: string) {
 
 interface Body { order_id: string }
 
+// Portal base for activation links. Kept in sync with kyc-handler's PORTAL_BASE.
+const PORTAL_BASE = "https://xboomflow.com";
+
+/** Ensure a portal_account + auth user + portal_contact exist for `email`,
+ *  then mint (or reuse) a live non-consuming invite token pointing at
+ *  /portal/activate. Drone-agnostic — this is the safety net for ANY website
+ *  order landing without portal access so the customer can log in and
+ *  confirm. Never throws; returns null on failure. */
+async function ensurePortalInvite(
+  admin: ReturnType<typeof createClient>,
+  order: { id: string; customer_email: string | null; customer_name: string | null; customer_company?: string | null; sales_person_id?: string | null },
+): Promise<{ activation_link: string; created_portal: boolean } | null> {
+  const email = (order.customer_email || "").trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+
+  const { data: contact } = await admin
+    .from("portal_contacts")
+    .select("id, account_id, auth_user_id")
+    .ilike("email", email)
+    .maybeSingle();
+
+  let acctId: string | null = contact?.account_id ?? null;
+  let authUserId: string | null = contact?.auth_user_id ?? null;
+  const createdPortal = !contact?.auth_user_id;
+
+  if (!contact?.auth_user_id) {
+    // Create account if missing
+    if (!acctId) {
+      const { data: acct, error: acctErr } = await admin
+        .from("portal_accounts")
+        .insert({
+          company_name: order.customer_company || order.customer_name || "Customer",
+          primary_contact_name: order.customer_name || null,
+          assigned_rep_id: order.sales_person_id ?? null,
+          status: "active",
+        })
+        .select("id").single();
+      if (acctErr) { console.error("[ensurePortalInvite] account create failed", acctErr); return null; }
+      acctId = acct.id;
+    }
+
+    // Create or find auth user
+    if (!authUserId) {
+      const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email, password: tempPassword, email_confirm: true,
+        user_metadata: { full_name: order.customer_name, portal: true },
+      });
+      if (createErr && /already.*registered|already exists/i.test(createErr.message)) {
+        let page = 1;
+        while (!authUserId) {
+          const { data: list } = await admin.auth.admin.listUsers({ page, perPage: 100 });
+          const found = list?.users?.find((u: any) => u.email?.toLowerCase() === email);
+          if (found) { authUserId = found.id; break; }
+          if (!list?.users || list.users.length < 100) break;
+          page++;
+        }
+      } else if (createErr) {
+        console.error("[ensurePortalInvite] auth user create failed", createErr);
+        return null;
+      } else {
+        authUserId = created!.user.id;
+      }
+    }
+    if (!authUserId || !acctId) return null;
+
+    // Create or link contact
+    if (!contact) {
+      await admin.from("portal_contacts").insert({
+        account_id: acctId, auth_user_id: authUserId,
+        full_name: order.customer_name || email.split("@")[0],
+        email, role: "admin", is_active: true,
+        invited_at: new Date().toISOString(),
+      });
+    } else if (!contact.auth_user_id) {
+      await admin.from("portal_contacts").update({ auth_user_id: authUserId }).eq("id", contact.id);
+    }
+    await admin.from("user_roles").upsert(
+      { user_id: authUserId, role: "b2b_customer" },
+      { onConflict: "user_id,role", ignoreDuplicates: true },
+    );
+  }
+  if (!authUserId || !acctId) return null;
+
+  // Reuse a live unused invite if one exists; else mint fresh (7-day expiry).
+  let token: string | null = null;
+  const { data: liveInvite } = await admin
+    .from("portal_invite_tokens")
+    .select("token")
+    .ilike("email", email)
+    .is("used_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1).maybeSingle();
+  if (liveInvite?.token) {
+    token = liveInvite.token;
+  } else {
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: inv, error: invErr } = await admin.from("portal_invite_tokens")
+      .insert({ auth_user_id: authUserId, email, account_id: acctId, expires_at: expiresAt })
+      .select("token").single();
+    if (invErr) { console.error("[ensurePortalInvite] invite mint failed", invErr); return null; }
+    token = inv.token;
+  }
+  return { activation_link: `${PORTAL_BASE}/portal/activate?invite=${encodeURIComponent(token!)}`, created_portal: createdPortal };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -79,7 +186,7 @@ serve(async (req) => {
 
     const { data: order, error: oErr } = await admin
       .from("orders")
-      .select("id, order_number, customer_name, customer_email, customer_phone, confirmation_status")
+      .select("id, order_number, customer_name, customer_email, customer_phone, customer_company, sales_person_id, confirmation_status")
       .eq("id", body.order_id)
       .maybeSingle();
     if (oErr || !order) {
@@ -98,74 +205,21 @@ serve(async (req) => {
     const link = `https://xboomflow.com/portal/confirm`;
     const result: Record<string, unknown> = { email: null, sms: null };
 
-    // Decide whether to send a standalone confirmation email.
-    //  - Existing portal customer (activated auth user) → yes, direct link.
-    //  - No activated portal user OR only an expired unused invite exists →
-    //    delegate to kyc-handler onboardOrder(force=true) so the customer
-    //    gets a fresh invite + confirmation ask in the SAME email. Otherwise
-    //    they receive a /portal/confirm link they cannot log into (root
-    //    cause of the July 2026 confirmation drop-off).
-    let hasExistingPortalUser = false;
-    let needsFreshInvite = false;
-    if (order.customer_email) {
-      const { data: existingContact } = await admin
-        .from("portal_contacts")
-        .select("auth_user_id")
-        .ilike("email", order.customer_email)
-        .not("auth_user_id", "is", null)
-        .maybeSingle();
-      hasExistingPortalUser = !!existingContact?.auth_user_id;
-      if (!hasExistingPortalUser) {
-        // Look for an unused non-expired invite; if none, we need to mint one.
-        const { data: liveInvite } = await admin
-          .from("portal_invite_tokens")
-          .select("token, expires_at, used_at")
-          .ilike("email", order.customer_email)
-          .is("used_at", null)
-          .gt("expires_at", new Date().toISOString())
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        needsFreshInvite = !liveInvite;
-      }
-    }
-
-    // Fire onboard_order (force) for customers without portal access so the
-    // onboarding+confirmation email goes out with a live invite link.
-    if (needsFreshInvite) {
-      try {
-        const r = await fetch(`${SUPABASE_URL}/functions/v1/kyc-handler`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SERVICE_ROLE}`,
-            apikey: SERVICE_ROLE,
-          },
-          body: JSON.stringify({
-            action: "onboard_order",
-            order_id: order.id,
-            interactive: true,
-          }),
-        });
-        result.email = r.ok ? "sent_via_onboarding_fresh_invite" : `onboarding_failed:${r.status}`;
-        await admin.from("order_notifications").insert({
-          order_ref: order.id, order_source: "internal",
-          order_number: orderNumber, status_trigger: "confirmation_request",
-          channel: "email", template_name: "confirmation_request_email",
-          payload: { customer_name: customerName, order_number: orderNumber, link, delivered_via: "onboarding_fresh_invite" },
-          status: r.ok ? "sent" : "failed",
-          sent_at: r.ok ? new Date().toISOString() : null,
-          error_message: r.ok ? null : `kyc-handler http ${r.status}`,
-          provider: "platform",
-        });
-      } catch (e) {
-        result.email = "onboarding_error";
-        console.error("[send-customer-confirmation-request] onboarding invoke failed", e);
-      }
+    // Ensure the customer has portal access before we send the "confirm" link.
+    // If they don't, mint an invite and include an activation link in the
+    // same email so they can actually reach the confirm page. This is
+    // drone-agnostic — kyc-handler's onboard_order is drone-gated and would
+    // otherwise skip website orders like a spare-parts purchase.
+    let activationLink: string | undefined;
+    let createdPortal = false;
+    const ensured = await ensurePortalInvite(admin, order as any);
+    if (ensured) {
+      activationLink = ensured.activation_link;
+      createdPortal = ensured.created_portal;
     }
 
     // ----- Email via Resend -----
-    if (order.customer_email && hasExistingPortalUser) {
+    if (order.customer_email) {
       try {
         // Stable idempotency: identity is the order + trigger. order_notifications
         // is our log-of-record for this trigger; the row id changes per attempt
@@ -189,6 +243,10 @@ serve(async (req) => {
             customer_name: customerName,
             order_number: orderNumber,
             link,
+            // Only include activation_link when the recipient has no active
+            // portal password yet (created_portal === true means we just
+            // minted the auth user / linked the contact).
+            ...(activationLink && createdPortal ? { activation_link: activationLink } : {}),
           },
           idempotencyKey,
           // Human-triggered from the order UI (Send/Resend). Nudge the queue
@@ -203,7 +261,7 @@ serve(async (req) => {
           order_number: orderNumber, status_trigger: "confirmation_request",
           channel: "email",
           template_name: "confirmation_request_email",
-          payload: { customer_name: customerName, order_number: orderNumber, link },
+          payload: { customer_name: customerName, order_number: orderNumber, link, activation_included: !!(activationLink && createdPortal) },
           status: ok ? "sent" : "failed",
           sent_at: ok ? new Date().toISOString() : null,
           error_message: ok ? null : `platform http ${resp.status}`,
@@ -224,18 +282,6 @@ serve(async (req) => {
       }
     } else if (!order.customer_email) {
       result.email = "no_email";
-    } else if (!hasExistingPortalUser && !needsFreshInvite) {
-      // Live unused invite already exists — that email carries the ask.
-      result.email = "sent_via_onboarding";
-      await admin.from("order_notifications").insert({
-        order_ref: order.id, order_source: "internal",
-        order_number: orderNumber, status_trigger: "confirmation_request",
-        channel: "email", template_name: "confirmation_request_email",
-        payload: { customer_name: customerName, order_number: orderNumber, link, delivered_via: "onboarding_email" },
-        status: "skipped",
-        error_message: "sent_via_onboarding",
-        provider: "platform",
-      });
     }
 
     // ----- SMS via MSG91 queue -----
