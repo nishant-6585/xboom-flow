@@ -360,6 +360,31 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                   </>
                 )}
 
+                {/* Form Responses (raw payload such as Facebook Lead Ads) */}
+                {lead.payload && Object.keys(lead.payload).length > 0 && (
+                  <>
+                    <Separator />
+                    <h3 className="text-sm font-semibold">Form Responses</h3>
+                    <div className="grid grid-cols-1 gap-y-3">
+                      {Object.entries(lead.payload)
+                        .filter(([, v]) => v !== null && v !== undefined && v !== '')
+                        .map(([key, value]) => {
+                          const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                          const display =
+                            typeof value === 'object' && value !== null
+                              ? JSON.stringify(value, null, 2)
+                              : String(value);
+                          return (
+                            <div key={key} className="space-y-0.5 border-l-2 border-muted pl-3">
+                              <span className="text-[11px] text-muted-foreground">{label}</span>
+                              <p className="text-sm whitespace-pre-wrap">{display}</p>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </>
+                )}
+
                 {/* Notes (read-only when not editing) */}
                 {!editing && lead.notes && (
                   <>
