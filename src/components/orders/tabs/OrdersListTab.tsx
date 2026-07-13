@@ -10,10 +10,13 @@ import { OrderCard } from '@/components/OrderCard';
 import { OrderTable } from '@/components/OrderTable';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
+import { WebsiteAutoEmptyState } from '@/components/orders/WebsiteAutoEmptyState';
+import { BulkReassignWebsiteAutoDialog } from '@/components/orders/BulkReassignWebsiteAutoDialog';
+import { useCanAttributeWebsiteOrder } from '@/hooks/useCanAttributeWebsiteOrder';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import {
-  Loader2, Package, Search, Filter, X, ChevronDown, LayoutGrid, Table,
+  Loader2, Package, Search, Filter, X, ChevronDown, LayoutGrid, Table, Users,
 } from 'lucide-react';
 import {
   ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, CUSTOMER_TYPES,
