@@ -1,3 +1,4 @@
+import type { ReactNode, ComponentType } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Order, PaymentStatus, OrderOutcome } from '@/hooks/useOrders';
