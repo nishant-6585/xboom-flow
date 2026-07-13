@@ -508,23 +508,36 @@ export default function KycVerification() {
                         </TableCell>
                         <TableCell className="text-sm">{r.rep_name || "—"}</TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1 items-start">
+                          <div className="flex flex-col gap-1 items-start max-w-[260px]">
                             <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
-                            {isDlMismatch && (
-                              <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-[10px]">
-                                DigiLocker · name mismatch
-                              </Badge>
-                            )}
                             {r.ai_review && effectiveStatus === "pending_verification" && (
                               <AiRecommendationBadge ai={r.ai_review} />
                             )}
-                            {!r.ai_review
-                              && effectiveStatus === "pending_verification"
-                              && r.document?.doc_type === "aadhaar" && (
-                              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 text-[10px]">
-                                Manual review (AI skipped for Aadhaar)
-                              </Badge>
-                            )}
+                            {(() => {
+                              const reason = computePendingReason(r, effectiveStatus, isDigilocker);
+                              if (!reason) return null;
+                              return (
+                                <TooltipProvider delayDuration={150}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-start gap-1 text-[11px] leading-snug text-muted-foreground cursor-help">
+                                        <Info className="h-3 w-3 mt-0.5 flex-shrink-0 text-amber-600" />
+                                        <span className="whitespace-normal break-words">{reason.headline}</span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    {reason.details && reason.details.length > 0 && (
+                                      <TooltipContent className="max-w-xs text-xs">
+                                        <ul className="space-y-0.5">
+                                          {reason.details.map((d, i) => (
+                                            <li key={i}>• {d}</li>
+                                          ))}
+                                        </ul>
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })()}
                           </div>
                         </TableCell>
                         <TableCell className="text-xs align-top max-w-[220px]">
