@@ -18,6 +18,23 @@ export function useSalesUsers() {
   const { data = [], isLoading } = useQuery({
     queryKey: ['sales-eligible-users'],
     queryFn: async (): Promise<SalesUser[]> => {
+      // Try the SECURITY DEFINER RPC first — this returns sales/sales_manager
+      // users to admins, sales managers, and supply chain even when RLS on
+      // user_roles/profiles would otherwise hide them.
+      const { data: rpcRows, error: rpcErr } = await supabase.rpc(
+        'list_sales_attribution_candidates' as any,
+      );
+      if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length > 0) {
+        return (rpcRows as any[])
+          .map((r) => ({
+            user_id: r.user_id,
+            name: r.name || r.email || 'Unknown',
+            email: r.email ?? null,
+            role: r.role || 'sales',
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      }
+
       const { data: roles, error: rErr } = await supabase
         .from('user_roles')
         .select('user_id, role')
