@@ -358,7 +358,7 @@ export function EnquiryDialog({
                 <StickyNote className="w-4 h-4 text-primary" />
                 <h4 className="font-medium text-sm">Follow-up Note</h4>
               </div>
-              {canEditFollowup ? (
+              {canEditFollowup && editingNote ? (
                 <div className="flex flex-col sm:flex-row gap-2">
                   <div className="flex-1">
                     <FollowupNoteInput
@@ -375,16 +375,48 @@ export function EnquiryDialog({
                     onClick={async () => {
                       if (!onUpdateFollowupNote) return;
                       setSavingNote(true);
-                      await onUpdateFollowupNote(enquiry.id, followupNote || null);
+                      const ok = await onUpdateFollowupNote(enquiry.id, followupNote || null);
                       setSavingNote(false);
+                      if (ok) setEditingNote(false);
                     }}
                   >
                     {savingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
                     Save
                   </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={savingNote}
+                    onClick={() => {
+                      setFollowupNote(enquiry.followup_note || "");
+                      setEditingNote(false);
+                    }}
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" />
+                    Cancel
+                  </Button>
                 </div>
               ) : (
-                <p className="text-sm">{enquiry.followup_note || <span className="text-muted-foreground italic">No follow-up note yet</span>}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm flex-1 whitespace-pre-wrap">
+                    {enquiry.followup_note || <span className="text-muted-foreground italic">No follow-up note yet</span>}
+                  </p>
+                  {canEditFollowup && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setFollowupNote(enquiry.followup_note || "");
+                        setEditingNote(true);
+                      }}
+                    >
+                      <Pencil className="w-3.5 h-3.5 mr-1" />
+                      {enquiry.followup_note ? "Edit" : "Add"}
+                    </Button>
+                  )}
+                </div>
               )}
               {enquiry.followup_note_updated_at && (
                 <p className="text-xs text-muted-foreground">
