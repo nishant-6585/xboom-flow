@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useTeamAvailability } from "@/hooks/useTeamAvailability";
 import { groupDuplicates } from "@/lib/leadDeduplication";
 import { DuplicateCountBadge, DuplicateHistoryRow } from "./DuplicateHistoryRow";
+import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 
 const PAGE_SIZES = [50, 100, 250] as const;
 
