@@ -17149,6 +17149,14 @@ export type Database = {
         Args: { p_key: string; p_max_requests?: number; p_window_ms?: number }
         Returns: boolean
       }
+      claim_compoff_credit: {
+        Args: {
+          p_earned_date: string
+          p_earned_type: string
+          p_holiday_id?: string
+        }
+        Returns: string
+      }
       claim_pending_email_leads: {
         Args: { p_batch_size?: number; p_specific_lead_id?: string }
         Returns: {
