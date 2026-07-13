@@ -13,6 +13,8 @@ import { useKycQueue, kycStatusMeta, type KycQueueRow } from "@/hooks/useKyc";
 import { format, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks } from "date-fns";
 import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw } from "lucide-react";
 import { Header } from "@/components/Header";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 const REJECT_CATEGORIES: { value: string; label: string }[] = [
   { value: "document_unclear", label: "Document unclear" },
@@ -69,6 +71,100 @@ function AiRecommendationBadge({ ai }: { ai: NonNullable<KycQueueRow["ai_review"
       <Sparkles className="h-3 w-3" /> {text}
     </Badge>
   );
+}
+
+/**
+ * Human-readable explanation of why a submission is still pending, so
+ * reviewers don't have to open the drawer to see what didn't reconcile.
+ * Returns null when the row isn't pending (approved/rejected already
+ * carry their own reason text).
+ */
+function computePendingReason(
+  r: KycQueueRow,
+  effectiveStatus: string,
+  isDigilocker: boolean,
+): { headline: string; details?: string[] } | null {
+  if (effectiveStatus !== "pending_verification") return null;
+
+  const meta = (r.document?.metadata as any) || {};
+  const expected =
+    r.ai_review?.expected_name ||
+    r.account.primary_contact_name ||
+    r.account.company_name ||
+    null;
+
+  // DigiLocker: auto-approve is blocked when the DL holder name doesn't
+  // match the customer name on the order. Surface both names explicitly.
+  if (isDigilocker) {
+    const holder = meta.holder_name || r.ai_review?.extracted_holder_name || null;
+    const details: string[] = [];
+    if (holder && expected) {
+      details.push(`DigiLocker holder: "${holder}"`);
+      details.push(`Expected: "${expected}"`);
+    }
+    return {
+      headline: "DigiLocker name didn't match — reviewer sign-off needed",
+      details,
+    };
+  }
+
+  const ai = r.ai_review;
+  if (ai) {
+    const details: string[] = [];
+    if (ai.type_match === false) {
+      details.push(
+        `Document type mismatch (declared ${formatDocType(ai.declared_doc_type)}, detected ${formatDocType(ai.extracted_doc_type)})`,
+      );
+    }
+    if (ai.number_match === false) {
+      details.push("Document number doesn't match what customer entered");
+    }
+    if (typeof ai.name_match_score === "number" && ai.name_match_score < 0.75) {
+      const pct = Math.round(ai.name_match_score * 100);
+      const holder = ai.extracted_holder_name || "—";
+      details.push(`Name match ${pct}% (document: "${holder}" vs expected "${expected ?? "—"}")`);
+    }
+    if (ai.legibility && ai.legibility.toLowerCase() !== "good") {
+      details.push(`Legibility: ${ai.legibility}`);
+    }
+    if (Array.isArray(ai.flags) && ai.flags.length > 0) {
+      details.push(`Flags: ${ai.flags.join(", ")}`);
+    }
+    if (ai.error) {
+      details.push(`AI error: ${ai.error}`);
+    }
+
+    if (ai.recommendation === "likely_reject") {
+      return {
+        headline: "AI recommends reject — reviewer must confirm",
+        details: details.length ? details : ["AI flagged this submission as likely reject"],
+      };
+    }
+    if (ai.recommendation === "unclear") {
+      return {
+        headline: "AI couldn't decide — reviewer must confirm",
+        details: details.length ? details : ["AI confidence too low for auto-approval"],
+      };
+    }
+    // likely_approve but still pending — policy is that AI never auto-approves,
+    // so make that explicit instead of leaving the reviewer guessing.
+    return {
+      headline: "AI recommends approve — awaiting reviewer sign-off",
+      details,
+    };
+  }
+
+  if (r.document?.doc_type === "aadhaar") {
+    return {
+      headline: "Aadhaar — manual review required",
+      details: ["AI is intentionally skipped for Aadhaar to protect the number"],
+    };
+  }
+
+  return {
+    headline: "Awaiting reviewer decision",
+    details: ["AI analysis not available for this submission yet"],
+  };
 }
 
 function StatCard({ label, value, tone, onClick, active }: {
