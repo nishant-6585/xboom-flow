@@ -26,18 +26,20 @@ export function OrderNumberBadge({ orderNumber, className, size = 'sm' }: OrderN
     <button
       onClick={handleCopy}
       className={cn(
-        'inline-flex items-center gap-1.5 font-mono font-medium text-primary bg-primary/10 rounded transition-colors hover:bg-primary/20 group',
-        size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-sm px-2.5 py-1',
+        'inline-flex items-center justify-center font-mono font-medium text-primary bg-primary/10 rounded transition-colors hover:bg-primary/20 group relative',
+        size === 'sm' ? 'text-xs pl-2 pr-5 py-0.5' : 'text-sm pl-2.5 pr-6 py-1',
         className
       )}
       title="Click to copy"
     >
       {orderNumber}
-      {copied ? (
-        <Check className={cn('text-green-600', size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
-      ) : (
-        <Copy className={cn('opacity-0 group-hover:opacity-100 transition-opacity', size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
-      )}
+      <span className="absolute right-1.5 inline-flex items-center justify-center">
+        {copied ? (
+          <Check className={cn('text-green-600', size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
+        ) : (
+          <Copy className={cn('opacity-0 group-hover:opacity-100 transition-opacity', size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
+        )}
+      </span>
     </button>
   );
 }
