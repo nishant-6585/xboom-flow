@@ -57,7 +57,7 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
 
   if (status === "not_required") {
     return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
         <ShieldCheck className="h-3.5 w-3.5" />
         <span>Customer confirmation:</span>
         <Badge variant="outline">Not required</Badge>
@@ -71,7 +71,7 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
       ? format(new Date(order.confirmed_at), "dd MMM yyyy, HH:mm")
       : null;
     return (
-      <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50 flex items-start gap-2 text-sm">
+      <div className="mt-3 p-3 rounded-lg border border-emerald-300 bg-emerald-50 flex items-start gap-2 text-sm">
         <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5" />
         <div className="text-emerald-900">
           <div className="font-medium">
@@ -88,7 +88,7 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
 
   // pending
   return (
-    <div className="p-4 rounded-lg border border-amber-300 bg-amber-50 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+    <div className="mt-3 p-4 rounded-lg border border-amber-300 bg-amber-50 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
       <div className="flex items-center gap-3 text-sm">
         <AlertCircle className="h-4 w-4 text-amber-600" />
         <span className="text-amber-900 font-medium">Customer confirmation pending</span>
