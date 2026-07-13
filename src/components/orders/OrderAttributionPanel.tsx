@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Award, UserPlus, Loader2, ArrowUp, ChevronDown, ChevronRight } from 'lucide-react';
+import { Award, UserPlus, Loader2, ArrowUp, ChevronDown, ChevronRight, Search, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useMemo, useState as useStateReact } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
 import {
@@ -333,11 +335,12 @@ function AssignDialog({
   orderId: string;
   currentSalesPersonId: string | null;
 }) {
-  const { salesUsers } = useSalesUsers();
+  const { salesUsers, isLoading: loadingSales } = useSalesUsers();
   const { attribute } = useAttributionMutations();
   const [salesPersonId, setSalesPersonId] = useState<string>('');
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
+  const [query, setQuery] = useState('');
 
   const canSubmit =
     salesPersonId &&
@@ -365,8 +368,20 @@ function AssignDialog({
   };
 
   // Filter out the SYSTEM user from the picker — only real sales/sales_manager
-  const pickable = salesUsers.filter(
-    (u) => u.user_id !== SYSTEM_USER_ID && (u.role === 'sales' || u.role === 'sales_manager'),
+  const pickable = useMemo(
+    () => salesUsers.filter(
+      (u) => u.user_id !== SYSTEM_USER_ID && (u.role === 'sales' || u.role === 'sales_manager'),
+    ),
+    [salesUsers],
+  );
+  const q = query.trim().toLowerCase();
+  const filtered = useMemo(
+    () => (q
+      ? pickable.filter((u) =>
+          (u.name || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q))
+      : pickable),
+    [pickable, q],
   );
 
   return (
@@ -382,15 +397,56 @@ function AssignDialog({
           <div className="space-y-1.5">
             <Label>Salesperson</Label>
             <Select value={salesPersonId} onValueChange={setSalesPersonId}>
-              <SelectTrigger><SelectValue placeholder="Pick a salesperson" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder={loadingSales ? 'Loading…' : 'Pick a salesperson'} />
+              </SelectTrigger>
               <SelectContent>
-                {pickable.map((u) => (
-                  <SelectItem key={u.user_id} value={u.user_id}>
-                    {u.name}{currentSalesPersonId === u.user_id ? ' (current)' : ''}
-                  </SelectItem>
-                ))}
+                <div
+                  className="sticky top-0 z-10 bg-popover border-b p-2"
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <div className="relative">
+                    <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      autoFocus
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search by name or email…"
+                      className="h-8 pl-7 text-xs"
+                    />
+                  </div>
+                </div>
+                {filtered.length === 0 ? (
+                  <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+                    {pickable.length === 0
+                      ? 'No salespeople available.'
+                      : `No match for "${query}"`}
+                  </div>
+                ) : (
+                  filtered.map((u) => (
+                    <SelectItem key={u.user_id} value={u.user_id}>
+                      {u.name}
+                      {u.email ? <span className="text-muted-foreground"> · {u.email}</span> : null}
+                      {currentSalesPersonId === u.user_id ? ' (current)' : ''}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
+            {!loadingSales && pickable.length === 0 && (
+              <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-800 dark:text-amber-300">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <div className="space-y-0.5">
+                  <div className="font-medium">Salesperson list is empty.</div>
+                  <div>
+                    Ask an admin to confirm your account has the <b>supply_chain</b>,{' '}
+                    <b>sales_manager</b>, or <b>admin</b> role, and that the sales team profiles
+                    are marked approved. Refresh the page after any change.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <ReasonFields
             reason={reason} setReason={setReason}
