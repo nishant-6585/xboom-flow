@@ -545,16 +545,6 @@ export function EnquiryDialog({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="responseNotes">Notes</Label>
-                  <Textarea
-                    id="responseNotes"
-                    placeholder="Additional notes or comments for the sales team..."
-                    rows={3}
-                    value={response.notes}
-                    onChange={(e) => setResponse({ ...response, notes: e.target.value })}
-                  />
-                </div>
               </div>
             )}
 
