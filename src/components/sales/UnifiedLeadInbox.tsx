@@ -466,7 +466,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -474,6 +474,10 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(lead); }}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View details
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openInSource(lead)}>
                             <ExternalLink className="h-4 w-4 mr-2" />
                             View in source
