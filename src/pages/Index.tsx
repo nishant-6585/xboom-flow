@@ -880,15 +880,29 @@ const Index = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <DateRangeFilter
-                      startDate={startDate}
-                      endDate={endDate}
-                      onStartDateChange={setStartDate}
-                      onEndDateChange={setEndDate}
-                      onClear={clearDateFilter}
-                    />
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                      <DateRangeFilter
+                        startDate={startDate}
+                        endDate={endDate}
+                        onStartDateChange={setStartDate}
+                        onEndDateChange={setEndDate}
+                        onClear={clearDateFilter}
+                      />
+                      {(startDate || endDate) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearDateFilter}
+                          className="h-8 px-2 text-xs"
+                          title="Reset date filter to default (All Time)"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Reset
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                       <Button
                         variant={viewMode === "table" ? "default" : "outline"}
                         size="sm"
