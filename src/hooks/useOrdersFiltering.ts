@@ -96,13 +96,26 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     return true;
   };
 
-  const filteredOrders = a.orders.filter(o => {
-    if (!passesManualOrderFilters(o)) return false;
-    const isWebsite = isWebsiteMirror(o);
-    if (a.sourceFilter === 'manual') return !isWebsite;
-    if (a.sourceFilter === 'website_auto') return isWebsite && isWebsiteMirrorVisible(o);
-    return !isWebsite || isWebsiteMirrorVisible(o);
-  });
+  // Bucket every manual-table order that passes the shared filters. We keep the
+  // per-source buckets so that both the visible list AND the source-filter
+  // count come from the exact same predicate — they can never disagree.
+  const manualBucket: Order[] = [];
+  const websiteAutoManualBucket: Order[] = [];
+  for (const o of a.orders) {
+    if (!passesManualOrderFilters(o)) continue;
+    if (isWebsiteMirror(o)) {
+      if (isWebsiteMirrorVisible(o)) websiteAutoManualBucket.push(o);
+    } else {
+      manualBucket.push(o);
+    }
+  }
+
+  const filteredOrders =
+    a.sourceFilter === 'manual'
+      ? manualBucket
+      : a.sourceFilter === 'website_auto'
+        ? websiteAutoManualBucket
+        : [...manualBucket, ...websiteAutoManualBucket];
 
   const filteredShopifyOrders = a.shopifyOrders.filter(o => {
     const sl = a.shopifySearchQuery.toLowerCase().trim();
@@ -140,102 +153,55 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     return true;
   });
 
-  const unifiedRows: UnifiedRow[] = (() => {
-    const rows: UnifiedRow[] = [];
-    // Orders table rows are already source-filtered above. This includes
-    // paid Website (Auto) mirrors, which must be counted in the same way they
-    // are displayed in the list.
-    for (const o of filteredOrders) {
-      const d = new Date(o.order_date || o.created_at).getTime() || 0;
-      rows.push({ kind: 'manual', date: d, row: o });
-    }
-    // Live Woo feed — only include for 'all' and 'website_auto'.
-    if (a.sourceFilter === 'all' || a.sourceFilter === 'website_auto') {
-      const mirroredWooIds = new Set(
-        a.orders
-          .filter((o) => !!o.external_id)
-          .map((o) => String(o.external_id)),
-      );
-      const sl = a.searchQuery.toLowerCase().trim();
-      for (const o of a.wooOrders) {
-        const s = (o.order_status || '').toLowerCase();
-        if (!ALL_ORDERS_WEBSITE_STATUSES.has(s)) continue;
-        if (mirroredWooIds.has(String(o.woo_order_id || ''))) continue;
-        // Website (Auto) entries must be paid orders only.
-        if ((o.payment_status || '').toLowerCase() !== 'paid') continue;
-        if (sl) {
-          const hit =
-            (o.order_number?.toLowerCase().includes(sl)) ||
-            (o.woo_order_id?.toLowerCase().includes(sl) ?? false) ||
-            (o.product_name?.toLowerCase().includes(sl) ?? false) ||
-            (o.customer_name?.toLowerCase().includes(sl) ?? false) ||
-            (o.customer_email?.toLowerCase().includes(sl) ?? false);
-          if (!hit) continue;
-        }
-        const dIso = o.woo_created_at || o.created_at;
-        const d = dIso ? new Date(dIso).getTime() : 0;
-        if (a.startDate && d < startOfDay(a.startDate).getTime()) continue;
-        if (a.endDate && d > endOfDay(a.endDate).getTime()) continue;
-        rows.push({ kind: 'woo', date: d, row: o });
-      }
-    }
-    rows.sort((x, y) => y.date - x.date);
-    return rows;
-  })();
-
-  // === Counts for the source-filter dropdown =====================================
-  // These reflect what the user will actually see when each source is selected
-  // (date / search / status / paid filters all respected), independent of the
-  // currently-selected sourceFilter — so the dropdown is never misleading.
-  const dateOk = (d: number) => {
-    if (a.startDate && d < startOfDay(a.startDate).getTime()) return false;
-    if (a.endDate && d > endOfDay(a.endDate).getTime()) return false;
-    return true;
-  };
-
-  const manualCount = a.orders.reduce((n, o) => {
-    if (!passesManualOrderFilters(o)) return n;
-    if (isWebsiteMirror(o)) return n;
-    return n + 1;
-  }, 0);
-
-  const websiteMirrorPaidIds = new Set<string>();
-  let websiteAutoCount = 0;
-  for (const o of a.orders) {
-    if (!passesManualOrderFilters(o)) continue;
-    if (!isWebsiteMirror(o)) continue;
-    if (!isWebsiteMirrorVisible(o)) continue;
-    websiteAutoCount++;
-    const ext = String(o.external_id || '');
-    if (ext) websiteMirrorPaidIds.add(ext);
-  }
-
-  const sl = a.searchQuery.toLowerCase().trim();
+  // Live Woo feed — compute the eligible rows once, independent of the current
+  // sourceFilter selection. The same array feeds both the unified list (when
+  // the user is on 'all' or 'website_auto') AND the dropdown count for
+  // 'website_auto', so the count can never drift from the list.
+  const wooSl = a.searchQuery.toLowerCase().trim();
   const mirroredWooIds = new Set(
-    a.orders
-      .filter((o) => !!o.external_id)
-      .map((o) => String(o.external_id)),
+    a.orders.filter((o) => !!o.external_id).map((o) => String(o.external_id)),
   );
+  const wooLiveEligible: { row: WooCommerceOrder; date: number }[] = [];
   for (const o of a.wooOrders) {
     const s = (o.order_status || '').toLowerCase();
     if (!ALL_ORDERS_WEBSITE_STATUSES.has(s)) continue;
     if (mirroredWooIds.has(String(o.woo_order_id || ''))) continue;
     if ((o.payment_status || '').toLowerCase() !== 'paid') continue;
-    if (sl) {
+    if (wooSl) {
       const hit =
-        (o.order_number?.toLowerCase().includes(sl)) ||
-        (o.woo_order_id?.toLowerCase().includes(sl) ?? false) ||
-        (o.product_name?.toLowerCase().includes(sl) ?? false) ||
-        (o.customer_name?.toLowerCase().includes(sl) ?? false) ||
-        (o.customer_email?.toLowerCase().includes(sl) ?? false);
+        (o.order_number?.toLowerCase().includes(wooSl)) ||
+        (o.woo_order_id?.toLowerCase().includes(wooSl) ?? false) ||
+        (o.product_name?.toLowerCase().includes(wooSl) ?? false) ||
+        (o.customer_name?.toLowerCase().includes(wooSl) ?? false) ||
+        (o.customer_email?.toLowerCase().includes(wooSl) ?? false);
       if (!hit) continue;
     }
     const dIso = o.woo_created_at || o.created_at;
     const d = dIso ? new Date(dIso).getTime() : 0;
-    if (!dateOk(d)) continue;
-    websiteAutoCount++;
+    if (a.startDate && d < startOfDay(a.startDate).getTime()) continue;
+    if (a.endDate && d > endOfDay(a.endDate).getTime()) continue;
+    wooLiveEligible.push({ row: o, date: d });
   }
 
+  const includeWooLive = a.sourceFilter === 'all' || a.sourceFilter === 'website_auto';
+  const unifiedRows: UnifiedRow[] = (() => {
+    const rows: UnifiedRow[] = [];
+    for (const o of filteredOrders) {
+      const d = new Date(o.order_date || o.created_at).getTime() || 0;
+      rows.push({ kind: 'manual', date: d, row: o });
+    }
+    if (includeWooLive) {
+      for (const w of wooLiveEligible) rows.push({ kind: 'woo', date: w.date, row: w.row });
+    }
+    rows.sort((x, y) => y.date - x.date);
+    return rows;
+  })();
+
+  // === Counts for the source-filter dropdown ===================================
+  // Derived from the SAME buckets that feed unifiedRows above, so switching
+  // the source filter always yields exactly the count shown in the dropdown.
+  const manualCount = manualBucket.length;
+  const websiteAutoCount = websiteAutoManualBucket.length + wooLiveEligible.length;
   const sourceCounts = {
     manual: manualCount,
     website_auto: websiteAutoCount,
