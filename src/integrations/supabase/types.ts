@@ -2698,6 +2698,65 @@ export type Database = {
           },
         ]
       }
+      compoff_notification_log: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          attempts: number
+          comment: string | null
+          created_at: string
+          decision: string
+          employee_id: string
+          id: string
+          last_error: string | null
+          ledger_id: string
+          reason: string | null
+          recipient_email: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          attempts?: number
+          comment?: string | null
+          created_at?: string
+          decision: string
+          employee_id: string
+          id?: string
+          last_error?: string | null
+          ledger_id: string
+          reason?: string | null
+          recipient_email?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          attempts?: number
+          comment?: string | null
+          created_at?: string
+          decision?: string
+          employee_id?: string
+          id?: string
+          last_error?: string | null
+          ledger_id?: string
+          reason?: string | null
+          recipient_email?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compoff_notification_log_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "compoff_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_directory: {
         Row: {
           contact_key: string
@@ -17963,6 +18022,29 @@ export type Database = {
       link_zoho_invoice_manual: {
         Args: { p_invoice_id: string; p_order_id: string }
         Returns: undefined
+      }
+      list_pending_compoff_credits: {
+        Args: {
+          p_expiry_filter?: string
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_sort_by?: string
+          p_sort_dir?: string
+          p_worked_from?: string
+          p_worked_to?: string
+        }
+        Returns: {
+          created_at: string
+          earned_date: string
+          earned_type: string
+          employee_id: string
+          employee_name: string
+          expires_at: string
+          holiday_name: string
+          id: string
+          total_count: number
+        }[]
       }
       list_resume_access_failures: {
         Args: {
