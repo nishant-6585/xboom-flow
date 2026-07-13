@@ -18,6 +18,8 @@ interface OrderCardProps {
   kycBadge?: React.ReactNode;
 }
 
+import type { ReactNode } from 'react';
+
 const paymentStatusConfig: Record<PaymentStatus, { label: string; className: string }> = {
   pending: { label: 'Payment Pending', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200/50' },
   partial: { label: 'Partial Received', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200/50' },
