@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 interface OrderCardProps {
   order: Order;
   onClick: () => void;
-  kycBadge?: React.ReactNode;
+  kycBadge?: ReactNode;
 }
 
 const paymentStatusConfig: Record<PaymentStatus, { label: string; className: string }> = {
