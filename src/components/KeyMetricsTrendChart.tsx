@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnalyticsScope } from "@/contexts/AnalyticsScopeContext";
+import { isAnalyticsWebsite } from "@/lib/orderSource";
 import { Loader2, TrendingUp } from "lucide-react";
 import { format, subDays, subWeeks, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachWeekOfInterval, eachMonthOfInterval, isWithinInterval } from "date-fns";
 
@@ -59,7 +60,7 @@ export function KeyMetricsTrendChart() {
 
         // Fetch all data
         const [ordersRes, pipelineRes, paymentsRes] = await Promise.all([
-          supabase.from("orders").select("id, created_at, order_date, total_sales_amount, source"),
+          supabase.from("orders").select("id, created_at, order_date, total_sales_amount, source, sales_person_id"),
           supabase.from("pipeline_orders").select("id, created_at, expected_price"),
           supabase.from("payment_records").select("id, created_at, amount, status").eq("status", "approved"),
         ]);
@@ -67,7 +68,7 @@ export function KeyMetricsTrendChart() {
         const ordersRaw = ordersRes.data || [];
         const orders = includeWebsite
           ? ordersRaw
-          : ordersRaw.filter((o: any) => (o.source ?? "manual") !== "website");
+          : ordersRaw.filter((o: any) => !isAnalyticsWebsite(o));
         const pipeline = pipelineRes.data || [];
         const payments = paymentsRes.data || [];
 

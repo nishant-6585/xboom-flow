@@ -71,7 +71,10 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
         .select('id, customer_name, customer_company, product_name, product_category, quantity, total_sales_amount, selling_price, sales_person_id, sales_person_name, order_date, created_at, updated_at, source')
         .gte('order_date', startDateStr)
         .lte('order_date', endDateStr)
-        .or('source.is.null,source.neq.website');
+        // Exclude analytics-website rows: source='website' OR still owned
+        // by the system ingestion user (unattributed legacy backfills).
+        .or('source.is.null,source.neq.website')
+        .or('sales_person_id.is.null,sales_person_id.neq.a8050cc3-7d17-44ac-a083-d8023d505331');
       if (error) throw error;
       return data ?? [];
     },

@@ -13,6 +13,7 @@ import {
 } from "date-fns";
 import { Order } from "@/hooks/useOrders";
 import { supabase } from "@/integrations/supabase/client";
+import { isAnalyticsWebsite } from "@/lib/orderSource";
 
 type TimePeriod = "this_week" | "this_month" | "prev_month";
 
@@ -85,7 +86,7 @@ export function OrdersDashboardStats({
   // Fetch profit data from order_items via DB function
   const [profitData, setProfitData] = useState<Record<string, { profit: number; total_sales: number }>>({});
   const hasWebsiteRows = useMemo(
-    () => filteredOrders.some((o) => o.source === 'website' || o.source === 'website_auto'),
+    () => filteredOrders.some((o) => isAnalyticsWebsite(o as any) || (o as any).source === 'website_auto'),
     [filteredOrders],
   );
   

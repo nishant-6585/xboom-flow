@@ -30,3 +30,18 @@ export const SYSTEM_USER_ID = 'a8050cc3-7d17-44ac-a083-d8023d505331';
 export const isSystemOwned = (
   o?: { sales_person_id?: string | null } | null,
 ): boolean => (o?.sales_person_id ?? null) === SYSTEM_USER_ID;
+
+/**
+ * Analytics predicate: treat a row as "website / unattributed" for analytics
+ * purposes when it is either an unattributed website-feed row OR still owned
+ * by the system ingestion user (`SYSTEM_USER_ID`). The latter covers legacy
+ * backfilled orders whose `source` was flipped to 'manual' but which were
+ * never actually attributed to a rep.
+ *
+ * Use this everywhere analytics historically tested `source === 'website'`.
+ * The moment an order is attributed, `sales_person_id` changes and it
+ * automatically leaves this bucket, joining the rep's numbers.
+ */
+export const isAnalyticsWebsite = (
+  o?: { source?: string | null; sales_person_id?: string | null } | null,
+): boolean => isUnattributedWebsiteFeed(o) || isSystemOwned(o);

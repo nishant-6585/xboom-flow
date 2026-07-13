@@ -87,8 +87,13 @@ export function LeadSourcePerformanceDashboard() {
             .select("id, lead_source, sales_person_name, sales_person_id, customer_name, product_name, total_amount, created_at, source")
             .gte("created_at", dateRange.start).lte("created_at", endDt);
           if (!includeWebsite) {
-            // Treat null source as 'manual'
-            q = q.or("source.is.null,source.neq.website");
+            // Exclude analytics-website rows: source='website' OR still owned
+            // by the system ingestion user (unattributed legacy backfills).
+            // PostgREST: chained .or() clauses AND together; each clause must
+            // also handle NULL explicitly since .neq drops NULL rows.
+            q = q
+              .or("source.is.null,source.neq.website")
+              .or("sales_person_id.is.null,sales_person_id.neq.a8050cc3-7d17-44ac-a083-d8023d505331");
           }
           return q;
         })(),
