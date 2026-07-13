@@ -19,6 +19,9 @@ export function mapWooStatusToInternal(wooStatus: string): string {
   }
 }
 
+import { sendEmail as sendMailSeam } from "./email.ts";
+import { ensurePortalInvite } from "./portal-invite.ts";
+
 /**
  * Pull tracking number + URL out of a Woo order payload. Looks at the
  * common locations used by Advanced Shipment Tracking, YITH, WC Shipment
