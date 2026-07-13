@@ -157,7 +157,16 @@ const KYC_META: Record<string, { label: string; short: string; Icon: any; cls: s
     Icon: ShieldQuestion,
     cls: "",
   },
+  not_required: {
+    label: "KYC: Not required",
+    short: "KYC: Not required",
+    Icon: MinusCircle,
+    cls: "",
+  },
 };
+
+const NOT_REQUIRED_TOOLTIP =
+  "KYC applies to drone orders only — this order has no drone products.";
 
 export function KycInviteBadge({ orderId, customerEmail, compact = false, orderStatus }: Props) {
   const { roles } = useAuth();
@@ -316,7 +325,23 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
         ? enqueueStatus
         : (deliveryStatus || enqueueStatus))
     : null;
-  const meta = status ? (STATUS_META[status] ?? STATUS_META.pending) : null;
+  // Policy skip: KYC does not apply to non-drone orders. Present as a neutral
+  // outline "Not Required" badge and suppress the resend button — force-sending
+  // would just return skipped:no_drone_in_order again.
+  const isNotRequired =
+    row?.status === "skipped" && row?.error === "no_drone_in_order";
+  const notRequiredMeta = {
+    label: "KYC Not Required",
+    short: "KYC Not Required",
+    variant: "outline" as const,
+    Icon: MinusCircle,
+    cls: "",
+  };
+  const meta = isNotRequired
+    ? notRequiredMeta
+    : status
+      ? (STATUS_META[status] ?? STATUS_META.pending)
+      : null;
   const Icon = meta?.Icon;
 
   const deliveryLine =
@@ -327,7 +352,9 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
     status === "sent" && info?.last_delivery?.created_at
       ? new Date(info.last_delivery.created_at).toLocaleString()
       : null;
-  const baseTooltip = row && meta
+  const baseTooltip = isNotRequired
+    ? NOT_REQUIRED_TOOLTIP
+    : row && meta
     ? `${meta.label}${sentAt ? ` • sent ${sentAt}` : ""} • enqueued ${new Date(row.created_at).toLocaleString()} • attempts: ${row.attempt_count}${
         row.error ? `\nReason: ${row.error}` : ""
       }${deliveryLine}`
@@ -353,7 +380,7 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
               {tooltipText}
             </TooltipContent>
           </Tooltip>
-          {canResend && (
+          {canResend && !isNotRequired && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -385,7 +412,11 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
   }
 
   // Full mode: KYC status badge + invite email status + context-aware button
-  const kycKey = info?.has_portal_account === false ? "not_invited" : (info?.kyc_status ?? "not_invited");
+  const kycKey = isNotRequired
+    ? "not_required"
+    : info?.has_portal_account === false
+      ? "not_invited"
+      : (info?.kyc_status ?? "not_invited");
   const kMeta = KYC_META[kycKey] ?? KYC_META.not_invited;
   const KIcon = kMeta.Icon;
   const isApproved = info?.kyc_status === "approved";
@@ -410,7 +441,7 @@ export function KycInviteBadge({ orderId, customerEmail, compact = false, orderS
             </TooltipContent>
           </Tooltip>
         )}
-        {canResend && (
+        {canResend && !isNotRequired && (
           isApproved ? (
             <Button
               size="sm"
