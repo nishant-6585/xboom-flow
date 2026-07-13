@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Award, UserPlus, Loader2, ArrowUp, ChevronDown, ChevronRight, Search, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState as useStateReact } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
 import {
