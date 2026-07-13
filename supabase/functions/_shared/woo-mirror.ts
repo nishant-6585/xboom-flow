@@ -4,6 +4,8 @@
  * `woocommerce-orders-backfill` (cron / manual).
  */
 
+import { htmlToLabel } from "./sanitize-html-label.ts";
+
 // Map WooCommerce status -> internal orders.status enum value
 export function mapWooStatusToInternal(wooStatus: string): string {
   switch (wooStatus) {
