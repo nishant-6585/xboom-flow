@@ -99,11 +99,14 @@ serve(async (req) => {
     const result: Record<string, unknown> = { email: null, sms: null };
 
     // Decide whether to send a standalone confirmation email.
-    //  - Existing portal customer (already has an activated auth user) → yes, they
-    //    won't receive the onboarding email so this is their only nudge.
-    //  - Brand-new customer → NO. kyc-handler's onboardOrder folds the confirmation
-    //    ask into the single onboarding email so we don't double-mail them.
+    //  - Existing portal customer (activated auth user) → yes, direct link.
+    //  - No activated portal user OR only an expired unused invite exists →
+    //    delegate to kyc-handler onboardOrder(force=true) so the customer
+    //    gets a fresh invite + confirmation ask in the SAME email. Otherwise
+    //    they receive a /portal/confirm link they cannot log into (root
+    //    cause of the July 2026 confirmation drop-off).
     let hasExistingPortalUser = false;
+    let needsFreshInvite = false;
     if (order.customer_email) {
       const { data: existingContact } = await admin
         .from("portal_contacts")
@@ -112,6 +115,53 @@ serve(async (req) => {
         .not("auth_user_id", "is", null)
         .maybeSingle();
       hasExistingPortalUser = !!existingContact?.auth_user_id;
+      if (!hasExistingPortalUser) {
+        // Look for an unused non-expired invite; if none, we need to mint one.
+        const { data: liveInvite } = await admin
+          .from("portal_invite_tokens")
+          .select("token, expires_at, used_at")
+          .ilike("email", order.customer_email)
+          .is("used_at", null)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        needsFreshInvite = !liveInvite;
+      }
+    }
+
+    // Fire onboard_order (force) for customers without portal access so the
+    // onboarding+confirmation email goes out with a live invite link.
+    if (needsFreshInvite) {
+      try {
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/kyc-handler`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SERVICE_ROLE}`,
+            apikey: SERVICE_ROLE,
+          },
+          body: JSON.stringify({
+            action: "onboard_order",
+            order_id: order.id,
+            interactive: true,
+          }),
+        });
+        result.email = r.ok ? "sent_via_onboarding_fresh_invite" : `onboarding_failed:${r.status}`;
+        await admin.from("order_notifications").insert({
+          order_ref: order.id, order_source: "internal",
+          order_number: orderNumber, status_trigger: "confirmation_request",
+          channel: "email", template_name: "confirmation_request_email",
+          payload: { customer_name: customerName, order_number: orderNumber, link, delivered_via: "onboarding_fresh_invite" },
+          status: r.ok ? "sent" : "failed",
+          sent_at: r.ok ? new Date().toISOString() : null,
+          error_message: r.ok ? null : `kyc-handler http ${r.status}`,
+          provider: "platform",
+        });
+      } catch (e) {
+        result.email = "onboarding_error";
+        console.error("[send-customer-confirmation-request] onboarding invoke failed", e);
+      }
     }
 
     // ----- Email via Resend -----
@@ -174,9 +224,8 @@ serve(async (req) => {
       }
     } else if (!order.customer_email) {
       result.email = "no_email";
-    } else if (!hasExistingPortalUser) {
-      // New customer: onboarding email (sent by kyc-handler) carries the
-      // confirmation ask, so we skip and log it for the audit trail.
+    } else if (!hasExistingPortalUser && !needsFreshInvite) {
+      // Live unused invite already exists — that email carries the ask.
       result.email = "sent_via_onboarding";
       await admin.from("order_notifications").insert({
         order_ref: order.id, order_source: "internal",
