@@ -85,7 +85,7 @@ export function OrderAttributionPanel({
             Credited to {order.sales_person_name} · {reasonLabel(order.sales_attribution_reason)}
           </Badge>
         ) : (
-          <Badge variant="outline" className="text-muted-foreground">Unattributed (Website Auto)</Badge>
+          <Badge variant="outline" className="text-muted-foreground">Unattributed — WooCommerce (Vishal)</Badge>
         )}
       </div>
 
