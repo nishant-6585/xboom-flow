@@ -186,7 +186,7 @@ serve(async (req) => {
 
     const { data: order, error: oErr } = await admin
       .from("orders")
-      .select("id, order_number, customer_name, customer_email, customer_phone, customer_company, sales_person_id, confirmation_status")
+      .select("id, order_number, customer_name, customer_email, customer_phone, customer_company, sales_person_id, confirmation_status, requires_confirmation")
       .eq("id", body.order_id)
       .maybeSingle();
     if (oErr || !order) {
@@ -196,6 +196,16 @@ serve(async (req) => {
     }
     if (order.confirmation_status === "confirmed") {
       return new Response(JSON.stringify({ ok: true, skipped: "already_confirmed" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Defense in depth: this endpoint sends the "confirm your order" ask.
+    // Non-drone orders (requires_confirmation=false) must never receive it,
+    // even if a staff user clicks Resend from the OrderDialog. Portal
+    // access for those customers is handled by the woo-mirror portal-welcome
+    // path, not here.
+    if (order.requires_confirmation === false) {
+      return new Response(JSON.stringify({ ok: true, skipped: "not_required" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
