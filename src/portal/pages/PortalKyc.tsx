@@ -95,21 +95,11 @@ export default function PortalKyc() {
     // allowlist membership.
     const email = String(contact?.email || "").toLowerCase();
     (async () => {
-      const { data: flags } = await supabase
-        .from("feature_flags")
-        .select("key, enabled, metadata")
-        .in("key", ["digilocker_kyc_enabled", "digilocker_kyc_test_emails"]);
-      const map: Record<string, any> = {};
-      for (const f of (flags as any[]) || []) map[f.key] = f;
-      const globalOn = !!map["digilocker_kyc_enabled"]?.enabled;
-
-      let allowlisted = false;
-      const testFlag = map["digilocker_kyc_test_emails"];
-      if (testFlag?.enabled && Array.isArray(testFlag?.metadata) && email) {
-        allowlisted = (testFlag.metadata as string[])
-          .map((e) => String(e).toLowerCase()).includes(email);
-      }
-      if (!cancelled) setDigilockerVisible(globalOn || allowlisted);
+      // Feature-flag rows aren't readable by portal customers directly (they'd
+      // leak the internal QA allowlist). Ask the server via a SECURITY DEFINER
+      // RPC that returns a single boolean scoped to the caller's email.
+      const { data: visible } = await supabase.rpc("is_digilocker_kyc_visible");
+      if (!cancelled) setDigilockerVisible(!!visible);
     })();
     return () => { cancelled = true; };
   }, [contact?.email]);
