@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.list_pending_compoff_credits(text,date,date,text,text,text,integer,integer) FROM PUBLIC, anon;
