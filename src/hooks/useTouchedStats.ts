@@ -219,6 +219,7 @@ const SOURCE_TYPE_MAP: Record<TouchedSource, string> = {
   emails: "email",
   "form-leads": "form_lead",
   "google-ads": "google_ads",
+  "facebook-leads": "facebook",
   "xboom-website": "woocommerce",
 };
 
