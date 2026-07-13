@@ -17,7 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
   Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil,
-  RefreshCw, Phone, MessageCircle, MapPin, ClipboardList
+  RefreshCw, Phone, MessageCircle, MapPin, ClipboardList, Facebook
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
@@ -487,6 +487,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="google-ads" className="gap-1.5">
           <Megaphone className="h-3.5 w-3.5" />
           Google Ads
+        </TabsTrigger>
+        <TabsTrigger value="facebook-leads" className="gap-1.5">
+          <Facebook className="h-3.5 w-3.5" />
+          Facebook Leads
         </TabsTrigger>
       </TabsList>
 
@@ -1335,6 +1339,13 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <div className="space-y-6">
         <TouchedDashboard source="google-ads" />
         <GoogleAdsSyncPanel />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="facebook-leads">
+        <div className="space-y-6">
+        <TouchedDashboard source="facebook-leads" />
+        <UnifiedLeadInbox sources={["facebook"]} />
         </div>
       </TabsContent>
     </Tabs>

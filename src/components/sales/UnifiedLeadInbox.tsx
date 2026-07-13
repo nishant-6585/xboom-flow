@@ -14,7 +14,10 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck } from "lucide-react";
+import {
+  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck,
+  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LeadRowActions } from "./LeadRowActions";
@@ -45,19 +48,36 @@ const SOURCE_TO_TAB: Record<LeadSource, string> = {
   myoperator: "myoperator",
   elevenlabs: "elevenlabs",
   email: "emails",
-  facebook: "leads",
+  facebook: "facebook-leads",
+};
+
+const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }>> = {
+  website: Globe,
+  forms: FileSpreadsheet,
+  google_ads: Megaphone,
+  interakt: MessageCircle,
+  myoperator: Phone,
+  elevenlabs: Headphones,
+  email: Mail,
+  facebook: Facebook,
 };
 
 function lastSeenKey(userId: string | undefined) {
   return `xboom:lead-inbox:last-seen:${userId ?? "anon"}`;
 }
 
-export function UnifiedLeadInbox() {
+interface UnifiedLeadInboxProps {
+  /** Pre-selected sources. When provided, the source filter chips are hidden and only these sources are queried. */
+  sources?: LeadSource[];
+}
+
+export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const { currentlyUnavailable } = useTeamAvailability();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [selectedSources, setSelectedSources] = useState<LeadSource[]>([]);
+  const isLockedSource = sources && sources.length > 0;
+  const [selectedSources, setSelectedSources] = useState<LeadSource[]>(sources ?? []);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -72,6 +92,11 @@ export function UnifiedLeadInbox() {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(lastSeenKey(user?.id));
   });
+
+  // Keep locked source in sync if prop changes
+  useEffect(() => {
+    if (isLockedSource) setSelectedSources(sources ?? []);
+  }, [sources?.join(",")]);
 
   // Debounce search
   useEffect(() => {
@@ -162,10 +187,19 @@ export function UnifiedLeadInbox() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
-              <Inbox className="h-5 w-5 text-primary" />
+              {(() => {
+                const Icon = isLockedSource && sources?.length === 1
+                  ? SOURCE_ICON[sources[0]!]
+                  : Inbox;
+                return <Icon className="h-5 w-5 text-primary" />;
+              })()}
             </div>
             <div>
-              <h2 className="text-lg font-semibold">All Leads</h2>
+              <h2 className="text-lg font-semibold">
+                {isLockedSource && sources?.length === 1
+                  ? SOURCE_META[sources[0]!].label
+                  : "All Leads"}
+              </h2>
               <p className="text-xs text-muted-foreground">
                 {isLoading
                   ? "Loading…"
@@ -227,49 +261,51 @@ export function UnifiedLeadInbox() {
           onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
         />
 
-        {/* Source chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSelectedSources([])}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-              selectedSources.length === 0
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background hover:bg-muted border-border",
-            )}
-          >
-            All
-          </button>
-          {LEAD_SOURCES.map((src) => {
-            const meta = SOURCE_META[src];
-            const selected = selectedSources.includes(src);
-            const newCount = counts.data?.bySource[src] ?? 0;
-            return (
-              <button
-                key={src}
-                type="button"
-                onClick={() => toggleSource(src)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5",
-                  selected
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : cn("hover:bg-muted border-border", meta.chipClass),
-                )}
-              >
-                {meta.label}
-                {newCount > 0 && (
-                  <span className={cn(
-                    "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold",
-                    selected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary text-primary-foreground",
-                  )}>
-                    {newCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {/* Source chips — hidden when sources are locked by a parent tab */}
+        {!isLockedSource && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedSources([])}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                selectedSources.length === 0
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background hover:bg-muted border-border",
+              )}
+            >
+              All
+            </button>
+            {LEAD_SOURCES.map((src) => {
+              const meta = SOURCE_META[src];
+              const selected = selectedSources.includes(src);
+              const newCount = counts.data?.bySource[src] ?? 0;
+              return (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => toggleSource(src)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5",
+                    selected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : cn("hover:bg-muted border-border", meta.chipClass),
+                  )}
+                >
+                  {meta.label}
+                  {newCount > 0 && (
+                    <span className={cn(
+                      "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold",
+                      selected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary text-primary-foreground",
+                    )}>
+                      {newCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Table */}
