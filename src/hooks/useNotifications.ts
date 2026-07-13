@@ -38,7 +38,13 @@ export function useNotifications() {
 
   const showToastForNotification = useCallback((notification: Notification) => {
     // Show toasts for hot leads, mega deals, enquiry responses, and enquiry messages
-    if (notification.type !== 'hot_lead' && notification.type !== 'mega_deal' && notification.type !== 'enquiry_response' && notification.type !== 'enquiry_message') {
+    if (
+      notification.type !== 'hot_lead' &&
+      notification.type !== 'mega_deal' &&
+      notification.type !== 'enquiry_response' &&
+      notification.type !== 'enquiry_message' &&
+      notification.type !== 'enquiry_nudge'
+    ) {
       return;
     }
 
@@ -50,7 +56,7 @@ export function useNotifications() {
     // Suppress enquiry_message toast when the user is actively viewing
     // that enquiry's detail dialog (they're reading the thread live).
     if (
-      notification.type === 'enquiry_message' &&
+      (notification.type === 'enquiry_message' || notification.type === 'enquiry_nudge') &&
       notification.enquiry_id &&
       isEnquiryOpen(notification.enquiry_id)
     ) {
@@ -60,13 +66,25 @@ export function useNotifications() {
     shownToastIds.current.add(notification.id);
 
     const isHotLead = notification.type === 'hot_lead';
-    const isEnquiry = notification.type === 'enquiry_response' || notification.type === 'enquiry_message';
-    const isEnquiryMessage = notification.type === 'enquiry_message';
+    const isEnquiry =
+      notification.type === 'enquiry_response' ||
+      notification.type === 'enquiry_message' ||
+      notification.type === 'enquiry_nudge';
+    const isEnquiryMessage =
+      notification.type === 'enquiry_message' || notification.type === 'enquiry_nudge';
     
     // Play sound alert
     playNotificationSound(isHotLead ? 'hot_lead' : 'mega_deal');
     
-    const icon = isHotLead ? '🔥' : isEnquiry ? (notification.type === 'enquiry_response' ? '📋' : '💬') : '🌟';
+    const icon = isHotLead
+      ? '🔥'
+      : notification.type === 'enquiry_response'
+      ? '📋'
+      : notification.type === 'enquiry_nudge'
+      ? '👋'
+      : notification.type === 'enquiry_message'
+      ? '💬'
+      : '🌟';
     
     toast(notification.title, {
       description: notification.message,
