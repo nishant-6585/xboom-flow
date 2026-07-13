@@ -381,7 +381,22 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                   </div>
 
                   {compoffError && (
-                    <p className="text-sm text-destructive">{compoffError}</p>
+                    <div className="flex items-start gap-2 p-3 rounded-md border border-destructive/40 bg-destructive/10 text-sm text-destructive">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>{compoffError}</span>
+                    </div>
+                  )}
+                  {!compoffError && attendanceWarning && (
+                    <div className="flex items-start gap-2 p-3 rounded-md border border-amber-500/40 bg-amber-500/10 text-sm text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>{attendanceWarning}</span>
+                    </div>
+                  )}
+                  {!compoffError && !attendanceWarning && earnedDate && !checkingAttendance && (
+                    <div className="flex items-start gap-2 p-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-700 dark:text-emerald-400">
+                      <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>Attendance confirmed for {format(parseISO(earnedDate), 'MMM d, yyyy')}. HR will review this claim.</span>
+                    </div>
                   )}
                 </div>
               )}
