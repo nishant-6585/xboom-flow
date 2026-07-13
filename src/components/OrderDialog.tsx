@@ -37,6 +37,7 @@ import { EditHistoryPanel } from '@/components/EditHistoryPanel';
 import { OrderActivityTimeline } from '@/components/OrderActivityTimeline';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PricelistItem } from '@/hooks/usePricelist';
