@@ -238,49 +238,51 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
           onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
         />
 
-        {/* Source chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSelectedSources([])}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-              selectedSources.length === 0
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background hover:bg-muted border-border",
-            )}
-          >
-            All
-          </button>
-          {LEAD_SOURCES.map((src) => {
-            const meta = SOURCE_META[src];
-            const selected = selectedSources.includes(src);
-            const newCount = counts.data?.bySource[src] ?? 0;
-            return (
-              <button
-                key={src}
-                type="button"
-                onClick={() => toggleSource(src)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5",
-                  selected
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : cn("hover:bg-muted border-border", meta.chipClass),
-                )}
-              >
-                {meta.label}
-                {newCount > 0 && (
-                  <span className={cn(
-                    "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold",
-                    selected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary text-primary-foreground",
-                  )}>
-                    {newCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {/* Source chips — hidden when sources are locked by a parent tab */}
+        {!isLockedSource && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedSources([])}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                selectedSources.length === 0
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background hover:bg-muted border-border",
+              )}
+            >
+              All
+            </button>
+            {LEAD_SOURCES.map((src) => {
+              const meta = SOURCE_META[src];
+              const selected = selectedSources.includes(src);
+              const newCount = counts.data?.bySource[src] ?? 0;
+              return (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => toggleSource(src)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5",
+                    selected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : cn("hover:bg-muted border-border", meta.chipClass),
+                  )}
+                >
+                  {meta.label}
+                  {newCount > 0 && (
+                    <span className={cn(
+                      "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold",
+                      selected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary text-primary-foreground",
+                    )}>
+                      {newCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Table */}
