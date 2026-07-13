@@ -587,6 +587,21 @@ export default function KycVerification() {
                                   Reason: {r.document.rejection_reason}
                                 </span>
                               )}
+                              {effectiveStatus === "approved" && r.document?.reviewed_by && r.document?.doc_type === "aadhaar" && (
+                                <TooltipProvider delayDuration={150}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="mt-1 inline-flex items-start gap-1 text-[11px] leading-snug text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 cursor-help whitespace-normal break-words">
+                                        <Sparkles className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                        <span>Manual review — AI skipped for Aadhaar (data-localization)</span>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs text-xs">
+                                      AI is intentionally skipped for Aadhaar to keep the document off the external vision provider (data-localization). The reviewer verified the holder name and last-4 against the customer's declared value.
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
