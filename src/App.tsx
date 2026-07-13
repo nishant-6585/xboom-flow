@@ -181,6 +181,7 @@ function AppInner() {
         <Route path="/admin/duplicate-orders" element={<ProtectedRoute><DuplicateOrderReview /></ProtectedRoute>} />
         <Route path="/admin/false-positive-confirmations" element={<ProtectedRoute><FalsePositiveConfirmations /></ProtectedRoute>} />
         <Route path="/admin/pricelist-category-import" element={<ProtectedRoute><PricelistCategoryImport /></ProtectedRoute>} />
+        <Route path="/admin/compoff-audit" element={<ProtectedRoute><CompOffAudit /></ProtectedRoute>} />
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
