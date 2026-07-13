@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(11);
 
 set local role postgres;
 
@@ -14,6 +14,7 @@ set local role postgres;
 \set sales_uid 'bbbb2222-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 \set enq_pend  'ccc11111-cccc-cccc-cccc-cccccccccccc'
 \set enq_won   'ddd22222-dddd-dddd-dddd-dddddddddddd'
+\set enq_struct 'eee33333-eeee-eeee-eeee-eeeeeeeeeeee'
 
 insert into auth.users (id, email, instance_id, aud, role) values
   (:'sc_uid'::uuid,    'thread-sc@test.local',
@@ -39,7 +40,9 @@ values
   (:'enq_pend'::uuid, 'Test Drone', 'TD-P', 1, 'Cust P', 'Co P',
    :'sales_uid'::uuid, 'Sales User', 'medium', 'pending'),
   (:'enq_won'::uuid,  'Test Drone', 'TD-W', 1, 'Cust W', 'Co W',
-   :'sales_uid'::uuid, 'Sales User', 'medium', 'order_won');
+   :'sales_uid'::uuid, 'Sales User', 'medium', 'order_won'),
+  (:'enq_struct'::uuid, 'Test Drone', 'TD-S', 1, 'Cust S', 'Co S',
+   :'sales_uid'::uuid, 'Sales User', 'medium', 'pending');
 
 create or replace function pg_temp.as_user(_uid uuid) returns void
 language plpgsql as $$
@@ -82,6 +85,22 @@ select is(
        and task_type = 'supplier_validation'),
   1,
   'exactly ONE supplier_validation task after first response via thread'
+);
+
+-- Notification dedupe: thread-first response must emit ONLY 'enquiry_message',
+-- not the redundant 'enquiry_response' toast (guarded via pg_trigger_depth).
+select is(
+  (select count(*)::int from public.notifications
+     where enquiry_id = :'enq_pend'::uuid and type = 'enquiry_message'),
+  1,
+  'thread first-response emits exactly ONE enquiry_message notification'
+);
+
+select is(
+  (select count(*)::int from public.notifications
+     where enquiry_id = :'enq_pend'::uuid and type = 'enquiry_response'),
+  0,
+  'thread first-response does NOT emit enquiry_response (nested trigger suppressed)'
 );
 
 -- capture the first responded_at to prove it does not move on later flips
@@ -156,6 +175,29 @@ select is(
   (select status from public.enquiries where id = :'enq_won'::uuid),
   'order_won',
   'sales thread message on order_won enquiry does NOT change status'
+);
+
+-- ============================================================
+-- 5) Structured "Submit Response" (direct UPDATE, depth 1) → enquiry_response fires
+-- ============================================================
+select pg_temp.as_user(:'sc_uid'::uuid);
+
+update public.enquiries
+   set status = 'responded',
+       responded_at = now(),
+       responded_by = :'sc_uid'::uuid,
+       responded_by_name = 'SC User',
+       response_pricing = '100',
+       response_availability = 'In stock'
+ where id = :'enq_struct'::uuid;
+
+reset role;
+
+select is(
+  (select count(*)::int from public.notifications
+     where enquiry_id = :'enq_struct'::uuid and type = 'enquiry_response'),
+  1,
+  'structured response path (depth-1 UPDATE) still emits enquiry_response'
 );
 
 select * from finish();
