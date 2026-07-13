@@ -153,8 +153,8 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
     if (a.sourceFilter === 'all' || a.sourceFilter === 'website_auto') {
       const mirroredWooIds = new Set(
         a.orders
-          .filter((o) => o.source === 'website')
-          .map((o) => String(o.external_id || '')),
+          .filter((o) => !!o.external_id)
+          .map((o) => String(o.external_id)),
       );
       const sl = a.searchQuery.toLowerCase().trim();
       for (const o of a.wooOrders) {
@@ -213,8 +213,8 @@ export function useOrdersFiltering(a: UseOrdersFilteringArgs) {
   const sl = a.searchQuery.toLowerCase().trim();
   const mirroredWooIds = new Set(
     a.orders
-      .filter((o) => o.source === 'website')
-      .map((o) => String(o.external_id || '')),
+      .filter((o) => !!o.external_id)
+      .map((o) => String(o.external_id)),
   );
   for (const o of a.wooOrders) {
     const s = (o.order_status || '').toLowerCase();
