@@ -299,7 +299,12 @@ export function TallyDashboard() {
             // payment — these typically get auto-cancelled by Woo and should
             // not pollute Tally. They reappear automatically once Woo marks
             // them as processing/completed (payment_status flips to "full").
+            // Exclude website/system-owned orders that are still awaiting
+            // payment — these typically get auto-cancelled by Woo and should
+            // not pollute Tally. Paid rows in either bucket keep counting so
+            // accounting completeness stays attribution-independent.
             .or("source.neq.website,payment_status.neq.pending")
+            .or("sales_person_id.is.null,sales_person_id.neq.a8050cc3-7d17-44ac-a083-d8023d505331,payment_status.neq.pending")
             .order("created_at", { ascending: false }),
           supabase
             .from("inventory_procurements")
