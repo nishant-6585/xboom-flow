@@ -2,7 +2,7 @@ import {
   BarChart3, CreditCard, Receipt, Users, MessageSquare, ClipboardList,
   Bell, KeyRound, Activity, Building2, CalendarClock, CalendarDays,
   History, UserCog, Shield, Briefcase, FileQuestion, Package, ToggleLeft,
-  Mail, Terminal, Copy, ShieldCheck, FileText,
+  Mail, Terminal, Copy, ShieldCheck, FileText, Gift,
 } from "lucide-react";
 
 export type AdminTabDef = {
@@ -51,6 +51,7 @@ export const ADMIN_TABS: AdminTabDef[] = [
   { value: "duplicate-orders", label: "Duplicate Orders", icon: Copy, to: "/admin/duplicate-orders" },
   { value: "false-positive-confirmations", label: "False-Positive Confirmations", icon: ShieldCheck, to: "/admin/false-positive-confirmations" },
   { value: "pricelist-category-import", label: "Pricelist Category Import", icon: FileText, to: "/admin/pricelist-category-import" },
+  { value: "compoff-audit", label: "Comp-off Audit", icon: Gift, to: "/admin/compoff-audit" },
   { value: "kyc-emails", label: "KYC Emails", icon: Mail, to: "/admin/kyc-emails", financeOk: true },
   { value: "dev-console", label: "Dev Console", icon: Terminal, to: "/admin/dev-console" },
 ];
