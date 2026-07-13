@@ -563,6 +563,12 @@ export default function OrdersListTab(props: OrdersListTabProps) {
         onOpenChange={setWooDetailOpen}
         onUpdated={() => { refetchWooOrders(); refetchWooSync(); }}
       />
+      <BulkReassignWebsiteAutoDialog
+        open={bulkReassignOpen}
+        onOpenChange={setBulkReassignOpen}
+        wooOrders={unifiedRows.filter((u) => u.kind === 'woo').map((u) => (u as any).row)}
+        onDone={() => { refetchWooOrders(); refetchWooSync(); }}
+      />
     </TabsContent>
   );
 }
