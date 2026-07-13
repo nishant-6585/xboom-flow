@@ -84,6 +84,7 @@ import KycEmailLogs from "./pages/admin/KycEmailLogs";
 import ZohoInvoices from "./pages/admin/ZohoInvoices";
 import DevConsole from "./pages/admin/DevConsole";
 import DuplicateOrderReview from "./pages/admin/DuplicateOrderReview";
+import FalsePositiveConfirmations from "./pages/admin/FalsePositiveConfirmations";
 import { DuplicateOrderGuardModal } from "@/components/orders/DuplicateOrderGuardModal";
 
 import { PortalAuthProvider } from "@/portal/hooks/usePortalAuth";
@@ -176,6 +177,7 @@ function AppInner() {
         <Route path="/admin/zoho-invoices" element={<ProtectedRoute><ZohoInvoices /></ProtectedRoute>} />
         <Route path="/admin/dev-console" element={<ProtectedRoute><DevConsole /></ProtectedRoute>} />
         <Route path="/admin/duplicate-orders" element={<ProtectedRoute><DuplicateOrderReview /></ProtectedRoute>} />
+        <Route path="/admin/false-positive-confirmations" element={<ProtectedRoute><FalsePositiveConfirmations /></ProtectedRoute>} />
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
