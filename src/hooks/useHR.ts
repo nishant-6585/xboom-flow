@@ -550,25 +550,19 @@ export function useHR() {
       // CompOff: ensure a ledger row exists (status='available') and link to leave request.
       let ledgerId: string | null = data.compoff?.ledger_id ?? null;
       if (data.leave_type === 'compoff' && data.compoff && !ledgerId) {
-        const earned = new Date(data.compoff.earned_date);
-        const expires = new Date(earned);
-        expires.setDate(expires.getDate() + 90);
-        const { data: ledgerRow, error: ledgerErr } = await supabase
-          .from('compoff_ledger')
-          .insert({
-            employee_id: myEmployee.id,
-            earned_date: data.compoff.earned_date,
-            earned_type: data.compoff.earned_type,
-            holiday_id: data.compoff.holiday_id ?? null,
-            holiday_name: data.compoff.holiday_name ?? null,
-            status: 'available',
-            expires_at: expires.toISOString().split('T')[0],
-            created_by: user.id,
-          } as any)
-          .select('id')
-          .single();
+        // Employees cannot insert into compoff_ledger directly (HR/Admin-only RLS).
+        // Use the validated SECURITY DEFINER RPC which checks weekend/holiday +
+        // attendance before creating the credit row.
+        const { data: claimedId, error: ledgerErr } = await supabase.rpc(
+          'claim_compoff_credit',
+          {
+            p_earned_date: data.compoff.earned_date,
+            p_earned_type: data.compoff.earned_type,
+            p_holiday_id: data.compoff.holiday_id ?? null,
+          } as any,
+        );
         if (ledgerErr) throw ledgerErr;
-        ledgerId = ledgerRow?.id ?? null;
+        ledgerId = (claimedId as string) ?? null;
       }
 
       const { error } = await supabase
