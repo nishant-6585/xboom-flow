@@ -77,8 +77,23 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
   const resend = async () => {
     setSending(true);
     try {
-      await callEdgeFunction("send-customer-confirmation-request", { body: { order_id: order.id } });
-      toast.success("Confirmation request sent to the customer.");
+      const res: any = await callEdgeFunction("send-customer-confirmation-request", { body: { order_id: order.id } });
+      // Server returns { ok, email?: 'sent'|'failed:<status>'|'no_email'|'error', sms?, skipped? }
+      if (res?.skipped === "not_required") {
+        toast.info("This order does not require customer confirmation — nothing sent.");
+      } else if (res?.skipped === "already_confirmed") {
+        toast.info("Customer has already confirmed this order.");
+      } else if (res?.email === "sent") {
+        const bits = ["Email delivered"];
+        if (res?.sms === "queued") bits.push("SMS queued");
+        toast.success(`Confirmation request sent — ${bits.join(", ")}.`);
+      } else if (typeof res?.email === "string" && res.email.startsWith("failed")) {
+        toast.error(`Email failed (${res.email}). SMS ${res?.sms ?? "n/a"}.`);
+      } else if (res?.email === "no_email") {
+        toast.warning("No customer email on this order — nothing sent.");
+      } else {
+        toast.success("Confirmation request dispatched.");
+      }
       await refreshPortalState();
     } catch (e: any) {
       toast.error(e?.message || "Failed to send confirmation request");
@@ -94,7 +109,9 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
       // missing, and sends the confirmation email with a "Set your password"
       // fallback link. Logs to order_notifications (status_trigger=confirmation_request).
       const res: any = await callEdgeFunction("send-customer-confirmation-request", { body: { order_id: order.id } });
-      if (res?.email && String(res.email).startsWith("failed")) {
+      if (res?.skipped === "not_required") {
+        toast.info("This order does not require customer confirmation — no invite sent.");
+      } else if (res?.email && String(res.email).startsWith("failed")) {
         toast.error(`Invite failed: ${res.email}`);
       } else {
         toast.success("Portal invite sent — customer will receive an activation email.");
