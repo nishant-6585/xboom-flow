@@ -18,6 +18,7 @@ import {
 } from '@/hooks/useAttributionRequests';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { ATTRIBUTION_REASONS } from './OrderAttributionPanel';
+import { bulkAttributeWebsiteAuto } from './bulkReassignWebsiteAuto';
 
 interface Props {
   open: boolean;
@@ -93,36 +94,17 @@ export function BulkReassignWebsiteAutoDialog({
   const submit = async () => {
     setRunning(true);
     setProgress({ done: 0, total: selectedExternalIds.size, failed: 0 });
-    let done = 0;
-    let failed = 0;
     try {
       const ids = Array.from(selectedExternalIds).map(String);
-      // Resolve internal order ids for the selected Woo external_ids.
-      const { data: internal, error: lookupErr } = await supabase
-        .from('orders')
-        .select('id, external_id')
-        .in('external_id', ids);
-      if (lookupErr) throw lookupErr;
-      const byExt = new Map<string, string>();
-      (internal ?? []).forEach((r: any) => byExt.set(String(r.external_id), r.id));
-
-      for (const ext of ids) {
-        const orderId = byExt.get(ext);
-        if (!orderId) { failed++; continue; }
-        try {
-          await attribute.mutateAsync({
-            orderId,
-            salesPersonId,
-            reason,
-            reasonCustom: reason === 'other' ? customReason.trim() : null,
-          });
-          done++;
-        } catch (e) {
-          failed++;
-          console.error('[bulk-reassign] failed for', ext, e);
-        }
-        setProgress({ done, total: ids.length, failed });
-      }
+      const { done, failed } = await bulkAttributeWebsiteAuto({
+        supabase,
+        attribute: (p) => attribute.mutateAsync(p),
+        externalIds: ids,
+        salesPersonId,
+        reason,
+        reasonCustom: customReason.trim(),
+        onProgress: setProgress,
+      });
       toast({
         title: failed === 0 ? 'Bulk attribution complete' : 'Bulk attribution finished with errors',
         description: `${done} attributed, ${failed} failed.`,
