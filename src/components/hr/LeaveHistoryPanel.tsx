@@ -21,19 +21,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-
-const LEAVE_TYPE_LABELS: Record<string, string> = {
-  EL: 'Earned Leave',
-  casual: 'Earned (Casual)',
-  paid: 'Earned (Paid)',
-  sick: 'Sick Leave',
-  unpaid: 'Unpaid Leave',
-  half_day_EL: 'Half Day (EL)',
-  half_day_sick: 'Half Day (Sick)',
-  half_day_unpaid: 'Half Day (Unpaid)',
-  wfh: 'WFH',
-  compoff: 'Comp-Off',
-};
+import { LEAVE_HISTORY_TYPE_OPTIONS, getLeaveTypeLabel } from "@/lib/leaveTypeLabels";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   approved: { label: 'Approved', variant: 'default' },
@@ -160,11 +148,9 @@ export function LeaveHistoryPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all_types">All Types</SelectItem>
-                <SelectItem value="EL">Earned Leave</SelectItem>
-                <SelectItem value="sick">Sick Leave</SelectItem>
-                <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                <SelectItem value="wfh">WFH</SelectItem>
-                <SelectItem value="compoff">Comp-Off</SelectItem>
+                {LEAVE_HISTORY_TYPE_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -306,7 +292,7 @@ export function LeaveHistoryPanel() {
                       {records.map(r => (
                         <TableRow key={r.id}>
                           <TableCell className="text-sm font-medium">{r.employee_name}</TableCell>
-                          <TableCell className="text-sm">{LEAVE_TYPE_LABELS[r.leave_type] || r.leave_type}</TableCell>
+                          <TableCell className="text-sm">{getLeaveTypeLabel(r.leave_type)}</TableCell>
                           <TableCell className="text-sm">{format(new Date(r.start_date), 'dd MMM yyyy')}</TableCell>
                           <TableCell className="text-sm">{format(new Date(r.end_date), 'dd MMM yyyy')}</TableCell>
                           <TableCell className="text-sm text-center font-medium">{r.total_days}</TableCell>
@@ -411,7 +397,7 @@ export function LeaveHistoryPanel() {
                 <div>
                   This will permanently delete{' '}
                   <span className="font-medium text-foreground">{deleteTarget?.employee_name}</span>'s{' '}
-                  <span className="font-medium text-foreground">{deleteTarget && (LEAVE_TYPE_LABELS[deleteTarget.leave_type] || deleteTarget.leave_type)}</span>{' '}
+                  <span className="font-medium text-foreground">{deleteTarget && getLeaveTypeLabel(deleteTarget.leave_type)}</span>{' '}
                   ({deleteTarget?.total_days} day{(deleteTarget?.total_days ?? 0) === 1 ? '' : 's'}) from{' '}
                   {deleteTarget && format(new Date(deleteTarget.start_date), 'dd MMM yyyy')} – {deleteTarget && format(new Date(deleteTarget.end_date), 'dd MMM yyyy')}.
                 </div>
