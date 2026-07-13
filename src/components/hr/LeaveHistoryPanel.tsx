@@ -397,7 +397,7 @@ export function LeaveHistoryPanel() {
                 <div>
                   This will permanently delete{' '}
                   <span className="font-medium text-foreground">{deleteTarget?.employee_name}</span>'s{' '}
-                  <span className="font-medium text-foreground">{deleteTarget && (LEAVE_TYPE_LABELS[deleteTarget.leave_type] || deleteTarget.leave_type)}</span>{' '}
+                  <span className="font-medium text-foreground">{deleteTarget && getLeaveTypeLabel(deleteTarget.leave_type)}</span>{' '}
                   ({deleteTarget?.total_days} day{(deleteTarget?.total_days ?? 0) === 1 ? '' : 's'}) from{' '}
                   {deleteTarget && format(new Date(deleteTarget.start_date), 'dd MMM yyyy')} – {deleteTarget && format(new Date(deleteTarget.end_date), 'dd MMM yyyy')}.
                 </div>
