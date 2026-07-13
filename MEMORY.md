@@ -227,6 +227,12 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 
 ## ✅ Completed work
 
+### 2026-07-13 — WooCommerce (Vishal) bucket + attribution grants ✅ (by Lovable, verified after a partial-delivery catch)
+Website (Auto) rebranded and permissions tightened. Migrations `20260713100927` + repair `20260713102706`:
+- System ingestion user displays as **'Vishal (Website)'** (orders.sales_person_name + profiles.name backfilled; woo-mirror SYSTEM_USER_NAME updated) — deliberately NOT plain 'Vishal' so unattributed website orders never merge with real Vishal's orders in name-grouped filters/leaderboards. Source filter option now "WooCommerce (Vishal)"; panel badge "Unattributed — WooCommerce (Vishal)".
+- **attribution_grants** table (payment_marker_grants pattern) + `can_attribute_website_order()` (admin | sales_manager | granted); Sanu Sabu seeded (`ac290dd5…`). `attribute_website_order` uses the capability fn; OrderAttributionPanel Assign gated by `useCanAttributeWebsiteOrder()` (non-granted supply_chain = read-only; sales keep Request). Bonus shipped: BulkReassignWebsiteAutoDialog (routes per-row through the RPC), accessible empty state, "Normalized from website" audit chip in OrderDialog.
+- **VERIFICATION LESSON:** Lovable's first "all shipped" report described none of the spec (backfill wrote plain 'Vishal', woo-mirror + filter label + panel gate untouched) — caught by repo diff, fixed in the follow-up. Always diff, never trust the summary.
+
 ### 2026-07-13 — Enquiry nudge button (sales → supply chain) ✅ (by Lovable, verified)
 Rate-limited human nudge replaces the deleted auto-popup pressure. Migration `20260713082035`:
 - `enquiry_messages.is_nudge` + **first-statement early-return in `sync_enquiry_status_from_thread`** (nudge NEVER mutates status — would otherwise flip responded→follow_up); `notify_on_enquiry_message` nudge branch → `enquiry_nudge` broadcast to supply_chain (user_id NULL, enquiry_id set).
