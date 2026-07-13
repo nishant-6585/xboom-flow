@@ -488,6 +488,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           <Megaphone className="h-3.5 w-3.5" />
           Google Ads
         </TabsTrigger>
+        <TabsTrigger value="facebook-leads" className="gap-1.5">
+          <Facebook className="h-3.5 w-3.5" />
+          Facebook Leads
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="all-inbox" className="space-y-6">
