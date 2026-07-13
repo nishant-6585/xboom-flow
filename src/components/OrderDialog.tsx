@@ -37,7 +37,7 @@ import { EditHistoryPanel } from '@/components/EditHistoryPanel';
 import { OrderActivityTimeline } from '@/components/OrderActivityTimeline';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { NormalizedFromWebsiteBadge } from '@/components/orders/NormalizedFromWebsiteBadge';
 import { cn } from '@/lib/utils';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PricelistItem } from '@/hooks/usePricelist';
@@ -1282,38 +1282,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   {order.product_category}
                   <LeadSourceBadge source={order.lead_source || (order as any).source} size="sm" />
                   {(order as any).external_id && (order as any).source !== 'website' && (
-                    (() => {
-                      const atRaw = (order as any).attributed_at;
-                      const at = atRaw ? new Date(atRaw).toLocaleString('en-IN') : 'unknown time';
-                      const by = (order as any).attributed_by_name || 'system';
-                      const tipText = `Normalized from WooCommerce (Vishal) — ${at} by ${by}. Direct salesperson edits are locked; use the Sales attribution panel to change credit.`;
-                      return (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge
-                                tabIndex={0}
-                                role="button"
-                                variant="outline"
-                                data-testid="normalized-from-website-badge"
-                                className="text-[10px] h-5 px-1.5 text-amber-700 dark:text-amber-400 border-amber-500/40 bg-amber-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
-                                aria-label={tipText}
-                              >
-                                Normalized from website
-                                {atRaw ? (
-                                  <span className="ml-1 opacity-80" data-testid="normalized-from-website-date">
-                                    · {new Date(atRaw).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                                  </span>
-                                ) : null}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs text-xs">
-                              {tipText}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    })()
+                    <NormalizedFromWebsiteBadge
+                      attributedAt={(order as any).attributed_at}
+                      attributedByName={(order as any).attributed_by_name}
+                    />
                   )}
                   <Badge variant="outline" className="text-xs">
                     {order.customer_type.toUpperCase()}
