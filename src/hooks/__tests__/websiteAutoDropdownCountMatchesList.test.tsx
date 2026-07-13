@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { useOrdersFiltering, type UseOrdersFilteringArgs } from '../useOrdersFiltering';
 import type { Order } from '../useOrders';
 import type { WooCommerceOrder } from '../useWooCommerceOrders';
+import { SYSTEM_USER_ID } from '@/lib/orderSource';
 
 // End-to-end style: render the "WooCommerce (Vishal)" dropdown option label
 // (which surfaces the sourceCounts.website_auto number) alongside the actual
@@ -24,6 +25,7 @@ const mkOrder = (o: Partial<Order>): Order =>
     amount_paid: 1000,
     source: 'manual',
     external_id: null,
+    sales_person_id: 'rep-1',
     ...o,
   }) as unknown as Order;
 
@@ -101,7 +103,7 @@ describe('E2E: "WooCommerce (Vishal)" dropdown count matches rendered list', () 
     { name: 'two live-feed only', orders: [], woo: [mkWoo({ woo_order_id: 'W1' }), mkWoo({ woo_order_id: 'W2' })] },
     {
       name: 'live feed + mirror dedupe',
-      orders: [mkOrder({ source: 'website', external_id: 'W2' })],
+      orders: [mkOrder({ source: 'website', external_id: 'W2', sales_person_id: SYSTEM_USER_ID })],
       woo: [mkWoo({ woo_order_id: 'W1' }), mkWoo({ woo_order_id: 'W2' })],
     },
     {
