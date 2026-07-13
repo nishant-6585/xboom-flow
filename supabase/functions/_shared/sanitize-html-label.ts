@@ -111,6 +111,11 @@ export function htmlToLabel(raw: unknown, fallback?: string | null): string {
   if (/<img\b/i.test(source)) {
     const gateway = detectGatewayName(source);
     if (gateway && !stripped.toLowerCase().includes(gateway.toLowerCase())) {
+      // Dedupe: if the stripped label already mentions "Pay via",
+      // just append the gateway name instead of repeating the phrase.
+      if (/pay\s+via/i.test(stripped)) {
+        return `${stripped} ${gateway}`.replace(/\s+/g, " ").trim();
+      }
       return `${stripped} — Pay via ${gateway}`;
     }
   }
