@@ -30,7 +30,7 @@ const outcomeConfig: Record<OrderOutcome, { label: string; className: string; ic
   lost: { label: 'Lost', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
 };
 
-export function OrderCard({ order, onClick }: OrderCardProps) {
+export function OrderCard({ order, onClick, kycBadge }: OrderCardProps) {
   const { role } = useAuth();
   const canSeeProcurement = role === 'supply_chain' || role === 'admin' || role === 'finance';
 
