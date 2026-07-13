@@ -1,0 +1,1 @@
+ALTER FUNCTION public.assert_gmail_integrations_grants() SET search_path = public, pg_temp;
