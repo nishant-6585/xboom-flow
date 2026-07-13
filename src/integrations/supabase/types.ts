@@ -17216,6 +17216,14 @@ export type Database = {
       }
       cleanup_expired_devices: { Args: never; Returns: undefined }
       cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
+      clear_false_positive_confirmation_flags: {
+        Args: never
+        Returns: {
+          item_count: number
+          order_id: string
+          order_number: string
+        }[]
+      }
       compute_contact_key: {
         Args: { _email: string; _phone: string }
         Returns: string
