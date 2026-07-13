@@ -19,6 +19,9 @@ export function mapWooStatusToInternal(wooStatus: string): string {
   }
 }
 
+import { sendEmail as sendMailSeam } from "./email.ts";
+import { ensurePortalInvite } from "./portal-invite.ts";
+
 /**
  * Pull tracking number + URL out of a Woo order payload. Looks at the
  * common locations used by Advanced Shipment Tracking, YITH, WC Shipment
@@ -419,42 +422,10 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     if (wooStatus !== "pending") {
       await notifySlackWebsiteOrder(orderRow, orderId);
     }
-    // Fire-and-forget: auto-invite for drone orders coming in from the website.
-    // This mirrors the manual create path in useOrders.ts and delegates every
-    // gate (feature flag, drone-only via order_has_drone, cancelled-order skip,
-    // send-once idempotency in kyc_email_log) to kyc-handler itself. We DO NOT
-    // await the response — the Woo webhook must ack fast, and kyc-handler
-    // logs its own outcome.
-    if (wooStatus !== "cancelled" && orderRow.customer_email) {
-      try {
-        // deno-lint-ignore no-explicit-any
-        (supabase as any).functions
-          .invoke("kyc-handler", {
-            body: { action: "onboard_order", order_id: internalId },
-          })
-          .catch((e: unknown) => {
-            console.error("[woo-mirror] kyc onboard invoke failed:", e);
-          });
-      } catch (e) {
-        console.error("[woo-mirror] kyc onboard invoke threw:", e);
-      }
-      // Safety net for non-drone website orders: kyc-handler skips them, so
-      // the customer would otherwise never receive portal access. This
-      // function mints a portal_account+auth_user+invite (idempotent) and
-      // emails the confirmation + set-password link. Fire-and-forget.
-      try {
-        // deno-lint-ignore no-explicit-any
-        (supabase as any).functions
-          .invoke("send-customer-confirmation-request", {
-            body: { order_id: internalId },
-          })
-          .catch((e: unknown) => {
-            console.error("[woo-mirror] portal-invite invoke failed:", e);
-          });
-      } catch (e) {
-        console.error("[woo-mirror] portal-invite invoke threw:", e);
-      }
-    }
+    // NOTE: kyc-handler + confirmation invocations moved to AFTER order_items
+    // are inserted below. The requires_confirmation flag is set by the DB
+    // trigger on order_items insert, so invoking here (before items exist)
+    // saw item-less orders and skipped. See post-items step for gating.
   }
 
   if (internalId) {
@@ -552,11 +523,44 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     try {
       const { data: freshOrder } = await supabase
         .from("orders")
-        .select("id, order_number, customer_name, customer_email, customer_phone, confirmation_status")
+        .select("id, order_number, customer_name, customer_email, customer_phone, customer_company, sales_person_id, requires_confirmation, confirmation_status")
         .eq("id", internalId)
         .maybeSingle();
-      if (freshOrder && freshOrder.confirmation_status === "pending") {
-        await invokeCustomerConfirmationFn(freshOrder.id);
+      const isNew = !existing;
+      if (freshOrder && wooStatus !== "cancelled" && freshOrder.customer_email) {
+        // Drone / drone-combo orders: DB trigger flipped requires_confirmation
+        // + confirmation_status='pending'. Fire the confirm-your-order email
+        // (kyc-handler still gates KYC onboarding by drone check internally).
+        if (freshOrder.requires_confirmation === true && freshOrder.confirmation_status === "pending") {
+          // Fire-and-forget kyc onboarding — drone-gated inside kyc-handler.
+          if (isNew) {
+            try {
+              // deno-lint-ignore no-explicit-any
+              (supabase as any).functions
+                .invoke("kyc-handler", { body: { action: "onboard_order", order_id: internalId } })
+                .catch((e: unknown) => console.error("[woo-mirror] kyc onboard invoke failed:", e));
+            } catch (e) { console.error("[woo-mirror] kyc onboard invoke threw:", e); }
+          }
+          await invokeCustomerConfirmationFn(freshOrder.id);
+        } else if (isNew && freshOrder.requires_confirmation === false) {
+          // Non-drone website order: no confirmation ask. Still onboard the
+          // customer to the portal so they can track their order — plain
+          // welcome / activation email, no confirm-your-order content.
+          // Idempotent: ensurePortalInvite short-circuits when an activated
+          // portal user already exists.
+          try {
+            await sendPortalWelcomeIfNeeded(supabase, {
+              id: freshOrder.id,
+              order_number: freshOrder.order_number,
+              customer_email: freshOrder.customer_email,
+              customer_name: freshOrder.customer_name,
+              customer_company: (orderRow as any).customer_company ?? null,
+              sales_person_id: freshOrder.sales_person_id ?? null,
+            });
+          } catch (e) {
+            console.error("[woo-mirror] portal-welcome failed", e);
+          }
+        }
       }
     } catch (e) {
       console.error("[woo-mirror] confirmation dispatch failed", e);
@@ -592,6 +596,54 @@ async function invokeCustomerConfirmationFn(orderId: string): Promise<void> {
   } catch (e) {
     console.error("[woo-mirror] invokeCustomerConfirmationFn failed", e);
   }
+}
+
+/**
+ * Non-drone portal onboarding: ensures a portal account/invite exists for
+ * this website customer and sends a lightweight welcome email with the
+ * activation link. Skips entirely when the contact is already activated.
+ * Never throws.
+ */
+// deno-lint-ignore no-explicit-any
+async function sendPortalWelcomeIfNeeded(supabase: any, order: {
+  id: string;
+  order_number: string | null;
+  customer_email: string | null;
+  customer_name: string | null;
+  customer_company: string | null;
+  sales_person_id: string | null;
+}) {
+  const ensured = await ensurePortalInvite(supabase, order);
+  if (!ensured) return;
+  if (ensured.already_activated) return; // idempotent skip
+  const orderNumber = order.order_number || order.id;
+  const idempotencyKey = `woo-mirror:portal-welcome:${order.id}`;
+  const resp = await sendMailSeam({
+    provider: "platform",
+    to: order.customer_email!,
+    subject: "",
+    html: "",
+    templateName: "portal-welcome",
+    templateData: {
+      customer_name: order.customer_name || "Customer",
+      order_number: orderNumber,
+      activation_link: ensured.activation_link,
+    },
+    idempotencyKey,
+  });
+  await supabase.from("order_notifications").insert({
+    order_ref: order.id,
+    order_source: "internal",
+    order_number: orderNumber,
+    status_trigger: "portal_welcome",
+    channel: "email",
+    template_name: "portal_welcome",
+    payload: { activation_included: true },
+    status: resp.ok ? "sent" : "failed",
+    sent_at: resp.ok ? new Date().toISOString() : null,
+    error_message: resp.ok ? null : `platform http ${resp.status}`,
+    provider: "platform",
+  });
 }
 
 /**
