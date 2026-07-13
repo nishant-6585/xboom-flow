@@ -227,6 +227,12 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 
 ## ✅ Completed work
 
+### 2026-07-13 — Enquiry nudge button (sales → supply chain) ✅ (by Lovable, verified)
+Rate-limited human nudge replaces the deleted auto-popup pressure. Migration `20260713082035`:
+- `enquiry_messages.is_nudge` + **first-statement early-return in `sync_enquiry_status_from_thread`** (nudge NEVER mutates status — would otherwise flip responded→follow_up); `notify_on_enquiry_message` nudge branch → `enquiry_nudge` broadcast to supply_chain (user_id NULL, enquiry_id set).
+- `nudge_enquiry(uuid)` RPC, all guards server-side: approved + sales/sales_manager, owner-only (manager override), status must be pending/follow_up (`not_waiting_on_supply`), 4h cooldown (`nudge_cooldown: next allowed at <ISO>`).
+- UI: EnquiryNudgeButton in thread header (sales/manager, shown when waiting >2h), cooldown tooltip; nudge rows render as centered system line; `enquiry_nudge` gets the persistent-snackbar + open-dialog-suppression treatment in useNotifications. pgTAP enquiry_nudge.sql.
+
 ### 2026-07-13 — Confirmation invite gating + drone false-positive class #2 ✅ (by Lovable, verified)
 Sales report: Woo order 144360 showed confirmation-pending badge but invite skipped. Two-layer root cause, both fixed:
 - **Invite layer:** woo-mirror invoked kyc-handler/send-customer-confirmation-request BEFORE order_items insert (requires_confirmation trigger fires on items) → drone-gated paths saw item-less order and skipped. Also that morning's "safety net" had made confirmation drone-agnostic. Fixed: invokes moved AFTER items insert + re-read; requires_confirmation=true+pending → confirmation request; false → portal-welcome only (new `_shared/portal-invite.ts` ensurePortalInvite + `portal-welcome` template, no confirm ask); server guard `skipped:'not_required'` in send-customer-confirmation-request. Repair sweep re-sent 144360 (sent 05:58Z); 5 others queued for daily `resend-pending-portal-invites` cron (10:00 UTC).
