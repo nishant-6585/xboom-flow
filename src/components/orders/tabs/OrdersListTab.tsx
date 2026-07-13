@@ -10,10 +10,13 @@ import { OrderCard } from '@/components/OrderCard';
 import { OrderTable } from '@/components/OrderTable';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
+import { WebsiteAutoEmptyState } from '@/components/orders/WebsiteAutoEmptyState';
+import { BulkReassignWebsiteAutoDialog } from '@/components/orders/BulkReassignWebsiteAutoDialog';
+import { useCanAttributeWebsiteOrder } from '@/hooks/useCanAttributeWebsiteOrder';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 import {
-  Loader2, Package, Search, Filter, X, ChevronDown, LayoutGrid, Table,
+  Loader2, Package, Search, Filter, X, ChevronDown, LayoutGrid, Table, Users,
 } from 'lucide-react';
 import {
   ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, CUSTOMER_TYPES,
@@ -143,6 +146,8 @@ export default function OrdersListTab(props: OrdersListTabProps) {
 
   const [kycFilter, setKycFilter] = useState<KycFilter>('all');
   const [kycMap, setKycMap] = useState<Record<string, KycInfo>>({});
+  const [bulkReassignOpen, setBulkReassignOpen] = useState(false);
+  const canAttributeWebsite = useCanAttributeWebsiteOrder();
 
   // Fetch KYC status for currently-loaded manual orders.
   const orderIdsKey = useMemo(
@@ -287,6 +292,17 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                     <SelectItem value="website_auto">Website (Auto) ({sourceCounts.website_auto.toLocaleString()})</SelectItem>
                   </SelectContent>
                 </Select>
+                {sourceFilter === 'website_auto' && canAttributeWebsite && unifiedRows.some((u) => u.kind === 'woo') && (
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={() => setBulkReassignOpen(true)}
+                    className="gap-2 h-11 px-4 rounded-xl border-primary/40 text-primary hover:bg-primary/5"
+                  >
+                    <Users className="h-4 w-4" />
+                    Bulk reassign
+                  </Button>
+                )}
                 <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                   <CollapsibleTrigger asChild>
                     <Button variant="outline" size="default" className="gap-2 h-11 px-4 rounded-xl border-muted-foreground/20 hover:bg-muted/50">
@@ -443,36 +459,7 @@ export default function OrdersListTab(props: OrdersListTabProps) {
         </div>
       ) : unifiedRows.length === 0 ? (
         sourceFilter === 'website_auto' && !hasActiveFilters ? (
-          <Card
-            data-testid="website-auto-empty-state"
-            className="border-dashed border-2 bg-gradient-to-br from-emerald-50/60 to-transparent dark:from-emerald-950/20"
-          >
-            <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="p-6 rounded-2xl bg-emerald-100/70 dark:bg-emerald-900/30 mb-6 shadow-inner">
-                <Package className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">
-                All website orders are attributed
-              </h3>
-              <p className="text-muted-foreground max-w-lg leading-relaxed">
-                Website (Auto) lists paid WooCommerce orders that are still
-                assigned to the system ingestion user and waiting to be
-                claimed by a rep. Right now there are none — every incoming
-                Woo order has already been credited to a salesperson.
-              </p>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="rounded-full">Auto-refreshes as new Woo orders arrive</Badge>
-                <Badge variant="outline" className="rounded-full">Managers can re-assign from any order dialog</Badge>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setSourceFilter('all')}
-                className="mt-6 gap-2 rounded-xl h-11 px-6"
-              >
-                View all orders
-              </Button>
-            </CardContent>
-          </Card>
+          <WebsiteAutoEmptyState onViewAll={() => setSourceFilter('all')} />
         ) : (
         <Card className="border-dashed border-2 bg-gradient-to-br from-muted/30 to-muted/10">
           <CardContent className="flex flex-col items-center justify-center py-20">
@@ -575,6 +562,12 @@ export default function OrdersListTab(props: OrdersListTabProps) {
         open={wooDetailOpen}
         onOpenChange={setWooDetailOpen}
         onUpdated={() => { refetchWooOrders(); refetchWooSync(); }}
+      />
+      <BulkReassignWebsiteAutoDialog
+        open={bulkReassignOpen}
+        onOpenChange={setBulkReassignOpen}
+        wooOrders={unifiedRows.filter((u) => u.kind === 'woo').map((u) => (u as any).row)}
+        onDone={() => { refetchWooOrders(); refetchWooSync(); }}
       />
     </TabsContent>
   );
