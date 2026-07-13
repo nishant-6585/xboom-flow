@@ -361,14 +361,14 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                 )}
 
                 {/* Form Responses (raw payload such as Facebook Lead Ads) */}
-                {lead.payload && Object.keys(lead.payload).length > 0 && (
-                  <>
-                    <Separator />
-                    <h3 className="text-sm font-semibold">Form Responses</h3>
-                    <div className="grid grid-cols-1 gap-y-3">
-                      {Object.entries(lead.payload)
-                        .filter(([, v]) => v !== null && v !== undefined && v !== '')
-                        .map(([key, value]) => {
+                {(() => {
+                  const entries = getFormResponseEntries(lead.payload);
+                  return entries.length > 0 ? (
+                    <>
+                      <Separator />
+                      <h3 className="text-sm font-semibold">Form Responses</h3>
+                      <div className="grid grid-cols-1 gap-y-3">
+                        {entries.map(([key, value]) => {
                           const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
                           const display =
                             typeof value === 'object' && value !== null
@@ -381,9 +381,10 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                             </div>
                           );
                         })}
-                    </div>
-                  </>
-                )}
+                      </div>
+                    </>
+                  ) : null;
+                })()}
 
                 {/* Notes (read-only when not editing) */}
                 {!editing && lead.notes && (
