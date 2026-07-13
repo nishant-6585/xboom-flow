@@ -2553,8 +2553,63 @@ export type Database = {
         }
         Relationships: []
       }
+      compoff_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          comment: string | null
+          created_at: string
+          earned_date: string | null
+          earned_type: string | null
+          employee_id: string
+          id: string
+          ledger_id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          comment?: string | null
+          created_at?: string
+          earned_date?: string | null
+          earned_type?: string | null
+          employee_id: string
+          id?: string
+          ledger_id: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          comment?: string | null
+          created_at?: string
+          earned_date?: string | null
+          earned_type?: string | null
+          employee_id?: string
+          id?: string
+          ledger_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compoff_audit_log_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "compoff_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compoff_ledger: {
         Row: {
+          approval_comment: string | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
           created_at: string
           created_by: string | null
           earned_date: string
@@ -2566,10 +2621,16 @@ export type Database = {
           id: string
           leave_request_id: string | null
           redeemed_on: string | null
+          rejection_reason: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          approval_comment?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
           created_at?: string
           created_by?: string | null
           earned_date: string
@@ -2581,10 +2642,16 @@ export type Database = {
           id?: string
           leave_request_id?: string | null
           redeemed_on?: string | null
+          rejection_reason?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          approval_comment?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
           created_at?: string
           created_by?: string | null
           earned_date?: string
@@ -2596,6 +2663,7 @@ export type Database = {
           id?: string
           leave_request_id?: string | null
           redeemed_on?: string | null
+          rejection_reason?: string | null
           status?: string
           updated_at?: string
         }
@@ -17013,6 +17081,10 @@ export type Database = {
           uname: string
         }[]
       }
+      approve_compoff_credit: {
+        Args: { p_comment?: string; p_ledger_id: string }
+        Returns: boolean
+      }
       approve_delivery_proof: {
         Args: { p_order_id: string }
         Returns: undefined
@@ -18176,6 +18248,10 @@ export type Database = {
             }
             Returns: string
           }
+      reject_compoff_credit: {
+        Args: { p_ledger_id: string; p_reason: string }
+        Returns: boolean
+      }
       reject_delivery_proof: {
         Args: { p_order_id: string; p_reason: string }
         Returns: undefined
