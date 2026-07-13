@@ -45,7 +45,6 @@ import {
   serializeRange,
   getActivePresetLabel,
 } from "@/lib/enquiryDateFilter";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useEnquiryUnreadCounts } from "@/hooks/useEnquiryUnreadCounts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
