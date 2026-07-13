@@ -566,7 +566,32 @@ export default function OrdersListTab(props: OrdersListTabProps) {
       <BulkReassignWebsiteAutoDialog
         open={bulkReassignOpen}
         onOpenChange={setBulkReassignOpen}
-        wooOrders={unifiedRows.filter((u) => u.kind === 'woo').map((u) => (u as any).row)}
+        unattributedOrders={unifiedRows
+          .map((u) => {
+            if (u.kind === 'manual') {
+              const o = u.row as Order;
+              return o.external_id
+                ? {
+                    externalId: String(o.external_id),
+                    orderNumber: o.order_number ?? null,
+                    customerName: o.customer_name ?? '',
+                    status: (o.status as string | null) ?? null,
+                    total: Number(o.total_sales_amount) || 0,
+                  }
+                : null;
+            }
+            const w = u.row as WooCommerceOrder;
+            return w.woo_order_id
+              ? {
+                  externalId: String(w.woo_order_id),
+                  orderNumber: w.order_number ?? null,
+                  customerName: w.customer_name ?? '',
+                  status: w.order_status ?? null,
+                  total: Number(w.total_sales_amount) || 0,
+                }
+              : null;
+          })
+          .filter((x): x is NonNullable<typeof x> => !!x)}
         onDone={() => { refetchWooOrders(); refetchWooSync(); }}
       />
     </TabsContent>

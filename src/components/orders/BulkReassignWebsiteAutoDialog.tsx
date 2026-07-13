@@ -12,19 +12,27 @@ import { Loader2, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
-import {
-  SYSTEM_USER_ID,
-  useAttributionMutations,
-} from '@/hooks/useAttributionRequests';
-import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
+import { useAttributionMutations } from '@/hooks/useAttributionRequests';
+import { SYSTEM_USER_ID } from '@/lib/orderSource';
 import { ATTRIBUTION_REASONS } from './OrderAttributionPanel';
 import { bulkAttributeWebsiteAuto } from './bulkReassignWebsiteAuto';
+
+/** Normalized shape for a reassignable unattributed website order —
+ *  covers both internal `orders` rows still owned by the system user
+ *  AND live Woo-feed rows that haven't been mirrored yet. */
+export interface ReassignableOrder {
+  externalId: string;
+  orderNumber: string | null;
+  customerName: string;
+  status: string | null;
+  total: number;
+}
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The Woo orders currently visible in the Website (Auto) filter. */
-  wooOrders: WooCommerceOrder[];
+  /** The unattributed orders currently visible in the WooCommerce (Vishal) filter. */
+  unattributedOrders: ReassignableOrder[];
   onDone?: () => void;
 }
 
@@ -35,7 +43,7 @@ interface Props {
  * preserved (source → 'manual', sales_attribution_locked = true).
  */
 export function BulkReassignWebsiteAutoDialog({
-  open, onOpenChange, wooOrders, onDone,
+  open, onOpenChange, unattributedOrders, onDone,
 }: Props) {
   const { salesUsers, isLoading: loadingSales } = useSalesUsers();
   const { attribute } = useAttributionMutations();
@@ -65,13 +73,13 @@ export function BulkReassignWebsiteAutoDialog({
   );
 
   const rows = useMemo(
-    () => wooOrders.filter((o) => !!o.woo_order_id).slice(0, 100),
-    [wooOrders],
+    () => unattributedOrders.filter((o) => !!o.externalId).slice(0, 100),
+    [unattributedOrders],
   );
 
   const toggleAll = (checked: boolean) => {
     setSelectedExternalIds(
-      checked ? new Set(rows.map((r) => String(r.woo_order_id))) : new Set(),
+      checked ? new Set(rows.map((r) => r.externalId)) : new Set(),
     );
   };
 
@@ -204,7 +212,7 @@ export function BulkReassignWebsiteAutoDialog({
                 </li>
               )}
               {rows.map((o) => {
-                const ext = String(o.woo_order_id);
+                const ext = o.externalId;
                 const checked = selectedExternalIds.has(ext);
                 return (
                   <li key={ext} className="px-3 py-2 flex items-center gap-3 text-sm">
@@ -212,14 +220,14 @@ export function BulkReassignWebsiteAutoDialog({
                       checked={checked}
                       onCheckedChange={(c) => toggleOne(ext, !!c)}
                       disabled={running}
-                      aria-label={`Select order ${o.order_number ?? ext}`}
+                      aria-label={`Select order ${o.orderNumber ?? ext}`}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">
-                        #{o.order_number ?? ext} · {o.customer_name || 'Unknown customer'}
+                        #{o.orderNumber ?? ext} · {o.customerName || 'Unknown customer'}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {o.order_status ? `status: ${o.order_status}` : ''} · ₹{Number(o.total_sales_amount || 0).toLocaleString('en-IN')}
+                        {o.status ? `status: ${o.status}` : ''} · ₹{Number(o.total || 0).toLocaleString('en-IN')}
                       </div>
                     </div>
                   </li>
