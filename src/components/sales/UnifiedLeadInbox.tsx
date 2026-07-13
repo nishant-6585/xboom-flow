@@ -127,6 +127,53 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
     return () => clearTimeout(t);
   }, [user?.id]);
 
+  // Load raw payload for the detail drawer (currently only the public.leads table stores a payload column)
+  useEffect(() => {
+    if (!detailLead) return;
+    if (detailLead.source_table !== "leads") return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("payload")
+        .eq("id", detailLead.source_row_id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        console.error("[UnifiedLeadInbox] payload fetch failed", error);
+        return;
+      }
+      setDetailPayload((data?.payload as Record<string, unknown> | null) ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detailLead]);
+
+  const openDetail = (lead: UnifiedLead) => {
+    setDetailLead(lead);
+    setDetailPayload(null);
+  };
+  const closeDetail = () => setDetailLead(null);
+
+  const drawerData = useMemo<LeadContactData | null>(() => {
+    if (!detailLead) return null;
+    return {
+      id: detailLead.source_row_id,
+      source_type: "lead",
+      customer_name: detailLead.name || "—",
+      phone: detailLead.phone,
+      email: detailLead.email,
+      company: detailLead.company,
+      product_name: detailLead.subject_or_message,
+      status: detailLead.status,
+      assigned_to_name: detailLead.sales_person_name,
+      created_at: detailLead.created_at,
+      lead_source: SOURCE_META[detailLead.source]?.label ?? detailLead.source,
+      payload: detailPayload,
+    };
+  }, [detailLead, detailPayload]);
+
   const { rows, total, isLoading, error, refetch } = useUnifiedLeadFeed({
     sources: selectedSources.length > 0 ? selectedSources : undefined,
     search: debouncedSearch || undefined,
