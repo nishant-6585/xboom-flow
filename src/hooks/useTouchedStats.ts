@@ -11,7 +11,8 @@ export type TouchedSource =
   | "call-tracker"
   | "emails"
   | "form-leads"
-  | "google-ads";
+  | "google-ads"
+  | "facebook-leads";
 
 export interface NormalizedLead {
   id: string;
