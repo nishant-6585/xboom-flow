@@ -292,6 +292,17 @@ export default function OrdersListTab(props: OrdersListTabProps) {
                     <SelectItem value="website_auto">Website (Auto) ({sourceCounts.website_auto.toLocaleString()})</SelectItem>
                   </SelectContent>
                 </Select>
+                {sourceFilter === 'website_auto' && canAttributeWebsite && unifiedRows.some((u) => u.kind === 'woo') && (
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={() => setBulkReassignOpen(true)}
+                    className="gap-2 h-11 px-4 rounded-xl border-primary/40 text-primary hover:bg-primary/5"
+                  >
+                    <Users className="h-4 w-4" />
+                    Bulk reassign
+                  </Button>
+                )}
                 <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                   <CollapsibleTrigger asChild>
                     <Button variant="outline" size="default" className="gap-2 h-11 px-4 rounded-xl border-muted-foreground/20 hover:bg-muted/50">
