@@ -1267,6 +1267,24 @@ export type Database = {
         }
         Relationships: []
       }
+      attribution_grants: {
+        Row: {
+          created_at: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bank_reconciliation_uploads: {
         Row: {
           account_number: string | null
@@ -17237,6 +17255,10 @@ export type Database = {
       }
       can_access_ticket_attachment: {
         Args: { _name: string; _user_id: string }
+        Returns: boolean
+      }
+      can_attribute_website_order: {
+        Args: { _user_id: string }
         Returns: boolean
       }
       can_create_admin: { Args: never; Returns: boolean }
