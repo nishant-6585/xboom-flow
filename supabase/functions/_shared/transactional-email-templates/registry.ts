@@ -80,4 +80,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'sync-health-alert': syncHealthAlert,
   'data-quality-report': dataQualityReport,
   'prospect-followup': prospectFollowup,
+  'compoff-decision': compoffDecision,
 }
