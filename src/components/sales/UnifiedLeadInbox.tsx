@@ -51,6 +51,17 @@ const SOURCE_TO_TAB: Record<LeadSource, string> = {
   facebook: "facebook-leads",
 };
 
+const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }>> = {
+  website: Globe,
+  forms: FileSpreadsheet,
+  google_ads: Megaphone,
+  interakt: MessageCircle,
+  myoperator: Phone,
+  elevenlabs: Headphones,
+  email: Mail,
+  facebook: Facebook,
+};
+
 function lastSeenKey(userId: string | undefined) {
   return `xboom:lead-inbox:last-seen:${userId ?? "anon"}`;
 }
