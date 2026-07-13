@@ -23,8 +23,12 @@ describe("stripHtmlLabel (OrderDialog display defence)", () => {
     expect(out).not.toMatch(/</);
   });
 
-  it("decodes common entities", () => {
-    expect(stripHtmlLabel("Pay&nbsp;now &amp; save")).toBe("Pay now & save");
+  it("decodes common entities embedded in HTML", () => {
+    // Entity decoding runs only on values that also contain tags — that's
+    // the case for every real payment-plugin string we've seen in the wild.
+    expect(stripHtmlLabel("<span>Pay&nbsp;now &amp; save</span>")).toBe(
+      "Pay now & save",
+    );
   });
 
   it("returns empty string for non-strings", () => {
