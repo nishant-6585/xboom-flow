@@ -157,28 +157,28 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
 
   // pending
   return (
-    <div className="mt-6 p-4 rounded-lg border border-amber-300 bg-amber-50 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-      <div className="flex items-center gap-3 text-sm">
-        <AlertCircle className="h-4 w-4 text-amber-600" />
+    <div className="mt-6 p-4 rounded-lg border border-amber-300 bg-amber-50 flex flex-col lg:flex-row lg:items-center gap-3 lg:justify-between min-w-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm min-w-0">
+        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
         <span className="text-amber-900 font-medium">Customer confirmation pending</span>
-        <Badge variant="outline" className="border-amber-500 text-amber-700">
+        <Badge variant="outline" className="border-amber-500 text-amber-700 whitespace-nowrap">
           Awaiting customer
         </Badge>
         {hasPortalUser === false && (
-          <Badge variant="outline" className="border-orange-500 text-orange-700">
+          <Badge variant="outline" className="border-orange-500 text-orange-700 whitespace-nowrap">
             No portal account
           </Badge>
         )}
       </div>
       {canResend && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {hasPortalUser === false && (
-            <Button size="sm" variant="default" onClick={invite} disabled={inviting}>
+            <Button size="sm" variant="default" onClick={invite} disabled={inviting} className="whitespace-nowrap">
               {inviting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <UserPlus className="h-3.5 w-3.5 mr-1" />}
               Invite customer
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={resend} disabled={sending}>
+          <Button size="sm" variant="outline" onClick={resend} disabled={sending} className="whitespace-nowrap">
             {sending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
             Resend confirmation request
           </Button>
