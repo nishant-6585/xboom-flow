@@ -233,7 +233,7 @@ Thread is now the primary respond surface; status tracks the conversation.
 - Dialog refactor: Quote Details (structured) above, "Respond & Discuss" thread last (chat anchor); pending hint + amber follow-up strip for supply chain. Same in QueryResponseDialog.
 - Initial message (migration `20260713043839`): QueryForm "Additional Notes" → "Message to Supply Chain" → first thread row with `is_initial=true` (non-fatal on failure; Purpose still composes into notes). `notify_on_enquiry_message` skips is_initial (NewEnquiryAlert dialog is the sole creation surface and now quotes the message). Initial sales msg leaves status pending.
 - pgTAP: enquiry_thread_status_sync.sql (7 asserts) + enquiry_initial_message.sql (5 asserts).
-- Known minor duplication (polish, not shipped): supply chain's FIRST response via thread fires both "📋 Enquiry Response" (with "Pricing: N/A") and "💬 New message" notifications to sales.
+- Duplication polish ✅ (migration `20260713051142`, verified): `notify_on_enquiry_response` now early-returns when `pg_trigger_depth() > 1` — thread-first response emits only the "💬 New message" snackbar; structured Submit Response (depth 1) still emits "📋 Enquiry Response". Supplier-validation task untouched (fires on both paths). pgTAP extended (+3 asserts).
 
 ### 2026-07-11 — Enquiry alert UX: killed repeating SLA popup, persistent thread snackbars ✅ (by Lovable, verified)
 Supply chain was hammered by `SLAReminderAlert` (60s poll → blocking modal per unresponded enquiry, 30-min re-nudge queue). Client-side only:
