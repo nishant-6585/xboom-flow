@@ -1,21 +1,7 @@
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { LeaveHistoryRecord } from "@/hooks/useLeaveHistory";
-
-const LEAVE_TYPE_LABELS: Record<string, string> = {
-  EL: 'Earned Leave',
-  casual: 'Earned Leave (Casual)',
-  paid: 'Earned Leave (Paid)',
-  sick: 'Sick Leave',
-  unpaid: 'Unpaid Leave',
-  half_day: 'Half Day',
-  half_day_casual: 'Half Day (Casual)',
-  half_day_sick: 'Half Day (Sick)',
-  half_day_paid: 'Half Day (Paid)',
-  half_day_EL: 'Half Day (EL)',
-  half_day_unpaid: 'Half Day (Unpaid)',
-  wfh: 'Work From Home',
-};
+import { getLeaveTypeLabel } from "@/lib/leaveTypeLabels";
 
 const STATUS_LABELS: Record<string, string> = {
   approved: 'Approved',
@@ -41,7 +27,7 @@ export function exportLeaveHistoryToExcel(records: LeaveHistoryRecord[]) {
 
   const rows = records.map((r) => ({
     "Employee Name": r.employee_name,
-    "Leave Type": LEAVE_TYPE_LABELS[r.leave_type] || r.leave_type,
+    "Leave Type": getLeaveTypeLabel(r.leave_type),
     "Start Date": formatDate(r.start_date),
     "End Date": formatDate(r.end_date),
     "Total Days": r.total_days,
