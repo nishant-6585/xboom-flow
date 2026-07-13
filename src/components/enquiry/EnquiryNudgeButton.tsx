@@ -65,11 +65,12 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
   const cooldownEndsAt = lastNudgeAt ? new Date(lastNudgeAt).getTime() + 4 * 60 * 60 * 1000 : 0;
   const inCooldown = cooldownEndsAt > now;
 
-  if (!stale && !inCooldown) return null; // hide until enquiry is ripe for a nudge
-
-  const disabled = sending || inCooldown;
+  const ready = stale && !inCooldown;
+  const preThreshold = !stale && !inCooldown;
+  const disabled = sending || inCooldown || preThreshold;
 
   const handleClick = async () => {
+    if (disabled || preThreshold) return;
     setSending(true);
     const { error } = await supabase.rpc("nudge_enquiry", { p_enquiry_id: enquiryId });
     setSending(false);
@@ -98,7 +99,7 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
   const btn = (
     <Button
       type="button"
-      variant="outline"
+      variant={preThreshold ? "ghost" : "outline"}
       size="sm"
       className="h-7 text-xs gap-1"
       onClick={handleClick}
@@ -108,6 +109,20 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
       <span>Nudge supply chain</span>
     </Button>
   );
+
+  if (preThreshold) {
+    const nudgeAvailableAt = new Date(referenceMs + 2 * 60 * 60 * 1000);
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild><span>{btn}</span></TooltipTrigger>
+          <TooltipContent>
+            Nudge available in {formatDistance(now, nudgeAvailableAt)} — supply chain gets 2h to respond before nudging
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   if (inCooldown) {
     const cooldownEnd = new Date(cooldownEndsAt);
@@ -122,5 +137,6 @@ export function EnquiryNudgeButton({ enquiryId, enquiryCreatedAt, enquiryStatus,
       </TooltipProvider>
     );
   }
+
   return btn;
 }
