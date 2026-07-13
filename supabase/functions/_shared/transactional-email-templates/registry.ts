@@ -29,6 +29,7 @@ import { template as attentionNotification } from './attention-notification.tsx'
 import { template as syncHealthAlert } from './sync-health-alert.tsx'
 import { template as dataQualityReport } from './data-quality-report.tsx'
 import { template as prospectFollowup } from './prospect-followup.tsx'
+import { template as compoffDecision } from './compoff-decision.tsx'
 
 export interface TemplateEntry {
   component: React.ComponentType<any>
@@ -79,4 +80,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'sync-health-alert': syncHealthAlert,
   'data-quality-report': dataQualityReport,
   'prospect-followup': prospectFollowup,
+  'compoff-decision': compoffDecision,
 }

@@ -17085,6 +17085,14 @@ export type Database = {
         Args: { p_comment?: string; p_ledger_id: string }
         Returns: boolean
       }
+      approve_compoff_credits_bulk: {
+        Args: { p_comment?: string; p_ledger_ids: string[] }
+        Returns: {
+          error: string
+          ledger_id: string
+          ok: boolean
+        }[]
+      }
       approve_delivery_proof: {
         Args: { p_order_id: string }
         Returns: undefined
@@ -18251,6 +18259,14 @@ export type Database = {
       reject_compoff_credit: {
         Args: { p_ledger_id: string; p_reason: string }
         Returns: boolean
+      }
+      reject_compoff_credits_bulk: {
+        Args: { p_ledger_ids: string[]; p_reason: string }
+        Returns: {
+          error: string
+          ledger_id: string
+          ok: boolean
+        }[]
       }
       reject_delivery_proof: {
         Args: { p_order_id: string; p_reason: string }
