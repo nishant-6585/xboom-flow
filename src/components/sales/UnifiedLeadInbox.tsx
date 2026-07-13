@@ -136,7 +136,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
       const { data, error } = await supabase
         .from("leads")
         .select("payload")
-        .eq("id", detailLead.source_row_id)
+        .eq("id", Number(detailLead.source_row_id))
         .maybeSingle();
       if (cancelled) return;
       if (error) {
