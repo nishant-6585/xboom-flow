@@ -32,6 +32,7 @@ const LEAVE_TYPE_LABELS: Record<string, string> = {
   half_day_sick: 'Half Day (Sick)',
   half_day_unpaid: 'Half Day (Unpaid)',
   wfh: 'WFH',
+  compoff: 'Comp-Off',
 };
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
