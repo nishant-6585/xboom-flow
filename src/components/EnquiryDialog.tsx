@@ -33,7 +33,7 @@ import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { AILeadScoring } from "./AILeadScoring";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck, Timer, StickyNote, Save } from "lucide-react";
+import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck, Timer, StickyNote, Save, Pencil, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { differenceInHours, differenceInMinutes, differenceInDays } from "date-fns";
 import { formatDistanceToNow } from "date-fns";
@@ -79,6 +79,7 @@ export function EnquiryDialog({
   const [lostReason, setLostReason] = useState<LostReason | "">("");
   const [lostReasonNotes, setLostReasonNotes] = useState("");
   const [followupNote, setFollowupNote] = useState("");
+  const [editingNote, setEditingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
 
   // Reset form when enquiry changes
@@ -94,6 +95,7 @@ export function EnquiryDialog({
       setLostReason(enquiry.lost_reason || "");
       setLostReasonNotes(enquiry.lost_reason_notes || "");
       setFollowupNote(enquiry.followup_note || "");
+      setEditingNote(false);
     }
   }, [enquiry]);
 
