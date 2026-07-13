@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
     const formName: string | null = value?.form_name ?? null;
 
     const { error } = await supabase.from("leads").insert({
+      source: "Facebook Leads",
       form_type: "Facebook Leads",
       name,
       email,
