@@ -15,6 +15,13 @@ export interface CompOffLedgerRow {
   leave_request_id: string | null;
   expires_at: string;
   created_at: string;
+  approval_status: 'pending' | 'approved' | 'rejected';
+  approved_by: string | null;
+  approved_by_name: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
+  approval_comment: string | null;
+  employee_name?: string;
 }
 
 export interface CompOffRequestInfo {
@@ -66,7 +73,14 @@ export function useCompOff(employeeId?: string) {
       setLedger(ledgerRows);
 
       const today = new Date().toISOString().split('T')[0];
-      setBalance(ledgerRows.filter(r => r.status === 'available' && r.expires_at >= today).length);
+      setBalance(
+        ledgerRows.filter(
+          r =>
+            r.status === 'available' &&
+            r.approval_status === 'approved' &&
+            r.expires_at >= today,
+        ).length,
+      );
 
       // Fetch linked leave_requests to build a per-ledger status timeline
       const reqIds = ledgerRows
@@ -111,11 +125,13 @@ export function useCompOff(employeeId?: string) {
 
   const today = new Date().toISOString().split('T')[0];
   const stats = {
-    available: ledger.filter(r => r.status === 'available' && r.expires_at >= today).length,
+    available: ledger.filter(r => r.status === 'available' && r.approval_status === 'approved' && r.expires_at >= today).length,
+    pending: ledger.filter(r => r.approval_status === 'pending').length,
+    rejected: ledger.filter(r => r.approval_status === 'rejected').length,
     redeemed: ledger.filter(r => r.status === 'redeemed').length,
     expired: ledger.filter(r => r.status === 'expired' || (r.status === 'available' && r.expires_at < today)).length,
     nextExpiry: ledger
-      .filter(r => r.status === 'available' && r.expires_at >= today)
+      .filter(r => r.status === 'available' && r.approval_status === 'approved' && r.expires_at >= today)
       .map(r => r.expires_at)
       .sort()[0] ?? null,
   };
