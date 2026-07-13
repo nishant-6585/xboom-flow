@@ -101,7 +101,10 @@ export function OrderCard({ order, onClick, kycBadge }: OrderCardProps) {
                 {order.product_name}
               </h3>
             </div>
-            <OrderStatusBadge status={order.status} />
+            <div className="flex flex-col items-end gap-2">
+              {kycBadge}
+              <OrderStatusBadge status={order.status} />
+            </div>
           </div>
           
           {/* Category and Type Tags */}
