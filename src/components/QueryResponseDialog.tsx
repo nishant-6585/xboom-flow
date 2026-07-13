@@ -126,7 +126,7 @@ export function QueryResponseDialog({
           {/* Response Form */}
           <div className="space-y-4">
             <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Supply Chain Response
+              Quote Details
             </h4>
 
             <div className="space-y-2">
@@ -195,7 +195,7 @@ export function QueryResponseDialog({
             </div>
           </div>
 
-          {/* Discussion Thread */}
+          {/* Discussion Thread anchored above footer */}
           <EnquiryMessageThread enquiryId={query.id} />
 
           <div className="flex justify-end gap-3">

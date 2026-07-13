@@ -22,9 +22,10 @@ interface EnquiryMessage {
 
 interface EnquiryMessageThreadProps {
   enquiryId: string;
+  onMessageSent?: () => void;
 }
 
-export function EnquiryMessageThread({ enquiryId }: EnquiryMessageThreadProps) {
+export function EnquiryMessageThread({ enquiryId, onMessageSent }: EnquiryMessageThreadProps) {
   const { user, profile, role } = useAuth();
   const [messages, setMessages] = useState<EnquiryMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -87,6 +88,7 @@ export function EnquiryMessageThread({ enquiryId }: EnquiryMessageThreadProps) {
 
     if (!error) {
       setNewMessage("");
+      onMessageSent?.();
     }
     setSending(false);
   };
@@ -122,7 +124,7 @@ export function EnquiryMessageThread({ enquiryId }: EnquiryMessageThreadProps) {
       <div className="flex items-center gap-2">
         <MessageSquare className="w-4 h-4 text-primary" />
         <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-          Discussion Thread
+          Respond & Discuss
         </h4>
         {messages.length > 0 && (
           <Badge variant="outline" className="text-xs">{messages.length}</Badge>

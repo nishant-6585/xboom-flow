@@ -1,6 +1,6 @@
 import { QueryStatus } from "@/hooks/useEnquiries";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, CheckCircle2, Trophy, XCircle, Pause, ArrowRightCircle } from "lucide-react";
+import { Clock, CheckCircle2, Trophy, XCircle, Pause, ArrowRightCircle, MessageCircleWarning } from "lucide-react";
 
 interface ProductQuery {
   id: string;
@@ -16,6 +16,7 @@ export function StatsCards({ queries, onStatusClick }: StatsCardsProps) {
   const stats = {
     pending: queries.filter((q) => q.status === "pending").length,
     responded: queries.filter((q) => q.status === "responded").length,
+    follow_up: queries.filter((q) => q.status === "follow_up").length,
     on_hold: queries.filter((q) => q.status === "on_hold").length,
     moved_to_pipeline: queries.filter((q) => q.status === "moved_to_pipeline").length,
     won: queries.filter((q) => q.status === "order_won").length,
@@ -45,6 +46,14 @@ export function StatsCards({ queries, onStatusClick }: StatsCardsProps) {
       color: "text-primary",
       bg: "bg-primary/10",
       status: "responded",
+    },
+    {
+      label: "Follow-up Pending",
+      value: stats.follow_up,
+      icon: MessageCircleWarning,
+      color: "text-amber-600",
+      bg: "bg-amber-500/10",
+      status: "follow_up",
     },
     {
       label: "On Hold",
@@ -81,7 +90,7 @@ export function StatsCards({ queries, onStatusClick }: StatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 animate-fade-in">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 animate-fade-in">
       {cards.map((card) => (
         <Card 
           key={card.label} 

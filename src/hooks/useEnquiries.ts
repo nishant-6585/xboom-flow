@@ -4,12 +4,13 @@ import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
 import { sendSlackNotification } from "@/hooks/useSlackSettings";
 
-export type QueryStatus = "pending" | "responded" | "on_hold" | "moved_to_pipeline" | "order_won" | "order_lost";
+export type QueryStatus = "pending" | "responded" | "follow_up" | "on_hold" | "moved_to_pipeline" | "order_won" | "order_lost";
 export type UrgencyLevel = "low" | "medium" | "high" | "critical";
 
 export const ENQUIRY_STATUSES: { value: QueryStatus; label: string }[] = [
   { value: "pending", label: "Pending" },
   { value: "responded", label: "Responded" },
+  { value: "follow_up", label: "Follow-up Pending" },
   { value: "on_hold", label: "On Hold" },
   { value: "moved_to_pipeline", label: "Moved to Pipeline" },
   { value: "order_won", label: "Order Won" },
@@ -354,6 +355,7 @@ export function useEnquiries() {
       const statusLabels: Record<QueryStatus, string> = {
         pending: "Pending",
         responded: "Responded",
+        follow_up: "Follow-up Pending",
         on_hold: "On Hold",
         moved_to_pipeline: "Moved to Pipeline",
         order_won: "Order Won",
@@ -571,6 +573,7 @@ export function useEnquiries() {
       const statusLabels: Record<QueryStatus, string> = {
         pending: "Pending",
         responded: "Responded",
+        follow_up: "Follow-up Pending",
         on_hold: "On Hold",
         moved_to_pipeline: "Moved to Pipeline",
         order_won: "Order Won",
