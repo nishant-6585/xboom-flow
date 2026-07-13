@@ -6,6 +6,54 @@
 
 import { htmlToLabel } from "./sanitize-html-label.ts";
 
+/**
+ * Compute a sanitized `payment_terms` value from a Woo payload and, when
+ * htmlToLabel actually mutated the raw plugin string, emit a structured log
+ * line so we can track which gateways/rows are being cleaned in production.
+ *
+ * Exported so unit + integration tests can exercise the exact same code path
+ * the ingest uses.
+ */
+export function computePaymentTermsFromWooPayload(
+  payload: { payment_method_title?: unknown; payment_method?: unknown } | null | undefined,
+  ctx: { woo_order_id?: string | number | null; event_type?: string | null } = {},
+): string | null {
+  const rawTitle = payload?.payment_method_title;
+  const rawMethod = payload?.payment_method;
+  const fallback = typeof rawMethod === "string" ? rawMethod : null;
+  const cleaned = htmlToLabel(rawTitle, fallback) || fallback || null;
+
+  if (typeof rawTitle === "string" && rawTitle.length > 0 && cleaned !== rawTitle) {
+    // Cheap gateway hint for the log record — best-effort, never throws.
+    let gateway: string | null = null;
+    const img = rawTitle.match(/<img\b[^>]*>/i);
+    if (img) {
+      const src = img[0].match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+))/i);
+      const host = (src?.[1] ?? src?.[2] ?? src?.[3] ?? "").toLowerCase();
+      if (host) {
+        const m = host.match(/([a-z0-9-]+)\.[a-z]{2,}(?:\/|$)/i);
+        gateway = m ? m[1] : null;
+      }
+    }
+    try {
+      console.log(JSON.stringify({
+        event: "woo_mirror.payment_terms.sanitized",
+        woo_order_id: ctx.woo_order_id ?? null,
+        event_type: ctx.event_type ?? null,
+        gateway,
+        had_img: !!img,
+        original_length: rawTitle.length,
+        cleaned_length: cleaned ? cleaned.length : 0,
+        original_sample: rawTitle.slice(0, 240),
+        cleaned,
+      }));
+    } catch {
+      // logging must never fail the mirror
+    }
+  }
+  return cleaned;
+}
+
 // Map WooCommerce status -> internal orders.status enum value
 export function mapWooStatusToInternal(wooStatus: string): string {
   switch (wooStatus) {
@@ -297,10 +345,10 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     amount_paid: isPaid ? totalAmount : 0,
     payment_status: isPaid ? "full" : "pending",
     shipping_address: shippingAddress,
-    payment_terms:
-      htmlToLabel(payload?.payment_method_title, payload?.payment_method as string | null) ||
-      (payload?.payment_method as string | null) ||
-      null,
+    payment_terms: computePaymentTermsFromWooPayload(payload, {
+      woo_order_id: orderId,
+      event_type: eventType,
+    }),
     lead_source: "website",
     order_type: "prepaid",
     status: internalStatus,
