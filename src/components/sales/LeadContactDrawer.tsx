@@ -26,6 +26,41 @@ import { usePushToCompany, pushLeadToCompanyToast } from '@/hooks/usePushToCompa
 import { isValidCompanyName } from '@/lib/companyNormalize';
 import { Building } from 'lucide-react';
 
+/**
+ * Extract human-readable form responses from a lead payload.
+ * If `payload.raw_fields` exists, it is the source of truth. It may be either:
+ *   - a record of field-name -> value
+ *   - an array of { name: string, values?: string[] } entries (Facebook Lead Ads format)
+ * Otherwise we fall back to the top-level payload entries themselves.
+ */
+function getFormResponseEntries(payload: Record<string, unknown> | null | undefined): [string, unknown][] {
+  if (!payload) return [];
+
+  const raw = payload.raw_fields;
+  if (raw !== undefined && raw !== null) {
+    if (Array.isArray(raw)) {
+      return raw
+        .filter((item): item is { name?: string; values?: unknown[] | null } & Record<string, unknown> =>
+          typeof item === 'object' && item !== null
+        )
+        .map((item) => {
+          const name = item.name ?? 'unnamed_field';
+          const values = Array.isArray(item.values) ? item.values : [];
+          const value = values.length === 1 ? values[0] : values;
+          return [String(name), value] as [string, unknown];
+        })
+        .filter(([, v]) => v !== null && v !== undefined && v !== '');
+    }
+
+    if (typeof raw === 'object' && raw !== null) {
+      return Object.entries(raw).filter(([, v]) => v !== null && v !== undefined && v !== '');
+    }
+  }
+
+  return Object.entries(payload)
+    .filter(([key, v]) => key !== 'raw_fields' && v !== null && v !== undefined && v !== '');
+}
+
 export interface LeadContactData {
   id: string;
   source_type: 'enquiry' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'interakt' | 'prospect' | 'pipeline' | 'lead';
@@ -361,14 +396,14 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                 )}
 
                 {/* Form Responses (raw payload such as Facebook Lead Ads) */}
-                {lead.payload && Object.keys(lead.payload).length > 0 && (
-                  <>
-                    <Separator />
-                    <h3 className="text-sm font-semibold">Form Responses</h3>
-                    <div className="grid grid-cols-1 gap-y-3">
-                      {Object.entries(lead.payload)
-                        .filter(([, v]) => v !== null && v !== undefined && v !== '')
-                        .map(([key, value]) => {
+                {(() => {
+                  const entries = getFormResponseEntries(lead.payload);
+                  return entries.length > 0 ? (
+                    <>
+                      <Separator />
+                      <h3 className="text-sm font-semibold">Form Responses</h3>
+                      <div className="grid grid-cols-1 gap-y-3">
+                        {entries.map(([key, value]) => {
                           const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
                           const display =
                             typeof value === 'object' && value !== null
@@ -381,9 +416,10 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                             </div>
                           );
                         })}
-                    </div>
-                  </>
-                )}
+                      </div>
+                    </>
+                  ) : null;
+                })()}
 
                 {/* Notes (read-only when not editing) */}
                 {!editing && lead.notes && (
