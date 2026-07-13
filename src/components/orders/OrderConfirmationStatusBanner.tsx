@@ -57,7 +57,7 @@ export function OrderConfirmationStatusBanner({ order, canResend }: Props) {
 
   if (status === "not_required") {
     return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
         <ShieldCheck className="h-3.5 w-3.5" />
         <span>Customer confirmation:</span>
         <Badge variant="outline">Not required</Badge>
