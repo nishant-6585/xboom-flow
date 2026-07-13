@@ -24,6 +24,7 @@ import { Wallet, Gift, CalendarDays } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useCompOff } from "@/hooks/useCompOff";
 import { format, parseISO } from "date-fns";
+import { AlertTriangle, Info } from "lucide-react";
 
 interface LeaveApplyDialogProps {
   open: boolean;
@@ -64,12 +65,14 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
   const { user } = useAuth();
 
   // CompOff-specific state
-  const { balance: compoffBalance, holidays, claimedEarnedDates, refetch: refetchCompoff } = useCompOff();
+  const { balance: compoffBalance, holidays, claimedEarnedDates, refetch: refetchCompoff, checkAttendance } = useCompOff();
   const [earnedTab, setEarnedTab] = useState<'holiday' | 'weekend'>('holiday');
   const [selectedHolidayId, setSelectedHolidayId] = useState<string>('');
   const [weekendDate, setWeekendDate] = useState<string>('');
   const [compoffLeaveDate, setCompoffLeaveDate] = useState<string>('');
   const [compoffError, setCompoffError] = useState<string>('');
+  const [attendanceWarning, setAttendanceWarning] = useState<string>('');
+  const [checkingAttendance, setCheckingAttendance] = useState(false);
 
   const isCompOff = leaveType === 'compoff';
   const holidayDateSet = new Set(holidays.map(h => h.holiday_date));
@@ -77,12 +80,37 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
   const selectedHoliday = holidays.find(h => h.id === selectedHolidayId);
   const earnedDate = earnedTab === 'holiday' ? selectedHoliday?.holiday_date ?? '' : weekendDate;
 
+  // Preflight: whenever the earned date changes, confirm we have attendance for it.
+  useEffect(() => {
+    setAttendanceWarning('');
+    if (!isCompOff || !earnedDate) return;
+    let cancelled = false;
+    (async () => {
+      setCheckingAttendance(true);
+      try {
+        const ok = await checkAttendance(earnedDate);
+        if (cancelled) return;
+        if (!ok) {
+          setAttendanceWarning(
+            `No check-in recorded for ${format(parseISO(earnedDate), 'MMM d, yyyy')}. Comp-off can only be claimed for days you actually worked — this claim will be rejected unless HR adds the attendance record.`,
+          );
+        }
+      } finally {
+        if (!cancelled) setCheckingAttendance(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isCompOff, earnedDate, checkAttendance]);
+
   const validateWeekend = (d: string) => {
     if (!d) return 'Pick a Saturday or Sunday you worked on.';
     const day = new Date(d).getDay();
-    if (day !== 0 && day !== 6) return 'Selected date must be a Saturday or Sunday.';
-    if (d > new Date().toISOString().split('T')[0]) return 'Cannot pick a future date.';
-    if (claimedEarnedDates.has(d)) return 'This date is already claimed.';
+    if (day !== 0 && day !== 6) {
+      const name = format(new Date(d), 'EEEE');
+      return `${name} is a working day — comp-off can only be earned by working on a Saturday or Sunday.`;
+    }
+    if (d > new Date().toISOString().split('T')[0]) return 'You cannot claim comp-off for a future date.';
+    if (claimedEarnedDates.has(d)) return 'You already claimed comp-off for this date.';
     return '';
   };
 
@@ -353,7 +381,22 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                   </div>
 
                   {compoffError && (
-                    <p className="text-sm text-destructive">{compoffError}</p>
+                    <div className="flex items-start gap-2 p-3 rounded-md border border-destructive/40 bg-destructive/10 text-sm text-destructive">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>{compoffError}</span>
+                    </div>
+                  )}
+                  {!compoffError && attendanceWarning && (
+                    <div className="flex items-start gap-2 p-3 rounded-md border border-amber-500/40 bg-amber-500/10 text-sm text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>{attendanceWarning}</span>
+                    </div>
+                  )}
+                  {!compoffError && !attendanceWarning && earnedDate && !checkingAttendance && (
+                    <div className="flex items-start gap-2 p-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-700 dark:text-emerald-400">
+                      <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>Attendance confirmed for {format(parseISO(earnedDate), 'MMM d, yyyy')}. HR will review this claim.</span>
+                    </div>
                   )}
                 </div>
               )}

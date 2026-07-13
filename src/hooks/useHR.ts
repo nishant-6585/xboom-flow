@@ -561,7 +561,12 @@ export function useHR() {
             p_holiday_id: data.compoff.holiday_id ?? null,
           } as any,
         );
-        if (ledgerErr) throw ledgerErr;
+        if (ledgerErr) {
+          const { friendlyCompoffError } = await import('@/lib/compoff');
+          const nice = friendlyCompoffError(ledgerErr.message);
+          toast.error(nice);
+          return false;
+        }
         ledgerId = (claimedId as string) ?? null;
       }
 
