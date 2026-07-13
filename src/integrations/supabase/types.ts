@@ -17191,6 +17191,10 @@ export type Database = {
         }
         Returns: Json
       }
+      assert_compoff_ledger_return_alignment: {
+        Args: never
+        Returns: undefined
+      }
       assign_lead_with_sticky: {
         Args: { _email: string; _form_type?: string; _phone: string }
         Returns: Record<string, unknown>
