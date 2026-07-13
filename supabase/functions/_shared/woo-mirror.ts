@@ -438,6 +438,22 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
       } catch (e) {
         console.error("[woo-mirror] kyc onboard invoke threw:", e);
       }
+      // Safety net for non-drone website orders: kyc-handler skips them, so
+      // the customer would otherwise never receive portal access. This
+      // function mints a portal_account+auth_user+invite (idempotent) and
+      // emails the confirmation + set-password link. Fire-and-forget.
+      try {
+        // deno-lint-ignore no-explicit-any
+        (supabase as any).functions
+          .invoke("send-customer-confirmation-request", {
+            body: { order_id: internalId },
+          })
+          .catch((e: unknown) => {
+            console.error("[woo-mirror] portal-invite invoke failed:", e);
+          });
+      } catch (e) {
+        console.error("[woo-mirror] portal-invite invoke threw:", e);
+      }
     }
   }
 
