@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
+import { useCanAttributeWebsiteOrder } from '@/hooks/useCanAttributeWebsiteOrder';
 import {
   useInternalOrderForAttribution,
   useMyAttributionRequest,
@@ -48,7 +49,7 @@ export function OrderAttributionPanel({
   const { role, user } = useAuth();
   const { data: order } = useInternalOrderForAttribution({ internalOrderId, externalId });
   const { data: myRequest } = useMyAttributionRequest(order?.id);
-  const isManager = role === 'admin' || role === 'sales_manager' || role === 'supply_chain';
+  const canAttribute = useCanAttributeWebsiteOrder();
   const isSalesRep = role === 'sales';
 
   const [assignOpen, setAssignOpen] = useState(false);
@@ -110,8 +111,14 @@ export function OrderAttributionPanel({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {isManager && (
-          <Button size="sm" variant="default" onClick={() => setAssignOpen(true)} className="gap-2">
+        {canAttribute && (
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => setAssignOpen(true)}
+            className="gap-2"
+            data-testid="assign-salesperson-btn"
+          >
             <UserPlus className="h-4 w-4" />
             {isAttributed ? 'Re-assign salesperson' : 'Assign to salesperson'}
           </Button>
@@ -130,7 +137,7 @@ export function OrderAttributionPanel({
         )}
       </div>
 
-      {isManager && order && (
+      {canAttribute && order && (
         <AssignDialog
           open={assignOpen}
           onOpenChange={setAssignOpen}
