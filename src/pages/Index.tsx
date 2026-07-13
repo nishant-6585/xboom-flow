@@ -833,6 +833,15 @@ const Index = () => {
                         </div>
                       )}
                     </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <DateRangeFilter
+                      startDate={startDate}
+                      endDate={endDate}
+                      onStartDateChange={setStartDate}
+                      onEndDateChange={setEndDate}
+                      onClear={clearDateFilter}
+                    />
                     <div className="flex items-center gap-2">
                       <Button
                         variant={viewMode === "table" ? "default" : "outline"}
@@ -852,13 +861,6 @@ const Index = () => {
                       </Button>
                     </div>
                   </div>
-                  <DateRangeFilter
-                    startDate={startDate}
-                    endDate={endDate}
-                    onStartDateChange={setStartDate}
-                    onEndDateChange={setEndDate}
-                    onClear={clearDateFilter}
-                  />
                 </div>
 
                 {filteredEnquiries.length === 0 ? (
