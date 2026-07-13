@@ -4,7 +4,7 @@
 > Update this file as tasks complete. Newest entries at the top of each section.
 > Status legend: ✅ done · 🟡 in progress · ⏳ pending / not started · ❗ blocker
 
-Last updated: 2026-07-11
+Last updated: 2026-07-13
 
 ---
 
@@ -226,6 +226,14 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 ---
 
 ## ✅ Completed work
+
+### 2026-07-13 — Enquiry thread-first response + follow_up lifecycle + initial message ✅ (by Lovable, verified)
+Thread is now the primary respond surface; status tracks the conversation.
+- Lifecycle (migration `20260713041159`): new status `follow_up` ("Follow-up Pending", amber) added to `enquiries_status_check`, `QueryStatus`, shared `ENQUIRY_STATUSES` (feeds all filter dropdowns + dialog select). `sync_enquiry_status_from_thread()` AFTER INSERT on enquiry_messages: supply/admin first reply → responded + stamps responded_at/by (stops SLA clock); sales msg on responded → follow_up; supply reply on follow_up → responded (responded_at PRESERVED for SLA metrics); never touches on_hold/pipeline/won/lost. Both first-response triggers (`create_supplier_validation_task`, `notify_on_enquiry_response`) guarded with `OLD.responded_at IS NULL` — no duplicate tasks/notifications on follow-up cycles.
+- Dialog refactor: Quote Details (structured) above, "Respond & Discuss" thread last (chat anchor); pending hint + amber follow-up strip for supply chain. Same in QueryResponseDialog.
+- Initial message (migration `20260713043839`): QueryForm "Additional Notes" → "Message to Supply Chain" → first thread row with `is_initial=true` (non-fatal on failure; Purpose still composes into notes). `notify_on_enquiry_message` skips is_initial (NewEnquiryAlert dialog is the sole creation surface and now quotes the message). Initial sales msg leaves status pending.
+- pgTAP: enquiry_thread_status_sync.sql (7 asserts) + enquiry_initial_message.sql (5 asserts).
+- Known minor duplication (polish, not shipped): supply chain's FIRST response via thread fires both "📋 Enquiry Response" (with "Pricing: N/A") and "💬 New message" notifications to sales.
 
 ### 2026-07-11 — Enquiry alert UX: killed repeating SLA popup, persistent thread snackbars ✅ (by Lovable, verified)
 Supply chain was hammered by `SLAReminderAlert` (60s poll → blocking modal per unresponded enquiry, 30-min re-nudge queue). Client-side only:
