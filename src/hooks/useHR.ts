@@ -754,23 +754,13 @@ export function useHR() {
 
       if (error) throw error;
 
-      // Deduct balance when approving
-      if (approve && leaveReq) {
-        // Only deduct if it wasn't already approved (prevents double-deduction).
-        if (leaveReq.status !== 'approved') {
-          await deductLeaveBalance(leaveReq.employee_id, leaveReq.leave_type, leaveReq.total_days ?? 0);
-        }
-      }
-
-      // Refund balance when rejecting a leave that had been approved
-      if (!approve && leaveReq && leaveReq.status === 'approved') {
-        await refundLeaveBalance(
-          leaveReq.employee_id,
-          leaveReq.leave_type,
-          leaveReq.total_days ?? 0,
-          'Leave rejected — balance refunded',
-        );
-      }
+      // Balance deduction / refund is handled atomically by the
+      // `trg_sync_leave_balance_on_approval` DB trigger (SECURITY DEFINER,
+      // RLS-immune). Do NOT mutate leave_balances from the client here —
+      // that path was silently blocked by RLS whenever HR approved a
+      // request for someone (or for themselves before the guard was
+      // tightened), leading to approved leaves that never decremented
+      // the balance.
 
       toast.success(approve ? 'Leave approved' : 'Leave rejected');
       return true;
