@@ -44,7 +44,13 @@ export function LeaveApprovalCard({
   const [showActions, setShowActions] = useState(false);
   const [comments, setComments] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [compoffMeta, setCompoffMeta] = useState<{ earned_date: string; earned_type: string; holiday_name: string | null } | null>(null);
+  const [compoffMeta, setCompoffMeta] = useState<{
+    earned_date: string;
+    earned_type: string;
+    holiday_name: string | null;
+    approval_status: 'pending' | 'approved' | 'rejected';
+    expires_at: string;
+  } | null>(null);
 
   useEffect(() => {
     if (leave.leave_type !== 'compoff') return;
@@ -52,7 +58,7 @@ export function LeaveApprovalCard({
     (async () => {
       const { data } = await supabase
         .from('compoff_ledger')
-        .select('earned_date, earned_type, holiday_name')
+        .select('earned_date, earned_type, holiday_name, approval_status, expires_at')
         .eq('leave_request_id', leave.id)
         .maybeSingle();
       if (!cancelled && data) setCompoffMeta(data as any);
@@ -101,14 +107,29 @@ export function LeaveApprovalCard({
               <Calendar className="h-4 w-4" />
               <span>Applying leave on: <span className="font-medium text-foreground">{format(new Date(leave.start_date), 'MMM dd, yyyy')}</span></span>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Gift className="h-4 w-4" />
-              <span>
-                Earned on: <span className="font-medium text-foreground">
-                  {compoffMeta ? `${format(new Date(compoffMeta.earned_date), 'MMM dd, yyyy')}${compoffMeta.holiday_name ? ` — ${compoffMeta.holiday_name}` : ` (${compoffMeta.earned_type})`}` : '—'}
-                </span>
-              </span>
-            </div>
+            {compoffMeta && (
+              <div className="flex items-start gap-2 text-muted-foreground">
+                <Gift className="h-4 w-4 mt-0.5" />
+                {compoffMeta.approval_status === 'approved' ? (
+                  <span>
+                    Using approved credit from{' '}
+                    <span className="font-medium text-foreground">
+                      {format(new Date(compoffMeta.earned_date), 'MMM dd, yyyy')}
+                    </span>
+                    {compoffMeta.holiday_name ? ` — ${compoffMeta.holiday_name}` : ` (${compoffMeta.earned_type})`}
+                  </span>
+                ) : (
+                  <span>
+                    Worked{' '}
+                    <span className="font-medium text-foreground">
+                      {format(new Date(compoffMeta.earned_date), 'EEE dd MMM')}
+                    </span>{' '}
+                    ({compoffMeta.holiday_name ?? compoffMeta.earned_type}) · credit pending approval · expires{' '}
+                    {format(new Date(compoffMeta.expires_at), 'dd MMM yyyy')}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -161,7 +182,9 @@ export function LeaveApprovalCard({
                 disabled={processing}
               >
                 <Check className="mr-1 h-4 w-4" />
-                Approve
+                {leave.leave_type === 'compoff' && compoffMeta?.approval_status === 'pending'
+                  ? 'Approve leave + credit'
+                  : 'Approve'}
               </Button>
             </div>
           </div>

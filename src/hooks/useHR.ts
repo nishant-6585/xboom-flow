@@ -749,77 +749,20 @@ export function useHR() {
 
       // CompOff: flip ledger status on approval, revert on rejection of a previously approved compoff.
       if (leaveReq && leaveReq.leave_type === 'compoff') {
-        if (approve) {
-          // Auto-approve the underlying credit (writes to compoff_audit_log via RPC)
-          const { data: linkedLedger } = await supabase
-            .from('compoff_ledger')
-            .select('id, approval_status')
-            .eq('leave_request_id', leaveId)
-            .maybeSingle();
-          if (linkedLedger?.id && linkedLedger.approval_status === 'pending') {
-            await supabase.rpc('approve_compoff_credit', {
-              p_ledger_id: linkedLedger.id,
-              p_comment: comments || 'Approved with leave request',
-            });
-            try {
-              const { data: led } = await supabase
-                .from('compoff_ledger')
-                .select('id, employee_id, earned_date, earned_type')
-                .eq('id', linkedLedger.id)
-                .maybeSingle();
-              if (led) {
-                const { sendCompoffDecisionEmail } = await import('@/lib/compoffNotify');
-                void sendCompoffDecisionEmail({
-                  ledger_id: led.id,
-                  employee_id: led.employee_id,
-                  earned_date: led.earned_date,
-                  earned_type: led.earned_type,
-                  decision: 'approved',
-                  comment: comments || 'Approved with leave request',
-                });
-              }
-            } catch {}
-          }
-          await supabase
-            .from('compoff_ledger')
-            .update({ status: 'redeemed', redeemed_on: new Date().toISOString().split('T')[0] })
-            .eq('leave_request_id', leaveId);
-        } else if (leaveReq.status === 'approved') {
-          await supabase
-            .from('compoff_ledger')
-            .update({ status: 'available', redeemed_on: null })
-            .eq('leave_request_id', leaveId);
-        } else {
-          // Rejecting a submitted compoff leave: reject the pending credit as well
-          const { data: linkedLedger } = await supabase
-            .from('compoff_ledger')
-            .select('id, approval_status')
-            .eq('leave_request_id', leaveId)
-            .maybeSingle();
-          if (linkedLedger?.id && linkedLedger.approval_status === 'pending') {
-            await supabase.rpc('reject_compoff_credit', {
-              p_ledger_id: linkedLedger.id,
-              p_reason: comments || 'Rejected with leave request',
-            });
-            try {
-              const { data: led } = await supabase
-                .from('compoff_ledger')
-                .select('id, employee_id, earned_date, earned_type')
-                .eq('id', linkedLedger.id)
-                .maybeSingle();
-              if (led) {
-                const { sendCompoffDecisionEmail } = await import('@/lib/compoffNotify');
-                void sendCompoffDecisionEmail({
-                  ledger_id: led.id,
-                  employee_id: led.employee_id,
-                  earned_date: led.earned_date,
-                  earned_type: led.earned_type,
-                  decision: 'rejected',
-                  reason: comments || 'Rejected with leave request',
-                });
-              }
-            } catch {}
-          }
+        // Atomic: leave decision settles the linked credit in one transaction.
+        // Approve  -> credit approved + redeemed together.
+        // Reject   -> credit link cleared, credit stays PENDING and re-appears
+        //             in the HR credit inbox for a standalone decision (the
+        //             employee genuinely worked that day — rejecting the leave
+        //             must not silently void the earned credit).
+        try {
+          await supabase.rpc('settle_compoff_leave_decision', {
+            p_leave_id: leaveId,
+            p_approve: approve,
+            p_comment: comments ?? null,
+          } as any);
+        } catch (e) {
+          console.error('settle_compoff_leave_decision failed', e);
         }
       }
 
