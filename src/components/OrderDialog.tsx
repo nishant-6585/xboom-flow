@@ -593,44 +593,29 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   // Check if user can delete PO (sales own orders or admin)
   const canDeletePo = isAdmin || (isSales && order?.sales_person_id === user?.id);
 
-  const handleUpdate = async () => {
-    if (!canEditOrder && !canEditSalesFields) return;
-    
-    // Validate cancellation reason when status is cancelled
-    if (status === 'cancelled' && !cancellationReason.trim()) {
-      toast.error('Cancellation reason is required when marking order as cancelled');
-      return;
-    }
-
-    // Office-pickup delivery requires an approved (or at least uploaded) proof photo
-    // before the order can be marked delivered.
-    if (
-      status === 'delivery_done' &&
-      deliveryMode === 'office_pickup' &&
-      !(order as any).delivery_proof_url
-    ) {
-      toast.error('Upload the customer-receiving proof photo before marking this office-pickup order as delivered.');
-      return;
-    }
-
-    // Validate tracking URL is a proper http(s) link
-    if (trackingUrl && !isValidHttpUrl(trackingUrl)) {
-      toast.error('Tracking URL must be a valid link starting with http:// or https://');
-      return;
-    }
-    
-    setLoading(true);
-
-    // Determine if status should auto-change based on tracking details
+  // Pure diff builder — returns ONLY fields whose current form value differs
+  // from the persisted order row. This is the single source of truth for both
+  // (a) the payload sent to the DB — an empty diff skips the write entirely,
+  //     which side-steps the `guard_orders_sensitive_updates` trigger for any
+  //     column the user did not actually change (avoids the spurious 42501
+  //     salespeople hit after payment auto-recompute), and
+  // (b) the "Save Changes" button's isDirty gate.
+  const buildOrderUpdatePayload = useCallback((): Partial<Order> => {
+    if (!order) return {};
+    // Auto-derived status when tracking is added on a non-shipped order.
     let finalStatus = status;
     const trackingWasAdded = trackingNumber && !order.tracking_number;
     const trackingWasUpdated = trackingNumber && order.tracking_number !== trackingNumber;
-    
-    if ((trackingWasAdded || trackingWasUpdated) && status !== 'in_transit' && status !== 'delivery_done' && status !== 'cancelled') {
+    if (
+      (trackingWasAdded || trackingWasUpdated) &&
+      status !== 'in_transit' &&
+      status !== 'delivery_done' &&
+      status !== 'cancelled'
+    ) {
       finalStatus = 'in_transit' as OrderStatus;
     }
 
-    const updates: Partial<Order> = {
+    const candidate: Record<string, any> = {
       status: finalStatus,
       payment_status: paymentStatus,
       order_type: orderType,
@@ -660,130 +645,124 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       internal_notes: internalNotes || null,
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
-      // invoice_url intentionally omitted — invoices are persisted in the
-      // order_invoices table and must never be touched by the main order form save.
       is_refund_requested: isRefundRequested || finalStatus === 'cancelled',
-      refund_reason: isRefundRequested ? (refundReason || null) : (finalStatus === 'cancelled' ? cancellationReason : null),
+      refund_reason: isRefundRequested
+        ? (refundReason || null)
+        : (finalStatus === 'cancelled' ? cancellationReason : null),
       refund_status: (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null,
-      refund_requested_at: (isRefundRequested || finalStatus === 'cancelled') && !order.is_refund_requested ? new Date().toISOString() : order.refund_requested_at,
-      refund_requested_by: (isRefundRequested || finalStatus === 'cancelled') && !order.is_refund_requested ? user?.id : order.refund_requested_by,
       priority,
       order_outcome: orderOutcome,
       lost_reason: orderOutcome === 'lost' ? lostReason : null,
       lost_reason_notes: orderOutcome === 'lost' ? (lostReasonNotes || null) : null,
-      outcome_updated_at: orderOutcome !== order.order_outcome ? new Date().toISOString() : order.outcome_updated_at,
-      outcome_updated_by: orderOutcome !== order.order_outcome ? user?.id : order.outcome_updated_by,
       supplier_payment_terms: supplierPaymentTerms || null,
       supplier_payment_due_date: supplierPaymentDueDate || null,
       order_date: orderDate ? format(orderDate, 'yyyy-MM-dd') : null,
-      // RTO and cancellation fields
       is_rto: isRto,
-      rto_marked_at: isRto && !order.is_rto ? new Date().toISOString() : order.rto_marked_at,
-      rto_marked_by: isRto && !order.is_rto ? user?.id : order.rto_marked_by,
       cancellation_reason: finalStatus === 'cancelled' ? cancellationReason : null,
-      cancelled_at: finalStatus === 'cancelled' && order.status !== 'cancelled' ? new Date().toISOString() : order.cancelled_at,
-      cancelled_by: finalStatus === 'cancelled' && order.status !== 'cancelled' ? user?.id : order.cancelled_by,
-    } as Partial<Order>;
-
-    // Persist delivery mode when it changed on the card
-    if (deliveryMode !== ((order as any).delivery_mode ?? null)) {
-      (updates as any).delivery_mode = deliveryMode;
-    }
-
-    // Strip guard-protected financial / attribution fields from the update
-    // payload when the value has NOT changed relative to the current order.
-    // The DB trigger `guard_orders_sensitive_updates` fires on IS DISTINCT
-    // for these columns and blocks non-privileged roles (sales) with 42501
-    // — even when the user only edited unrelated fields — whenever the
-    // dialog's local state has drifted from the server value (e.g. after a
-    // payment record was auto-approved and `amount_paid` / `payment_status`
-    // got recomputed by another trigger while the dialog was open).
-    // Removing no-op writes for these columns eliminates the spurious
-    // "permission denied" error salespeople hit when clicking Save Changes
-    // after uploading a payment.
-    const norm = (v: any) => (v === '' || v === undefined ? null : v);
-    const guardProtectedFields: (keyof Order)[] = [
-      'payment_status',
-      'amount_paid',
-      'selling_price',
-      'discount_amount',
-      'total_sales_amount',
-      'refund_status',
-      'refund_reason',
-      'refund_requested_at',
-      'sales_person_id',
-    ];
-    // `order_outcome` is also on the guard list.
-    (guardProtectedFields as string[]).push('order_outcome');
-    for (const field of guardProtectedFields) {
-      if (norm((updates as any)[field]) === norm((order as any)[field])) {
-        delete (updates as any)[field];
-      }
-    }
-
-    // Track changes for edit history — compare every editable field
-    const changes: Record<string, { old: any; new: any }> = {};
-    const trackField = (field: string, oldVal: any, newVal: any) => {
-      const norm = (v: any) => (v === '' || v === undefined ? null : v);
-      if (norm(oldVal) !== norm(newVal)) changes[field] = { old: oldVal, new: newVal };
+      delivery_mode: deliveryMode,
     };
 
-    trackField('status', order.status, finalStatus);
-    trackField('payment_status', order.payment_status, paymentStatus);
-    trackField('order_type', order.order_type, orderType);
-    trackField('customer_type', order.customer_type, customerType);
-    trackField('customer_name', order.customer_name, customerName || null);
-    trackField('customer_company', order.customer_company, customerCompany || null);
-    trackField('customer_gst', (order as any).customer_gst, customerGst || null);
-    trackField('customer_phone', (order as any).customer_phone, customerPhone || null);
-    trackField('customer_email', (order as any).customer_email, customerEmail || null);
-    trackField('sales_person_id', order.sales_person_id, salesPersonId);
-    trackField('sales_person_name', order.sales_person_name, salesPersonName);
-    trackField('shipping_address', order.shipping_address, shippingAddress || null);
-    trackField('supplier_name', order.supplier_name, supplierName || null);
-    trackField('supplier_contact', order.supplier_contact, supplierContact || null);
-    trackField('procurement_rate', order.procurement_rate, procurementRate ? parseFloat(procurementRate) : null);
-    trackField('selling_price', order.selling_price, sellingPrice ? parseFloat(sellingPrice) : null);
-    trackField('total_sales_amount', order.total_sales_amount, totalSalesAmount ? parseFloat(totalSalesAmount) : null);
-    trackField('discount_amount', order.discount_amount, discountAmount ? parseFloat(discountAmount) : null);
-    trackField('amount_paid', order.amount_paid, amountPaid ? parseFloat(amountPaid) : null);
-    trackField('payment_terms', order.payment_terms, paymentTerms || null);
-    trackField('payment_due_date', order.payment_due_date, paymentDueDate || null);
-    trackField('tracking_number', order.tracking_number, trackingNumber || null);
-    trackField('tracking_url', order.tracking_url, trackingUrl || null);
-    trackField('courier_name', (order as any).courier_name, courierName || null);
-    trackField('committed_timeline', order.committed_timeline, committedTimeline || null);
-    trackField('dispatched_on', (order as any).dispatched_on, dispatchedOn || null);
-    trackField('internal_notes', order.internal_notes, internalNotes || null);
-    trackField('customer_notes', order.customer_notes, customerNotes || null);
-    trackField('sales_notes', order.sales_notes, salesNotes || null);
-    trackField('priority', order.priority, priority);
-    trackField('order_outcome', order.order_outcome, orderOutcome);
-    trackField('lost_reason', order.lost_reason, orderOutcome === 'lost' ? lostReason : null);
-    trackField('lost_reason_notes', order.lost_reason_notes, orderOutcome === 'lost' ? (lostReasonNotes || null) : null);
-    trackField('is_rto', order.is_rto, isRto);
-    trackField('cancellation_reason', order.cancellation_reason, finalStatus === 'cancelled' ? cancellationReason : null);
-    trackField('supplier_payment_terms', (order as any).supplier_payment_terms, supplierPaymentTerms || null);
-    trackField('supplier_payment_due_date', (order as any).supplier_payment_due_date, supplierPaymentDueDate || null);
-    trackField('order_date', order.order_date, orderDate ? format(orderDate, 'yyyy-MM-dd') : null);
-    trackField('is_refund_requested', order.is_refund_requested, isRefundRequested || finalStatus === 'cancelled');
-    trackField('refund_reason', order.refund_reason, isRefundRequested ? (refundReason || null) : (finalStatus === 'cancelled' ? cancellationReason : null));
-    trackField('refund_status', order.refund_status, (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null);
+    const norm = (v: any) => (v === '' || v === undefined ? null : v);
+    const payload: Record<string, any> = {};
+    for (const [k, v] of Object.entries(candidate)) {
+      if (norm(v) !== norm((order as any)[k])) payload[k] = v;
+    }
 
-    // When the status of a website order is manually changed, set
-    // procurement_edited = true so the Woo mirror stops overwriting it
-    // on subsequent webhook / backfill syncs.
+    // Side-effect audit fields — only inject when their primary column is
+    // actually changing. These never fake-enable isDirty on their own.
+    if ('is_refund_requested' in payload && payload.is_refund_requested && !order.is_refund_requested) {
+      payload.refund_requested_at = new Date().toISOString();
+      payload.refund_requested_by = user?.id;
+    }
+    if ('order_outcome' in payload) {
+      payload.outcome_updated_at = new Date().toISOString();
+      payload.outcome_updated_by = user?.id;
+    }
+    if ('is_rto' in payload && payload.is_rto && !order.is_rto) {
+      payload.rto_marked_at = new Date().toISOString();
+      payload.rto_marked_by = user?.id;
+    }
+    if ('status' in payload && payload.status === 'cancelled' && order.status !== 'cancelled') {
+      payload.cancelled_at = new Date().toISOString();
+      payload.cancelled_by = user?.id;
+    }
+    // Website order status manually changed → freeze from Woo mirror overwrite.
+    if (!!(order as any).external_id && 'status' in payload && !(order as any).procurement_edited) {
+      (payload as any).procurement_edited = true;
+    }
+
+    return payload as Partial<Order>;
+  }, [
+    order,
+    status, paymentStatus, orderType, customerType,
+    customerName, customerCompany, customerGst, customerPhone, customerEmail,
+    salesPersonId, salesPersonName, shippingAddress, supplierName, supplierContact,
+    procurementRate, sellingPrice, totalSalesAmount, discountAmount, amountPaid,
+    paymentTerms, paymentDueDate, trackingNumber, trackingUrl, courierName,
+    committedTimeline, dispatchedOn, internalNotes, customerNotes, salesNotes,
+    isRefundRequested, refundReason, refundStatus, priority, orderOutcome,
+    lostReason, lostReasonNotes, supplierPaymentTerms, supplierPaymentDueDate,
+    orderDate, isRto, cancellationReason, deliveryMode, user?.id,
+  ]);
+
+  const isDirty = useMemo(
+    () => Object.keys(buildOrderUpdatePayload()).length > 0,
+    [buildOrderUpdatePayload],
+  );
+
+  const handleUpdate = async () => {
+    if (!canEditOrder && !canEditSalesFields) return;
+
+    // Validate cancellation reason when status is cancelled
+    if (status === 'cancelled' && !cancellationReason.trim()) {
+      toast.error('Cancellation reason is required when marking order as cancelled');
+      return;
+    }
+
+    // Office-pickup delivery requires an approved (or at least uploaded) proof
+    // photo before the order can be marked delivered.
     if (
-      !!(order as any).external_id &&
-      changes['status'] &&
-      !(order as any).procurement_edited
+      status === 'delivery_done' &&
+      deliveryMode === 'office_pickup' &&
+      !(order as any).delivery_proof_url
     ) {
-      (updates as any).procurement_edited = true;
+      toast.error('Upload the customer-receiving proof photo before marking this office-pickup order as delivered.');
+      return;
+    }
+
+    // Validate tracking URL is a proper http(s) link
+    if (trackingUrl && !isValidHttpUrl(trackingUrl)) {
+      toast.error('Tracking URL must be a valid link starting with http:// or https://');
+      return;
+    }
+
+    const updates = buildOrderUpdatePayload();
+    if (Object.keys(updates).length === 0) {
+      // No changes — skip the write entirely.
+      return;
+    }
+
+    setLoading(true);
+
+    const finalStatus = (updates.status as OrderStatus | undefined) ?? status;
+
+    // Edit-history entries — one per diffed field (excluding side-effect audit
+    // columns which the trigger owns).
+    const AUDIT_ONLY = new Set([
+      'refund_requested_at', 'refund_requested_by',
+      'outcome_updated_at', 'outcome_updated_by',
+      'rto_marked_at', 'rto_marked_by',
+      'cancelled_at', 'cancelled_by',
+      'procurement_edited',
+    ]);
+    const changes: Record<string, { old: any; new: any }> = {};
+    for (const [k, v] of Object.entries(updates)) {
+      if (AUDIT_ONLY.has(k)) continue;
+      changes[k] = { old: (order as any)[k], new: v };
     }
 
     const success = await onUpdate(order.id, updates);
-    
-    // Record edit history
+
     if (success && Object.keys(changes).length > 0) {
       await recordChanges('orders', order.id, changes, profile?.name || 'Unknown');
     }
