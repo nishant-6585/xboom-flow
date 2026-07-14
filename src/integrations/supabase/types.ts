@@ -18483,6 +18483,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      settle_compoff_leave_decision: {
+        Args: { p_approve: boolean; p_comment?: string; p_leave_id: string }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       submit_delivery_proof: {
