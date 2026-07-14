@@ -652,6 +652,35 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       (updates as any).delivery_mode = deliveryMode;
     }
 
+    // Strip guard-protected financial / attribution fields from the update
+    // payload when the value has NOT changed relative to the current order.
+    // The DB trigger `guard_orders_sensitive_updates` fires on IS DISTINCT
+    // for these columns and blocks non-privileged roles (sales) with 42501
+    // — even when the user only edited unrelated fields — whenever the
+    // dialog's local state has drifted from the server value (e.g. after a
+    // payment record was auto-approved and `amount_paid` / `payment_status`
+    // got recomputed by another trigger while the dialog was open).
+    // Removing no-op writes for these columns eliminates the spurious
+    // "permission denied" error salespeople hit when clicking Save Changes
+    // after uploading a payment.
+    const norm = (v: any) => (v === '' || v === undefined ? null : v);
+    const guardProtectedFields: (keyof Order)[] = [
+      'payment_status',
+      'amount_paid',
+      'selling_price',
+      'discount_amount',
+      'total_sales_amount',
+      'refund_status',
+      'refund_reason',
+      'refund_requested_at',
+      'sales_person_id',
+    ];
+    for (const field of guardProtectedFields) {
+      if (norm((updates as any)[field]) === norm((order as any)[field])) {
+        delete (updates as any)[field];
+      }
+    }
+
     // Track changes for edit history — compare every editable field
     const changes: Record<string, { old: any; new: any }> = {};
     const trackField = (field: string, oldVal: any, newVal: any) => {
