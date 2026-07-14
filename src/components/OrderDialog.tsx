@@ -3305,7 +3305,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 {canEditOrder ? 'Cancel' : 'Close'}
               </Button>
               {canEditOrder && (
-                <Button onClick={handleUpdate} disabled={loading}>
+                <Button
+                  onClick={handleUpdate}
+                  disabled={loading || !isDirty}
+                  title={!isDirty ? 'No changes to save' : undefined}
+                >
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
