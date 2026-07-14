@@ -149,17 +149,25 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                       <TableHead>Employee</TableHead>
                       <TableHead className="text-center">Earned Leave</TableHead>
                       <TableHead className="text-center">Sick Leave</TableHead>
+                      <TableHead>Last Approver</TableHead>
+                      <TableHead>Applied On</TableHead>
+                      <TableHead>Approved On</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {employeeRows.map(row => {
                       const getBalance = (lt: string) => row.balances.find(b => b.leave_type === lt)?.balance ?? 0;
+                      const ll = row.last_leave;
+                      const fmt = (d: string | null | undefined) => d ? format(new Date(d), 'dd MMM yyyy') : '—';
                       return (
                         <TableRow key={row.employee_id}>
                           <TableCell className="font-medium">{row.employee_name}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('EL')}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('sick')}</TableCell>
+                          <TableCell className="text-sm">{ll?.approver_name || '—'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{fmt(ll?.applied_on)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{fmt(ll?.approved_on)}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm" onClick={() => setEditRow(row)}>
                               <Pencil className="h-4 w-4 mr-1" /> Edit
