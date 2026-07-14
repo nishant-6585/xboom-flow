@@ -4,7 +4,7 @@
 > Update this file as tasks complete. Newest entries at the top of each section.
 > Status legend: ✅ done · 🟡 in progress · ⏳ pending / not started · ❗ blocker
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 ---
 
@@ -226,6 +226,13 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 ---
 
 ## ✅ Completed work
+
+### 2026-07-14 — CompOff: single-request UX + atomic settlement + email relay 🟡 (by Lovable, mostly verified)
+Applying CompOff leave used to create TWO pending approvals (credit inbox + leave request). Now one visible request:
+- **Unified approval** (migration `20260714052635`): `list_pending_compoff_credits` excludes credits linked to a submitted/pending leave (standalone banked credits still show); `settle_compoff_leave_decision(leave_id, approve, comment)` — approve → credit approved+redeemed atomically; reject → link cleared, credit stays pending and re-surfaces in inbox (worked day ≠ leave decision). LeaveApprovalCard shows "Worked <day> · credit pending · expires …" / "Using approved credit from …"; button "Approve leave + credit". pgTAP 9 asserts.
+- **Atomicity hardening** (migration `20260714060600`, verified): the RPC now OWNS the leave_requests write (FOR UPDATE + status update in the same transaction as ledger settle); useHR compoff branch calls ONLY the RPC and propagates errors (was: separate leave update + swallowed RPC failure = double-dip window).
+- **Email relay** (verified): compoff decision emails all failed — compoffNotify.ts invoked service-role-gated `send-transactional-email` from the browser (403). New `send-compoff-notification` edge fn (verify_jwt, HR/admin gate, body = {log_id} only, recipient/content derived server-side via service client). Manoj's failed approval email retried → sent.
+- **⏳ PENDING (prompt given):** employee-side credit→leave LINK silently fails — compoff_ledger UPDATE RLS is HR/admin-only, the client links as the EMPLOYEE (0 rows, no error) → card shows no earned date, settle finds no ledger (double-dip via broken link). Fix = `link_compoff_to_leave` SECURITY DEFINER RPC + repair Manoj's stray approved credit + amber "No earned credit linked" fallback + pgTAP as employee. Same lesson as attendance/orders guards: happy path was only tested as HR/admin.
 
 ### 2026-07-13 — WooCommerce (Vishal) bucket + attribution grants ✅ (by Lovable, verified after a partial-delivery catch)
 Website (Auto) rebranded and permissions tightened. Migrations `20260713100927` + repair `20260713102706`:
