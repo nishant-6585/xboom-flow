@@ -716,6 +716,26 @@ export function useHR() {
         .eq('id', leaveId)
         .single();
 
+      // CompOff leaves are settled atomically inside the RPC (leave_requests
+      // row + linked ledger updated in one transaction). Do NOT run the
+      // separate client-side leave_requests update — otherwise a failed RPC
+      // leaves the leave approved while the credit stays pending, allowing
+      // a double-dip redemption later.
+      if (leaveReq && leaveReq.leave_type === 'compoff') {
+        const { error: rpcErr } = await supabase.rpc('settle_compoff_leave_decision', {
+          p_leave_id: leaveId,
+          p_approve: approve,
+          p_comment: comments ?? null,
+        } as any);
+        if (rpcErr) {
+          console.error('settle_compoff_leave_decision failed', rpcErr);
+          toast.error(rpcErr.message || 'Failed to settle comp-off leave');
+          return false;
+        }
+        toast.success(approve ? 'Leave approved' : 'Leave rejected');
+        return true;
+      }
+
       const { error } = await supabase
         .from('leave_requests')
         .update({
@@ -745,25 +765,6 @@ export function useHR() {
           leaveReq.total_days ?? 0,
           'Leave rejected — balance refunded',
         );
-      }
-
-      // CompOff: flip ledger status on approval, revert on rejection of a previously approved compoff.
-      if (leaveReq && leaveReq.leave_type === 'compoff') {
-        // Atomic: leave decision settles the linked credit in one transaction.
-        // Approve  -> credit approved + redeemed together.
-        // Reject   -> credit link cleared, credit stays PENDING and re-appears
-        //             in the HR credit inbox for a standalone decision (the
-        //             employee genuinely worked that day — rejecting the leave
-        //             must not silently void the earned credit).
-        try {
-          await supabase.rpc('settle_compoff_leave_decision', {
-            p_leave_id: leaveId,
-            p_approve: approve,
-            p_comment: comments ?? null,
-          } as any);
-        } catch (e) {
-          console.error('settle_compoff_leave_decision failed', e);
-        }
       }
 
       toast.success(approve ? 'Leave approved' : 'Leave rejected');
