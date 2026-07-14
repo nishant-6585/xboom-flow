@@ -675,6 +675,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       'refund_requested_at',
       'sales_person_id',
     ];
+    // `order_outcome` is also on the guard list.
+    (guardProtectedFields as string[]).push('order_outcome');
     for (const field of guardProtectedFields) {
       if (norm((updates as any)[field]) === norm((order as any)[field])) {
         delete (updates as any)[field];
