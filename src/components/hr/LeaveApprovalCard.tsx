@@ -130,6 +130,14 @@ export function LeaveApprovalCard({
                 )}
               </div>
             )}
+            {!compoffMeta && (
+              <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                <Gift className="h-4 w-4 mt-0.5" />
+                <span className="text-xs font-medium">
+                  ⚠ No earned credit linked to this request — approving will not redeem any credit. Ask the employee to relink or contact HR.
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
