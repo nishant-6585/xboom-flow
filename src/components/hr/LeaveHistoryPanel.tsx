@@ -285,6 +285,8 @@ export function LeaveHistoryPanel() {
                         <TableHead className="text-xs text-center">Days</TableHead>
                         <TableHead className="text-xs">Status</TableHead>
                         <TableHead className="text-xs">Applied On</TableHead>
+                        <TableHead className="text-xs">Approver</TableHead>
+                        <TableHead className="text-xs">Approved/Rejected On</TableHead>
                         {canDelete && <TableHead className="text-xs text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
@@ -302,6 +304,8 @@ export function LeaveHistoryPanel() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{format(new Date(r.created_at), 'dd MMM yyyy')}</TableCell>
+                          <TableCell className="text-sm">{r.approver_name || '—'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{r.approved_rejected_at ? format(new Date(r.approved_rejected_at), 'dd MMM yyyy') : '—'}</TableCell>
                           {canDelete && (
                             <TableCell className="text-right">
                               <Button
