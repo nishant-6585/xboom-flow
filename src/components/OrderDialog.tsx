@@ -325,59 +325,97 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierName, trackingNumber]);
 
+  // Snapshot of the last order-derived values we pushed into each form field.
+  // Used to detect "untouched" fields when the `order` prop refreshes (e.g.
+  // after a payment record is approved and the server recomputes totals):
+  // if current state === last-synced value, the user hasn't edited that
+  // field since the last sync, so we adopt the fresh order value; otherwise
+  // we preserve the user's in-progress edit. Reference equality against the
+  // exact instance we set is sufficient (including Date objects for
+  // orderDate — the same Date instance is stored in state and snapshot).
+  const syncedSnapshotRef = useRef<Record<string, any>>({});
+  const prevOrderIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (order) {
-      setStatus(order.status);
-      setPaymentStatus(order.payment_status);
-      setOrderType(order.order_type);
-      setCustomerType(order.customer_type);
-      setShippingAddress(order.shipping_address || '');
-      setSupplierName(order.supplier_name || '');
-      setSupplierContact(order.supplier_contact || '');
-      setProcurementRate(order.procurement_rate?.toString() || '');
-      setSellingPrice(order.selling_price?.toString() || '');
-      setTotalSalesAmount(order.total_sales_amount?.toString() || '');
-      setDiscountAmount(order.discount_amount?.toString() || '');
-      setAmountPaid(order.amount_paid?.toString() || '');
-      setPaymentTerms(stripHtmlLabel(order.payment_terms) || '');
-      setTrackingNumber(order.tracking_number || '');
-      setTrackingUrl(order.tracking_url || '');
-      setCourierName((order as any).courier_name || '');
-      setCommittedTimeline(order.committed_timeline || '');
-      setDispatchedOn(((order as any).dispatched_on as string) || '');
-      setInternalNotes(order.internal_notes || '');
-      setCustomerNotes(order.customer_notes || '');
-      setSalesNotes(order.sales_notes || '');
-      setPaymentDueDate(order.payment_due_date || '');
+    if (!order) {
+      syncedSnapshotRef.current = {};
+      prevOrderIdRef.current = null;
+      return;
+    }
+    const firstLoad = prevOrderIdRef.current !== order.id;
+    const snap = syncedSnapshotRef.current;
+    const sync = <T,>(
+      name: string,
+      setter: React.Dispatch<React.SetStateAction<T>>,
+      newVal: T,
+    ) => {
+      if (firstLoad || !(name in snap)) {
+        setter(newVal);
+      } else {
+        const last = snap[name];
+        setter((cur) => (Object.is(cur, last) ? newVal : cur));
+      }
+      snap[name] = newVal;
+    };
+
+    sync('status', setStatus, order.status);
+    sync('paymentStatus', setPaymentStatus, order.payment_status);
+    sync('orderType', setOrderType, order.order_type);
+    sync('customerType', setCustomerType, order.customer_type);
+    sync('shippingAddress', setShippingAddress, order.shipping_address || '');
+    sync('supplierName', setSupplierName, order.supplier_name || '');
+    sync('supplierContact', setSupplierContact, order.supplier_contact || '');
+    sync('procurementRate', setProcurementRate, order.procurement_rate?.toString() || '');
+    sync('sellingPrice', setSellingPrice, order.selling_price?.toString() || '');
+    sync('totalSalesAmount', setTotalSalesAmount, order.total_sales_amount?.toString() || '');
+    sync('discountAmount', setDiscountAmount, order.discount_amount?.toString() || '');
+    sync('amountPaid', setAmountPaid, order.amount_paid?.toString() || '');
+    sync('paymentTerms', setPaymentTerms, stripHtmlLabel(order.payment_terms) || '');
+    sync('trackingNumber', setTrackingNumber, order.tracking_number || '');
+    sync('trackingUrl', setTrackingUrl, order.tracking_url || '');
+    sync('courierName', setCourierName, (order as any).courier_name || '');
+    sync('committedTimeline', setCommittedTimeline, order.committed_timeline || '');
+    sync('dispatchedOn', setDispatchedOn, ((order as any).dispatched_on as string) || '');
+    sync('internalNotes', setInternalNotes, order.internal_notes || '');
+    sync('customerNotes', setCustomerNotes, order.customer_notes || '');
+    sync('salesNotes', setSalesNotes, order.sales_notes || '');
+    sync('paymentDueDate', setPaymentDueDate, order.payment_due_date || '');
+    sync('isRefundRequested', setIsRefundRequested, order.is_refund_requested || false);
+    sync('refundReason', setRefundReason, order.refund_reason || '');
+    sync('refundStatus', setRefundStatus, (order.refund_status as RefundStatus) || 'pending');
+    sync('priority', setPriority, order.priority || 3);
+    sync('orderOutcome', setOrderOutcome, (order.order_outcome || 'pending') as OrderOutcome);
+    sync('lostReason', setLostReason, (order.lost_reason as LostReason) || 'price');
+    sync('lostReasonNotes', setLostReasonNotes, order.lost_reason_notes || '');
+    sync('supplierPaymentTerms', setSupplierPaymentTerms, (order as any).supplier_payment_terms || '');
+    sync('supplierPaymentDueDate', setSupplierPaymentDueDate, (order as any).supplier_payment_due_date || '');
+    sync('isRto', setIsRto, order.is_rto || false);
+    sync('cancellationReason', setCancellationReason, order.cancellation_reason || '');
+    sync('deliveryMode', setDeliveryMode, ((order as any).delivery_mode as string) || null);
+    sync('customerName', setCustomerName, order.customer_name || '');
+    sync('customerCompany', setCustomerCompany, order.customer_company || '');
+    sync('customerGst', setCustomerGst, (order as any).customer_gst || '');
+    sync('customerPhone', setCustomerPhone, (order as any).customer_phone || '');
+    sync('customerEmail', setCustomerEmail, (order as any).customer_email || '');
+    sync('salesPersonId', setSalesPersonId, order.sales_person_id ?? null);
+    sync('salesPersonName', setSalesPersonName, order.sales_person_name ?? null);
+    // orderDate: build a new Date each sync and let Object.is preserve
+    // reference identity for untouched-detection.
+    sync(
+      'orderDate',
+      setOrderDate,
+      order.order_date ? new Date(order.order_date) : new Date(order.created_at),
+    );
+
+    if (firstLoad) {
+      // Non-diffed fields — always reset on order switch / reopen.
       setInvoiceUrl(order.invoice_url || null);
       setPoUrl(order.po_url || null);
       setPoNumber(order.po_number || '');
       setInvoiceNumber(order.invoice_number || '');
-      setIsRefundRequested(order.is_refund_requested || false);
-      setRefundReason(order.refund_reason || '');
-      setRefundStatus((order.refund_status as RefundStatus) || 'pending');
-      setPriority(order.priority || 3);
-      setOrderOutcome((order.order_outcome || 'pending') as OrderOutcome);
-      setLostReason((order.lost_reason as LostReason) || 'price');
-      setLostReasonNotes(order.lost_reason_notes || '');
-      setSupplierPaymentTerms((order as any).supplier_payment_terms || '');
-      setSupplierPaymentDueDate((order as any).supplier_payment_due_date || '');
-      setIsRto(order.is_rto || false);
-      setCancellationReason(order.cancellation_reason || '');
-      setOrderDate(order.order_date ? new Date(order.order_date) : new Date(order.created_at));
-      setDeliveryMode(((order as any).delivery_mode as string) || null);
-      setCustomerName(order.customer_name || '');
-      setCustomerCompany(order.customer_company || '');
-      setCustomerGst((order as any).customer_gst || '');
-      setCustomerPhone((order as any).customer_phone || '');
-      setCustomerEmail((order as any).customer_email || '');
-      setSalesPersonId(order.sales_person_id ?? null);
-      setSalesPersonName(order.sales_person_name ?? null);
       setInvoiceEmailState(defaultEmailState((order as any).customer_email || ''));
       setEscalationReason('');
       setShowEscalationForm(false);
-
-      // Reset all inline edit flags when switching orders or reopening dialog
       setEditingCustomerInfo(false);
       setEditingShipping(false);
       setEditingPayment(false);
@@ -385,11 +423,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setEditingOrderItems(false);
       setEditedOrderItems({});
       setEditingInvoiceNumber(false);
-
-      // Fetch order items
       fetchOrderItems(order.id).then(setOrderItems);
     }
-  }, [order?.id, fetchOrderItems]);
+
+    prevOrderIdRef.current = order.id;
+  }, [order, fetchOrderItems]);
 
   // Live payment records for this order — MUST be called before any early
   // return to keep hook order stable across renders.
