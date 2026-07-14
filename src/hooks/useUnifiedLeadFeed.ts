@@ -22,6 +22,7 @@ export interface UnifiedLead {
   email: string | null;
   company: string | null;
   subject_or_message: string | null;
+  product_name: string | null;
   status: string | null;
   sales_person_id: string | null;
   sales_person_name: string | null;
