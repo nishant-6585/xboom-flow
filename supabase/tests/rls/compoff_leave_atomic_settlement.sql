@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(12);
 
 set local role postgres;
 
@@ -67,12 +67,20 @@ select is(
 reset role;
 
 -- (2) Approve path: settle → credit approved + redeemed
-update public.leave_requests set status = 'approved' where id = :'leave_id'::uuid;
 select pg_temp.as_user(:'hr_uid'::uuid);
 select lives_ok(
   $$ select public.settle_compoff_leave_decision(:'leave_id'::uuid, true, 'ok') $$,
-  'HR can settle approval');
+  'HR can settle approval (RPC is sole writer)');
 reset role;
+
+select is(
+  (select status from public.leave_requests where id = :'leave_id'::uuid),
+  'approved',
+  'leave_requests.status = approved after RPC (no client-side update)');
+select is(
+  (select approver_id from public.leave_requests where id = :'leave_id'::uuid),
+  :'hr_uid'::uuid,
+  'leave_requests.approver_id set to HR by RPC');
 
 select is(
   (select approval_status from public.compoff_ledger where id = :'ledger_id'::uuid),
@@ -92,13 +100,18 @@ update public.compoff_ledger
    set approval_status='pending', status='available', redeemed_on=null,
        leave_request_id=:'leave_id'::uuid, approved_by=null, approved_by_name=null, approved_at=null
  where id = :'ledger_id'::uuid;
-update public.leave_requests set status='rejected' where id = :'leave_id'::uuid;
+update public.leave_requests set status='submitted', approver_id=null, approver_name=null, approved_rejected_at=null, comments=null where id = :'leave_id'::uuid;
 
 select pg_temp.as_user(:'hr_uid'::uuid);
 select lives_ok(
   $$ select public.settle_compoff_leave_decision(:'leave_id'::uuid, false, 'nope') $$,
-  'HR can settle rejection');
+  'HR can settle rejection (RPC is sole writer)');
 reset role;
+
+select is(
+  (select status from public.leave_requests where id = :'leave_id'::uuid),
+  'rejected',
+  'leave_requests.status = rejected after RPC rejection');
 
 select is(
   (select leave_request_id from public.compoff_ledger where id = :'ledger_id'::uuid),
@@ -116,6 +129,25 @@ select is(
   1,
   'unlinked pending credit re-appears in HR inbox');
 reset role;
+
+-- (4) Compoff leave with NO linked ledger still settles the leave row.
+\set solo_leave_id 'eee88882-eeee-eeee-eeee-eeeeeeeeeeee'
+insert into public.leave_requests
+  (id, employee_id, employee_name, leave_type, start_date, end_date, total_days, reason, status)
+values
+  (:'solo_leave_id'::uuid, :'emp_id'::uuid, 'CO Emp', 'compoff',
+   current_date + 2, current_date + 2, 1, 'compoff no ledger', 'submitted');
+
+select pg_temp.as_user(:'hr_uid'::uuid);
+select lives_ok(
+  $$ select public.settle_compoff_leave_decision(:'solo_leave_id'::uuid, true, 'no-ledger ok') $$,
+  'RPC settles compoff leave that has no linked ledger');
+reset role;
+
+select is(
+  (select status from public.leave_requests where id = :'solo_leave_id'::uuid),
+  'approved',
+  'unlinked compoff leave row is still marked approved');
 
 select * from finish();
 rollback;
