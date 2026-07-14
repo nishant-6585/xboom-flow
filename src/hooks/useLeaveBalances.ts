@@ -45,6 +45,13 @@ export interface EmployeeLeaveRow {
   employee_id: string;
   employee_name: string;
   balances: { leave_type: string; label: string; balance: number; id: string }[];
+  last_leave?: {
+    applied_on: string | null;
+    approved_on: string | null;
+    approver_name: string | null;
+    leave_type: string | null;
+    status: string | null;
+  };
 }
 
 export function useLeaveBalances(employeeId?: string) {
@@ -182,15 +189,56 @@ export function useLeaveBalances(employeeId?: string) {
       balancesByEmployee.get(b.employee_id)!.push(b);
     }
 
+    // Fetch latest leave request per employee (most recent by created_at)
+    const empIds = (employees || []).map((e: any) => e.id);
+    const { data: leaveReqs } = await supabase
+      .from('leave_requests')
+      .select('employee_id, leave_type, status, created_at, approved_at, rejected_at, approved_by, rejected_by')
+      .in('employee_id', empIds.length ? empIds : ['00000000-0000-0000-0000-000000000000'])
+      .order('created_at', { ascending: false });
+
+    const latestByEmp = new Map<string, any>();
+    for (const lr of (leaveReqs || [])) {
+      if (!latestByEmp.has(lr.employee_id)) latestByEmp.set(lr.employee_id, lr);
+    }
+
+    // Resolve approver names
+    const approverIds = Array.from(
+      new Set(
+        Array.from(latestByEmp.values())
+          .map((lr: any) => lr.approved_by || lr.rejected_by)
+          .filter(Boolean),
+      ),
+    );
+    const approverNameById = new Map<string, string>();
+    if (approverIds.length) {
+      const { data: approvers } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', approverIds);
+      for (const a of (approvers || [])) {
+        approverNameById.set(a.id, a.name || '—');
+      }
+    }
+
     // Build rows for ALL active employees
     const grouped = new Map<string, EmployeeLeaveRow>();
     const deprecated = new Set(['casual', 'half_day_casual']);
 
     for (const emp of (employees || [])) {
+      const lr = latestByEmp.get(emp.id);
+      const approverId = lr?.approved_by || lr?.rejected_by || null;
       grouped.set(emp.id, {
         employee_id: emp.id,
         employee_name: emp.name || '—',
         balances: [],
+        last_leave: lr ? {
+          applied_on: lr.created_at,
+          approved_on: lr.approved_at || lr.rejected_at || null,
+          approver_name: approverId ? (approverNameById.get(approverId) || '—') : null,
+          leave_type: lr.leave_type,
+          status: lr.status,
+        } : undefined,
       });
 
       const empBalances = balancesByEmployee.get(emp.id) || [];
