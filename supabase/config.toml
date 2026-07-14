@@ -73,6 +73,8 @@ project_id = "mxsotxddcvmeluqonuuj"
     verify_jwt = false
   [functions.send-attention-notification]
     verify_jwt = false
+  [functions.send-compoff-notification]
+    verify_jwt = true
   [functions.send-invite-email]
     verify_jwt = false
   [functions.send-invoice-email]
