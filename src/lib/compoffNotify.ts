@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { format, parseISO } from 'date-fns';
 
 export interface CompoffDecisionEmailInput {
   ledger_id: string;
@@ -93,37 +92,26 @@ export async function sendCompoffDecisionEmail(
     return { status: 'skipped', error: 'No personal_email on employee record' };
   }
 
-  const earnedFmt = (() => {
-    try { return format(parseISO(input.earned_date), 'MMM d, yyyy'); }
-    catch { return input.earned_date; }
-  })();
+  if (!logId) {
+    return { status: 'failed', error: 'Could not create notification log row' };
+  }
 
   try {
-    const { error } = await supabase.functions.invoke('send-transactional-email', {
-      body: {
-        templateName: 'compoff-decision',
-        recipientEmail: recipient,
-        idempotencyKey: `compoff-${input.decision}-${input.ledger_id}-${nextAttempts}`,
-        templateData: {
-          name: empName,
-          decision: input.decision,
-          earned_date: earnedFmt,
-          earned_type: input.earned_type || '',
-          actor_name: input.actor_name || 'HR',
-          comment: input.comment || '',
-          reason: input.reason || '',
-        },
-      },
+    const { data, error } = await supabase.functions.invoke('send-compoff-notification', {
+      body: { log_id: logId },
     });
     if (error) throw error;
-    if (logId) await supabase.from('compoff_notification_log')
-      .update({ status: 'sent', last_error: null })
-      .eq('id', logId);
+    if ((data as any)?.skipped === 'no_email') {
+      return { status: 'skipped', error: 'No personal_email on employee record' };
+    }
+    if ((data as any)?.status === 'failed') {
+      return { status: 'failed', error: (data as any)?.error || 'Send failed' };
+    }
     return { status: 'sent' };
   } catch (err: any) {
     const msg = err?.message || String(err);
     console.warn('sendCompoffDecisionEmail failed', msg);
-    if (logId) await supabase.from('compoff_notification_log')
+    await supabase.from('compoff_notification_log')
       .update({ status: 'failed', last_error: msg })
       .eq('id', logId);
     return { status: 'failed', error: msg };
@@ -148,20 +136,23 @@ export interface CompoffNotifLogRow {
 
 /** Retry a previously failed email using the stored context. */
 export async function retryCompoffDecisionEmail(row: CompoffNotifLogRow) {
-  // Need earned_date + earned_type from ledger for the template
-  const { data: led } = await supabase
-    .from('compoff_ledger')
-    .select('earned_date, earned_type')
-    .eq('id', row.ledger_id)
-    .maybeSingle();
-  return sendCompoffDecisionEmail({
-    ledger_id: row.ledger_id,
-    employee_id: row.employee_id,
-    earned_date: led?.earned_date || new Date().toISOString().slice(0, 10),
-    earned_type: led?.earned_type || null,
-    decision: row.decision,
-    comment: row.comment,
-    reason: row.reason,
-    actor_name: row.actor_name,
-  });
+  try {
+    const { data, error } = await supabase.functions.invoke('send-compoff-notification', {
+      body: { log_id: row.id },
+    });
+    if (error) throw error;
+    if ((data as any)?.skipped === 'no_email') {
+      return { status: 'skipped' as CompoffEmailStatus, error: 'No personal_email on employee record' };
+    }
+    if ((data as any)?.status === 'failed') {
+      return { status: 'failed' as CompoffEmailStatus, error: (data as any)?.error || 'Send failed' };
+    }
+    return { status: 'sent' as CompoffEmailStatus };
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    await supabase.from('compoff_notification_log')
+      .update({ status: 'failed', last_error: msg })
+      .eq('id', row.id);
+    return { status: 'failed' as CompoffEmailStatus, error: msg };
+  }
 }
