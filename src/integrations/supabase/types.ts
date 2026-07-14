@@ -18060,6 +18060,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      link_compoff_to_leave: {
+        Args: { p_leave_id: string; p_ledger_id: string }
+        Returns: undefined
+      }
       link_zoho_invoice_manual: {
         Args: { p_invoice_id: string; p_order_id: string }
         Returns: undefined
