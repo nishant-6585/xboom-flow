@@ -433,21 +433,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   // return to keep hook order stable across renders.
   const { records: livePaymentRecords } = usePaymentRecords(order?.id);
 
-  if (!order) return null;
-
-  // Calculate profit (only visible to admin)
-  const profit = order.selling_price && order.procurement_rate 
-    ? (order.selling_price - order.procurement_rate) * order.quantity
-    : null;
-
-  const livePaidAmount = livePaymentRecords
-    .filter((r) => r.status === 'approved')
-    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-  const effectivePaid = Math.max(livePaidAmount, order.amount_paid || 0);
-  const balanceAmount = order.total_sales_amount != null
-    ? (order.total_sales_amount || 0) - effectivePaid
-    : null;
-
   const handleInvoiceUpload = async (file: File) => {
     if (!user || !order) return;
     // Validate email control BEFORE upload
