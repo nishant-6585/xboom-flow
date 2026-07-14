@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { OrderAttributionPanel } from '@/components/orders/OrderAttributionPanel';
 import { OrderConfirmationStatusBanner } from '@/components/orders/OrderConfirmationStatusBanner';
