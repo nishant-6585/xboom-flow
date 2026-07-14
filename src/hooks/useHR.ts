@@ -585,10 +585,15 @@ export function useHR() {
         .then(async (res) => {
           if (res.error) return res;
           if (ledgerId && res.data?.id) {
-            await supabase
-              .from('compoff_ledger')
-              .update({ leave_request_id: res.data.id })
-              .eq('id', ledgerId);
+            const { error: linkErr } = await supabase.rpc(
+              'link_compoff_to_leave',
+              { p_ledger_id: ledgerId, p_leave_id: res.data.id } as any,
+            );
+            if (linkErr) {
+              toast.warning(
+                `Leave submitted but the earned credit couldn't be linked: ${linkErr.message}. Please contact HR.`,
+              );
+            }
           }
           return res;
         });
