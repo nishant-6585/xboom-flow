@@ -3,6 +3,12 @@
 > Living record of work done with Claude Code and the in-progress migration off Lovable.
 > Update this file as tasks complete. Newest entries at the top of each section.
 > Status legend: ✅ done · 🟡 in progress · ⏳ pending / not started · ❗ blocker
+>
+> **Ownership: maintained by Nishant + Claude Code ONLY.** Lovable/other agents: treat as
+> READ-ONLY reference — consult recent entries for the domain being changed (orders/attribution,
+> email, KYC, enquiries, drone gating, comp-off) but never edit this file (a Lovable merge has
+> previously clobbered entries). Code-level invariants live as doc comments at the seams
+> (e.g. `src/lib/orderSource.ts`, `supabase/functions/_shared/email.ts`) — those are authoritative.
 
 Last updated: 2026-07-14
 
