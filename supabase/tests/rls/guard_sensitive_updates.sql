@@ -16,7 +16,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(10);
+select plan(11);
 
 set local role postgres;
 
@@ -121,6 +121,19 @@ select lives_ok(
   $$ update public.orders set payment_status = 'partial', amount_paid = 50000
      where id = '55555555-5555-5555-5555-555555555555' $$,
   'finance can change orders.payment_status + amount_paid'
+);
+
+-- Sales submitting a payment record for their own order triggers an internal
+-- order payment sync. That derived sync must be allowed even though direct
+-- sales edits to orders.payment_status / amount_paid stay blocked above.
+select pg_temp.as_user(:'sales_uid'::uuid);
+select lives_ok(
+  $$ insert into public.payment_records
+       (order_id, amount, screenshot_url, notes, submitted_by)
+     values
+       ('55555555-5555-5555-5555-555555555555', 25000, null,
+        'sales submitted payment proof', '33333333-3333-3333-3333-333333333333') $$,
+  'sales can submit a payment record and the internal order payment sync is allowed'
 );
 
 -- ===========================================================================
