@@ -17081,6 +17081,7 @@ export type Database = {
           is_assigned: boolean | null
           name: string | null
           phone: string | null
+          product_name: string | null
           sales_person_id: string | null
           sales_person_name: string | null
           source: string | null
