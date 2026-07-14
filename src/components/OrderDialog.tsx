@@ -646,14 +646,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
       is_refund_requested: isRefundRequested || finalStatus === 'cancelled',
-      refund_reason: isRefundRequested
-        ? (refundReason || null)
-        : (finalStatus === 'cancelled' ? cancellationReason : null),
-      refund_status: (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null,
       priority,
       order_outcome: orderOutcome,
-      lost_reason: orderOutcome === 'lost' ? lostReason : null,
-      lost_reason_notes: orderOutcome === 'lost' ? (lostReasonNotes || null) : null,
       supplier_payment_terms: supplierPaymentTerms || null,
       supplier_payment_due_date: supplierPaymentDueDate || null,
       order_date: orderDate ? format(orderDate, 'yyyy-MM-dd') : null,
@@ -663,6 +657,29 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     };
 
     const norm = (v: any) => (v === '' || v === undefined ? null : v);
+
+    // Conditional fields — only emit when their driver toggle actually
+    // flipped. Otherwise legacy DB values (e.g. refund_status='pending' with
+    // is_refund_requested=false, or a stale lost_reason on a 'pending'
+    // outcome) would look "changed" against the derived null and get
+    // included in the payload, tripping the sales guard trigger with a
+    // spurious 42501.
+    const refundDriverChanged =
+      (isRefundRequested !== !!order.is_refund_requested) ||
+      ((finalStatus === 'cancelled') !== (order.status === 'cancelled'));
+    if (refundDriverChanged) {
+      candidate.refund_reason = isRefundRequested
+        ? (refundReason || null)
+        : (finalStatus === 'cancelled' ? cancellationReason : null);
+      candidate.refund_status =
+        (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null;
+    }
+    const outcomeChanged = orderOutcome !== (order as any).order_outcome;
+    if (outcomeChanged) {
+      candidate.lost_reason = orderOutcome === 'lost' ? lostReason : null;
+      candidate.lost_reason_notes = orderOutcome === 'lost' ? (lostReasonNotes || null) : null;
+    }
+
     const payload: Record<string, any> = {};
     for (const [k, v] of Object.entries(candidate)) {
       if (norm(v) !== norm((order as any)[k])) payload[k] = v;
