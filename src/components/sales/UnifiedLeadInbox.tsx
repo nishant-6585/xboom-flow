@@ -395,6 +395,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                 <TableHead className="w-[110px]">Source</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
+                <TableHead>Product</TableHead>
                 <TableHead>Preview</TableHead>
                 <TableHead className="w-[110px]">Status</TableHead>
                 <TableHead className="w-[160px]">Assigned</TableHead>
@@ -440,6 +441,11 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         <div className="text-xs text-muted-foreground truncate max-w-[180px]">{lead.email}</div>
                       )}
                       {!lead.phone && !lead.email && "—"}
+                    </TableCell>
+                    <TableCell className="max-w-[280px]">
+                      <span className="text-sm line-clamp-2">
+                        {lead.product_name || "—"}
+                      </span>
                     </TableCell>
                     <TableCell className="max-w-[280px]">
                       <span className="text-sm text-muted-foreground line-clamp-2">
