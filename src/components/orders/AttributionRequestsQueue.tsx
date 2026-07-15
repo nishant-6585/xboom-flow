@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Inbox, Check, X } from 'lucide-react';
-import { usePendingAttributionRequests, useAttributionMutations } from '@/hooks/useAttributionRequests';
+import { Loader2, Inbox, Check, X, CheckCircle2, XCircle, TrendingUp, Clock, Trophy } from 'lucide-react';
+import {
+  usePendingAttributionRequests,
+  useAttributionMutations,
+  useDecidedAttributionRequestsHistory,
+} from '@/hooks/useAttributionRequests';
 import { ATTRIBUTION_REASONS } from './OrderAttributionPanel';
 import { AttributionEvidenceList } from './AttributionEvidenceList';
 import { toast } from '@/hooks/use-toast';
@@ -18,9 +22,53 @@ function reasonLabel(v?: string | null) {
 
 export function AttributionRequestsQueue() {
   const { data, isLoading, refetch } = usePendingAttributionRequests();
+  const { data: history, isLoading: historyLoading } = useDecidedAttributionRequestsHistory(200);
   const { decide } = useAttributionMutations();
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState('');
+
+  const analytics = useMemo(() => {
+    const rows = history?.rows ?? [];
+    const approved = rows.filter((r) => r.status === 'approved');
+    const rejected = rows.filter((r) => r.status === 'rejected');
+    const total = rows.length;
+    const approvalRate = total ? Math.round((approved.length / total) * 100) : 0;
+
+    // avg decision turnaround (hours)
+    const durations = rows
+      .map((r) => {
+        if (!r.decided_at || !r.created_at) return null;
+        return (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5;
+      })
+      .filter((n): n is number => n != null && isFinite(n) && n >= 0);
+    const avgHours = durations.length
+      ? durations.reduce((a, b) => a + b, 0) / durations.length
+      : 0;
+
+    // credited amount from approved requests
+    let creditedValue = 0;
+    approved.forEach((r) => {
+      const o = history?.orders.get(r.order_id);
+      if (o?.total_sales_amount != null) creditedValue += Number(o.total_sales_amount);
+    });
+
+    // top requester (by approved count)
+    const byRequester = new Map<string, { name: string; approved: number; total: number }>();
+    rows.forEach((r) => {
+      const name = r.requested_for_name ?? r.requested_by_name ?? 'Unknown';
+      const cur = byRequester.get(name) ?? { name, approved: 0, total: 0 };
+      cur.total += 1;
+      if (r.status === 'approved') cur.approved += 1;
+      byRequester.set(name, cur);
+    });
+    const topRequesters = Array.from(byRequester.values())
+      .sort((a, b) => b.approved - a.approved || b.total - a.total)
+      .slice(0, 5);
+
+    return { total, approved: approved.length, rejected: rejected.length, approvalRate, avgHours, creditedValue, topRequesters };
+  }, [history]);
+
+  const decidedRows = history?.rows ?? [];
 
   const handleApprove = async (id: string) => {
     try {
@@ -66,6 +114,58 @@ export function AttributionRequestsQueue() {
         </div>
       </div>
 
+      {/* Analytics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><TrendingUp className="h-3.5 w-3.5" /> Approval rate</div>
+            <div className="text-2xl font-semibold mt-1">{analytics.approvalRate}%</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{analytics.approved} approved · {analytics.rejected} rejected</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><CheckCircle2 className="h-3.5 w-3.5" /> Credited value</div>
+            <div className="text-2xl font-semibold mt-1">₹{Math.round(analytics.creditedValue).toLocaleString('en-IN')}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">from approved requests</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Avg turnaround</div>
+            <div className="text-2xl font-semibold mt-1">
+              {analytics.avgHours < 1
+                ? `${Math.round(analytics.avgHours * 60)}m`
+                : analytics.avgHours < 48
+                  ? `${analytics.avgHours.toFixed(1)}h`
+                  : `${(analytics.avgHours / 24).toFixed(1)}d`}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">request → decision</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><Trophy className="h-3.5 w-3.5" /> Top requester</div>
+            <div className="text-lg font-semibold mt-1 truncate">{analytics.topRequesters[0]?.name ?? '—'}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              {analytics.topRequesters[0]
+                ? `${analytics.topRequesters[0].approved} approved / ${analytics.topRequesters[0].total} total`
+                : 'no history yet'}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pending */}
+      <div className="flex items-center justify-between pt-2">
+        <h3 className="text-sm font-semibold text-foreground">Pending</h3>
+        {data && data.rows.length > 0 && (
+          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+            {data.rows.length} awaiting review
+          </Badge>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : !data || data.rows.length === 0 ? (
@@ -105,6 +205,63 @@ export function AttributionRequestsQueue() {
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setRejectId(r.id); setRejectNote(''); }} disabled={decide.isPending}>
                       <X className="h-4 w-4" /> Reject
                     </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* History */}
+      <div className="flex items-center justify-between pt-4">
+        <h3 className="text-sm font-semibold text-foreground">Decision history</h3>
+        {decidedRows.length > 0 && (
+          <span className="text-xs text-muted-foreground">Last {decidedRows.length} decisions</span>
+        )}
+      </div>
+      {historyLoading ? (
+        <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+      ) : decidedRows.length === 0 ? (
+        <Card className="border-dashed bg-muted/20"><CardContent className="py-8 text-center text-sm text-muted-foreground">No past decisions yet.</CardContent></Card>
+      ) : (
+        <div className="grid gap-2">
+          {decidedRows.map((r) => {
+            const o = history?.orders.get(r.order_id);
+            const approved = r.status === 'approved';
+            return (
+              <Card key={r.id} className="border-l-4" style={{ borderLeftColor: approved ? 'hsl(var(--primary))' : 'hsl(var(--destructive))' }}>
+                <CardContent className="p-3 flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 text-sm flex-wrap">
+                      <span className="font-mono font-semibold text-primary">#{o?.order_number ?? o?.external_id ?? '—'}</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="font-medium truncate">{o?.customer_name ?? '—'}</span>
+                      {o?.total_sales_amount != null && (
+                        <span className="text-muted-foreground">· ₹{Number(o.total_sales_amount).toLocaleString('en-IN')}</span>
+                      )}
+                      <Badge
+                        variant="outline"
+                        className={
+                          approved
+                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                            : 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400'
+                        }
+                      >
+                        {approved ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                        {r.status}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      For <span className="font-medium text-foreground">{r.requested_for_name ?? r.requested_by_name ?? 'Unknown'}</span>
+                      {' · '}{reasonLabel(r.reason)}
+                      {r.reason_custom && <span className="italic"> — "{r.reason_custom}"</span>}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Decided by <span className="font-medium text-foreground">{r.decided_by_name ?? '—'}</span>
+                      {r.decided_at && <> · {new Date(r.decided_at).toLocaleString('en-IN')}</>}
+                      {r.decision_note && <> · <span className="italic">"{r.decision_note}"</span></>}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
