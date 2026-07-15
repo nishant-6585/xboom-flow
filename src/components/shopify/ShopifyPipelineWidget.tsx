@@ -22,21 +22,35 @@ interface MonitorResponse {
   checked_at: string;
 }
 
-// Fallback: fetch today's orders count separately (not in the monitor endpoint)
-async function fetchTodayCount(): Promise<number> {
-  const { count } = await supabase
-    .from('shopify_orders')
-    .select('id', { count: 'exact', head: true })
-    .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
+// Fallback: fetch orders count for a range (or today when no range given)
+async function fetchRangeCount(start?: Date, end?: Date): Promise<number> {
+  let q = supabase.from('shopify_orders').select('id', { count: 'exact', head: true });
+  if (start) q = q.gte('created_at', new Date(start.setHours(0, 0, 0, 0)).toISOString());
+  else if (!end) q = q.gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
+  if (end) {
+    const e = new Date(end); e.setHours(23, 59, 59, 999);
+    q = q.lte('created_at', e.toISOString());
+  }
+  const { count } = await q;
   return count ?? 0;
 }
 
-export function ShopifyPipelineWidget() {
+export interface ShopifyPipelineWidgetProps {
+  /** When either date is set, tiles labelled "Orders Today" switch to "Orders in Range" and reflect the filter. Queue counts stay global (queue is not filterable). */
+  filterStartDate?: Date;
+  filterEndDate?: Date;
+  /** Optional: pre-computed filtered order count from the parent list (avoids an extra round-trip). */
+  filteredCount?: number;
+}
+
+export function ShopifyPipelineWidget({ filterStartDate, filterEndDate, filteredCount }: ShopifyPipelineWidgetProps = {}) {
   const [monitor, setMonitor] = useState<MonitorResponse | null>(null);
   const [todayOrders, setTodayOrders] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const hasRange = !!(filterStartDate || filterEndDate);
 
   const fetchStats = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -57,7 +71,9 @@ export function ShopifyPipelineWidget() {
             'Content-Type': 'application/json',
           },
         }),
-        fetchTodayCount(),
+        filteredCount != null && hasRange
+          ? Promise.resolve(filteredCount)
+          : fetchRangeCount(filterStartDate, filterEndDate),
       ]);
 
       if (!monitorRes.ok) {
@@ -81,7 +97,8 @@ export function ShopifyPipelineWidget() {
     fetchStats();
     const interval = setInterval(() => fetchStats(true), 2 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStartDate?.getTime(), filterEndDate?.getTime(), filteredCount]);
 
   const metrics = monitor?.metrics;
   const healthStatus = monitor?.status ?? 'healthy';
@@ -95,7 +112,7 @@ export function ShopifyPipelineWidget() {
 
   const tiles = [
     {
-      label: 'Orders Today',
+      label: hasRange ? 'Orders in Range' : 'Orders Today',
       value: todayOrders,
       icon: ShoppingBag,
       color: 'text-blue-600 dark:text-blue-400',
