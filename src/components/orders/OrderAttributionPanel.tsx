@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Award, UserPlus, Loader2, ArrowUp, ChevronDown, ChevronRight, Search, AlertCircle } from 'lucide-react';
+import { Award, UserPlus, Loader2, ArrowUp, ChevronDown, ChevronRight, Search, AlertCircle, Check, X, Inbox } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,6 +16,7 @@ import {
   useMyAttributionRequest,
   useAttributionMutations,
   useAttributionLog,
+  usePendingAttributionRequestsForOrder,
   SYSTEM_USER_ID,
 } from '@/hooks/useAttributionRequests';
 import { toast } from '@/hooks/use-toast';
@@ -108,6 +109,10 @@ export function OrderAttributionPanel({
             <span className="italic">— {myRequest.decision_note}</span>
           )}
         </div>
+      )}
+
+      {canAttribute && (
+        <PendingRequestsForOrder orderId={order.id} />
       )}
 
       <div className="flex flex-wrap gap-2">
