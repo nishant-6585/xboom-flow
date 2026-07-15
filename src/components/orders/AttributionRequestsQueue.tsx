@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Inbox, Check, X, CheckCircle2, TrendingUp, Clock, Trophy } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   usePendingAttributionRequests,
   useAttributionMutations,
@@ -28,6 +29,8 @@ export function AttributionRequestsQueue() {
   const { decide } = useAttributionMutations();
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   const analytics = useMemo(() => {
     const rows = history?.rows ?? [];
@@ -71,6 +74,10 @@ export function AttributionRequestsQueue() {
   }, [history]);
 
   const logRows = allHistory?.rows ?? [];
+  const totalPages = Math.max(1, Math.ceil(logRows.length / PAGE_SIZE));
+  const currentPage = Math.min(historyPage, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageRows = logRows.slice(pageStart, pageStart + PAGE_SIZE);
 
   const handleApprove = async (id: string) => {
     try {
@@ -227,43 +234,75 @@ export function AttributionRequestsQueue() {
       ) : logRows.length === 0 ? (
         <Card className="border-dashed bg-muted/20"><CardContent className="py-8 text-center text-sm text-muted-foreground">No past attributions yet.</CardContent></Card>
       ) : (
-        <div className="grid gap-2">
-          {logRows.map((r) => {
-            const o = allHistory?.orders.get(r.order_id);
-            const viaRequest = r.source === 'approved_request';
-            return (
-              <Card key={r.id} className="border-l-4" style={{ borderLeftColor: 'hsl(var(--primary))' }}>
-                <CardContent className="p-3 flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2 text-sm flex-wrap">
-                      <span className="font-mono font-semibold text-primary">#{o?.order_number ?? o?.external_id ?? '—'}</span>
-                      <span className="text-muted-foreground">·</span>
-                      <span className="font-medium truncate">{o?.customer_name ?? '—'}</span>
-                      {o?.total_sales_amount != null && (
-                        <span className="text-muted-foreground">· ₹{Number(o.total_sales_amount).toLocaleString('en-IN')}</span>
-                      )}
-                      <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />attributed
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px]">
-                        {viaRequest ? 'via request' : 'direct'}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      For <span className="font-medium text-foreground">{r.to_sales_person_name ?? 'Unknown'}</span>
-                      {' · '}{reasonLabel(r.reason)}
-                      {r.reason_custom && <span className="italic"> — "{r.reason_custom}"</span>}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      By <span className="font-medium text-foreground">{r.changed_by_name ?? '—'}</span>
-                      {r.created_at && <> · {new Date(r.created_at).toLocaleString('en-IN')}</>}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        <>
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/80">
+                    <TableHead className="font-bold text-foreground">Order</TableHead>
+                    <TableHead className="font-bold text-foreground">Customer</TableHead>
+                    <TableHead className="font-bold text-foreground text-right">Amount</TableHead>
+                    <TableHead className="font-bold text-foreground">Attributed to</TableHead>
+                    <TableHead className="font-bold text-foreground">Reason</TableHead>
+                    <TableHead className="font-bold text-foreground">Source</TableHead>
+                    <TableHead className="font-bold text-foreground">By</TableHead>
+                    <TableHead className="font-bold text-foreground">When</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pageRows.map((r) => {
+                    const o = allHistory?.orders.get(r.order_id);
+                    const viaRequest = r.source === 'approved_request';
+                    return (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-mono font-semibold text-primary">
+                          #{o?.order_number ?? o?.external_id ?? '—'}
+                        </TableCell>
+                        <TableCell className="max-w-[180px] truncate">{o?.customer_name ?? '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {o?.total_sales_amount != null
+                            ? `₹${Number(o.total_sales_amount).toLocaleString('en-IN')}`
+                            : '—'}
+                        </TableCell>
+                        <TableCell>{r.to_sales_person_name ?? 'Unknown'}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[220px]">
+                          <div className="truncate">
+                            {reasonLabel(r.reason)}
+                            {r.reason_custom && <span className="italic"> — "{r.reason_custom}"</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px]">
+                            {viaRequest ? 'via request' : 'direct'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">{r.changed_by_name ?? '—'}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {r.created_at ? new Date(r.created_at).toLocaleString('en-IN') : '—'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-muted-foreground">
+              Showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, logRows.length)} of {logRows.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}>
+                Previous
+              </Button>
+              <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
+              <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setHistoryPage((p) => Math.min(totalPages, p + 1))}>
+                Next
+              </Button>
+            </div>
+          </div>
+        </>
       )}
 
       <Dialog open={!!rejectId} onOpenChange={(b) => { if (!b) { setRejectId(null); setRejectNote(''); } }}>
