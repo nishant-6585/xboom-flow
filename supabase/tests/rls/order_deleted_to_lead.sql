@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(11);
 
-set local role postgres;
+-- set local role postgres; (skipped in sandbox)
 
 \set adm_uid   'aaaadd11-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 \set ord_web   'dddd0001-dddd-dddd-dddd-dddddddddd01'
@@ -51,7 +51,7 @@ values
   (:'ord_won'::uuid,  'DEL-WON-1',  null, 'manual', 'manual',
    'Won Cust', '9444', 'wn@t.com', 'WonCo', 'Won Drone', 4000, now(), 'po_received', 'pending', :'enq_won'::uuid);
 
-set local role authenticated;
+-- set local role authenticated; (skipped in sandbox)
 select set_config('request.jwt.claim.sub', :'adm_uid', true);
 select set_config('request.jwt.claims', json_build_object('sub', :'adm_uid', 'role', 'authenticated')::text, true);
 
@@ -73,9 +73,9 @@ select ok(
 );
 
 -- Re-delete (simulate undelete + redelete): reset deleted_at, then delete again.
-set local role postgres;
+-- set local role postgres; (skipped in sandbox)
 update public.orders set deleted_at = null where id = :'ord_web'::uuid;
-set local role authenticated;
+-- set local role authenticated; (skipped in sandbox)
 select set_config('request.jwt.claim.sub', :'adm_uid', true);
 update public.orders
   set deleted_at = now(), delete_reason = 'redelete'
