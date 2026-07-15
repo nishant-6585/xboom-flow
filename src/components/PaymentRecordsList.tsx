@@ -119,13 +119,14 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
     );
   };
 
-  // Sales can edit & resubmit their own rejected records. Admin can edit any record.
+  // Sales can edit their own records while still pending or after rejection
+  // (before an admin approves). Admin can edit any record.
   const canEditRecord = (record: PaymentRecord) => {
     if (isAdmin) return true;
     return (
       isSales &&
       record.submitted_by === user?.id &&
-      record.status === 'rejected'
+      (record.status === 'pending' || record.status === 'rejected')
     );
   };
 
