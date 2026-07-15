@@ -544,10 +544,20 @@ export default function KycVerification() {
                         <TableCell className="text-xs align-top max-w-[220px]">
                           {effectiveStatus === "approved" || effectiveStatus === "rejected" ? (
                             <div className="flex flex-col gap-0.5">
-                              {effectiveStatus === "approved" && isDigilocker ? (
+                              {/* A human sign-off ALWAYS wins over the auto label: a DigiLocker
+                                  doc that failed auto-approve (name mismatch) and was then
+                                  approved manually must credit the reviewer, not "auto". */}
+                              {r.document?.reviewed_by ? (
+                                <span className="font-medium">
+                                  {r.reviewer_name || "Staff"}
+                                  {isDigilocker && (
+                                    <span className="block text-[10px] font-normal text-muted-foreground">
+                                      Manual — DigiLocker auto-approve was blocked
+                                    </span>
+                                  )}
+                                </span>
+                              ) : effectiveStatus === "approved" && isDigilocker ? (
                                 <span className="font-medium text-emerald-700">DigiLocker (auto)</span>
-                              ) : r.document?.reviewed_by ? (
-                                <span className="font-medium">{r.reviewer_name || "Staff"}</span>
                               ) : effectiveStatus === "approved" && r.ai_review && (r.ai_review.decision === "auto_approved" || r.ai_review.recommendation === "likely_approve") ? (
                                 <TooltipProvider delayDuration={150}>
                                   <Tooltip>
