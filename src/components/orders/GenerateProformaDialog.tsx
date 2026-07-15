@@ -175,6 +175,7 @@ export function GenerateProformaDialog({
   const [billTo, setBillTo] = useState({
     name: '', company: '', address: '', gstin: '', email: '', phone: '',
   });
+  const [shipToAddress, setShipToAddress] = useState('');
   const [stateCode, setStateCode] = useState<string>('29');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
@@ -196,7 +197,9 @@ export function GenerateProformaDialog({
         order_number: order.order_number,
         customer_name: o.customer_name || '',
         customer_company: o.customer_company || '',
-        address: o.shipping_address || o.billing_address || '',
+        // Prefer billing_address for BILL TO (B2B customers have different GST billing).
+        address: o.billing_address || o.shipping_address || '',
+        shipping_address: o.shipping_address || '',
         gstin: o.customer_gst || '',
         email: o.customer_email || '',
         phone: o.customer_phone || '',
@@ -211,7 +214,8 @@ export function GenerateProformaDialog({
         order_number: wooOrder.order_number || wooOrder.woo_order_id,
         customer_name: wooOrder.customer_name || '',
         customer_company: wooOrder.customer_company || '',
-        address: wooOrder.shipping_address || '',
+        address: (wooOrder as any).billing_address || wooOrder.shipping_address || '',
+        shipping_address: wooOrder.shipping_address || '',
         gstin: '',
         email: wooOrder.customer_email || '',
         phone: wooOrder.customer_phone || '',
@@ -233,6 +237,7 @@ export function GenerateProformaDialog({
       email: subject.email,
       phone: subject.phone,
     });
+    setShipToAddress(subject.shipping_address || subject.address || '');
     setEmailState(defaultEmailState(subject.email));
     if (isRegenerate && existingProforma?.place_of_supply) {
       const m = existingProforma.place_of_supply.match(/\((\d{2})\)/);
@@ -593,6 +598,7 @@ export function GenerateProformaDialog({
         invoice_date: new Date(),
         order_number: subject.order_number,
         bill_to: billTo,
+        ship_to: { name: billTo.name, address: shipToAddress },
         place_of_supply_code: stateCode,
         place_of_supply_name: stateName,
         treatment,
@@ -635,6 +641,7 @@ export function GenerateProformaDialog({
             })),
             total: totals.total,
             bill_to: billTo,
+            ship_to_address: shipToAddress,
             notes,
             mode: isRegenerate ? 'regenerated' : 'generated',
           },
