@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Loader2, Inbox, Check, X } from 'lucide-react';
 import { usePendingAttributionRequests, useAttributionMutations } from '@/hooks/useAttributionRequests';
 import { ATTRIBUTION_REASONS } from './OrderAttributionPanel';
+import { AttributionEvidenceList } from './AttributionEvidenceList';
 import { toast } from '@/hooks/use-toast';
 
 function reasonLabel(v?: string | null) {
@@ -91,6 +92,10 @@ export function AttributionRequestsQueue() {
                       {reasonLabel(r.reason)}
                       {r.reason_custom && <span className="italic"> — "{r.reason_custom}"</span>}
                     </div>
+                    <AttributionEvidenceList
+                      evidence={r.evidence}
+                      orderAt={o?.order_date || o?.created_at || null}
+                    />
                     <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">pending</Badge>
                   </div>
                   <div className="flex gap-2">

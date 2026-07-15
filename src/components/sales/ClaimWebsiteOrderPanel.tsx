@@ -21,6 +21,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { ATTRIBUTION_REASONS } from '@/components/orders/OrderAttributionPanel';
 import { useAttributionMutations } from '@/hooks/useAttributionRequests';
+import { AttributionEvidencePicker } from '@/components/orders/AttributionEvidencePicker';
+import type { AttributionEvidence } from '@/components/orders/attributionEvidence';
 
 interface ClaimableOrder {
   order_id: string;
@@ -128,6 +130,8 @@ export function ClaimWebsiteOrderPanel() {
   const [reasonCustom, setReasonCustom] = useState('');
   const [submittingOrderId, setSubmittingOrderId] = useState<string | null>(null);
   const [detailsRow, setDetailsRow] = useState<MyRequestRow | null>(null);
+  const [claimTarget, setClaimTarget] = useState<string | null>(null); // order awaiting evidence
+  const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
 
   const allowed = role === 'admin' || role === 'sales_manager' || role === 'sales';
 
@@ -193,13 +197,30 @@ export function ClaimWebsiteOrderPanel() {
     setAppliedQuery(q);
   };
 
-  const handleClaim = async (orderId: string) => {
+  // Two-step claim: reason first, then an evidence dialog (proof is mandatory —
+  // the RPC rejects an empty evidence array).
+  const handleClaim = (orderId: string) => {
     if (!reason) {
       toast({ title: 'Pick a reason', variant: 'destructive' });
       return;
     }
     if (reason === 'other' && !reasonCustom.trim()) {
       toast({ title: 'Describe the reason', variant: 'destructive' });
+      return;
+    }
+    setEvidence([]);
+    setClaimTarget(orderId);
+  };
+
+  const submitClaim = async () => {
+    const orderId = claimTarget;
+    if (!orderId) return;
+    if (evidence.length === 0) {
+      toast({
+        title: 'Evidence required',
+        description: 'Attach at least one proof item (call log, chat, email, or document).',
+        variant: 'destructive',
+      });
       return;
     }
     setSubmittingOrderId(orderId);
@@ -216,6 +237,7 @@ export function ClaimWebsiteOrderPanel() {
         orderId,
         reason,
         reasonCustom: reason === 'other' ? reasonCustom.trim() : null,
+        evidence,
       });
       await logAudit({
         event_type: 'claim_submitted',
@@ -233,6 +255,8 @@ export function ClaimWebsiteOrderPanel() {
       setReasonCustom('');
       setAppliedQuery('');
       setQuery('');
+      setClaimTarget(null);
+      setEvidence([]);
       qc.invalidateQueries({ queryKey: ['my-claim-requests'] });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -442,6 +466,43 @@ export function ClaimWebsiteOrderPanel() {
         row={detailsRow}
         onClose={() => setDetailsRow(null)}
       />
+
+      {/* Evidence step — proof is mandatory before the claim is submitted */}
+      <Dialog
+        open={!!claimTarget}
+        onOpenChange={(b) => { if (!b) { setClaimTarget(null); setEvidence([]); } }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Attach proof you closed this deal</DialogTitle>
+            <DialogDescription>
+              Approvers need evidence before crediting the order — pick the call(s) you made to
+              this customer or attach a chat/email/quote document.
+            </DialogDescription>
+          </DialogHeader>
+          {claimTarget && (
+            <AttributionEvidencePicker
+              orderId={claimTarget}
+              value={evidence}
+              onChange={setEvidence}
+              salesPersonId={user?.id ?? null}
+            />
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setClaimTarget(null); setEvidence([]); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitClaim}
+              disabled={evidence.length === 0 || submittingOrderId !== null}
+              className="gap-1.5"
+            >
+              {submittingOrderId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Submit claim
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
