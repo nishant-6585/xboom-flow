@@ -30,8 +30,13 @@ import {
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = [
-  'application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'text/plain',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+  'text/plain',
 ];
+const ACCEPT_ATTR = 'image/*,application/pdf,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain';
 
 interface CallLogRow {
   id: string;
@@ -41,6 +46,11 @@ interface CallLogRow {
   call_status: string;
   recording_url: string | null;
   created_at: string;
+  lead_source: string | null;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  sales_person_id: string | null;
+  sales_person_name: string | null;
 }
 
 interface LeadMatchRow {
