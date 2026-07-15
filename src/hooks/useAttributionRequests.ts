@@ -140,12 +140,33 @@ export function usePendingAttributionRequests() {
   });
 }
 
+/** Pending attribution requests for a single order — inline in OrderDialog. */
+export function usePendingAttributionRequestsForOrder(
+  orderId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: ['pending-attribution-requests-for-order', orderId],
+    enabled: !!orderId,
+    queryFn: async (): Promise<AttributionRequest[]> => {
+      const { data, error } = await supabase
+        .from('sales_attribution_requests')
+        .select('*')
+        .eq('order_id', orderId!)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as AttributionRequest[];
+    },
+  });
+}
+
 export function useAttributionMutations() {
   const qc = useQueryClient();
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['order-attribution'] });
     qc.invalidateQueries({ queryKey: ['my-attribution-request'] });
     qc.invalidateQueries({ queryKey: ['pending-attribution-requests'] });
+    qc.invalidateQueries({ queryKey: ['pending-attribution-requests-for-order'] });
     qc.invalidateQueries({ queryKey: ['sales-leaderboard'] });
   };
 
