@@ -10,7 +10,7 @@
 > previously clobbered entries). Code-level invariants live as doc comments at the seams
 > (e.g. `src/lib/orderSource.ts`, `supabase/functions/_shared/email.ts`) — those are authoritative.
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 ---
 
@@ -232,6 +232,11 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 ---
 
 ## ✅ Completed work
+
+### 2026-07-15 — Proforma PDF: SHIP TO beside BILL TO + billing-address capture ✅ (by Lovable, verified)
+- `invoicePdfGenerator.ts`: `ship_to` input; BILL TO / SHIP TO side-by-side half-width boxes; "Same as billing" when absent/identical (whitespace-collapsed, case-insensitive); per-box wrap + 3-line cap (no column overflow).
+- GenerateProformaDialog: editable Ship To textarea prefilled from shipping_address; Bill To prefill now **billing-first** (`billing_address || shipping_address`); ship_to persisted in audit snapshot.
+- Data gap plugged: `orders.billing_address` column (migration `20260715084527`) + woo-mirror captures Woo `payload.billing` address on insert/update (update branch strips only source/lead_source, so billing refreshes freely). No backfill possible (historical payloads discarded billing) — legacy orders fall back to shipping for Bill To; recent orders self-heal via the 30-min `woocommerce-orders-reconcile` cron re-upserting them.
 
 ### 2026-07-14 — OrderDialog dirty-state save gating ✅ (by Lovable, verified)
 Manoj (sales) hit 42501 saving an order after uploading a payment: the dialog sent ALL fields on save, so server-side payment updates made stale guard-protected columns (amount_paid/payment_status/…) trip `guard_orders_sensitive_updates` on no-op writes. Fixed in two layers: `buildOrderUpdatePayload()` (single source of truth — returns ONLY fields differing from the order row, 43 columns, audit side-effect columns injected only with their primary; save early-returns on empty) + `isDirty` gates the main Save Changes button (disabled until a real edit; snapshot-sync via `syncedSnapshotRef` adopts fresh server values for untouched fields so payment-Done/realtime refetches never fake-enable or clobber). Product-name/title sub-dialog saves intentionally ungated (separate mutations). Lesson repeated: only reproduces as sales role — admins bypass the guard.
