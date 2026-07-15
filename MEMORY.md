@@ -233,6 +233,9 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 
 ## ✅ Completed work
 
+### 2026-07-15 — Deleted orders flow back into the lead funnel ✅ (by Lovable, verified)
+`trg_order_deleted_to_lead` (migration `20260715134929`) — AFTER UPDATE OF deleted_at, fires only on the NULL→set transition; SECURITY DEFINER; entire conversion wrapped in EXCEPTION → logs `order.deleted_to_lead_failed` + RETURN NEW (lead-creation bugs can NEVER block deletion; even the failure logger is exception-swallowed). Paths: website (external_id) → `leads` row form_type='website_order_deleted' (deduped); manual w/ enquiry_id → enquiry order_outcome='lost' + note (SKIPPED when already 'won' — never downgrade, event `enquiry_skipped_won`); manual w/ source_pipeline_id → pipeline lost; no linkage → generic `leads` row form_type='order_deleted'. Every path logs `order.deleted_to_lead` domain_event with path_taken. orders has no email_lead_id (that's enquiries) — branch correctly folded into fallback. New lead types surface automatically on /leads + Q-Forms panel (form-type driven); delete-confirm dialog explains the conversion. pgTAP 11 asserts (CI-run). Soft-delete retained deliberately (payment/audit/Zoho links); "completely deleted" = gone from all UI.
+
 ### 2026-07-15 — Proforma PDF: SHIP TO beside BILL TO + billing-address capture ✅ (by Lovable, verified)
 - `invoicePdfGenerator.ts`: `ship_to` input; BILL TO / SHIP TO side-by-side half-width boxes; "Same as billing" when absent/identical (whitespace-collapsed, case-insensitive); per-box wrap + 3-line cap (no column overflow).
 - GenerateProformaDialog: editable Ship To textarea prefilled from shipping_address; Bill To prefill now **billing-first** (`billing_address || shipping_address`); ship_to persisted in audit snapshot.
