@@ -116,7 +116,8 @@ export function Header() {
     { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
     { path: "/rent", label: "Rent", icon: Plane, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
-    { path: "/daily-flow", label: "Daily Flow", icon: CalendarClock, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    // Daily Flow tab hidden from nav (route + page preserved).
+    // { path: "/daily-flow", label: "Daily Flow", icon: CalendarClock, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/drone-operations", label: "Demo & Trainings", icon: Cpu, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/kyc", label: "KYC", icon: Shield, roles: ["sales", "sales_manager", "admin", "finance"] },
   ];
