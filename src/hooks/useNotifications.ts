@@ -23,6 +23,7 @@ export interface Notification {
   id: string;
   order_id: string | null;
   enquiry_id: string | null;
+  account_id: string | null;
   type: string;
   title: string;
   message: string;
