@@ -33,14 +33,36 @@ export function AttributionRequestsQueue() {
   const PAGE_SIZE = 50;
 
   const analytics = useMemo(() => {
-    const rows = history?.rows ?? [];
-    const approved = rows.filter((r) => r.status === 'approved');
-    const rejected = rows.filter((r) => r.status === 'rejected');
-    const total = rows.length;
-    const approvalRate = total ? Math.round((approved.length / total) * 100) : 0;
+    // Build analytics from the full Decision-history log so the cards
+    // match exactly what's shown below.
+    const logs = allHistory?.rows ?? [];
+    const orders = allHistory?.orders;
+    const total = logs.length;
+    const viaRequest = logs.filter((l) => l.source === 'approved_request').length;
+    const direct = total - viaRequest;
 
-    // avg decision turnaround (hours)
-    const durations = rows
+    let creditedValue = 0;
+    logs.forEach((l) => {
+      const o = orders?.get(l.order_id);
+      if (o?.total_sales_amount != null) creditedValue += Number(o.total_sales_amount);
+    });
+
+    // Top requester: attribute credit-count by `to_sales_person_name`
+    const byRequester = new Map<string, { name: string; count: number }>();
+    logs.forEach((l) => {
+      const name = l.to_sales_person_name ?? 'Unknown';
+      const cur = byRequester.get(name) ?? { name, count: 0 };
+      cur.count += 1;
+      byRequester.set(name, cur);
+    });
+    const topRequesters = Array.from(byRequester.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Avg turnaround still computed from the requests table (only place
+    // with `created_at` → `decided_at` timestamps).
+    const reqRows = history?.rows ?? [];
+    const durations = reqRows
       .map((r) => {
         if (!r.decided_at || !r.created_at) return null;
         return (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5;
@@ -50,28 +72,8 @@ export function AttributionRequestsQueue() {
       ? durations.reduce((a, b) => a + b, 0) / durations.length
       : 0;
 
-    // credited amount from approved requests
-    let creditedValue = 0;
-    approved.forEach((r) => {
-      const o = history?.orders.get(r.order_id);
-      if (o?.total_sales_amount != null) creditedValue += Number(o.total_sales_amount);
-    });
-
-    // top requester (by approved count)
-    const byRequester = new Map<string, { name: string; approved: number; total: number }>();
-    rows.forEach((r) => {
-      const name = r.requested_for_name ?? r.requested_by_name ?? 'Unknown';
-      const cur = byRequester.get(name) ?? { name, approved: 0, total: 0 };
-      cur.total += 1;
-      if (r.status === 'approved') cur.approved += 1;
-      byRequester.set(name, cur);
-    });
-    const topRequesters = Array.from(byRequester.values())
-      .sort((a, b) => b.approved - a.approved || b.total - a.total)
-      .slice(0, 5);
-
-    return { total, approved: approved.length, rejected: rejected.length, approvalRate, avgHours, creditedValue, topRequesters };
-  }, [history]);
+    return { total, viaRequest, direct, avgHours, creditedValue, topRequesters };
+  }, [allHistory, history]);
 
   const logRows = allHistory?.rows ?? [];
   const totalPages = Math.max(1, Math.ceil(logRows.length / PAGE_SIZE));
@@ -127,9 +129,9 @@ export function AttributionRequestsQueue() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground"><TrendingUp className="h-3.5 w-3.5" /> Approval rate</div>
-            <div className="text-2xl font-semibold mt-1">{analytics.approvalRate}%</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">{analytics.approved} approved · {analytics.rejected} rejected</div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><TrendingUp className="h-3.5 w-3.5" /> Total attributions</div>
+            <div className="text-2xl font-semibold mt-1">{analytics.total}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{analytics.viaRequest} via request · {analytics.direct} direct</div>
           </CardContent>
         </Card>
         <Card>
@@ -158,7 +160,7 @@ export function AttributionRequestsQueue() {
             <div className="text-lg font-semibold mt-1 truncate">{analytics.topRequesters[0]?.name ?? '—'}</div>
             <div className="text-[11px] text-muted-foreground mt-0.5">
               {analytics.topRequesters[0]
-                ? `${analytics.topRequesters[0].approved} approved / ${analytics.topRequesters[0].total} total`
+                ? `${analytics.topRequesters[0].count} attributed orders`
                 : 'no history yet'}
             </div>
           </CardContent>
