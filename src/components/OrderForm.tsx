@@ -385,7 +385,14 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Guard: only allow submission from the final step's explicit "Create Order"
+    // click. Prevents accidental auto-submit when the Continue button on the
+    // Payment step re-renders into a type="submit" button in the same DOM slot.
+    if (currentStep !== 4) {
+      return;
+    }
+
     const validItems = orderItems.filter(item => item.product_name.trim());
     if (validItems.length === 0) {
       return;
