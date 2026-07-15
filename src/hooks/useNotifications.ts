@@ -10,6 +10,10 @@ function navigateToNotification(notification: Notification) {
     window.location.assign(`/?enquiry=${notification.enquiry_id}`);
     return;
   }
+  if (notification.account_id) {
+    window.location.assign(`/kyc?account=${notification.account_id}`);
+    return;
+  }
   if (notification.order_id) {
     window.location.assign(`/orders?order_id=${notification.order_id}`);
   }
