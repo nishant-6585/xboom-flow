@@ -114,7 +114,7 @@ export function AttributionEvidencePicker({
     queryFn: async (): Promise<CallLogRow[]> => {
       const { data, error } = await supabase
         .from('call_logs')
-        .select('id, caller_number, call_duration, call_type, call_status, recording_url, created_at')
+        .select('id, caller_number, call_duration, call_type, call_status, recording_url, created_at, lead_source, assigned_to, assigned_to_name, sales_person_id, sales_person_name')
         .like('caller_number', `%${phoneKey}`)
         .order('created_at', { ascending: false })
         .limit(25);
