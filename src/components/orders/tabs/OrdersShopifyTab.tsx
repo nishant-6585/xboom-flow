@@ -138,7 +138,13 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
         </div>
       </div>
 
-      {isAdmin && <ShopifyPipelineWidget />}
+      {isAdmin && (
+        <ShopifyPipelineWidget
+          filterStartDate={shopifyStartDate}
+          filterEndDate={shopifyEndDate}
+          filteredCount={filteredShopifyOrders.length}
+        />
+      )}
 
       <Card className="border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/10 backdrop-blur-sm">
         <CardContent className="p-5">
@@ -225,11 +231,18 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
         </CardContent>
       </Card>
 
-      {shopifyTotalPages > 1 && !shopifyLoading && filteredShopifyOrders.length > 0 && (
+      {!shopifyLoading && filteredShopifyOrders.length > 0 && (
         <div className="flex items-center justify-between flex-wrap gap-3">
           <p className="text-sm text-muted-foreground">
-            Showing <span className="font-semibold text-foreground">{((shopifyPage - 1) * SHOPIFY_PAGE_SIZE) + 1}–{Math.min(shopifyPage * SHOPIFY_PAGE_SIZE, filteredShopifyOrders.length)}</span> of <span className="font-semibold text-foreground">{shopifyTotalCount.toLocaleString()}</span> orders
+            Showing <span className="font-semibold text-foreground">{((shopifyPage - 1) * SHOPIFY_PAGE_SIZE) + 1}–{Math.min(shopifyPage * SHOPIFY_PAGE_SIZE, filteredShopifyOrders.length)}</span> of{' '}
+            <span className="font-semibold text-foreground">{filteredShopifyOrders.length.toLocaleString()}</span>{' '}
+            {hasActiveShopifyFilters ? (
+              <>filtered orders <span className="text-xs">(of {shopifyTotalCount.toLocaleString()} total)</span></>
+            ) : (
+              <>orders</>
+            )}
           </p>
+          {shopifyTotalPages > 1 && (
           <div className="flex items-center gap-1.5">
             <Button variant="outline" size="sm" onClick={() => setShopifyPage(1)} disabled={shopifyPage === 1} className="h-8 px-3 rounded-lg text-xs">«</Button>
             <Button variant="outline" size="sm" onClick={() => setShopifyPage((p) => Math.max(1, p - 1))} disabled={shopifyPage === 1} className="h-8 px-3 rounded-lg text-xs">‹ Prev</Button>
@@ -244,6 +257,7 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
             <Button variant="outline" size="sm" onClick={() => setShopifyPage((p) => Math.min(shopifyTotalPages, p + 1))} disabled={shopifyPage === shopifyTotalPages} className="h-8 px-3 rounded-lg text-xs">Next ›</Button>
             <Button variant="outline" size="sm" onClick={() => setShopifyPage(shopifyTotalPages)} disabled={shopifyPage === shopifyTotalPages} className="h-8 px-3 rounded-lg text-xs">»</Button>
           </div>
+          )}
         </div>
       )}
 
