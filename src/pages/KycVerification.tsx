@@ -192,7 +192,7 @@ function StatCard({ label, value, tone, onClick, active }: {
 }
 
 export default function KycVerification() {
-  const { rows, loading, review, getSignedUrl, getAadhaarFull } = useKycQueue();
+  const { rows, loading, review, rerunAiReview, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
   const focusAccount = params.get("account");
   const [search, setSearch] = useState("");
@@ -206,6 +206,7 @@ export default function KycVerification() {
   const [reason, setReason] = useState("");
   const [reasonCategory, setReasonCategory] = useState<string>("document_unclear");
   const [busy, setBusy] = useState(false);
+  const [rerunning, setRerunning] = useState<string | null>(null); // document id being re-reviewed
   const [aadhaarMap, setAadhaarMap] = useState<Record<string, string>>({});
 
   const effStatus = (r: KycQueueRow) => (r.document?.status as any) ?? r.account.kyc_status;
@@ -459,7 +460,7 @@ export default function KycVerification() {
                     <TableHead>Salesperson</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Approved / Reviewed by</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -607,26 +608,64 @@ export default function KycVerification() {
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            {r.document && (
-                              <Button variant="ghost" size="sm" onClick={() => viewDoc(r.document!.file_path)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canReview && (
-                              <>
-                                <Button variant="outline" size="sm" className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
-                                  onClick={() => setReviewing({ row: r, mode: "approve" })}>
-                                  <Check className="h-4 w-4 mr-1" /> Approve
-                                </Button>
-                                <Button variant="outline" size="sm" className="text-red-700 border-red-300 hover:bg-red-50"
-                                  onClick={() => { setReason(""); setReviewing({ row: r, mode: "reject" }); }}>
-                                  <X className="h-4 w-4 mr-1" /> Reject
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                        <TableCell className="text-center">
+                          <TooltipProvider delayDuration={150}>
+                            <div className="flex justify-center gap-1">
+                              {r.document && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8"
+                                      onClick={() => viewDoc(r.document!.file_path)}>
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>View document</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {canReview && !isDigilocker && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8"
+                                      disabled={rerunning === r.document!.id}
+                                      onClick={async () => {
+                                        setRerunning(r.document!.id);
+                                        await rerunAiReview(r.account.id, r.document!.id);
+                                        setRerunning(null);
+                                      }}>
+                                      {rerunning === r.document!.id
+                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        : <RotateCcw className="h-4 w-4" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Re-run AI review</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {canReview && (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="outline" size="icon"
+                                        className="h-8 w-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                                        onClick={() => setReviewing({ row: r, mode: "approve" })}>
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Approve</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="outline" size="icon"
+                                        className="h-8 w-8 text-red-700 border-red-300 hover:bg-red-50"
+                                        onClick={() => { setReason(""); setReviewing({ row: r, mode: "reject" }); }}>
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Reject</TooltipContent>
+                                  </Tooltip>
+                                </>
+                              )}
+                            </div>
+                          </TooltipProvider>
                         </TableCell>
                       </TableRow>
                     );
