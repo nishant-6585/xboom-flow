@@ -626,12 +626,6 @@ function AttributionDetailsSheet({
               </section>
             )}
 
-            <section>
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Raw payload</h4>
-              <pre className="text-[11px] bg-muted/40 rounded p-2 overflow-auto max-h-[240px]">
-{JSON.stringify({ log, request: matchedRequest ?? null }, null, 2)}
-              </pre>
-            </section>
           </div>
         )}
       </SheetContent>
