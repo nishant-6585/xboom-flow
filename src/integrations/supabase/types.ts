@@ -8300,6 +8300,9 @@ export type Database = {
       }
       leave_requests: {
         Row: {
+          ai_review_confidence: number | null
+          ai_review_model: string | null
+          ai_reviewed: boolean
           applied_by_id: string | null
           applied_by_name: string | null
           approved_rejected_at: string | null
@@ -8319,6 +8322,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_review_confidence?: number | null
+          ai_review_model?: string | null
+          ai_reviewed?: boolean
           applied_by_id?: string | null
           applied_by_name?: string | null
           approved_rejected_at?: string | null
@@ -8338,6 +8344,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_review_confidence?: number | null
+          ai_review_model?: string | null
+          ai_reviewed?: boolean
           applied_by_id?: string | null
           applied_by_name?: string | null
           approved_rejected_at?: string | null
