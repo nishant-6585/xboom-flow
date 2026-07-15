@@ -174,6 +174,38 @@ export function useDecidedAttributionRequestsHistory(limit = 200) {
   });
 }
 
+/**
+ * Full attribution history — every entry from `sales_attribution_log` (both direct
+ * admin attributions and approved requests), joined with order info. Used to render
+ * the "Decision history" list on the Attribution tab so previously-attributed
+ * website orders show up, not only those routed through a request.
+ */
+export function useAllAttributionHistory(limit = 500) {
+  return useQuery({
+    queryKey: ['all-attribution-history', limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sales_attribution_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      const rows = (data ?? []) as AttributionLogEntry[];
+      const orderIds = Array.from(new Set(rows.map((r) => r.order_id)));
+      if (!orderIds.length) return { rows, orders: new Map<string, OrderAttribution>() };
+      const { data: orders } = await supabase
+        .from('orders')
+        .select(
+          'id, external_id, order_number, customer_name, total_sales_amount, sales_person_id, sales_person_name, sales_attribution_locked, sales_attribution_reason, sales_attribution_reason_custom, attributed_by_name, attributed_at, created_at, order_date',
+        )
+        .in('id', orderIds);
+      const map = new Map<string, OrderAttribution>();
+      ((orders ?? []) as any[]).forEach((o) => map.set(o.id, o));
+      return { rows, orders: map };
+    },
+  });
+}
+
 /** Pending attribution requests for a single order — inline in OrderDialog. */
 export function usePendingAttributionRequestsForOrder(
   orderId: string | null | undefined,
