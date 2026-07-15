@@ -35,6 +35,7 @@ async function isCustomerEmailsEnabled(admin: ReturnType<typeof createClient>): 
 }
 
 import { sendEmail as sendMailSeam } from "../_shared/email.ts";
+import { backfillBlankAccountName } from "../_shared/backfill-name.ts";
 const PORTAL_BASE = "https://xboomflow.com";
 
 const corsHeaders = {
@@ -421,6 +422,11 @@ async function onboardOrder(
   } // end !reusingExisting
 
   if (!authUserId || !acctId) return json({ error: "could not resolve user/account" }, 500);
+
+  // Keep a reused account's name fresh: backfill a blank name from this order so
+  // KYC name-matching + the Customers list show the customer's real name (blanks
+  // only — never overwrites an intentionally-set name).
+  await backfillBlankAccountName(admin, acctId, order.customer_name);
 
   // Non-consuming invite link → /portal/activate. We mint our own token
   // (NOT Supabase's single-use recovery token_hash) so email scanners /

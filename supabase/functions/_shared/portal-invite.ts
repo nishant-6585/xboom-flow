@@ -3,6 +3,8 @@
 // non-consuming invite token. Drone-agnostic — used by both the
 // customer-confirmation and portal-welcome (non-drone) paths.
 
+import { backfillBlankAccountName } from "./backfill-name.ts";
+
 // deno-lint-ignore no-explicit-any
 type AdminClient = any;
 
@@ -100,6 +102,10 @@ export async function ensurePortalInvite(
     );
   }
   if (!authUserId || !acctId) return null;
+
+  // Keep a reused account's name fresh: backfill a blank name from this order so
+  // KYC name-matching + the Customers list show the customer's real name.
+  await backfillBlankAccountName(admin, acctId, order.customer_name);
 
   let token: string | null = null;
   const { data: liveInvite } = await admin
