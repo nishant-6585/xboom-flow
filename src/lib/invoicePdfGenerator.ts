@@ -41,6 +41,10 @@ export interface ProformaInput {
     email?: string | null;
     phone?: string | null;
   };
+  ship_to?: {
+    name?: string | null;
+    address?: string | null;
+  } | null;
   place_of_supply_code: string;
   place_of_supply_name: string;
   treatment: GstTreatment;
