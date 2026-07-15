@@ -242,8 +242,11 @@ export function AttributionEvidencePicker({
       toast({ title: 'File too large', description: 'Max 10MB.', variant: 'destructive' });
       return;
     }
-    if (!ALLOWED_MIME.includes(file.type)) {
-      toast({ title: 'Unsupported type', description: 'PDF, image, or text only.', variant: 'destructive' });
+    const nameLower = file.name.toLowerCase();
+    const okByExt = /\.(pdf|docx?|png|jpe?g|webp|gif|heic|heif|txt)$/i.test(nameLower);
+    const okByMime = (file.type || '').startsWith('image/') || ALLOWED_MIME.includes(file.type);
+    if (!okByMime && !okByExt) {
+      toast({ title: 'Unsupported type', description: 'Upload an image, PDF, DOCX, or text file.', variant: 'destructive' });
       return;
     }
     if (!user?.id) return;
@@ -440,7 +443,7 @@ export function AttributionEvidencePicker({
           ref={fileInput}
           type="file"
           className="hidden"
-          accept={ALLOWED_MIME.join(',')}
+          accept={ACCEPT_ATTR}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); }}
         />
         <Button
