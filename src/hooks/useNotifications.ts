@@ -10,6 +10,10 @@ function navigateToNotification(notification: Notification) {
     window.location.assign(`/?enquiry=${notification.enquiry_id}`);
     return;
   }
+  if (notification.account_id) {
+    window.location.assign(`/kyc?account=${notification.account_id}`);
+    return;
+  }
   if (notification.order_id) {
     window.location.assign(`/orders?order_id=${notification.order_id}`);
   }
@@ -19,6 +23,7 @@ export interface Notification {
   id: string;
   order_id: string | null;
   enquiry_id: string | null;
+  account_id: string | null;
   type: string;
   title: string;
   message: string;

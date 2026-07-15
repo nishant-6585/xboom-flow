@@ -307,12 +307,14 @@ Deno.serve(async (req) => {
           type: "kyc_name_mismatch",
           title: "KYC name mismatch needs review",
           message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+          account_id: accountId,
         },
         {
           target_role: "sales_manager",
           type: "kyc_name_mismatch",
           title: "KYC name mismatch needs review",
           message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+          account_id: accountId,
         },
       ]);
       return redirectToPortal("mismatch");
@@ -537,12 +539,14 @@ Deno.serve(async (req) => {
         type: "kyc_name_mismatch",
         title: "KYC name mismatch needs review",
         message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+        account_id: accountId,
       },
       {
         target_role: "sales_manager",
         type: "kyc_name_mismatch",
         title: "KYC name mismatch needs review",
         message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+        account_id: accountId,
       },
     ]);
 

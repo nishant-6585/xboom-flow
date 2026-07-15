@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -37,6 +37,7 @@ function NotificationItem({
   const isOrderConfirmed = notification.type === 'order_confirmed_by_customer';
   const isEmailDlqAlert = notification.type === 'email_dlq_alert';
   const isAttributionRequest = notification.type === 'attribution_request';
+  const isKycNameMismatch = notification.type === 'kyc_name_mismatch';
   const navigate = useNavigate();
 
   const getIcon = () => {
@@ -48,6 +49,7 @@ function NotificationItem({
     if (isOrderConfirmed) return <ClipboardCheck className="w-4 h-4" />;
     if (isEmailDlqAlert) return <FileWarning className="w-4 h-4" />;
     if (isAttributionRequest) return <Inbox className="w-4 h-4" />;
+    if (isKycNameMismatch) return <ShieldAlert className="w-4 h-4" />;
     if (isOverdue) return <AlertTriangle className="w-4 h-4" />;
     if (isDueToday) return <Clock className="w-4 h-4" />;
     return <CreditCard className="w-4 h-4" />;
@@ -62,6 +64,7 @@ function NotificationItem({
     if (isOrderConfirmed) return 'bg-emerald-500/10 text-emerald-600';
     if (isEmailDlqAlert) return 'bg-destructive/10 text-destructive';
     if (isAttributionRequest) return 'bg-amber-500/10 text-amber-700 dark:text-amber-400';
+    if (isKycNameMismatch) return 'bg-rose-500/10 text-rose-700 dark:text-rose-400';
     if (isOverdue) return 'bg-destructive/10 text-destructive';
     if (isDueToday) return 'bg-warning/10 text-warning';
     return 'bg-primary/10 text-primary';
@@ -159,6 +162,26 @@ function NotificationItem({
                 }}
               >
                 View request
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
+          {isKycNameMismatch && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs bg-rose-600 hover:bg-rose-700 text-white"
+                onClick={() => {
+                  if (!notification.is_read) onMarkAsRead(notification.id);
+                  navigate(
+                    notification.account_id
+                      ? `/kyc?account=${notification.account_id}`
+                      : '/kyc'
+                  );
+                }}
+              >
+                View KYC review
                 <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
