@@ -166,6 +166,26 @@ function NotificationItem({
               </Button>
             </div>
           )}
+          {isKycNameMismatch && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs bg-rose-600 hover:bg-rose-700 text-white"
+                onClick={() => {
+                  if (!notification.is_read) onMarkAsRead(notification.id);
+                  navigate(
+                    notification.account_id
+                      ? `/kyc?account=${notification.account_id}`
+                      : '/kyc'
+                  );
+                }}
+              >
+                View KYC review
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
           {(isEnquiryResponse || isEnquiryMessage) && notification.enquiry_id && (
             <div className="mt-2">
               <Button
