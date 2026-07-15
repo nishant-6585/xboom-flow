@@ -83,11 +83,28 @@ const STEPS = [
   { id: 4, title: 'Delivery', icon: Truck, description: 'Shipping & notes' },
 ];
 
+const createBlankOrderItem = (): OrderItemFormData => ({
+  product_name: '',
+  product_code: '',
+  product_category: 'Consumer Drones',
+  quantity: 1,
+  unit_price: undefined,
+  procurement_rate: undefined,
+  notes: '',
+  sales_gst_percent: 0,
+  sales_gst_amount: 0,
+  procurement_gst_percent: 0,
+  procurement_gst_amount: 0,
+  sales_price_includes_gst: false,
+  procurement_price_includes_gst: false,
+});
+
 export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales', preSelectEnquiryId, initialData, embedded = false }: OrderFormProps) {
   const canViewProcurement = userRole === 'admin' || userRole === 'supply_chain';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedEnquiryId, setSelectedEnquiryId] = useState('none');
 
   useEffect(() => {
     const fetchSalesTeam = async () => {
@@ -104,6 +121,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     if (preSelectEnquiryId && enquiries.length > 0) {
       const enquiry = enquiries.find(e => e.id === preSelectEnquiryId);
       if (enquiry) {
+        setSelectedEnquiryId(preSelectEnquiryId);
         setFormData(prev => ({
           ...prev,
           enquiry_id: preSelectEnquiryId,
@@ -242,11 +260,22 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   };
 
   const handleEnquirySelect = (enquiryId: string) => {
+    setSelectedEnquiryId(enquiryId);
+
     if (enquiryId === 'none') {
       setFormData(prev => ({
         ...prev,
         enquiry_id: undefined,
+        product_name: '',
+        product_category: 'Consumer Drones',
+        quantity: 1,
+        customer_name: '',
+        customer_company: '',
+        sales_person_id: '',
+        sales_person_name: '',
+        committed_timeline: '',
       }));
+      setOrderItems([createBlankOrderItem()]);
       return;
     }
 
@@ -445,14 +474,9 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         sales_notes: '',
       });
       setOrderItems([{
-        product_name: '',
-        product_code: '',
-        product_category: 'Consumer Drones',
-        quantity: 1,
-        unit_price: undefined,
-        procurement_rate: undefined,
-        notes: '',
+        ...createBlankOrderItem(),
       }]);
+      setSelectedEnquiryId('none');
       handleClearPaymentFiles();
       handleClearInvoiceFile();
       handleClearPoFiles();
@@ -664,7 +688,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                   {respondedEnquiries.length > 0 && (
                     <div className="p-4 bg-muted/50 rounded-xl space-y-3">
                       <Label className="text-sm font-medium">Quick Fill from Enquiry</Label>
-                      <Select onValueChange={handleEnquirySelect}>
+                      <Select value={selectedEnquiryId} onValueChange={handleEnquirySelect}>
                         <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select an enquiry to auto-fill..." />
                         </SelectTrigger>
