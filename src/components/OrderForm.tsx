@@ -1328,6 +1328,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                 <div className="flex flex-col gap-2">
                   {currentStep < 4 ? (
                     <Button
+                      key="continue-btn"
                       type="button"
                       onClick={() => goToStep(currentStep + 1)}
                       disabled={!canGoNext()}
@@ -1337,7 +1338,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                       <ChevronRight className="ml-2 h-5 w-5" />
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={loading} className="w-full h-12 text-base bg-green-600 hover:bg-green-700">
+                    <Button key="submit-btn" type="submit" disabled={loading} className="w-full h-12 text-base bg-green-600 hover:bg-green-700">
                       {loading ? (
                         <>
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
