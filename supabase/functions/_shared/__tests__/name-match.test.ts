@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "https://deno.land/std@0.208.0/assert/mod.ts";
-import { matchNames } from "../name-match.ts";
+import { matchNames, matchBestName } from "../name-match.ts";
 
 Deno.test("exact match", () => {
   const r = matchNames("Rahul Kumar Sharma", "Rahul Kumar Sharma");
@@ -30,4 +30,28 @@ Deno.test("clearly different names do NOT match", () => {
 Deno.test("empty inputs never match", () => {
   assertEquals(matchNames("", "Rahul").matches, false);
   assertEquals(matchNames("Rahul", null).matches, false);
+});
+// ── matchBestName — multi-candidate resolution (SATYAM KUMAR scenario) ────────
+
+Deno.test("matchBestName: matches when primary is blank but contact full_name is right", () => {
+  // Account primary_contact_name blank/stale; contact.full_name is the real name.
+  const r = matchBestName("SATYAM KUMAR", [null, "", "SATYAM KUMAR"]);
+  assert(r.matches, `expected match, got ${r.score}`);
+  assertEquals(r.matchedCandidate, "SATYAM KUMAR");
+});
+
+Deno.test("matchBestName: picks the best candidate, ignores the wrong ones", () => {
+  const r = matchBestName("SATYAM KUMAR", ["Barnwal Traders", "Satyam Kumar Barnwal", null]);
+  assert(r.matches, `a same-person variant should match, got ${r.score}`);
+});
+
+Deno.test("matchBestName: no candidate matches → mismatch", () => {
+  const r = matchBestName("SATYAM KUMAR", ["Priya Verma", "Acme Corp", null]);
+  assertEquals(r.matches, false);
+});
+
+Deno.test("matchBestName: all-empty candidates never match", () => {
+  const r = matchBestName("SATYAM KUMAR", [null, "", "   "]);
+  assertEquals(r.matches, false);
+  assertEquals(r.matchedCandidate, null);
 });

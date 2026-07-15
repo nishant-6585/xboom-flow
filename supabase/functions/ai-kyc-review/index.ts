@@ -11,7 +11,7 @@
 //      confirm document type — we do NOT ask the AI to extract the number
 //      (see the caveat block in this file / in the review UI).
 //   3. Extract structured JSON via Lovable AI Gateway (vision model).
-//   4. Compare with matchNames + doc-number equality + declared type.
+//   4. Compare with matchBestName + doc-number equality + declared type.
 //   5. Hybrid decision:
 //        - AUTO-APPROVE only when ALL green (see thresholds below).
 //        - ELSE stay pending_verification and attach analysis for staff.
@@ -19,7 +19,7 @@
 //   6. Respect sticky-approved (never downgrade an already-approved acct).
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { matchNames } from "../_shared/name-match.ts";
+import { matchBestName } from "../_shared/name-match.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -187,29 +187,37 @@ async function runReview(
   const declaredNumberRaw: string | null =
     (isAadhaar ? (sens as any)?.aadhaar_full : (sens as any)?.document_reference) || null;
 
-  // Fall back to primary_contact_name — same target DigiLocker matches.
-  let expectedName: string | null = ((acct as any).primary_contact_name || "").trim() || null;
-  if (!expectedName) {
-    // Try latest order's customer_name via the account's contact email.
-    const { data: contact } = await admin
-      .from("portal_contacts")
-      .select("email")
-      .eq("account_id", accountId)
-      .eq("is_active", true)
-      .order("created_at", { ascending: true })
+  // Collect ALL of the customer's known names — the linked contact's full_name
+  // (what the Customers list shows), the account's primary_contact_name, and the
+  // latest order's customer_name — and match the doc against the best of them
+  // (see _shared/matchBestName). Prevents false mismatches when
+  // primary_contact_name is blank/stale on a reused account.
+  const { data: nameContact } = await admin
+    .from("portal_contacts")
+    .select("email, full_name")
+    .eq("account_id", accountId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  let orderName: string | null = null;
+  if ((nameContact as any)?.email) {
+    const { data: latestOrder } = await admin
+      .from("orders")
+      .select("customer_name")
+      .ilike("customer_email", (nameContact as any).email)
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if ((contact as any)?.email) {
-      const { data: latestOrder } = await admin
-        .from("orders")
-        .select("customer_name")
-        .ilike("customer_email", (contact as any).email)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if ((latestOrder as any)?.customer_name) expectedName = (latestOrder as any).customer_name;
-    }
+    orderName = (latestOrder as any)?.customer_name || null;
   }
+  const nameCandidates = [
+    (nameContact as any)?.full_name,
+    (acct as any).primary_contact_name,
+    orderName,
+  ];
+  const expectedName: string | null =
+    nameCandidates.find((c) => (c || "").trim()) || null;
 
   if (!LOVABLE_API_KEY) {
     await admin.from("ai_kyc_reviews").insert({
@@ -304,8 +312,9 @@ async function runReview(
   const legOk = legibility === "good" || legibility === "clear" || legibility === "readable";
   const aiConfidence = typeof parsed.confidence === "number" ? parsed.confidence : Number(parsed.confidence) || 0;
 
-  // Compare fields.
-  const nameCmp = matchNames(aiHolderName, expectedName, NAME_MATCH_THRESHOLD);
+  // Compare fields. Match the AI-extracted holder name against ALL of the
+  // customer's known names and keep the best score.
+  const nameCmp = matchBestName(aiHolderName, nameCandidates, NAME_MATCH_THRESHOLD);
   const numberMatch = isAadhaar
     ? true // Aadhaar: name-only, don't check number (we don't ask AI for it).
     : Boolean(aiNumberRaw && declaredNumberRaw && aiNumberRaw.toLowerCase() === declaredNumberRaw.replace(/\s|-/g, "").toLowerCase());
