@@ -164,6 +164,96 @@ export function OrderAttributionPanel({
 }
 
 function AttributionLogList({ orderId }: { orderId: string }) {
+  return <AttributionLogListInner orderId={orderId} />;
+}
+
+function PendingRequestsForOrder({ orderId }: { orderId: string }) {
+  const { data: pending, isLoading } = usePendingAttributionRequestsForOrder(orderId);
+  const { decide } = useAttributionMutations();
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
+
+  if (isLoading || !pending || pending.length === 0) return null;
+
+  const approve = async (id: string) => {
+    try {
+      await decide.mutateAsync({ requestId: id, approve: true });
+      toast({ title: 'Request approved', description: 'Order credited to requester.' });
+    } catch (e) {
+      toast({
+        title: 'Failed to approve',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const reject = async () => {
+    if (!rejectId) return;
+    if (!rejectNote.trim()) {
+      toast({ title: 'Reason required', description: 'Add a short note.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await decide.mutateAsync({ requestId: rejectId, approve: false, note: rejectNote.trim() });
+      toast({ title: 'Request rejected' });
+      setRejectId(null); setRejectNote('');
+    } catch (e) {
+      toast({
+        title: 'Failed to reject',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 space-y-2">
+      <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+        <Inbox className="h-3.5 w-3.5" />
+        Pending attribution request{pending.length > 1 ? 's' : ''} ({pending.length})
+      </div>
+      <ul className="space-y-2">
+        {pending.map((r) => (
+          <li key={r.id} className="rounded bg-background/70 border border-border/60 p-2 text-xs space-y-1.5">
+            <div>
+              <span className="font-medium">{r.requested_for_name ?? r.requested_by_name ?? 'Unknown'}</span>
+              <span className="text-muted-foreground"> · {reasonLabel(r.reason)}</span>
+              {r.reason_custom && <span className="italic text-muted-foreground"> — "{r.reason_custom}"</span>}
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="default" className="h-7 gap-1.5" onClick={() => approve(r.id)} disabled={decide.isPending}>
+                <Check className="h-3.5 w-3.5" /> Approve
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={() => { setRejectId(r.id); setRejectNote(''); }} disabled={decide.isPending}>
+                <X className="h-3.5 w-3.5" /> Reject
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <Dialog open={!!rejectId} onOpenChange={(b) => { if (!b) { setRejectId(null); setRejectNote(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject request</DialogTitle>
+            <DialogDescription>Add a short note so the requester understands why.</DialogDescription>
+          </DialogHeader>
+          <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="Reason for rejection" rows={3} />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setRejectId(null); setRejectNote(''); }}>Cancel</Button>
+            <Button variant="destructive" onClick={reject} disabled={decide.isPending}>
+              {decide.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function AttributionLogListInner({ orderId }: { orderId: string }) {
   const { data: log, isLoading } = useAttributionLog(orderId);
   const [expanded, setExpanded] = useState(false);
   const [openEntries, setOpenEntries] = useState<Record<string, boolean>>({});
