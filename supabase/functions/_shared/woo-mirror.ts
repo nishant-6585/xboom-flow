@@ -296,6 +296,12 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   ].filter(Boolean);
   const shippingAddress = shippingParts.join(", ") || null;
 
+  const billingParts = [
+    billing.address_1, billing.address_2, billing.city,
+    billing.state, billing.postcode, billing.country,
+  ].filter(Boolean);
+  const billingAddress = billingParts.join(", ") || null;
+
   const customerName = `${billing.first_name || ""} ${billing.last_name || ""}`.trim() || "Website Customer";
   const customerEmail = billing.email || null;
   const rawPhone = (billing.phone ?? shipping.phone ?? "").toString().trim();
@@ -345,6 +351,7 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
     amount_paid: isPaid ? totalAmount : 0,
     payment_status: isPaid ? "full" : "pending",
     shipping_address: shippingAddress,
+    billing_address: billingAddress,
     payment_terms: computePaymentTermsFromWooPayload(payload, {
       woo_order_id: orderId,
       event_type: eventType,
