@@ -360,12 +360,12 @@ Merged to `main` (commit `2c03ad1a`, merge `e8e0f7c5`); Lovable has since extend
 - Shared `_shared/woo-product-map.ts` (Woo-ID-then-name match, parent-only for variable products; never overwrites cost/dealer/unit) + `_shared/woo-hmac.ts`.
 - UI: "Sync from Website" button + "Website" badge on synced rows.
 - Doc: `WOOCOMMERCE_PRODUCT_SYNC.md`.
-- **Pending manual steps:** register Woo **product** webhooks (product.created/updated/deleted → `/functions/v1/woocommerce-product-webhook`, same `WOOCOMMERCE_WEBHOOK_SECRET`); run initial "Sync from Website".
+- **✅ DONE 2026-07-15:** Woo **product** webhooks registered in WordPress (created/updated/deleted → `/functions/v1/woocommerce-product-webhook`, order-webhook secret) and live-verified (price edit on xboom.in flowed to pricelist within seconds). Note: Woo auto-pauses webhooks after repeated delivery failures — if prices go stale, first check the 3 webhooks still say Active. Header "Last synced" shows bulk syncs only; webhook-activity line prompt given to Lovable.
 
 ---
 
 ## ⏳ Pending / follow-ups
-- [ ] Register WooCommerce **product** webhooks + run initial product Sync from Website (Item 1).
+- [x] Register WooCommerce **product** webhooks + run initial product Sync from Website (Item 1). ✅ 2026-07-15 live-verified.
 - [ ] After deploy, run "Sync from Website" on Website Orders to confirm reconcile (Item 2).
 - [ ] WordPress: remove the duplicate "Shipped" status entry in the order Status dropdown.
 - [ ] Start the migration milestone (gate: confirm Lovable DB access).
