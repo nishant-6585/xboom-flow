@@ -90,3 +90,47 @@ export function matchNames(
   const score = Math.max(lev, tset);
   return { score, matches: score >= threshold, threshold, normalizedA, normalizedB };
 }
+
+export interface BestNameMatchResult extends NameMatchResult {
+  /** The candidate that produced the best score (raw, unnormalized). */
+  matchedCandidate: string | null;
+}
+
+/**
+ * Match `a` against several candidate names and return the BEST result.
+ *
+ * WHY: a customer's identity name lives in more than one field — the linked
+ * portal contact's `full_name` (what the Customers list shows), the account's
+ * `primary_contact_name`, and the order's `customer_name`. These drift apart
+ * (e.g. an account created earlier under a different name, then reused). The
+ * licence/doc only needs to match ONE of them to be the same person, so we
+ * score against all non-empty candidates and keep the highest — approving on
+ * the best available evidence instead of a single stale field.
+ */
+export function matchBestName(
+  a: string | null | undefined,
+  candidates: Array<string | null | undefined>,
+  threshold = DEFAULT_THRESHOLD,
+): BestNameMatchResult {
+  const seen = new Set<string>();
+  let best: BestNameMatchResult | null = null;
+  for (const c of candidates) {
+    const raw = (c || "").trim();
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const r = matchNames(a, raw, threshold);
+    if (!best || r.score > best.score) {
+      best = { ...r, matchedCandidate: raw };
+    }
+  }
+  return best ?? {
+    score: 0,
+    matches: false,
+    threshold,
+    normalizedA: "",
+    normalizedB: "",
+    matchedCandidate: null,
+  };
+}

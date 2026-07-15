@@ -17,7 +17,7 @@ import {
   DocumentTypeDeniedError,
 } from "../_shared/kyc-provider.ts";
 import type { KycVerifiedData } from "../_shared/kyc-provider.ts";
-import { matchNames, DEFAULT_THRESHOLD } from "../_shared/name-match.ts";
+import { matchBestName, DEFAULT_THRESHOLD } from "../_shared/name-match.ts";
 import {
   revokeAccessToken,
   type DigiLockerExchangeResult,
@@ -242,36 +242,45 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Name-match guard (reuse existing logic + reviewer notify)
+    // Name-match guard. Match the DigiLocker holder name against ALL of the
+    // customer's known names — the linked contact's full_name (what the
+    // Customers list shows), the account's primary_contact_name, and the latest
+    // order's customer_name — and approve on the best match. Prevents false
+    // mismatches when primary_contact_name is blank/stale on a reused account.
     const { data: acct } = await admin
       .from("portal_accounts")
       .select("id, primary_contact_name, company_name")
       .eq("id", accountId)
       .maybeSingle();
-    let expectedName = (acct as any)?.primary_contact_name || null;
-    if (!expectedName) {
-      const { data: contact } = await admin
-        .from("portal_contacts")
-        .select("email")
-        .eq("account_id", accountId)
-        .eq("is_active", true)
-        .order("created_at", { ascending: true })
+    const { data: contact } = await admin
+      .from("portal_contacts")
+      .select("email, full_name")
+      .eq("account_id", accountId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    let orderName: string | null = null;
+    const contactEmail = (contact as any)?.email;
+    if (contactEmail) {
+      const { data: order } = await admin
+        .from("orders")
+        .select("customer_name")
+        .ilike("customer_email", contactEmail)
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const email = (contact as any)?.email;
-      if (email) {
-        const { data: order } = await admin
-          .from("orders")
-          .select("customer_name")
-          .ilike("customer_email", email)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        expectedName = (order as any)?.customer_name || null;
-      }
+      orderName = (order as any)?.customer_name || null;
     }
-
-    const match = matchNames(verified.name, expectedName);
+    const candidates = [
+      (contact as any)?.full_name,
+      (acct as any)?.primary_contact_name,
+      orderName,
+    ];
+    const match = matchBestName(verified.name, candidates);
+    // Best-matching (or first non-empty) name — for audit/notify messages.
+    const expectedName = match.matchedCandidate ||
+      candidates.find((c) => (c || "").trim()) || null;
 
     if (!match.matches) {
       await admin.from("kyc_documents")
@@ -465,37 +474,42 @@ Deno.serve(async (req) => {
     },
   });
 
-  // 4. Name-match guard
+  // 4. Name-match guard — match the DigiLocker holder against ALL of the
+  // customer's known names (contact full_name / primary_contact_name / latest
+  // order customer_name); approve on the best. See the primary guard above.
   const { data: acct } = await admin
     .from("portal_accounts")
     .select("id, primary_contact_name, company_name")
     .eq("id", accountId)
     .maybeSingle();
-
-  let expectedName = (acct as any)?.primary_contact_name || null;
-  if (!expectedName) {
-    const { data: contact } = await admin
-      .from("portal_contacts")
-      .select("email")
-      .eq("account_id", accountId)
-      .eq("is_active", true)
-      .order("created_at", { ascending: true })
+  const { data: contact } = await admin
+    .from("portal_contacts")
+    .select("email, full_name")
+    .eq("account_id", accountId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  let orderName: string | null = null;
+  const contactEmail = (contact as any)?.email;
+  if (contactEmail) {
+    const { data: order } = await admin
+      .from("orders")
+      .select("customer_name")
+      .ilike("customer_email", contactEmail)
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const email = (contact as any)?.email;
-    if (email) {
-      const { data: order } = await admin
-        .from("orders")
-        .select("customer_name")
-        .ilike("customer_email", email)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      expectedName = (order as any)?.customer_name || null;
-    }
+    orderName = (order as any)?.customer_name || null;
   }
-
-  const match = matchNames(verified.name, expectedName);
+  const candidates = [
+    (contact as any)?.full_name,
+    (acct as any)?.primary_contact_name,
+    orderName,
+  ];
+  const match = matchBestName(verified.name, candidates);
+  const expectedName = match.matchedCandidate ||
+    candidates.find((c) => (c || "").trim()) || null;
   const nowIso = new Date().toISOString();
 
   if (!match.matches) {
