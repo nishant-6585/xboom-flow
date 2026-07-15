@@ -192,7 +192,7 @@ function StatCard({ label, value, tone, onClick, active }: {
 }
 
 export default function KycVerification() {
-  const { rows, loading, review, getSignedUrl, getAadhaarFull } = useKycQueue();
+  const { rows, loading, review, rerunAiReview, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
   const focusAccount = params.get("account");
   const [search, setSearch] = useState("");
@@ -206,6 +206,7 @@ export default function KycVerification() {
   const [reason, setReason] = useState("");
   const [reasonCategory, setReasonCategory] = useState<string>("document_unclear");
   const [busy, setBusy] = useState(false);
+  const [rerunning, setRerunning] = useState<string | null>(null); // document id being re-reviewed
   const [aadhaarMap, setAadhaarMap] = useState<Record<string, string>>({});
 
   const effStatus = (r: KycQueueRow) => (r.document?.status as any) ?? r.account.kyc_status;
@@ -619,6 +620,24 @@ export default function KycVerification() {
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>View document</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {canReview && !isDigilocker && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8"
+                                      disabled={rerunning === r.document!.id}
+                                      onClick={async () => {
+                                        setRerunning(r.document!.id);
+                                        await rerunAiReview(r.account.id, r.document!.id);
+                                        setRerunning(null);
+                                      }}>
+                                      {rerunning === r.document!.id
+                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        : <RotateCcw className="h-4 w-4" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Re-run AI review</TooltipContent>
                                 </Tooltip>
                               )}
                               {canReview && (

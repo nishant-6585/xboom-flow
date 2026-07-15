@@ -314,6 +314,27 @@ export function useKycQueue() {
     [refresh],
   );
 
+  // Re-run the AI review for a manual-upload document (e.g. after a matcher fix,
+  // or an earlier AI error). Note: ai-kyc-review intentionally skips DigiLocker
+  // docs and already-approved accounts — it reports that back via `skipped`.
+  const rerunAiReview = useCallback(
+    async (accountId: string, documentId: string) => {
+      const { data, error } = await supabase.functions.invoke("ai-kyc-review", {
+        body: { document_id: documentId, account_id: accountId },
+      });
+      if (error) { toast.error(error.message); return false; }
+      const skipped = (data as any)?.skipped;
+      if (skipped) {
+        toast.info(`AI review skipped (${skipped})`);
+      } else {
+        toast.success("AI review re-run complete");
+      }
+      await refresh();
+      return true;
+    },
+    [refresh],
+  );
+
   const getSignedUrl = useCallback(async (path: string) => {
     const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);
     if (error) throw error;
@@ -326,7 +347,7 @@ export function useKycQueue() {
     return data as string | null;
   }, []);
 
-  return { rows, loading, refresh, review, getSignedUrl, getAadhaarFull };
+  return { rows, loading, refresh, review, rerunAiReview, getSignedUrl, getAadhaarFull };
 }
 
 /** Per-order KYC status (resolved by customer_email → portal_account) */
