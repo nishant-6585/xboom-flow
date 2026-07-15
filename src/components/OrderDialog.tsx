@@ -3360,6 +3360,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               rows={3}
               disabled={loading}
             />
+            <p className="text-xs text-muted-foreground">
+              {order?.external_id
+                ? 'The customer will be added back to Leads as a "Deleted website order" so sales can re-engage them.'
+                : 'The originating enquiry / pipeline / email lead will be marked lost with this reason. If there is no linked source, the customer will be added back to Leads as a "Deleted order".'}
+            </p>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={loading} onClick={() => setDeleteReason('')}>Cancel</AlertDialogCancel>
