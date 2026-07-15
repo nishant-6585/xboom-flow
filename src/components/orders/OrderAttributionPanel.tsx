@@ -21,6 +21,9 @@ import {
   SYSTEM_USER_ID,
 } from '@/hooks/useAttributionRequests';
 import { toast } from '@/hooks/use-toast';
+import { AttributionEvidencePicker } from './AttributionEvidencePicker';
+import { AttributionEvidenceList } from './AttributionEvidenceList';
+import type { AttributionEvidence } from './attributionEvidence';
 
 export const ATTRIBUTION_REASONS: { value: string; label: string }[] = [
   { value: 'remote_customer_paid_online', label: 'Remote customer — paid via website' },
@@ -229,6 +232,7 @@ function AttributionRequestAuditLog({ orderId }: { orderId: string }) {
                   Note: {r.decision_note}
                 </div>
               )}
+              <AttributionEvidenceList evidence={r.evidence} />
             </li>
           );
         })}
@@ -317,6 +321,7 @@ function PendingRequestsForOrder({ orderId }: { orderId: string }) {
               <span className="text-muted-foreground"> · {reasonLabel(r.reason)}</span>
               {r.reason_custom && <span className="italic text-muted-foreground"> — "{r.reason_custom}"</span>}
             </div>
+            <AttributionEvidenceList evidence={r.evidence} />
             <div className="flex gap-2">
               <Button size="sm" variant="default" className="h-7 gap-1.5" onClick={() => approve(r.id)} disabled={decide.isPending}>
                 <Check className="h-3.5 w-3.5" /> Approve
@@ -467,6 +472,7 @@ function AttributionLogListInner({ orderId }: { orderId: string }) {
                   )}
                 </div>
               )}
+              <AttributionEvidenceList evidence={entry.evidence} />
             </li>
           );
         })}
@@ -538,12 +544,16 @@ function AssignDialog({
   const [salesPersonId, setSalesPersonId] = useState<string>('');
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
+  const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
   const [query, setQuery] = useState('');
 
+  // Same evidence bar as rep requests: a direct change by admin/sales_manager/
+  // granted users still credits a deal, so it needs the same proof on record.
   const canSubmit =
     salesPersonId &&
     reason &&
-    (reason !== 'other' || customReason.trim().length > 0);
+    (reason !== 'other' || customReason.trim().length > 0) &&
+    evidence.length > 0;
 
   const submit = async () => {
     try {
@@ -552,10 +562,11 @@ function AssignDialog({
         salesPersonId,
         reason,
         reasonCustom: reason === 'other' ? customReason.trim() : null,
+        evidence,
       });
       toast({ title: 'Order attributed', description: 'Credit assigned to salesperson.' });
       onOpenChange(false);
-      setSalesPersonId(''); setReason(''); setCustomReason('');
+      setSalesPersonId(''); setReason(''); setCustomReason(''); setEvidence([]);
     } catch (e) {
       toast({
         title: 'Failed to assign',
@@ -584,7 +595,7 @@ function AssignDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Assign salesperson</DialogTitle>
           <DialogDescription>
@@ -650,6 +661,11 @@ function AssignDialog({
             reason={reason} setReason={setReason}
             customReason={customReason} setCustomReason={setCustomReason}
           />
+          <AttributionEvidencePicker
+            orderId={orderId}
+            value={evidence}
+            onChange={setEvidence}
+          />
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -673,8 +689,14 @@ function RequestDialog({
   const { requestAttribution } = useAttributionMutations();
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
+  const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
 
-  const canSubmit = reason && (reason !== 'other' || customReason.trim().length > 0);
+  // Evidence is mandatory — approvers won't credit a deal without proof, and
+  // the RPC rejects an empty evidence array server-side.
+  const canSubmit =
+    reason &&
+    (reason !== 'other' || customReason.trim().length > 0) &&
+    evidence.length > 0;
 
   const submit = async () => {
     try {
@@ -682,13 +704,14 @@ function RequestDialog({
         orderId,
         reason,
         reasonCustom: reason === 'other' ? customReason.trim() : null,
+        evidence,
       });
       toast({
         title: 'Request submitted',
         description: 'Your request was sent to admins/sales managers.',
       });
       onOpenChange(false);
-      setReason(''); setCustomReason('');
+      setReason(''); setCustomReason(''); setEvidence([]);
     } catch (e) {
       toast({
         title: 'Failed to send request',
@@ -700,16 +723,22 @@ function RequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Request to claim this order</DialogTitle>
           <DialogDescription>
-            Tell your manager why this website order should be credited to you. They will approve or reject.
+            Tell your manager why this website order should be credited to you, and attach proof
+            you closed the deal. They will approve or reject.
           </DialogDescription>
         </DialogHeader>
         <ReasonFields
           reason={reason} setReason={setReason}
           customReason={customReason} setCustomReason={setCustomReason}
+        />
+        <AttributionEvidencePicker
+          orderId={orderId}
+          value={evidence}
+          onChange={setEvidence}
         />
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>

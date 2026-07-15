@@ -18,6 +18,8 @@ export interface AttributionRequest {
   decided_at: string | null;
   decision_note: string | null;
   created_at: string;
+  /** jsonb array of proof items (call logs / files) — see attributionEvidence.ts */
+  evidence: unknown;
 }
 
 export interface OrderAttribution {
@@ -33,6 +35,8 @@ export interface OrderAttribution {
   sales_attribution_reason_custom: string | null;
   attributed_by_name: string | null;
   attributed_at: string | null;
+  created_at?: string | null;
+  order_date?: string | null;
 }
 
 export interface AttributionLogEntry {
@@ -47,6 +51,8 @@ export interface AttributionLogEntry {
   changed_by_name: string | null;
   source: 'direct' | 'approved_request';
   created_at: string;
+  /** jsonb array of proof items (call logs / files) — see attributionEvidence.ts */
+  evidence: unknown;
 }
 
 /** Full attribution change log for a given internal order. */
@@ -130,7 +136,7 @@ export function usePendingAttributionRequests() {
       const { data: orders } = await supabase
         .from('orders')
         .select(
-          'id, external_id, order_number, customer_name, total_sales_amount, sales_person_id, sales_person_name, sales_attribution_locked, sales_attribution_reason, sales_attribution_reason_custom, attributed_by_name, attributed_at',
+          'id, external_id, order_number, customer_name, total_sales_amount, sales_person_id, sales_person_name, sales_attribution_locked, sales_attribution_reason, sales_attribution_reason_custom, attributed_by_name, attributed_at, created_at, order_date',
         )
         .in('id', orderIds);
       const map = new Map<string, OrderAttribution>();
@@ -196,12 +202,14 @@ export function useAttributionMutations() {
       salesPersonId: string;
       reason: string;
       reasonCustom?: string | null;
+      evidence?: unknown[];
     }) => {
       const { error } = await supabase.rpc('attribute_website_order' as any, {
         p_order_id: p.orderId,
         p_sales_person_id: p.salesPersonId,
         p_reason: p.reason,
         p_reason_custom: p.reasonCustom ?? null,
+        p_evidence: p.evidence ?? [],
       });
       if (error) throw error;
     },
@@ -209,11 +217,17 @@ export function useAttributionMutations() {
   });
 
   const requestAttribution = useMutation({
-    mutationFn: async (p: { orderId: string; reason: string; reasonCustom?: string | null }) => {
+    mutationFn: async (p: {
+      orderId: string;
+      reason: string;
+      reasonCustom?: string | null;
+      evidence: unknown[]; // required — the RPC rejects empty evidence
+    }) => {
       const { error } = await supabase.rpc('request_website_order_attribution' as any, {
         p_order_id: p.orderId,
         p_reason: p.reason,
         p_reason_custom: p.reasonCustom ?? null,
+        p_evidence: p.evidence,
       });
       if (error) throw error;
     },
