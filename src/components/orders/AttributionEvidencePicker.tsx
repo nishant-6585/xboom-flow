@@ -30,8 +30,13 @@ import {
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = [
-  'application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'text/plain',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+  'text/plain',
 ];
+const ACCEPT_ATTR = 'image/*,application/pdf,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain';
 
 interface CallLogRow {
   id: string;
@@ -41,6 +46,11 @@ interface CallLogRow {
   call_status: string;
   recording_url: string | null;
   created_at: string;
+  lead_source: string | null;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  sales_person_id: string | null;
+  sales_person_name: string | null;
 }
 
 interface LeadMatchRow {
@@ -104,7 +114,7 @@ export function AttributionEvidencePicker({
     queryFn: async (): Promise<CallLogRow[]> => {
       const { data, error } = await supabase
         .from('call_logs')
-        .select('id, caller_number, call_duration, call_type, call_status, recording_url, created_at')
+        .select('id, caller_number, call_duration, call_type, call_status, recording_url, created_at, lead_source, assigned_to, assigned_to_name, sales_person_id, sales_person_name')
         .like('caller_number', `%${phoneKey}`)
         .order('created_at', { ascending: false })
         .limit(25);
@@ -232,8 +242,11 @@ export function AttributionEvidencePicker({
       toast({ title: 'File too large', description: 'Max 10MB.', variant: 'destructive' });
       return;
     }
-    if (!ALLOWED_MIME.includes(file.type)) {
-      toast({ title: 'Unsupported type', description: 'PDF, image, or text only.', variant: 'destructive' });
+    const nameLower = file.name.toLowerCase();
+    const okByExt = /\.(pdf|docx?|png|jpe?g|webp|gif|heic|heif|txt)$/i.test(nameLower);
+    const okByMime = (file.type || '').startsWith('image/') || ALLOWED_MIME.includes(file.type);
+    if (!okByMime && !okByExt) {
+      toast({ title: 'Unsupported type', description: 'Upload an image, PDF, DOCX, or text file.', variant: 'destructive' });
       return;
     }
     if (!user?.id) return;
@@ -300,6 +313,9 @@ export function AttributionEvidencePicker({
           <div className="max-h-44 overflow-y-auto divide-y">
             {calls.map((c) => {
               const before = isBeforeOrder(c.created_at, orderAt);
+              const assignedName = c.assigned_to_name || c.sales_person_name || null;
+              const assignedId = c.assigned_to || c.sales_person_id || null;
+              const assignedMatch = !!salesPersonId && assignedId === salesPersonId;
               return (
                 <label
                   key={c.id}
@@ -312,8 +328,21 @@ export function AttributionEvidencePicker({
                   <span className="font-mono">{format(new Date(c.created_at), 'dd MMM yy, HH:mm')}</span>
                   <span className="text-muted-foreground">
                     {c.call_type || c.call_status} · {formatCallDuration(c.call_duration)}
+                    {c.lead_source ? ` · ${c.lead_source}` : ''}
                   </span>
-                  <span className="ml-auto">
+                  <span className="ml-auto flex items-center gap-1">
+                    {assignedName && (
+                      <Badge
+                        variant="outline"
+                        className={
+                          assignedMatch
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-700 text-[10px]'
+                            : 'border-red-300 bg-red-50 text-red-700 text-[10px]'
+                        }
+                      >
+                        {assignedMatch ? 'assigned to this rep' : `assigned: ${assignedName}`}
+                      </Badge>
+                    )}
                     {before ? (
                       <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 text-[10px]">
                         before order
@@ -414,7 +443,7 @@ export function AttributionEvidencePicker({
           ref={fileInput}
           type="file"
           className="hidden"
-          accept={ALLOWED_MIME.join(',')}
+          accept={ACCEPT_ATTR}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); }}
         />
         <Button
