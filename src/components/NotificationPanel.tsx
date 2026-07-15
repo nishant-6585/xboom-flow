@@ -147,6 +147,22 @@ function NotificationItem({
               </Button>
             </div>
           )}
+          {isAttributionRequest && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => {
+                  if (!notification.is_read) onMarkAsRead(notification.id);
+                  navigate('/orders?tab=attribution_requests');
+                }}
+              >
+                View request
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
           {(isEnquiryResponse || isEnquiryMessage) && notification.enquiry_id && (
             <div className="mt-2">
               <Button
