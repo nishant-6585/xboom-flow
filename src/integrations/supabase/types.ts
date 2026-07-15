@@ -8995,6 +8995,7 @@ export type Database = {
       }
       notifications: {
         Row: {
+          account_id: string | null
           created_at: string
           enquiry_id: string | null
           id: string
@@ -9007,6 +9008,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          account_id?: string | null
           created_at?: string
           enquiry_id?: string | null
           id?: string
@@ -9019,6 +9021,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          account_id?: string | null
           created_at?: string
           enquiry_id?: string | null
           id?: string
@@ -9031,6 +9034,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_enquiry_id_fkey"
             columns: ["enquiry_id"]
