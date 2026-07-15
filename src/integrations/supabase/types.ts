@@ -9687,6 +9687,7 @@ export type Database = {
           attributed_at: string | null
           attributed_by: string | null
           attributed_by_name: string | null
+          billing_address: string | null
           campaign_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -9797,6 +9798,7 @@ export type Database = {
           attributed_at?: string | null
           attributed_by?: string | null
           attributed_by_name?: string | null
+          billing_address?: string | null
           campaign_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -9907,6 +9909,7 @@ export type Database = {
           attributed_at?: string | null
           attributed_by?: string | null
           attributed_by_name?: string | null
+          billing_address?: string | null
           campaign_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -18208,6 +18211,7 @@ export type Database = {
           attributed_at: string | null
           attributed_by: string | null
           attributed_by_name: string | null
+          billing_address: string | null
           campaign_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
