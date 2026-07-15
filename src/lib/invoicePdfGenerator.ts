@@ -223,10 +223,25 @@ export async function generateProformaPdf(input: ProformaInput): Promise<{ blob:
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRAY);
   doc.text(`Place of Supply: ${input.place_of_supply_name} (${input.place_of_supply_code})`, margin, y);
 
-  // Bill To
+  // Bill To / Ship To (side-by-side)
   y = 58;
+  const boxGap = 4;
+  const partyBoxW = (pageW - margin * 2 - boxGap) / 2;
+  const partyBoxH = 26;
+  const innerW = partyBoxW - 8;
+
+  const normalizeAddr = (s?: string | null) =>
+    (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const billAddrNorm = normalizeAddr(input.bill_to.address);
+  const shipAddrRaw = (input.ship_to?.address || '').trim();
+  const shipSameAsBilling =
+    !input.ship_to ||
+    !shipAddrRaw ||
+    normalizeAddr(shipAddrRaw) === billAddrNorm;
+
+  // BILL TO (left)
   doc.setFillColor(250, 250, 250);
-  doc.roundedRect(margin, y, pageW - margin * 2, 26, 2, 2, 'F');
+  doc.roundedRect(margin, y, partyBoxW, partyBoxH, 2, 2, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...ORANGE);
   doc.text('BILL TO', margin + 4, y + 6);
   const billToX = margin + 4;
@@ -236,13 +251,36 @@ export async function generateProformaPdf(input: ProformaInput): Promise<{ blob:
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRAY);
   const billLines: string[] = [];
   if (input.bill_to.company?.trim()) billLines.push(input.bill_to.company.trim());
-  if (input.bill_to.address?.trim()) billLines.push(...doc.splitTextToSize(input.bill_to.address.trim(), pageW - margin * 2 - 8));
+  if (input.bill_to.address?.trim()) billLines.push(...doc.splitTextToSize(input.bill_to.address.trim(), innerW));
   if (input.bill_to.gstin?.trim()) billLines.push(`GSTIN: ${input.bill_to.gstin.trim()}`);
   if (input.bill_to.email || input.bill_to.phone) {
-    billLines.push([input.bill_to.email?.trim(), input.bill_to.phone?.trim()].filter(Boolean).join(' | '));
+    billLines.push(...doc.splitTextToSize(
+      [input.bill_to.email?.trim(), input.bill_to.phone?.trim()].filter(Boolean).join(' | '),
+      innerW,
+    ));
   }
   let by = y + 17;
   billLines.slice(0, 3).forEach(l => { doc.text(l, billToX, by); by += 4; });
+
+  // SHIP TO (right)
+  const shipBoxX = margin + partyBoxW + boxGap;
+  const shipToX = shipBoxX + 4;
+  doc.setFillColor(250, 250, 250);
+  doc.roundedRect(shipBoxX, y, partyBoxW, partyBoxH, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...ORANGE);
+  doc.text('SHIP TO', shipToX, y + 6);
+  const shipToName = (input.ship_to?.name || input.bill_to.name || '').trim() || '—';
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...DARK);
+  doc.text(shipToName, shipToX, y + 12);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRAY);
+  let sy = y + 17;
+  if (shipSameAsBilling) {
+    doc.setFont('helvetica', 'italic');
+    doc.text('Same as billing', shipToX, sy);
+  } else {
+    const shipLines = doc.splitTextToSize(shipAddrRaw, innerW).slice(0, 3);
+    shipLines.forEach((l: string) => { doc.text(l, shipToX, sy); sy += 4; });
+  }
 
   // Compute totals
   const totals = computeProformaTotals(input);
