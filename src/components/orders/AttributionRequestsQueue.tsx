@@ -10,6 +10,7 @@ import {
   usePendingAttributionRequests,
   useAttributionMutations,
   useDecidedAttributionRequestsHistory,
+  useAllAttributionHistory,
 } from '@/hooks/useAttributionRequests';
 import { ATTRIBUTION_REASONS } from './OrderAttributionPanel';
 import { AttributionEvidenceList } from './AttributionEvidenceList';
@@ -23,6 +24,7 @@ function reasonLabel(v?: string | null) {
 export function AttributionRequestsQueue() {
   const { data, isLoading, refetch } = usePendingAttributionRequests();
   const { data: history, isLoading: historyLoading } = useDecidedAttributionRequestsHistory(200);
+  const { data: allHistory, isLoading: allHistoryLoading } = useAllAttributionHistory(500);
   const { decide } = useAttributionMutations();
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState('');
@@ -68,7 +70,7 @@ export function AttributionRequestsQueue() {
     return { total, approved: approved.length, rejected: rejected.length, approvalRate, avgHours, creditedValue, topRequesters };
   }, [history]);
 
-  const decidedRows = history?.rows ?? [];
+  const logRows = allHistory?.rows ?? [];
 
   const handleApprove = async (id: string) => {
     try {
@@ -216,21 +218,21 @@ export function AttributionRequestsQueue() {
       {/* History */}
       <div className="flex items-center justify-between pt-4">
         <h3 className="text-sm font-semibold text-foreground">Decision history</h3>
-        {decidedRows.length > 0 && (
-          <span className="text-xs text-muted-foreground">Last {decidedRows.length} decisions</span>
+        {logRows.length > 0 && (
+          <span className="text-xs text-muted-foreground">Last {logRows.length} attributions</span>
         )}
       </div>
-      {historyLoading ? (
+      {allHistoryLoading ? (
         <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
-      ) : decidedRows.length === 0 ? (
-        <Card className="border-dashed bg-muted/20"><CardContent className="py-8 text-center text-sm text-muted-foreground">No past decisions yet.</CardContent></Card>
+      ) : logRows.length === 0 ? (
+        <Card className="border-dashed bg-muted/20"><CardContent className="py-8 text-center text-sm text-muted-foreground">No past attributions yet.</CardContent></Card>
       ) : (
         <div className="grid gap-2">
-          {decidedRows.map((r) => {
-            const o = history?.orders.get(r.order_id);
-            const approved = r.status === 'approved';
+          {logRows.map((r) => {
+            const o = allHistory?.orders.get(r.order_id);
+            const viaRequest = r.source === 'approved_request';
             return (
-              <Card key={r.id} className="border-l-4" style={{ borderLeftColor: approved ? 'hsl(var(--primary))' : 'hsl(var(--destructive))' }}>
+              <Card key={r.id} className="border-l-4" style={{ borderLeftColor: 'hsl(var(--primary))' }}>
                 <CardContent className="p-3 flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2 text-sm flex-wrap">
@@ -240,27 +242,21 @@ export function AttributionRequestsQueue() {
                       {o?.total_sales_amount != null && (
                         <span className="text-muted-foreground">· ₹{Number(o.total_sales_amount).toLocaleString('en-IN')}</span>
                       )}
-                      <Badge
-                        variant="outline"
-                        className={
-                          approved
-                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                            : 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400'
-                        }
-                      >
-                        {approved ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                        {r.status}
+                      <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />attributed
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {viaRequest ? 'via request' : 'direct'}
                       </Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      For <span className="font-medium text-foreground">{r.requested_for_name ?? r.requested_by_name ?? 'Unknown'}</span>
+                      For <span className="font-medium text-foreground">{r.to_sales_person_name ?? 'Unknown'}</span>
                       {' · '}{reasonLabel(r.reason)}
                       {r.reason_custom && <span className="italic"> — "{r.reason_custom}"</span>}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      Decided by <span className="font-medium text-foreground">{r.decided_by_name ?? '—'}</span>
-                      {r.decided_at && <> · {new Date(r.decided_at).toLocaleString('en-IN')}</>}
-                      {r.decision_note && <> · <span className="italic">"{r.decision_note}"</span></>}
+                      By <span className="font-medium text-foreground">{r.changed_by_name ?? '—'}</span>
+                      {r.created_at && <> · {new Date(r.created_at).toLocaleString('en-IN')}</>}
                     </div>
                   </div>
                 </CardContent>
