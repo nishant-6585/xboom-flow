@@ -28,7 +28,22 @@ export interface FileEvidence {
   mime: string;
 }
 
-export type AttributionEvidence = CallLogEvidence | FileEvidence;
+export interface LeadEvidence {
+  type: 'lead';
+  lead_table: 'leads' | 'email_leads';
+  lead_id: string;
+  matched_on: 'email' | 'phone';
+  lead_created_at: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  source: string | null;
+  /** True when the lead's assigned_to equals the salesperson being credited —
+   *  captured at pick time so approvers see the check even if the lead is
+   *  reassigned later. */
+  assigned_matches_rep: boolean;
+}
+
+export type AttributionEvidence = CallLogEvidence | FileEvidence | LeadEvidence;
 
 export const EVIDENCE_BUCKET = 'attribution-evidence';
 
@@ -61,6 +76,6 @@ export function parseEvidence(raw: unknown): AttributionEvidence[] {
   return raw.filter(
     (e): e is AttributionEvidence =>
       !!e && typeof e === 'object' &&
-      ((e as any).type === 'call_log' || (e as any).type === 'file'),
+      ((e as any).type === 'call_log' || (e as any).type === 'file' || (e as any).type === 'lead'),
   );
 }

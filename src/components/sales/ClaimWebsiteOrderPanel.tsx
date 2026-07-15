@@ -485,6 +485,7 @@ export function ClaimWebsiteOrderPanel() {
               orderId={claimTarget}
               value={evidence}
               onChange={setEvidence}
+              salesPersonId={user?.id ?? null}
             />
           )}
           <DialogFooter>

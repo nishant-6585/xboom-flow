@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Phone, FileText, ExternalLink } from 'lucide-react';
+import { Phone, FileText, ExternalLink, UserSearch } from 'lucide-react';
 import {
   AttributionEvidence,
   EVIDENCE_BUCKET,
@@ -42,7 +42,26 @@ export function AttributionEvidenceList({
         Evidence:
       </span>
       {items.map((e, i) =>
-        e.type === 'call_log' ? (
+        e.type === 'lead' ? (
+          <Badge
+            key={`l-${e.lead_id}-${i}`}
+            variant="outline"
+            className="gap-1 text-[10px] font-normal"
+          >
+            <UserSearch className="h-3 w-3" />
+            Lead {format(new Date(e.lead_created_at), 'dd MMM')} · via {e.matched_on}
+            <span className={e.assigned_matches_rep ? 'text-emerald-700' : 'text-red-700'}>
+              · {e.assigned_matches_rep
+                ? 'assigned to this rep'
+                : `assigned: ${e.assigned_to_name || 'unassigned'}`}
+            </span>
+            {orderAt && (
+              <span className={isBeforeOrder(e.lead_created_at, orderAt) ? 'text-emerald-700' : 'text-amber-700'}>
+                · {isBeforeOrder(e.lead_created_at, orderAt) ? 'before order' : 'after order'}
+              </span>
+            )}
+          </Badge>
+        ) : e.type === 'call_log' ? (
           <Badge
             key={`c-${e.call_log_id}-${i}`}
             variant="outline"

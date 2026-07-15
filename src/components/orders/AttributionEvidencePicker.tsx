@@ -16,11 +16,12 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Loader2, Phone, Paperclip, X, FileText, AlertCircle } from 'lucide-react';
+import { Loader2, Phone, Paperclip, X, FileText, AlertCircle, UserSearch } from 'lucide-react';
 import {
   AttributionEvidence,
   CallLogEvidence,
   FileEvidence,
+  LeadEvidence,
   EVIDENCE_BUCKET,
   last10Digits,
   isBeforeOrder,
@@ -42,14 +43,29 @@ interface CallLogRow {
   created_at: string;
 }
 
+interface LeadMatchRow {
+  lead_table: 'leads' | 'email_leads';
+  id: string;
+  matched_on: 'email' | 'phone';
+  created_at: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  source: string | null;
+}
+
 export function AttributionEvidencePicker({
   orderId,
   value,
   onChange,
+  salesPersonId,
 }: {
   orderId: string;
   value: AttributionEvidence[];
   onChange: (v: AttributionEvidence[]) => void;
+  /** The rep the order would be credited to — leads assigned to them get the
+   *  green "assigned to this rep" badge. Request flows pass the requester;
+   *  the admin Assign dialog passes the selected salesperson. */
+  salesPersonId?: string | null;
 }) {
   const { user } = useAuth();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -62,13 +78,14 @@ export function AttributionEvidencePicker({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, customer_phone, customer_name, created_at, order_date')
+        .select('id, customer_phone, customer_email, customer_name, created_at, order_date')
         .eq('id', orderId)
         .maybeSingle();
       if (error) throw error;
       return data as {
         id: string;
         customer_phone: string | null;
+        customer_email: string | null;
         customer_name: string | null;
         created_at: string;
         order_date: string | null;
@@ -78,6 +95,7 @@ export function AttributionEvidencePicker({
 
   const orderAt = order?.order_date || order?.created_at || null;
   const phoneKey = last10Digits(order?.customer_phone);
+  const emailKey = (order?.customer_email || '').trim().toLowerCase() || null;
 
   // Calls to/from the customer's number — the self-verifying proof source.
   const { data: calls, isLoading: loadingCalls } = useQuery({
@@ -95,8 +113,77 @@ export function AttributionEvidencePicker({
     },
   });
 
+  // Leads matching the customer's email or phone — a lead logged for this
+  // customer BEFORE the order, assigned to the same rep, is near-conclusive
+  // (system-timestamped, can't be backdated).
+  const { data: leads, isLoading: loadingLeads } = useQuery({
+    queryKey: ['attribution-evidence-leads', orderId, emailKey, phoneKey],
+    enabled: !!(emailKey || phoneKey),
+    queryFn: async (): Promise<LeadMatchRow[]> => {
+      const out: LeadMatchRow[] = [];
+
+      const leadOr = [
+        emailKey ? `email.ilike.${emailKey}` : null,
+        phoneKey ? `phone.like.%${phoneKey}` : null,
+      ].filter(Boolean).join(',');
+      if (leadOr) {
+        const { data } = await supabase
+          .from('leads')
+          .select('id, email, phone, source, assigned_to, assigned_to_name, created_at')
+          .or(leadOr)
+          .order('created_at', { ascending: false })
+          .limit(15);
+        for (const l of (data ?? []) as any[]) {
+          out.push({
+            lead_table: 'leads',
+            id: l.id,
+            matched_on:
+              emailKey && (l.email || '').trim().toLowerCase() === emailKey ? 'email' : 'phone',
+            created_at: l.created_at,
+            assigned_to: l.assigned_to ?? null,
+            assigned_to_name: l.assigned_to_name ?? null,
+            source: l.source ?? null,
+          });
+        }
+      }
+
+      const emailLeadOr = [
+        emailKey ? `email.ilike.${emailKey}` : null,
+        phoneKey ? `phone_number.like.%${phoneKey}` : null,
+      ].filter(Boolean).join(',');
+      if (emailLeadOr) {
+        const { data } = await supabase
+          .from('email_leads')
+          .select('id, email, phone_number, lead_source, assigned_to, assigned_to_name, sales_person_id, sales_person_name, created_at')
+          .or(emailLeadOr)
+          .order('created_at', { ascending: false })
+          .limit(15);
+        for (const l of (data ?? []) as any[]) {
+          out.push({
+            lead_table: 'email_leads',
+            id: l.id,
+            matched_on:
+              emailKey && (l.email || '').trim().toLowerCase() === emailKey ? 'email' : 'phone',
+            created_at: l.created_at,
+            assigned_to: l.assigned_to ?? l.sales_person_id ?? null,
+            assigned_to_name: l.assigned_to_name ?? l.sales_person_name ?? null,
+            source: l.lead_source ?? 'email',
+          });
+        }
+      }
+
+      return out.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    },
+  });
+
   const selectedCallIds = useMemo(
     () => new Set(value.filter((e): e is CallLogEvidence => e.type === 'call_log').map((e) => e.call_log_id)),
+    [value],
+  );
+  const selectedLeadIds = useMemo(
+    () => new Set(value.filter((e): e is LeadEvidence => e.type === 'lead').map((e) => e.lead_id)),
     [value],
   );
   const files = useMemo(
@@ -116,6 +203,25 @@ export function AttributionEvidencePicker({
         duration: c.call_duration,
         call_type: c.call_type,
         recording_url: c.recording_url,
+      };
+      onChange([...value, item]);
+    }
+  };
+
+  const toggleLead = (l: LeadMatchRow) => {
+    if (selectedLeadIds.has(l.id)) {
+      onChange(value.filter((e) => e.type !== 'lead' || e.lead_id !== l.id));
+    } else {
+      const item: LeadEvidence = {
+        type: 'lead',
+        lead_table: l.lead_table,
+        lead_id: l.id,
+        matched_on: l.matched_on,
+        lead_created_at: l.created_at,
+        assigned_to: l.assigned_to,
+        assigned_to_name: l.assigned_to_name,
+        source: l.source,
+        assigned_matches_rep: !!salesPersonId && l.assigned_to === salesPersonId,
       };
       onChange([...value, item]);
     }
@@ -224,6 +330,68 @@ export function AttributionEvidencePicker({
           </div>
         )}
       </div>
+
+      {/* Leads matching customer email/phone */}
+      {(emailKey || phoneKey) && (
+        <div className="rounded-md border">
+          <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium">
+            <UserSearch className="h-3.5 w-3.5" />
+            Leads matching {order?.customer_email || order?.customer_phone || 'customer'}
+          </div>
+          {loadingLeads ? (
+            <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching leads…
+            </div>
+          ) : !leads?.length ? (
+            <div className="p-3 text-xs text-muted-foreground">
+              No leads found for this customer's email/phone.
+            </div>
+          ) : (
+            <div className="max-h-44 overflow-y-auto divide-y">
+              {leads.map((l) => {
+                const before = isBeforeOrder(l.created_at, orderAt);
+                const assignedMatch = !!salesPersonId && l.assigned_to === salesPersonId;
+                return (
+                  <label
+                    key={`${l.lead_table}-${l.id}`}
+                    className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-xs hover:bg-muted/40"
+                  >
+                    <Checkbox
+                      checked={selectedLeadIds.has(l.id)}
+                      onCheckedChange={() => toggleLead(l)}
+                    />
+                    <span className="font-mono">{format(new Date(l.created_at), 'dd MMM yy, HH:mm')}</span>
+                    <span className="text-muted-foreground">
+                      {l.source || l.lead_table} · via {l.matched_on}
+                    </span>
+                    <span className="ml-auto flex items-center gap-1">
+                      {salesPersonId && (
+                        assignedMatch ? (
+                          <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 text-[10px]">
+                            assigned to this rep
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-red-300 bg-red-50 text-red-700 text-[10px]">
+                            assigned: {l.assigned_to_name || 'unassigned'}
+                          </Badge>
+                        )
+                      )}
+                      <Badge
+                        variant="outline"
+                        className={before
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 text-[10px]'
+                          : 'border-amber-300 bg-amber-50 text-amber-700 text-[10px]'}
+                      >
+                        {before ? 'before order' : 'after order'}
+                      </Badge>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* File attachments */}
       <div className="space-y-1.5">

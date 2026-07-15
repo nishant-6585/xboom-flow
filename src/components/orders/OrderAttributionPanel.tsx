@@ -665,6 +665,7 @@ function AssignDialog({
             orderId={orderId}
             value={evidence}
             onChange={setEvidence}
+            salesPersonId={salesPersonId || null}
           />
         </div>
         <DialogFooter>
@@ -687,6 +688,7 @@ function RequestDialog({
   orderId: string;
 }) {
   const { requestAttribution } = useAttributionMutations();
+  const { user } = useAuth(); // requests credit the requester themselves
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
@@ -739,6 +741,7 @@ function RequestDialog({
           orderId={orderId}
           value={evidence}
           onChange={setEvidence}
+          salesPersonId={user?.id ?? null}
         />
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
