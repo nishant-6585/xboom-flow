@@ -246,7 +246,9 @@ export default function Orders() {
     refetchWooOrders, refetchWooSync, refetchWooNotifs,
   });
 
-  const canManageAttribution = role === 'admin' || role === 'sales_manager';
+  const canAttributeGrant = useCanAttributeWebsiteOrder();
+  const canManageAttribution =
+    role === 'admin' || role === 'sales_manager' || canAttributeGrant;
   const { data: attributionRequests } = usePendingAttributionRequests();
   const attributionRequestsCount = canManageAttribution
     ? attributionRequests?.rows.length ?? 0
