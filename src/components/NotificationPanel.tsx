@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
