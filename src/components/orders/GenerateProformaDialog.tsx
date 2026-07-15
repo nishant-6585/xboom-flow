@@ -811,6 +811,18 @@ export function GenerateProformaDialog({
                 <Label>Address</Label>
                 <Textarea rows={2} value={billTo.address} onChange={(e) => setBillTo((b) => ({ ...b, address: e.target.value }))} />
               </div>
+              <div className="md:col-span-2">
+                <Label>Ship To address</Label>
+                <Textarea
+                  rows={2}
+                  value={shipToAddress}
+                  onChange={(e) => setShipToAddress(e.target.value)}
+                  placeholder="Leave same as billing to render “Same as billing” on the PDF"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Prefilled from the order's shipping address. Renders as a "SHIP TO" box beside "BILL TO" on the PDF; if identical, the PDF shows "Same as billing".
+                </p>
+              </div>
               <div>
                 <Label>GSTIN</Label>
                 <Input value={billTo.gstin} onChange={(e) => setBillTo((b) => ({ ...b, gstin: e.target.value }))} />
