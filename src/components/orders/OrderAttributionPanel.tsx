@@ -17,6 +17,7 @@ import {
   useAttributionMutations,
   useAttributionLog,
   usePendingAttributionRequestsForOrder,
+  useDecidedAttributionRequestsForOrder,
   SYSTEM_USER_ID,
 } from '@/hooks/useAttributionRequests';
 import { toast } from '@/hooks/use-toast';
@@ -159,6 +160,101 @@ export function OrderAttributionPanel({
       )}
 
       <AttributionLogList orderId={order.id} />
+      <AttributionRequestAuditLog orderId={order.id} />
+    </div>
+  );
+}
+
+function AttributionRequestAuditLog({ orderId }: { orderId: string }) {
+  const { data, isLoading } = useDecidedAttributionRequestsForOrder(orderId);
+  const [expanded, setExpanded] = useState(false);
+  const INITIAL = 3;
+  if (isLoading) return null;
+  if (!data || data.length === 0) return null;
+  const visible = expanded ? data : data.slice(0, INITIAL);
+  const remaining = data.length - visible.length;
+  return (
+    <div className="pt-2 border-t border-border/60">
+      <div className="text-xs font-medium text-muted-foreground mb-2">
+        Request audit log ({data.length})
+      </div>
+      <ul className="space-y-1.5">
+        {visible.map((r) => {
+          const approved = r.status === 'approved';
+          return (
+            <li
+              key={r.id}
+              className="text-xs rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5 space-y-1"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <Badge
+                    variant="outline"
+                    className={
+                      approved
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                        : 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400'
+                    }
+                  >
+                    {approved ? (
+                      <Check className="h-3 w-3 mr-0.5" />
+                    ) : (
+                      <X className="h-3 w-3 mr-0.5" />
+                    )}
+                    {r.status}
+                  </Badge>
+                  <span className="font-medium">
+                    {r.decided_by_name ?? 'Unknown reviewer'}
+                  </span>
+                </span>
+                <span className="text-muted-foreground text-[11px]">
+                  {r.decided_at
+                    ? new Date(r.decided_at).toLocaleString('en-IN')
+                    : '—'}
+                </span>
+              </div>
+              <div className="text-muted-foreground">
+                Requested by{' '}
+                <span className="text-foreground font-medium">
+                  {r.requested_for_name ?? r.requested_by_name ?? 'Unknown'}
+                </span>
+                {' · '}
+                {reasonLabel(r.reason)}
+                {r.reason_custom && (
+                  <span className="italic"> — "{r.reason_custom}"</span>
+                )}
+              </div>
+              {r.decision_note && (
+                <div className="italic text-muted-foreground">
+                  Note: {r.decision_note}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {remaining > 0 && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 mt-1 text-[11px]"
+          onClick={() => setExpanded(true)}
+        >
+          Show {remaining} more
+        </Button>
+      )}
+      {expanded && data.length > INITIAL && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 mt-1 text-[11px]"
+          onClick={() => setExpanded(false)}
+        >
+          Show less
+        </Button>
+      )}
     </div>
   );
 }
