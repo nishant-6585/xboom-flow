@@ -758,6 +758,9 @@ export function useOrders() {
       }
 
       toast.success('Order created successfully');
+      // Refresh the orders list immediately so the new order shows up without
+      // waiting for the realtime channel (which can lag or drop on this route).
+      queryClient.invalidateQueries({ queryKey: ['orders', user?.id, role] });
       // Fire KYC onboarding (server-side: invite to portal + send KYC email if new customer)
       try {
         if (orderData?.id && formData.customer_email) {
