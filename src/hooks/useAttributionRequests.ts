@@ -160,6 +160,26 @@ export function usePendingAttributionRequestsForOrder(
   });
 }
 
+/** All decided (approved/rejected) attribution requests for an order — audit trail. */
+export function useDecidedAttributionRequestsForOrder(
+  orderId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: ['decided-attribution-requests-for-order', orderId],
+    enabled: !!orderId,
+    queryFn: async (): Promise<AttributionRequest[]> => {
+      const { data, error } = await supabase
+        .from('sales_attribution_requests')
+        .select('*')
+        .eq('order_id', orderId!)
+        .in('status', ['approved', 'rejected'])
+        .order('decided_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as AttributionRequest[];
+    },
+  });
+}
+
 export function useAttributionMutations() {
   const qc = useQueryClient();
   const invalidate = () => {
