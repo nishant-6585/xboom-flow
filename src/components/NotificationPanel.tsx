@@ -158,7 +158,11 @@ function NotificationItem({
                 className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
                 onClick={() => {
                   if (!notification.is_read) onMarkAsRead(notification.id);
-                  navigate('/orders?tab=attribution_requests');
+                  navigate(
+                    notification.order_id
+                      ? `/orders?order_id=${notification.order_id}`
+                      : '/orders?tab=attribution_requests'
+                  );
                 }}
               >
                 View request
