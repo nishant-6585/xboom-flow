@@ -21,6 +21,7 @@ import OrdersAnalyticsTab from '@/components/orders/tabs/OrdersAnalyticsTab';
 import OrdersSupportCallsTab from '@/components/orders/tabs/OrdersSupportCallsTab';
 import OrdersDeletedTab from '@/components/orders/tabs/OrdersDeletedTab';
 import { AttributionRequestsQueue } from '@/components/orders/AttributionRequestsQueue';
+import { useCanAttributeWebsiteOrder } from '@/hooks/useCanAttributeWebsiteOrder';
 import { usePendingAttributionRequests } from '@/hooks/useAttributionRequests';
 
 import { useOrders, Order, OrderOutcome, LostReason } from '@/hooks/useOrders';
@@ -246,7 +247,9 @@ export default function Orders() {
     refetchWooOrders, refetchWooSync, refetchWooNotifs,
   });
 
-  const canManageAttribution = role === 'admin' || role === 'sales_manager';
+  const canAttributeGrant = useCanAttributeWebsiteOrder();
+  const canManageAttribution =
+    role === 'admin' || role === 'sales_manager' || canAttributeGrant;
   const { data: attributionRequests } = usePendingAttributionRequests();
   const attributionRequestsCount = canManageAttribution
     ? attributionRequests?.rows.length ?? 0
