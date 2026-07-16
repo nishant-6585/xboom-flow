@@ -117,27 +117,57 @@ Deno.serve(async (req) => {
     try {
       const docs = await listUrlDocsInFolder(apiKey, folderId);
       outcome.listed = docs.length;
-      for (const doc of docs) {
-        try {
-          const { status, body } = await refreshDoc(apiKey, doc.id);
-          outcome.refreshed.push({
-            document_id: doc.id,
-            name: doc.name,
-            url: doc?.url || doc?.extracted_inner_html_url,
-            status,
-            ok: status >= 200 && status < 300,
-            error: status >= 400 ? JSON.stringify(body).slice(0, 500) : undefined,
-          });
-        } catch (e) {
-          outcome.refreshed.push({
-            document_id: doc.id, name: doc.name, status: 0, ok: false, error: String(e).slice(0, 500),
-          });
-        }
-      }
+        console.log(`[kb-refresh] folder ${folderId}: ${docs.length} url docs`);
+        // Parallel refresh with concurrency limit
+        const CONCURRENCY = 8;
+        let cursor = 0;
+        const workers = Array.from({ length: CONCURRENCY }, async () => {
+          while (true) {
+            const idx = cursor++;
+            if (idx >= docs.length) return;
+            const doc = docs[idx];
+            try {
+              const { status, body } = await refreshDoc(apiKey, doc.id);
+              outcome.refreshed.push({
+                document_id: doc.id,
+                name: doc.name,
+                url: doc?.url || doc?.extracted_inner_html_url,
+                status,
+                ok: status >= 200 && status < 300,
+                error: status >= 400 ? JSON.stringify(body).slice(0, 400) : undefined,
+              });
+            } catch (e) {
+              outcome.refreshed.push({
+                document_id: doc.id, name: doc.name, status: 0, ok: false, error: String(e).slice(0, 400),
+              });
+            }
+          }
+        });
+        await Promise.all(workers);
     } catch (e) {
       outcome.error = String(e).slice(0, 1000);
     }
     results.push(outcome);
+      // Log progress per folder in case we're killed mid-run
+      try {
+        await supabase.from("domain_events").insert({
+          event_type: "elevenlabs.kb_refresh",
+          payload: {
+            triggered_by: triggeredBy,
+            agent_id: agentId,
+            folder_id: folderId,
+            partial: true,
+            mechanism: "per_url_document_refresh",
+            listed: outcome.listed,
+            refreshed_ok: outcome.refreshed.filter((x) => x.ok).length,
+            refreshed_total: outcome.refreshed.length,
+            error: outcome.error,
+            failures: outcome.refreshed.filter((x) => !x.ok).slice(0, 20),
+          },
+        });
+      } catch (e) {
+        console.error("per-folder log failed", e);
+      }
     }
     const total = results.reduce((s, r) => s + r.refreshed.length, 0);
     const ok = results.reduce((s, r) => s + r.refreshed.filter((x) => x.ok).length, 0);
