@@ -2664,7 +2664,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
               {/* Payment Records */}
               <div className="pt-3 border-t border-border">
-                <h5 className="text-sm font-medium mb-2">Payment Records</h5>
+                <div className="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
+                  <h5 className="text-sm font-medium">Payment Records</h5>
+                  <p className="text-[11px] text-muted-foreground">
+                    Split payments supported — click <span className="font-medium">Upload Payment</span> once per mode
+                    (e.g. ₹10,000 cash + ₹40,000 UPI). Amount Paid recomputes across all approved records.
+                  </p>
+                </div>
                 <PaymentRecordsList orderId={order.id} />
               </div>
             </div>
