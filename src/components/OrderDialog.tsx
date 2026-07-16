@@ -747,6 +747,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     isRefundRequested, refundReason, refundStatus, priority, orderOutcome,
     lostReason, lostReasonNotes, supplierPaymentTerms, supplierPaymentDueDate,
     orderDate, isRto, cancellationReason, deliveryMode, user?.id,
+    canEditFinancials, canEditDiscount, isOwnOrder,
   ]);
 
   const isDirty = useMemo(
