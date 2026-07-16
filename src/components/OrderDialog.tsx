@@ -1406,7 +1406,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <OrderNumberBadge orderNumber={order.order_number} size="md" />
                     </>
                   )}
-                  {canEditOrder && (
+                  {canRefreshPrice && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -1416,7 +1416,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       title="Refresh prices from current pricelist"
                     >
                       {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      Refresh Prices
+                      ↻ Refresh price
                     </Button>
                   )}
                 </DialogTitle>
