@@ -421,22 +421,16 @@ Deno.serve(async (req) => {
       const mismatchMsg =
         `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" ` +
         `(score ${(match.score * 100).toFixed(0)}%).${aiNote}`;
-      await admin.from("notifications").insert([
-        {
-          target_role: "admin",
-          type: "kyc_name_mismatch",
-          title: "KYC name mismatch needs review",
-          message: mismatchMsg,
-          account_id: accountId,
-        },
-        {
-          target_role: "sales_manager",
-          type: "kyc_name_mismatch",
-          title: "KYC name mismatch needs review",
-          message: mismatchMsg,
-          account_id: accountId,
-        },
-      ]);
+      // ONE row only: admins see every notification regardless of target_role
+      // (RLS "Admins can view all"), so a second admin-targeted row would
+      // show reviewers the same alert twice.
+      await admin.from("notifications").insert({
+        target_role: "sales_manager",
+        type: "kyc_name_mismatch",
+        title: "KYC name mismatch needs review",
+        message: mismatchMsg,
+        account_id: accountId,
+      });
       return redirectToPortal("mismatch");
     }
 
@@ -459,6 +453,15 @@ Deno.serve(async (req) => {
         threshold: DEFAULT_THRESHOLD,
         document_type: docType,
       },
+    });
+    // Single row — admins see all notifications, sales managers see
+    // sales-targeted ones, so one sales_manager row reaches both.
+    await admin.from("notifications").insert({
+      target_role: "sales_manager",
+      type: "kyc_approved",
+      title: "KYC approved",
+      message: `KYC for "${expectedName || verified.name || "?"}" auto-approved via DigiLocker (name match ${(match.score * 100).toFixed(0)}%).`,
+      account_id: accountId,
     });
     return redirectToPortal("success");
   }
@@ -657,23 +660,15 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Notify reviewers (admin + sales_manager have review permission)
-    await admin.from("notifications").insert([
-      {
-        target_role: "admin",
-        type: "kyc_name_mismatch",
-        title: "KYC name mismatch needs review",
-        message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
-        account_id: accountId,
-      },
-      {
-        target_role: "sales_manager",
-        type: "kyc_name_mismatch",
-        title: "KYC name mismatch needs review",
-        message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
-        account_id: accountId,
-      },
-    ]);
+    // ONE row only — admins see every notification regardless of
+    // target_role, so a second admin-targeted row duplicates the alert.
+    await admin.from("notifications").insert({
+      target_role: "sales_manager",
+      type: "kyc_name_mismatch",
+      title: "KYC name mismatch needs review",
+      message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+      account_id: accountId,
+    });
 
     return json({ ok: true, stage: "name_mismatch", score: match.score });
   }
@@ -701,6 +696,14 @@ Deno.serve(async (req) => {
       score: match.score,
       threshold: DEFAULT_THRESHOLD,
     },
+  });
+
+  await admin.from("notifications").insert({
+    target_role: "sales_manager",
+    type: "kyc_approved",
+    title: "KYC approved",
+    message: `KYC for "${expectedName || verified.name || "?"}" auto-approved via DigiLocker (name match ${(match.score * 100).toFixed(0)}%).`,
+    account_id: accountId,
   });
 
   return json({ ok: true, stage: "auto_approved", score: match.score });

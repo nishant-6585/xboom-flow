@@ -432,6 +432,19 @@ async function runReview(
         ai_confidence: aiConfidence,
       },
     });
+    // Single notification row: admins see all rows via RLS, sales managers
+    // see sales-targeted rows — one sales_manager row reaches both without
+    // duplicates. The DigiLocker fallback callers rely on THIS insert (they
+    // don't add their own), so each approval notifies exactly once.
+    await admin.from("notifications").insert({
+      target_role: "sales_manager",
+      type: "kyc_approved",
+      title: "KYC approved",
+      message: digilockerFallback
+        ? `DigiLocker name check failed, but XBoomFlow AI verified the certificate and approved KYC for "${expectedName || aiHolderName || "?"}" (name match ${(nameCmp.score * 100).toFixed(0)}%).`
+        : `KYC for "${expectedName || aiHolderName || "?"}" auto-approved by XBoomFlow AI (name match ${(nameCmp.score * 100).toFixed(0)}%, confidence ${(aiConfidence * 100).toFixed(0)}%).`,
+      account_id: accountId,
+    });
   } else {
     // Do NOT hard reject. Just log that AI reviewed and the row is queued.
     await admin.from("kyc_audit_log").insert({
