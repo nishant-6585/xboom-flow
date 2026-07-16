@@ -3218,8 +3218,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   />
                 </div>
 
-                {/* Financial fields - Supply Chain / Admin only */}
-                {canEdit && (
+                {/* Financial fields — hand-editable only by admin / sales_manager. */}
+                {canEditFinancials && (
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -3287,6 +3287,40 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       </div>
                     </div>
                   </>
+                )}
+
+                {/* Sales own-order discount lever (when full financial edit is denied). */}
+                {!canEditFinancials && canEditDiscount && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sales_discount_amount">Discount (₹)</Label>
+                      <Input
+                        id="sales_discount_amount"
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={discountAmount}
+                        onChange={e => setDiscountAmount(e.target.value)}
+                        disabled={loading}
+                        placeholder="0"
+                      />
+                      {(() => {
+                        const gross = (parseFloat(totalSalesAmount) || order.total_sales_amount || 0)
+                          + (parseFloat(discountAmount) || 0)
+                          - (Number(order.discount_amount) || 0);
+                        const disc = parseFloat(discountAmount) || 0;
+                        const finalTotal = Math.max(0, gross - disc);
+                        const invalid = disc < 0 || (gross > 0 && disc >= gross);
+                        return (
+                          <p className={`text-xs ${invalid ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {invalid
+                              ? 'Discount must be ≥ 0 and less than the gross total.'
+                              : `Final total after discount: ₹${finalTotal.toLocaleString('en-IN')}`}
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 )}
 
 
