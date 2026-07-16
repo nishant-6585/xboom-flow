@@ -1070,6 +1070,19 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                       <p className="text-xs text-muted-foreground">Subtracted from total</p>
                     </div>
                   </div>
+                  {(() => {
+                    const disc = Number(formData.discount_amount || 0);
+                    const total = Number(formData.total_sales_amount || 0);
+                    const gross = total + disc;
+                    const invalid = disc < 0 || (gross > 0 && disc >= gross);
+                    return (
+                      <p className={`text-xs -mt-2 ${invalid ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {invalid
+                          ? 'Discount must be ≥ 0 and less than the gross total.'
+                          : `Gross ₹${gross.toLocaleString('en-IN')} − Discount ₹${disc.toLocaleString('en-IN')} = Final ₹${total.toLocaleString('en-IN')}`}
+                      </p>
+                    );
+                  })()}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
