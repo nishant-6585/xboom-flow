@@ -110,9 +110,9 @@ Deno.serve(async (req) => {
   const folderIds = envFolders.length ? envFolders : DEFAULT_FOLDER_IDS;
   const agentId = Deno.env.get("ELEVENLABS_AGENT_ID") || DEFAULT_AGENT_ID;
 
-  const results: FolderOutcome[] = [];
-
-  for (const folderId of folderIds) {
+  const runWork = async () => {
+    const results: FolderOutcome[] = [];
+    for (const folderId of folderIds) {
     const outcome: FolderOutcome = { folder_id: folderId, listed: 0, refreshed: [] };
     try {
       const docs = await listUrlDocsInFolder(apiKey, folderId);
@@ -138,33 +138,40 @@ Deno.serve(async (req) => {
       outcome.error = String(e).slice(0, 1000);
     }
     results.push(outcome);
-  }
+    }
+    const total = results.reduce((s, r) => s + r.refreshed.length, 0);
+    const ok = results.reduce((s, r) => s + r.refreshed.filter((x) => x.ok).length, 0);
+    try {
+      await supabase.from("domain_events").insert({
+        event_type: "elevenlabs.kb_refresh",
+        payload: {
+          triggered_by: triggeredBy,
+          agent_id: agentId,
+          folder_ids: folderIds,
+          mechanism: "per_url_document_refresh",
+          total_docs: total,
+          refreshed_ok: ok,
+          results,
+        },
+      });
+    } catch (e) {
+      console.error("domain_events insert failed", e);
+    }
+    console.log(`[kb-refresh] done: total=${total} ok=${ok}`);
+  };
 
-  // Log per-target outcome to domain_events
-  try {
-    await supabase.from("domain_events").insert({
-      event_type: "elevenlabs.kb_refresh",
-      payload: {
-        triggered_by: triggeredBy,
-        agent_id: agentId,
-        folder_ids: folderIds,
-        mechanism: "per_url_document_refresh",
-        results,
-      },
-    });
-  } catch (e) {
-    console.error("domain_events insert failed", e);
-  }
+  // Respond immediately; work continues in the background.
+  // deno-lint-ignore no-explicit-any
+  const rt: any = (globalThis as any).EdgeRuntime;
+  if (rt?.waitUntil) rt.waitUntil(runWork());
+  else runWork().catch((e) => console.error("runWork failed", e));
 
-  const total = results.reduce((s, r) => s + r.refreshed.length, 0);
-  const ok = results.reduce((s, r) => s + r.refreshed.filter((x) => x.ok).length, 0);
   return new Response(JSON.stringify({
     triggered_by: triggeredBy,
+    status: "accepted",
     mechanism: "per_url_document_refresh",
     agent_id: agentId,
     folder_ids: folderIds,
-    total_docs: total,
-    refreshed_ok: ok,
-    results,
-  }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    note: "Refresh runs in the background; per-doc outcomes are logged to domain_events (event_type='elevenlabs.kb_refresh').",
+  }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
