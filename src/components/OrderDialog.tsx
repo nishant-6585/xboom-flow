@@ -100,6 +100,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const isSales = role === 'sales';
   const isSupplyChain = role === 'supply_chain';
   const isFinance = role === 'finance';
+  const isSalesManager = role === 'sales_manager';
   // Sales and Supply Chain now have full field editing access
   const canEdit = isSupplyChain || isAdmin || isFinance || isSales;
   const isOwnOrder = isSales && order?.sales_person_id === user?.id;
@@ -110,6 +111,27 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const canDelete = isAdmin || isSupplyChain;
   const canSeeProcurement = isSupplyChain || isAdmin || isFinance;
   const canEscalate = isSales && onEscalate;
+  // --- Per-role financial field classification (guard_orders_sensitive_updates) ---
+  // Direct hand-edits to selling_price / total_sales_amount / amount_paid /
+  // payment_status are reserved for admin + sales_manager. Sales sees them
+  // read-only. Discount is the salesperson's lever on OWN orders.
+  const canEditFinancials = isAdmin || isSalesManager;
+  const canEditDiscount = canEditFinancials || isOwnOrder;
+  const [hasPriceRefreshGrant, setHasPriceRefreshGrant] = useState(false);
+  const canRefreshPrice = canEditFinancials || hasPriceRefreshGrant;
+  useEffect(() => {
+    if (!user?.id) { setHasPriceRefreshGrant(false); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('price_refresh_grants')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!cancelled) setHasPriceRefreshGrant(!!data);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
