@@ -5,6 +5,8 @@ project_id = "mxsotxddcvmeluqonuuj"
     verify_jwt = false
   [functions.ai-email-lead-processor]
     verify_jwt = false
+  [functions.ai-kyc-review]
+    verify_jwt = false
   [functions.ai-lead-scoring]
     verify_jwt = false
   [functions.ai-portal-assistant]
