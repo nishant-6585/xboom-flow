@@ -2478,8 +2478,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       step={0.01}
                       value={totalSalesAmount}
                       onChange={e => setTotalSalesAmount(e.target.value)}
-                      disabled={loading}
+                      disabled={loading || !canEditFinancials}
+                      readOnly={!canEditFinancials}
                     />
+                    {!canEditFinancials && (
+                      <p className="text-xs text-muted-foreground">
+                        Apply a discount below, or ask a manager for a price change.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_discount">Discount (₹)</Label>
@@ -2490,9 +2496,25 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       step={0.01}
                       value={discountAmount}
                       onChange={e => setDiscountAmount(e.target.value)}
-                      disabled={loading}
+                      disabled={loading || !canEditDiscount}
+                      readOnly={!canEditDiscount}
                       placeholder="0"
                     />
+                    {canEditDiscount && (() => {
+                      const gross = (parseFloat(totalSalesAmount) || order.total_sales_amount || 0)
+                        + (parseFloat(discountAmount) || 0)
+                        - (Number(order.discount_amount) || 0);
+                      const disc = parseFloat(discountAmount) || 0;
+                      const finalTotal = Math.max(0, gross - disc);
+                      const invalid = disc < 0 || (gross > 0 && disc >= gross);
+                      return (
+                        <p className={`text-xs ${invalid ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {invalid
+                            ? 'Discount must be ≥ 0 and less than the gross total.'
+                            : `Final total after discount: ₹${finalTotal.toLocaleString('en-IN')}`}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_amount_paid">Amount Paid (₹)</Label>
@@ -2503,13 +2525,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       step={0.01}
                       value={amountPaid}
                       onChange={e => setAmountPaid(e.target.value)}
-                      disabled={loading}
+                      disabled={loading || !canEditFinancials}
+                      readOnly={!canEditFinancials}
                     />
+                    {!canEditFinancials && (
+                      <p className="text-xs text-muted-foreground">
+                        Derived from payment records — add a payment below.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_payment_status">Payment Status</Label>
-                    <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
-                      <SelectTrigger>
+                    <Select
+                      value={paymentStatus}
+                      onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}
+                      disabled={!canEditFinancials}
+                    >
+                      <SelectTrigger disabled={!canEditFinancials}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -2518,6 +2550,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         ))}
                       </SelectContent>
                     </Select>
+                    {!canEditFinancials && (
+                      <p className="text-xs text-muted-foreground">
+                        Derived from payment records — add a payment below.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_payment_terms">Payment Terms</Label>
