@@ -316,6 +316,28 @@ Deno.serve(async (req) => {
         });
         aiFallback = await aiRes.json().catch(() => null);
         if (aiRes.ok && aiFallback?.decision === "auto_approved") {
+          // Stamp both verdicts on the document so the queue's
+          // "Approved / Reviewed by" cell can show the DigiLocker failure
+          // and the AI save (guard score in the tooltip).
+          await admin.from("kyc_documents")
+            .update({
+              metadata: {
+                ...docMetadata,
+                name_match_guard: {
+                  score: Number(match.score.toFixed(3)),
+                  threshold: DEFAULT_THRESHOLD,
+                  expected_name: expectedName,
+                  matched_candidate: match.matchedCandidate,
+                  checked_token_identity: Boolean(tokenName),
+                },
+                ai_second_opinion: {
+                  recommendation: aiFallback.recommendation ?? null,
+                  name_match_score: aiFallback.name_match_score ?? null,
+                  approved: true,
+                },
+              },
+            })
+            .eq("id", doc.id);
           await admin.from("kyc_audit_log").insert({
             account_id: accountId,
             document_id: doc.id,

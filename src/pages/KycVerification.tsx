@@ -582,6 +582,53 @@ export default function KycVerification() {
                                     </span>
                                   )}
                                 </span>
+                              ) : effectiveStatus === "approved" && isDigilocker && r.ai_review?.decision === "auto_approved" ? (
+                                // DigiLocker's name guard BLOCKED this doc; the internal AI
+                                // read the certificate and approved it. Credit the AI and
+                                // make the DigiLocker failure visible — don't let the
+                                // "DigiLocker (auto)" label absorb the AI's save.
+                                (() => {
+                                  const docMeta = (r.document?.metadata as any) || {};
+                                  const guardScore = docMeta.name_match_guard?.score;
+                                  return (
+                                    <TooltipProvider delayDuration={150}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="cursor-help">
+                                            <span className="font-medium text-violet-700 inline-flex items-center gap-1">
+                                              <Sparkles className="h-3 w-3" /> XBoomFlow AI (auto)
+                                            </span>
+                                            <span className="block text-[10px] font-normal text-amber-700">
+                                              DigiLocker name check failed — AI verified the match
+                                            </span>
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs text-xs">
+                                          <div className="space-y-0.5">
+                                            <div>
+                                              DigiLocker blocked auto-approve
+                                              {guardScore != null
+                                                ? ` (name guard ${Math.round(guardScore * 100)}%)`
+                                                : " (name guard failed)"}
+                                              . XBoomFlow AI read the certificate PDF and confirmed the
+                                              holder matches the customer.
+                                            </div>
+                                            {r.ai_review.extracted_holder_name && (
+                                              <div>AI read: "{r.ai_review.extracted_holder_name}"</div>
+                                            )}
+                                            {r.ai_review.name_match_score != null && (
+                                              <div>AI name match: {(r.ai_review.name_match_score * 100).toFixed(0)}%</div>
+                                            )}
+                                            {r.ai_review.ai_confidence != null && (
+                                              <div>AI confidence: {(r.ai_review.ai_confidence * 100).toFixed(0)}%</div>
+                                            )}
+                                            {r.ai_review.model && <div>Model: {r.ai_review.model}</div>}
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  );
+                                })()
                               ) : effectiveStatus === "approved" && isDigilocker ? (
                                 <span className="font-medium text-emerald-700">DigiLocker (auto)</span>
                               ) : effectiveStatus === "approved" && r.ai_review && (r.ai_review.decision === "auto_approved" || r.ai_review.recommendation === "likely_approve") ? (
