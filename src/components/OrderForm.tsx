@@ -1012,6 +1012,11 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                           {getScreenshotHint(formData.payment_mode as PaymentMode)}
                         </p>
                       )}
+                      <p className="text-[11px] text-muted-foreground">
+                        Only the first receipt is captured here. Additional split payments
+                        (e.g. cash + UPI) can be added from the order after creation via
+                        <span className="font-medium"> Upload Payment</span>.
+                      </p>
                     </div>
                   </div>
 
