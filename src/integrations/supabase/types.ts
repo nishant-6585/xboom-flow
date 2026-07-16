@@ -11915,6 +11915,27 @@ export type Database = {
           },
         ]
       }
+      price_refresh_grants: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       pricelist: {
         Row: {
           availability: string | null
@@ -17302,6 +17323,7 @@ export type Database = {
       }
       can_create_admin: { Args: never; Returns: boolean }
       can_mark_website_payment: { Args: { _user_id: string }; Returns: boolean }
+      can_refresh_order_price: { Args: { _user_id: string }; Returns: boolean }
       can_register_as_admin: { Args: { p_email: string }; Returns: boolean }
       can_view_hr_document: {
         Args: { _document_id: string; _user_id: string }
@@ -18406,6 +18428,10 @@ export type Database = {
       refresh_company_engagement_stage: {
         Args: { _company_id: string }
         Returns: undefined
+      }
+      refresh_order_price_from_pricelist: {
+        Args: { p_order_id: string }
+        Returns: Json
       }
       register_trusted_device:
         | {
