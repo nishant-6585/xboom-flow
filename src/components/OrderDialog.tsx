@@ -2038,7 +2038,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <ShoppingCart className="h-5 w-5" />
                     <span className="font-medium">Order Items ({orderItems.length})</span>
                   </div>
-                  {canEditOrder && !editingOrderItems && (
+                  {canRefreshPrice && !editingOrderItems && (
                     <>
                     <Button
                       variant="ghost"
@@ -2049,7 +2049,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       title="Refresh prices from current pricelist"
                     >
                       {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      Refresh Prices
+                      ↻ Refresh price
                     </Button>
                     <Button
                       variant="ghost"
