@@ -10,7 +10,7 @@
 > previously clobbered entries). Code-level invariants live as doc comments at the seams
 > (e.g. `src/lib/orderSource.ts`, `supabase/functions/_shared/email.ts`) — those are authoritative.
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 ---
 
@@ -232,6 +232,13 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 ---
 
 ## ✅ Completed work
+
+### 2026-07-16 — Order pricing model: role-based field permissions + discount + price refresh ✅ (by Lovable, verified)
+Musthak (sales) hit 42501 editing price/payment% — root cause: field classification, not a bug. New model (migration `20260716121812`):
+- **amount_paid/payment_status**: derived from payment_records (`sync_order_amount_paid`); hand-editable ONLY admin/sales_manager; read-only+hint for sales (excluded from their save payload).
+- **selling_price/total**: admin/sales_manager edit; sales read-only; granted users refresh-derive via `refresh_order_price_from_pricelist(order_id)` RPC (pricelist match by woo_sku→name; qty×price−discount; `app.price_refresh_bypass` GUC; writes edit_history WITH actor full_name; `{skipped:'no_pricelist_match'}` — never guesses). `price_refresh_grants` table (payment_marker_grants pattern), Sanu Sabu seeded; "↻ Refresh price" button, price fields stay read-only for granted supply users.
+- **discount_amount**: the sales lever — editable on OWN orders (+ OrderForm creation input), validation 0≤d<gross, live final-total preview; guard allows own-order discount + coupled total ONLY when total delta == discount delta (or item recompute) — can't smuggle arbitrary totals.
+- **Audit win**: `order_outcome` was also silently guarded for sales → added to own-order allowance (would've been the next P1). All price-related changes land in edit_history with actor name + mechanism. pgTAP 10 asserts as sales/granted/non-granted/admin roles. Downstream discount audit: dialog summary + proforma already discount-net; no stale surface.
 
 ### 2026-07-15 — Deleted orders flow back into the lead funnel ✅ (by Lovable, verified)
 `trg_order_deleted_to_lead` (migration `20260715134929`) — AFTER UPDATE OF deleted_at, fires only on the NULL→set transition; SECURITY DEFINER; entire conversion wrapped in EXCEPTION → logs `order.deleted_to_lead_failed` + RETURN NEW (lead-creation bugs can NEVER block deletion; even the failure logger is exception-swallowed). Paths: website (external_id) → `leads` row form_type='website_order_deleted' (deduped); manual w/ enquiry_id → enquiry order_outcome='lost' + note (SKIPPED when already 'won' — never downgrade, event `enquiry_skipped_won`); manual w/ source_pipeline_id → pipeline lost; no linkage → generic `leads` row form_type='order_deleted'. Every path logs `order.deleted_to_lead` domain_event with path_taken. orders has no email_lead_id (that's enquiries) — branch correctly folded into fallback. New lead types surface automatically on /leads + Q-Forms panel (form-type driven); delete-confirm dialog explains the conversion. pgTAP 11 asserts (CI-run). Soft-delete retained deliberately (payment/audit/Zoho links); "completely deleted" = gone from all UI.
