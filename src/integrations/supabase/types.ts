@@ -16980,7 +16980,6 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           currency: string | null
-          dealer_price: number | null
           description: string | null
           id: string | null
           lead_time: string | null
@@ -16995,9 +16994,12 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
           website_price: number | null
+          website_price_includes_gst: boolean | null
           website_synced_at: string | null
+          weight_grams: number | null
           woo_product_id: number | null
           woo_sku: string | null
+          woo_stock_status: string | null
         }
         Insert: {
           availability?: string | null
@@ -17005,7 +17007,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           currency?: string | null
-          dealer_price?: number | null
           description?: string | null
           id?: string | null
           lead_time?: string | null
@@ -17020,9 +17021,12 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           website_price?: number | null
+          website_price_includes_gst?: boolean | null
           website_synced_at?: string | null
+          weight_grams?: number | null
           woo_product_id?: number | null
           woo_sku?: string | null
+          woo_stock_status?: string | null
         }
         Update: {
           availability?: string | null
@@ -17030,7 +17034,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           currency?: string | null
-          dealer_price?: number | null
           description?: string | null
           id?: string | null
           lead_time?: string | null
@@ -17045,9 +17048,12 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           website_price?: number | null
+          website_price_includes_gst?: boolean | null
           website_synced_at?: string | null
+          weight_grams?: number | null
           woo_product_id?: number | null
           woo_sku?: string | null
+          woo_stock_status?: string | null
         }
         Relationships: []
       }
