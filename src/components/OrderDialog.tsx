@@ -2038,19 +2038,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <ShoppingCart className="h-5 w-5" />
                     <span className="font-medium">Order Items ({orderItems.length})</span>
                   </div>
-                  {canRefreshPrice && !editingOrderItems && (
-                    <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={refreshPricesFromPricelist}
-                      disabled={refreshingPrices || loading}
-                      className="h-8 gap-1"
-                      title="Refresh prices from current pricelist"
-                    >
-                      {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      ↻ Refresh price
-                    </Button>
+                  {!editingOrderItems && (
+                    <div className="flex items-center gap-2">
+                    {canRefreshPrice && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={refreshPricesFromPricelist}
+                        disabled={refreshingPrices || loading}
+                        className="h-8 gap-1"
+                        title="Refresh prices from current pricelist"
+                      >
+                        {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        ↻ Refresh price
+                      </Button>
+                    )}
+                    {canEditOrder && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -2076,7 +2079,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <Pencil className="h-4 w-4" />
                       Edit
                     </Button>
-                    </>
+                    )}
+                    </div>
                   )}
                   {editingOrderItems && (
                     <div className="flex items-center gap-2">
