@@ -188,6 +188,8 @@ Deno.serve(async (req) => {
         metadata: {
           session_id: (sess as any).session_id,
           verified_name: verified.name,
+          holder_name: verified.name, // what the review UI surfaces
+          token_identity_name: verified.tokenIdentity?.name ?? null,
           verified_dob: verified.dob,
           document_type: docType,
           masked_document_number: verified.maskedDocumentNumber,
@@ -277,10 +279,65 @@ Deno.serve(async (req) => {
       (acct as any)?.primary_contact_name,
       orderName,
     ];
-    const match = matchBestName(verified.name, candidates);
+    let match = matchBestName(verified.name, candidates);
+    // Safety net: the token response carries the holder's DigiLocker
+    // account name (Aadhaar-sourced). If the certificate XML parse produced
+    // something that doesn't match (e.g. a certificate title), the account
+    // name is still the same human — score it too and keep the best.
+    const tokenName = verified.tokenIdentity?.name || null;
+    if (!match.matches && tokenName && tokenName !== verified.name) {
+      const alt = matchBestName(tokenName, candidates);
+      if (alt.score > match.score) match = alt;
+    }
     // Best-matching (or first non-empty) name — for audit/notify messages.
     const expectedName = match.matchedCandidate ||
       candidates.find((c) => (c || "").trim()) || null;
+
+    // AI second opinion: before parking a government-verified document in
+    // the reviewer queue over a name mismatch, let the in-house AI reviewer
+    // read the signed certificate PDF itself. If IT extracts a holder name
+    // that matches the customer (plus type/number agree), ai-kyc-review
+    // auto-approves the doc + account and we return success directly.
+    let aiFallback: { decision?: string; recommendation?: string; name_match_score?: number } | null = null;
+    if (!match.matches && fileSize > 0 && mimeType === "application/pdf") {
+      try {
+        const aiRes = await fetch(`${SUPABASE_URL}/functions/v1/ai-kyc-review`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SERVICE_KEY}`,
+          },
+          body: JSON.stringify({
+            document_id: doc.id,
+            account_id: accountId,
+            digilocker_fallback: true,
+          }),
+        });
+        aiFallback = await aiRes.json().catch(() => null);
+        if (aiRes.ok && aiFallback?.decision === "auto_approved") {
+          await admin.from("kyc_audit_log").insert({
+            account_id: accountId,
+            document_id: doc.id,
+            action: "ai_fallback_approved",
+            actor_role: "ai",
+            notes:
+              `DigiLocker name guard scored ${match.score.toFixed(2)} for "${verified.name || "?"}", ` +
+              `but AI review of the certificate PDF matched the customer ` +
+              `(name score ${(aiFallback.name_match_score ?? 0).toFixed(2)}) — auto-approved.`,
+            metadata: {
+              method: "digilocker",
+              provider: provider.name,
+              guard_score: match.score,
+              ai_name_match_score: aiFallback.name_match_score ?? null,
+              document_type: docType,
+            },
+          });
+          return redirectToPortal("success");
+        }
+      } catch (e) {
+        console.warn("[digilocker-callback] ai fallback failed:", (e as Error).message);
+      }
+    }
 
     if (!match.matches) {
       await admin.from("kyc_documents")
@@ -296,33 +353,44 @@ Deno.serve(async (req) => {
         acctUpd1.kyc_status = "pending_verification";
       }
       await admin.from("portal_accounts").update(acctUpd1).eq("id", accountId);
+      const aiNote = aiFallback
+        ? ` AI second opinion: ${aiFallback.recommendation || "unavailable"}` +
+          (typeof aiFallback.name_match_score === "number"
+            ? ` (name ${(aiFallback.name_match_score * 100).toFixed(0)}%)`
+            : "")
+        : " AI second opinion: unavailable";
       await admin.from("kyc_audit_log").insert({
         account_id: accountId,
         document_id: doc.id,
         action: "name_mismatch",
         actor_role: "system",
-        notes: `Verified "${verified.name || "?"}" vs expected "${expectedName || "?"}" (score ${match.score.toFixed(2)})`,
+        notes: `Verified "${verified.name || "?"}" vs expected "${expectedName || "?"}" (score ${match.score.toFixed(2)}).${aiNote}`,
         metadata: {
           method: "digilocker",
           provider: provider.name,
           score: match.score,
           threshold: DEFAULT_THRESHOLD,
           document_type: docType,
+          ai_recommendation: aiFallback?.recommendation ?? null,
+          ai_name_match_score: aiFallback?.name_match_score ?? null,
         },
       });
+      const mismatchMsg =
+        `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" ` +
+        `(score ${(match.score * 100).toFixed(0)}%).${aiNote}`;
       await admin.from("notifications").insert([
         {
           target_role: "admin",
           type: "kyc_name_mismatch",
           title: "KYC name mismatch needs review",
-          message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+          message: mismatchMsg,
           account_id: accountId,
         },
         {
           target_role: "sales_manager",
           type: "kyc_name_mismatch",
           title: "KYC name mismatch needs review",
-          message: `Verified name "${verified.name || "?"}" does not match "${expectedName || "?"}" (score ${(match.score * 100).toFixed(0)}%).`,
+          message: mismatchMsg,
           account_id: accountId,
         },
       ]);

@@ -56,7 +56,15 @@ function tokenSetSimilarity(a: string[], b: string[]): number {
   const B = new Set(expand(b, a));
   const inter = [...A].filter((x) => B.has(x)).length;
   const union = new Set([...A, ...B]).size;
-  return union === 0 ? 0 : inter / union;
+  const jaccard = union === 0 ? 0 : inter / union;
+  // Subset names are the same person with an extra surname/middle name
+  // ("SATYAM KUMAR" ⊂ "Satyam Kumar Barnwal") — score them by overlap
+  // coefficient instead of Jaccard so the extra token doesn't dilute the
+  // match. Gated on ≥2 shared tokens so a lone common surname ("Kumar")
+  // can never ride this path to a false approve.
+  const minSize = Math.min(A.size, B.size);
+  const overlap = minSize >= 2 && inter >= 2 ? inter / minSize : 0;
+  return Math.max(jaccard, overlap);
 }
 
 export interface NameMatchResult {

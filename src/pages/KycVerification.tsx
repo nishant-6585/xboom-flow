@@ -96,11 +96,20 @@ function computePendingReason(
   // DigiLocker: auto-approve is blocked when the DL holder name doesn't
   // match the customer name on the order. Surface both names explicitly.
   if (isDigilocker) {
-    const holder = meta.holder_name || r.ai_review?.extracted_holder_name || null;
+    const holder = meta.holder_name || meta.verified_name ||
+      r.ai_review?.extracted_holder_name || null;
     const details: string[] = [];
     if (holder && expected) {
       details.push(`DigiLocker holder: "${holder}"`);
       details.push(`Expected: "${expected}"`);
+    }
+    const ai = r.ai_review;
+    if (ai && typeof ai.name_match_score === "number") {
+      details.push(
+        `AI second opinion: name match ${Math.round(ai.name_match_score * 100)}%` +
+        (ai.extracted_holder_name ? ` (read "${ai.extracted_holder_name}" from certificate)` : "") +
+        (ai.recommendation ? ` — ${ai.recommendation.replace(/_/g, " ")}` : ""),
+      );
     }
     return {
       headline: "DigiLocker name didn't match — reviewer sign-off needed",
@@ -632,14 +641,14 @@ export default function KycVerification() {
                                   <TooltipContent>View document</TooltipContent>
                                 </Tooltip>
                               )}
-                              {canReview && !isDigilocker && (
+                              {canReview && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-8 w-8"
                                       disabled={rerunning === r.document!.id}
                                       onClick={async () => {
                                         setRerunning(r.document!.id);
-                                        await rerunAiReview(r.account.id, r.document!.id);
+                                        await rerunAiReview(r.account.id, r.document!.id, isDigilocker);
                                         setRerunning(null);
                                       }}>
                                       {rerunning === r.document!.id
@@ -647,7 +656,9 @@ export default function KycVerification() {
                                         : <RotateCcw className="h-4 w-4" />}
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>Re-run AI review</TooltipContent>
+                                  <TooltipContent>
+                                    {isDigilocker ? "AI second opinion on certificate" : "Re-run AI review"}
+                                  </TooltipContent>
                                 </Tooltip>
                               )}
                               {canReview && (
