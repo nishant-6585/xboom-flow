@@ -37,6 +37,8 @@ project_id = "mxsotxddcvmeluqonuuj"
     verify_jwt = false
   [functions.elevenlabs-call-summary]
     verify_jwt = false
+  [functions.elevenlabs-kb-refresh]
+    verify_jwt = false
   [functions.facebook-leads-webhook]
     verify_jwt = false
   [functions.fetch-code-context]
