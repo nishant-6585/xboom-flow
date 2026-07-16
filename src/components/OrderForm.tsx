@@ -414,6 +414,26 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return;
     }
 
+    // Discount validation: 0 <= discount < gross total.
+    {
+      const discount = Number(formData.discount_amount || 0);
+      const delivery = Number(formData.delivery_charges || 0);
+      const itemsGross = orderItems.reduce((sum, it) => {
+        const p = Number(it.unit_price || 0);
+        const q = Number(it.quantity || 0);
+        const gst = it.sales_price_includes_gst ? 0 : Number(it.sales_gst_amount || 0) * q;
+        return sum + p * q + gst;
+      }, 0) + delivery;
+      if (discount < 0) {
+        toast.error('Discount cannot be negative.');
+        return;
+      }
+      if (itemsGross > 0 && discount >= itemsGross) {
+        toast.error('Discount must be less than the gross order total.');
+        return;
+      }
+    }
+
     // Payment-mode gating: modes like UPI / NEFT / cheque MUST come with proof
     // when an initial payment is captured. Cash is proof-optional. Leaving the
     // mode blank is allowed (order can be created before any payment exists).
@@ -1050,6 +1070,19 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                       <p className="text-xs text-muted-foreground">Subtracted from total</p>
                     </div>
                   </div>
+                  {(() => {
+                    const disc = Number(formData.discount_amount || 0);
+                    const total = Number(formData.total_sales_amount || 0);
+                    const gross = total + disc;
+                    const invalid = disc < 0 || (gross > 0 && disc >= gross);
+                    return (
+                      <p className={`text-xs -mt-2 ${invalid ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {invalid
+                          ? 'Discount must be ≥ 0 and less than the gross total.'
+                          : `Gross ₹${gross.toLocaleString('en-IN')} − Discount ₹${disc.toLocaleString('en-IN')} = Final ₹${total.toLocaleString('en-IN')}`}
+                      </p>
+                    );
+                  })()}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">

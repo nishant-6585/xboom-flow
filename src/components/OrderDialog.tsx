@@ -100,6 +100,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const isSales = role === 'sales';
   const isSupplyChain = role === 'supply_chain';
   const isFinance = role === 'finance';
+  const isSalesManager = role === 'sales_manager';
   // Sales and Supply Chain now have full field editing access
   const canEdit = isSupplyChain || isAdmin || isFinance || isSales;
   const isOwnOrder = isSales && order?.sales_person_id === user?.id;
@@ -110,6 +111,27 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const canDelete = isAdmin || isSupplyChain;
   const canSeeProcurement = isSupplyChain || isAdmin || isFinance;
   const canEscalate = isSales && onEscalate;
+  // --- Per-role financial field classification (guard_orders_sensitive_updates) ---
+  // Direct hand-edits to selling_price / total_sales_amount / amount_paid /
+  // payment_status are reserved for admin + sales_manager. Sales sees them
+  // read-only. Discount is the salesperson's lever on OWN orders.
+  const canEditFinancials = isAdmin || isSalesManager;
+  const canEditDiscount = canEditFinancials || isOwnOrder;
+  const [hasPriceRefreshGrant, setHasPriceRefreshGrant] = useState(false);
+  const canRefreshPrice = canEditFinancials || hasPriceRefreshGrant;
+  useEffect(() => {
+    if (!user?.id) { setHasPriceRefreshGrant(false); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('price_refresh_grants')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!cancelled) setHasPriceRefreshGrant(!!data);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -670,6 +692,26 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       if (norm(v) !== norm((order as any)[k])) payload[k] = v;
     }
 
+    // --- Role-conditional pruning: match guard_orders_sensitive_updates ---
+    // Sales (non-privileged) can never hand-edit these; strip so a stale form
+    // value never trips a 42501 on Save Changes.
+    if (!canEditFinancials) {
+      delete payload.selling_price;
+      delete payload.amount_paid;
+      delete payload.payment_status;
+      // total_sales_amount only allowed to move if it mirrors the discount
+      // delta (guard verifies math). Drop it unless discount also changed on
+      // an OWN order.
+      const discountChanged = 'discount_amount' in payload;
+      if (!(isOwnOrder && discountChanged)) {
+        delete payload.total_sales_amount;
+      }
+    }
+    if (!canEditDiscount) {
+      delete payload.discount_amount;
+      delete payload.total_sales_amount;
+    }
+
     // Side-effect audit fields — only inject when their primary column is
     // actually changing. These never fake-enable isDirty on their own.
     if ('is_refund_requested' in payload && payload.is_refund_requested && !order.is_refund_requested) {
@@ -705,6 +747,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     isRefundRequested, refundReason, refundStatus, priority, orderOutcome,
     lostReason, lostReasonNotes, supplierPaymentTerms, supplierPaymentDueDate,
     orderDate, isRto, cancellationReason, deliveryMode, user?.id,
+    canEditFinancials, canEditDiscount, isOwnOrder,
   ]);
 
   const isDirty = useMemo(
@@ -882,8 +925,42 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
   const refreshPricesFromPricelist = async () => {
     if (!order) return;
+    if (!canRefreshPrice) {
+      toast.error('You are not permitted to refresh prices from the pricelist.');
+      return;
+    }
     setRefreshingPrices(true);
     try {
+      // Preferred path: SECURITY DEFINER RPC. Uses guard bypass so granted
+      // supply-chain users (Sanu Sabu) can refresh even though the direct
+      // orders.selling_price / total_sales_amount write is blocked for them.
+      const { data: rpcData, error: rpcErr } = await supabase.rpc(
+        'refresh_order_price_from_pricelist',
+        { p_order_id: order.id },
+      );
+      if (rpcErr) throw rpcErr;
+      const res = (rpcData ?? {}) as {
+        ok?: boolean; skipped?: string;
+        old_selling_price?: number; new_selling_price?: number;
+        old_total_sales_amount?: number; new_total_sales_amount?: number;
+      };
+      if (res.ok) {
+        const fmt = (n: number | undefined) =>
+          n == null ? '—' : `₹${Number(n).toLocaleString('en-IN')}`;
+        toast.success(
+          `Price refreshed: ${fmt(res.old_selling_price)} → ${fmt(res.new_selling_price)} · ` +
+          `Total ${fmt(res.old_total_sales_amount)} → ${fmt(res.new_total_sales_amount)}`,
+        );
+        await onUpdate(order.id, {
+          selling_price: res.new_selling_price,
+          total_sales_amount: res.new_total_sales_amount,
+        } as Partial<Order>);
+        return;
+      }
+      if (res.skipped === 'no_pricelist_match') {
+        // Fall through to the legacy per-item path (multi-line orders whose
+        // header product_name/product_code don't resolve, but line items do).
+      }
       // Legacy fallback: orders with no order_items rows — use the order header product_name
       const usingHeader = orderItems.length === 0;
       const names = usingHeader
@@ -1329,7 +1406,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <OrderNumberBadge orderNumber={order.order_number} size="md" />
                     </>
                   )}
-                  {canEditOrder && (
+                  {canRefreshPrice && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -1339,7 +1416,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       title="Refresh prices from current pricelist"
                     >
                       {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      Refresh Prices
+                      ↻ Refresh price
                     </Button>
                   )}
                 </DialogTitle>
@@ -1961,19 +2038,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <ShoppingCart className="h-5 w-5" />
                     <span className="font-medium">Order Items ({orderItems.length})</span>
                   </div>
-                  {canEditOrder && !editingOrderItems && (
-                    <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={refreshPricesFromPricelist}
-                      disabled={refreshingPrices || loading}
-                      className="h-8 gap-1"
-                      title="Refresh prices from current pricelist"
-                    >
-                      {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      Refresh Prices
-                    </Button>
+                  {!editingOrderItems && (
+                    <div className="flex items-center gap-2">
+                    {canRefreshPrice && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={refreshPricesFromPricelist}
+                        disabled={refreshingPrices || loading}
+                        className="h-8 gap-1"
+                        title="Refresh prices from current pricelist"
+                      >
+                        {refreshingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        ↻ Refresh price
+                      </Button>
+                    )}
+                    {canEditOrder && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1999,7 +2079,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <Pencil className="h-4 w-4" />
                       Edit
                     </Button>
-                    </>
+                    )}
+                    </div>
                   )}
                   {editingOrderItems && (
                     <div className="flex items-center gap-2">
@@ -2435,8 +2516,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       step={0.01}
                       value={totalSalesAmount}
                       onChange={e => setTotalSalesAmount(e.target.value)}
-                      disabled={loading}
+                      disabled={loading || !canEditFinancials}
+                      readOnly={!canEditFinancials}
                     />
+                    {!canEditFinancials && (
+                      <p className="text-xs text-muted-foreground">
+                        Apply a discount below, or ask a manager for a price change.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_discount">Discount (₹)</Label>
@@ -2447,9 +2534,25 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       step={0.01}
                       value={discountAmount}
                       onChange={e => setDiscountAmount(e.target.value)}
-                      disabled={loading}
+                      disabled={loading || !canEditDiscount}
+                      readOnly={!canEditDiscount}
                       placeholder="0"
                     />
+                    {canEditDiscount && (() => {
+                      const gross = (parseFloat(totalSalesAmount) || order.total_sales_amount || 0)
+                        + (parseFloat(discountAmount) || 0)
+                        - (Number(order.discount_amount) || 0);
+                      const disc = parseFloat(discountAmount) || 0;
+                      const finalTotal = Math.max(0, gross - disc);
+                      const invalid = disc < 0 || (gross > 0 && disc >= gross);
+                      return (
+                        <p className={`text-xs ${invalid ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {invalid
+                            ? 'Discount must be ≥ 0 and less than the gross total.'
+                            : `Final total after discount: ₹${finalTotal.toLocaleString('en-IN')}`}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_amount_paid">Amount Paid (₹)</Label>
@@ -2460,13 +2563,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       step={0.01}
                       value={amountPaid}
                       onChange={e => setAmountPaid(e.target.value)}
-                      disabled={loading}
+                      disabled={loading || !canEditFinancials}
+                      readOnly={!canEditFinancials}
                     />
+                    {!canEditFinancials && (
+                      <p className="text-xs text-muted-foreground">
+                        Derived from payment records — add a payment below.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_payment_status">Payment Status</Label>
-                    <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
-                      <SelectTrigger>
+                    <Select
+                      value={paymentStatus}
+                      onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}
+                      disabled={!canEditFinancials}
+                    >
+                      <SelectTrigger disabled={!canEditFinancials}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -2475,6 +2588,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         ))}
                       </SelectContent>
                     </Select>
+                    {!canEditFinancials && (
+                      <p className="text-xs text-muted-foreground">
+                        Derived from payment records — add a payment below.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_payment_terms">Payment Terms</Label>
@@ -3138,8 +3256,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   />
                 </div>
 
-                {/* Financial fields - Supply Chain / Admin only */}
-                {canEdit && (
+                {/* Financial fields — hand-editable only by admin / sales_manager. */}
+                {canEditFinancials && (
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -3207,6 +3325,40 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       </div>
                     </div>
                   </>
+                )}
+
+                {/* Sales own-order discount lever (when full financial edit is denied). */}
+                {!canEditFinancials && canEditDiscount && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sales_discount_amount">Discount (₹)</Label>
+                      <Input
+                        id="sales_discount_amount"
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={discountAmount}
+                        onChange={e => setDiscountAmount(e.target.value)}
+                        disabled={loading}
+                        placeholder="0"
+                      />
+                      {(() => {
+                        const gross = (parseFloat(totalSalesAmount) || order.total_sales_amount || 0)
+                          + (parseFloat(discountAmount) || 0)
+                          - (Number(order.discount_amount) || 0);
+                        const disc = parseFloat(discountAmount) || 0;
+                        const finalTotal = Math.max(0, gross - disc);
+                        const invalid = disc < 0 || (gross > 0 && disc >= gross);
+                        return (
+                          <p className={`text-xs ${invalid ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {invalid
+                              ? 'Discount must be ≥ 0 and less than the gross total.'
+                              : `Final total after discount: ₹${finalTotal.toLocaleString('en-IN')}`}
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 )}
 
 
