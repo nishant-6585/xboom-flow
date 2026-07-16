@@ -60,12 +60,12 @@ function AiRecommendationBadge({ ai }: { ai: NonNullable<KycQueueRow["ai_review"
     unclear: "bg-slate-50 text-slate-700 border-slate-200",
   };
   const label: Record<string, string> = {
-    likely_approve: "AI: likely approve",
-    likely_reject: "AI: likely reject",
-    unclear: "AI: unclear",
+    likely_approve: "XBoomFlow AI: likely approve",
+    likely_reject: "XBoomFlow AI: likely reject",
+    unclear: "XBoomFlow AI: unclear",
   };
   const cls = map[ai.recommendation] ?? map.unclear;
-  const text = label[ai.recommendation] ?? `AI: ${ai.recommendation}`;
+  const text = label[ai.recommendation] ?? `XBoomFlow AI: ${ai.recommendation}`;
   return (
     <Badge variant="outline" className={`${cls} text-[10px] flex items-center gap-1`}>
       <Sparkles className="h-3 w-3" /> {text}
@@ -116,17 +116,17 @@ function computePendingReason(
     const aiMeta = meta.ai_second_opinion || null;
     if (ai && typeof ai.name_match_score === "number") {
       details.push(
-        `AI second opinion: name match ${Math.round(ai.name_match_score * 100)}%` +
+        `XBoomFlow AI second opinion: name match ${Math.round(ai.name_match_score * 100)}%` +
         (ai.extracted_holder_name ? ` (read "${ai.extracted_holder_name}" from certificate)` : "") +
         (ai.recommendation ? ` — ${ai.recommendation.replace(/_/g, " ")}` : ""),
       );
     } else if (aiMeta && typeof aiMeta.name_match_score === "number") {
       details.push(
-        `AI second opinion: name match ${Math.round(aiMeta.name_match_score * 100)}%` +
+        `XBoomFlow AI second opinion: name match ${Math.round(aiMeta.name_match_score * 100)}%` +
         (aiMeta.recommendation ? ` — ${String(aiMeta.recommendation).replace(/_/g, " ")}` : ""),
       );
     } else {
-      details.push("AI second opinion: not available — use the rerun button for one");
+      details.push("XBoomFlow AI second opinion: not available — use the rerun button for one");
     }
     return {
       headline: "DigiLocker name didn't match — reviewer sign-off needed",
@@ -157,25 +157,25 @@ function computePendingReason(
       details.push(`Flags: ${ai.flags.join(", ")}`);
     }
     if (ai.error) {
-      details.push(`AI error: ${ai.error}`);
+      details.push(`XBoomFlow AI error: ${ai.error}`);
     }
 
     if (ai.recommendation === "likely_reject") {
       return {
-        headline: "AI recommends reject — reviewer must confirm",
-        details: details.length ? details : ["AI flagged this submission as likely reject"],
+        headline: "XBoomFlow AI recommends reject — reviewer must confirm",
+        details: details.length ? details : ["XBoomFlow AI flagged this submission as likely reject"],
       };
     }
     if (ai.recommendation === "unclear") {
       return {
-        headline: "AI couldn't decide — reviewer must confirm",
-        details: details.length ? details : ["AI confidence too low for auto-approval"],
+        headline: "XBoomFlow AI couldn't decide — reviewer must confirm",
+        details: details.length ? details : ["XBoomFlow AI confidence too low for auto-approval"],
       };
     }
     // likely_approve but still pending — policy is that AI never auto-approves,
     // so make that explicit instead of leaving the reviewer guessing.
     return {
-      headline: "AI recommends approve — awaiting reviewer sign-off",
+      headline: "XBoomFlow AI recommends approve — awaiting reviewer sign-off",
       details,
     };
   }
@@ -189,7 +189,7 @@ function computePendingReason(
 
   return {
     headline: "Awaiting reviewer decision",
-    details: ["AI analysis not available for this submission yet"],
+    details: ["XBoomFlow AI analysis not available for this submission yet"],
   };
 }
 
@@ -374,9 +374,9 @@ export default function KycVerification() {
         <StatCard label="Rejected" value={stats.rejected} tone="red" onClick={() => setStatusFilter("rejected")} active={statusFilter === "rejected"} />
         <StatCard label="DigiLocker" value={stats.digilocker} onClick={() => setMethodFilter("digilocker")} active={methodFilter === "digilocker"} />
         <StatCard label="Manual upload" value={stats.manual} onClick={() => setMethodFilter("manual")} active={methodFilter === "manual"} />
-        <StatCard label="AI · likely approve" value={stats.aiApprove} tone="green" onClick={() => setAiFilter("likely_approve")} active={aiFilter === "likely_approve"} />
-        <StatCard label="AI · likely reject" value={stats.aiReject} tone="red" onClick={() => setAiFilter("likely_reject")} active={aiFilter === "likely_reject"} />
-        <StatCard label="AI · unclear" value={stats.aiUnclear} onClick={() => setAiFilter("unclear")} active={aiFilter === "unclear"} />
+        <StatCard label="XBoomFlow AI · likely approve" value={stats.aiApprove} tone="green" onClick={() => setAiFilter("likely_approve")} active={aiFilter === "likely_approve"} />
+        <StatCard label="XBoomFlow AI · likely reject" value={stats.aiReject} tone="red" onClick={() => setAiFilter("likely_reject")} active={aiFilter === "likely_reject"} />
+        <StatCard label="XBoomFlow AI · unclear" value={stats.aiUnclear} onClick={() => setAiFilter("unclear")} active={aiFilter === "unclear"} />
         <StatCard label="Uploaded today" value={stats.todayCount} onClick={() => setDateRange("today")} active={dateRange === "today"} />
       </div>
 
@@ -457,13 +457,13 @@ export default function KycVerification() {
               </SelectContent>
             </Select>
             <Select value={aiFilter} onValueChange={setAiFilter}>
-              <SelectTrigger><SelectValue placeholder="AI recommendation" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="XBoomFlow AI recommendation" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All AI</SelectItem>
                 <SelectItem value="likely_approve">Likely approve</SelectItem>
                 <SelectItem value="likely_reject">Likely reject</SelectItem>
                 <SelectItem value="unclear">Unclear</SelectItem>
-                <SelectItem value="none">No AI review</SelectItem>
+                <SelectItem value="none">No XBoomFlow AI review</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -636,12 +636,12 @@ export default function KycVerification() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="font-medium text-violet-700 inline-flex items-center gap-1 cursor-help">
-                                        <Sparkles className="h-3 w-3" /> AI (auto)
+                                        <Sparkles className="h-3 w-3" /> XBoomFlow AI (auto)
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-xs text-xs">
                                       <div className="space-y-0.5">
-                                        <div>Auto-approved by AI{r.ai_review.model ? ` · ${r.ai_review.model}` : ""}</div>
+                                        <div>Auto-approved by XBoomFlow AI{r.ai_review.model ? ` · ${r.ai_review.model}` : ""}</div>
                                         {r.ai_review.ai_confidence != null && (
                                           <div>Confidence: {(r.ai_review.ai_confidence * 100).toFixed(0)}%</div>
                                         )}
@@ -721,7 +721,7 @@ export default function KycVerification() {
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    {isDigilocker ? "AI second opinion on certificate" : "Re-run AI review"}
+                                    {isDigilocker ? "XBoomFlow AI second opinion on certificate" : "Re-run XBoomFlow AI review"}
                                   </TooltipContent>
                                 </Tooltip>
                               )}
@@ -844,7 +844,7 @@ export default function KycVerification() {
               <div className="rounded-md border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <Sparkles className="h-3.5 w-3.5" />
-                  {rowMethod(reviewing.row) === "digilocker" ? "Internal AI review (second opinion)" : "AI analysis"}
+                  {rowMethod(reviewing.row) === "digilocker" ? "XBoomFlow AI review (second opinion)" : "XBoomFlow AI analysis"}
                   <AiRecommendationBadge ai={reviewing.row.ai_review} />
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -889,14 +889,14 @@ export default function KycVerification() {
                   </div>
                 )}
                 {reviewing.row.ai_review.error && (
-                  <div className="text-xs text-red-700">AI error: {reviewing.row.ai_review.error}</div>
+                  <div className="text-xs text-red-700">XBoomFlow AI error: {reviewing.row.ai_review.error}</div>
                 )}
               </div>
             )}
             {reviewing && !reviewing.row.ai_review && reviewing.row.document?.doc_type === "aadhaar" && (
               <div className="rounded-md border bg-slate-50 p-3 text-xs text-slate-700">
                 <div className="font-semibold uppercase tracking-wide text-[11px] text-slate-500 mb-1">
-                  AI analysis
+                  XBoomFlow AI analysis
                 </div>
                 Manual review — AI is intentionally skipped for Aadhaar to keep the
                 document off the external vision provider (data-localization).

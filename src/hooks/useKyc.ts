@@ -332,9 +332,9 @@ export function useKycQueue() {
       if (error) { toast.error(error.message); return false; }
       const skipped = (data as any)?.skipped;
       if (skipped) {
-        toast.info(`AI review skipped (${skipped})`);
+        toast.info(`XBoomFlow AI review skipped (${skipped})`);
       } else {
-        toast.success("AI review re-run complete");
+        toast.success("XBoomFlow AI review complete");
       }
       await refresh();
       return true;
