@@ -692,6 +692,26 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       if (norm(v) !== norm((order as any)[k])) payload[k] = v;
     }
 
+    // --- Role-conditional pruning: match guard_orders_sensitive_updates ---
+    // Sales (non-privileged) can never hand-edit these; strip so a stale form
+    // value never trips a 42501 on Save Changes.
+    if (!canEditFinancials) {
+      delete payload.selling_price;
+      delete payload.amount_paid;
+      delete payload.payment_status;
+      // total_sales_amount only allowed to move if it mirrors the discount
+      // delta (guard verifies math). Drop it unless discount also changed on
+      // an OWN order.
+      const discountChanged = 'discount_amount' in payload;
+      if (!(isOwnOrder && discountChanged)) {
+        delete payload.total_sales_amount;
+      }
+    }
+    if (!canEditDiscount) {
+      delete payload.discount_amount;
+      delete payload.total_sales_amount;
+    }
+
     // Side-effect audit fields — only inject when their primary column is
     // actually changing. These never fake-enable isDirty on their own.
     if ('is_refund_requested' in payload && payload.is_refund_requested && !order.is_refund_requested) {
