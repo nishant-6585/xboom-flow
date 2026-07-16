@@ -233,6 +233,10 @@ NEXT: template migration turns A–G (A: order+website-order notification → B:
 
 ## ✅ Completed work
 
+### 2026-07-16 — Sales product search broken + dealer_price leak fixed ✅ (by Lovable, verified)
+Manoj (sales) saw an EMPTY product dropdown creating orders. Root cause: migration `20260714101916` dropped sales' base-table SELECT on pricelist ("use pricelist_public") — but the view was `security_invoker`, so it applied the caller's RLS → 0 rows for sales. Fixed (migration `20260716125140`): view recreated `security_invoker = off` (owner rights) — **and the audit caught `dealer_price` leaking in the old view definition; now stripped** (final columns verified sales-safe: no cost/dealer/margin/procurement). Linter's "Security Definer View" flag = intentional, documented in the view COMMENT. LESSON: security_invoker views need base-table policies for every consuming role — tightening base RLS without checking view consumers silently blanks the view.
+Also: discount inputs confirmed unified on canEditDiscount (all 3 sites incl. payment-info editor); split payments (cash + online, N payment_records/order, sync_order_amount_paid sums all) confirmed already supported — discoverability hints added in OrderDialog + OrderForm. Live re-test with Manoj pending: discount on an order he OWNS + adding cash and UPI records back-to-back.
+
 ### 2026-07-16 — Order pricing model: role-based field permissions + discount + price refresh ✅ (by Lovable, verified)
 Musthak (sales) hit 42501 editing price/payment% — root cause: field classification, not a bug. New model (migration `20260716121812`):
 - **amount_paid/payment_status**: derived from payment_records (`sync_order_amount_paid`); hand-editable ONLY admin/sales_manager; read-only+hint for sales (excluded from their save payload).
