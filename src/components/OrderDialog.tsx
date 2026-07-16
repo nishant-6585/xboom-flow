@@ -925,8 +925,42 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
   const refreshPricesFromPricelist = async () => {
     if (!order) return;
+    if (!canRefreshPrice) {
+      toast.error('You are not permitted to refresh prices from the pricelist.');
+      return;
+    }
     setRefreshingPrices(true);
     try {
+      // Preferred path: SECURITY DEFINER RPC. Uses guard bypass so granted
+      // supply-chain users (Sanu Sabu) can refresh even though the direct
+      // orders.selling_price / total_sales_amount write is blocked for them.
+      const { data: rpcData, error: rpcErr } = await supabase.rpc(
+        'refresh_order_price_from_pricelist',
+        { p_order_id: order.id },
+      );
+      if (rpcErr) throw rpcErr;
+      const res = (rpcData ?? {}) as {
+        ok?: boolean; skipped?: string;
+        old_selling_price?: number; new_selling_price?: number;
+        old_total_sales_amount?: number; new_total_sales_amount?: number;
+      };
+      if (res.ok) {
+        const fmt = (n: number | undefined) =>
+          n == null ? '—' : `₹${Number(n).toLocaleString('en-IN')}`;
+        toast.success(
+          `Price refreshed: ${fmt(res.old_selling_price)} → ${fmt(res.new_selling_price)} · ` +
+          `Total ${fmt(res.old_total_sales_amount)} → ${fmt(res.new_total_sales_amount)}`,
+        );
+        await onUpdate(order.id, {
+          selling_price: res.new_selling_price,
+          total_sales_amount: res.new_total_sales_amount,
+        } as Partial<Order>);
+        return;
+      }
+      if (res.skipped === 'no_pricelist_match') {
+        // Fall through to the legacy per-item path (multi-line orders whose
+        // header product_name/product_code don't resolve, but line items do).
+      }
       // Legacy fallback: orders with no order_items rows — use the order header product_name
       const usingHeader = orderItems.length === 0;
       const names = usingHeader
