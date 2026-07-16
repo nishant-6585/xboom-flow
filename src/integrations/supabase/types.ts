@@ -18035,6 +18035,7 @@ export type Database = {
         Returns: undefined
       }
       infer_industry_from_name: { Args: { p_name: string }; Returns: string }
+      invoke_elevenlabs_kb_refresh: { Args: never; Returns: number }
       invoke_send_order_sms_msg91: { Args: never; Returns: number }
       invoke_woocommerce_orders_reconcile: { Args: never; Returns: number }
       invoke_woocommerce_products_backfill: { Args: never; Returns: number }
