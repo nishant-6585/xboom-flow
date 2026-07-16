@@ -203,7 +203,8 @@ function classifyDoctype(doctype: string): "driving_license" | "pan" | null {
 }
 
 function attr(xml: string, name: string): string | null {
-  const re = new RegExp(`${name}\\s*=\\s*"([^"]*)"`, "i");
+  // Non-word boundary so e.g. `swVersionNumber=` never satisfies `number=`.
+  const re = new RegExp(`(?:^|[^\\w])${name}\\s*=\\s*"([^"]*)"`, "i");
   const m = xml.match(re);
   return m ? m[1] : null;
 }
@@ -222,20 +223,46 @@ function maskDocNumber(n: string | null): string | null {
   return `${"X".repeat(Math.max(clean.length - 4, 4))} ${last4}`.trim();
 }
 
-function parseDigiLockerXml(
+// Titles DigiLocker puts in the <Certificate name="..."> ROOT attribute —
+// e.g. "Permanent Account Number Verification Record", "Driving License".
+// The root `name` is the CERTIFICATE title, never the holder; the holder
+// lives at <IssuedTo><Person name="...">. Guard the last-resort fallback so
+// a title can never be mistaken for a person again (the original cause of
+// false "name mismatch" reviewer queues on perfectly valid PAN records).
+const CERT_TITLE_RE =
+  /verification record|permanent account|driving licen[cs]e|certificate|income tax|record\b/i;
+
+/**
+ * The `<Person .../>` element inside `<IssuedTo>` — the document HOLDER.
+ * Falls back to the first <Person> anywhere if IssuedTo isn't present.
+ */
+function holderPersonEl(xml: string): string | null {
+  const issuedTo = xml.match(/<IssuedTo\b[\s\S]*?<\/IssuedTo>/i)?.[0] ?? xml;
+  return issuedTo.match(/<Person\b[^>]*>/i)?.[0] ?? null;
+}
+
+export function parseDigiLockerXml(
   xml: string,
   docKind: "driving_license" | "pan",
 ): KycVerifiedData {
-  const name =
-    attr(xml, "name") ||
+  const person = holderPersonEl(xml);
+  let name =
+    (person && attr(person, "name")) ||
     tagText(xml, "Name") ||
     tagText(xml, "name") ||
     null;
+  if (!name) {
+    // Last resort: a bare `name="..."` attribute — but never the cert title.
+    const rootName = attr(xml, "name");
+    if (rootName && !CERT_TITLE_RE.test(rootName)) name = rootName;
+  }
   const dob =
+    (person && attr(person, "dob")) ||
     attr(xml, "dob") ||
     tagText(xml, "DOB") ||
     tagText(xml, "dob") ||
     null;
+  const gender = (person && attr(person, "gender")) || attr(xml, "gender");
   const address =
     tagText(xml, "Address") ||
     tagText(xml, "address") ||
@@ -256,7 +283,7 @@ function parseDigiLockerXml(
   return {
     name: name?.trim() || null,
     dob: dob?.trim() || null,
-    gender: attr(xml, "gender"),
+    gender,
     address: address?.trim() || null,
     maskedAadhaar: null,
     aadhaarLast4: null,

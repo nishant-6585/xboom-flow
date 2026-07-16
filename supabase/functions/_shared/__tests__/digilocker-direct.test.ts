@@ -3,8 +3,10 @@ import {
   DigiLockerDirectProvider,
   type OAuthAuthorizeMeta,
   parseDDMMYYYY,
+  parseDigiLockerXml,
   verifyHmac,
 } from "../kyc-providers/digilocker-direct.ts";
+import { matchNames } from "../name-match.ts";
 import { DocumentTypeDeniedError } from "../kyc-provider.ts";
 
 function setEnv(vars: Record<string, string>) {
@@ -152,8 +154,47 @@ Deno.test("XML fetch 403 for every candidate → DocumentTypeDeniedError", async
   } finally { restore(); }
 });
 
-Deno.test("DL happy-path: HMAC-verified XML+PDF returns normalized shape and token identity", async () => {
+// ── parseDigiLockerXml: the certificate ROOT `name` attribute is the doc
+//    TITLE; the holder lives at <IssuedTo><Person name="...">. ──────────────
+const REAL_PAN_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<Certificate language="99" name="Permanent Account Number Verification Record" number="MIPPK0163H" status="A" issuedAt="2026-07-15T23:25:35+05:30">
+  <IssuedBy>
+    <Organization name="Income Tax Department" type="GOVT" uid="ITD"/>
+  </IssuedBy>
+  <IssuedTo>
+    <Person dob="09-09-1999" gender="M" name="ABHISHEK KACHHAP" title="Shri"/>
+  </IssuedTo>
+  <CertificateData></CertificateData>
+</Certificate>`;
+
+Deno.test("PAN cert: holder name comes from IssuedTo/Person, NOT the certificate title", () => {
+  const v = parseDigiLockerXml(REAL_PAN_XML, "pan");
+  assertEquals(v.name, "ABHISHEK KACHHAP");
+  assertEquals(v.documentNumberFull, "MIPPK0163H");
+  assertEquals(v.dob, "09-09-1999");
+  assertEquals(v.gender, "M");
+  // and the extracted holder fuzzy-matches the customer's display name
+  assert(matchNames(v.name, "Abhishek Kachhap").matches);
+});
+
+Deno.test("PAN cert without a Person element: title is rejected, name falls back to null", () => {
+  const xml = `<Certificate name="Permanent Account Number Verification Record" number="ABCDE1234F"><IssuedBy><Organization name="Income Tax Department"/></IssuedBy></Certificate>`;
+  const v = parseDigiLockerXml(xml, "pan");
+  // Better no name (→ token-identity fallback upstream) than a cert title
+  // that guarantees a false mismatch.
+  assertEquals(v.name, null);
+  assertEquals(v.documentNumberFull, "ABCDE1234F");
+});
+
+Deno.test("legacy flat cert: bare name attribute still accepted when it isn't a title", () => {
   const xml = `<Certificate name="Rahul Sharma" dob="1990-01-01" dlNumber="MH1420110012345"><Address>Bengaluru</Address></Certificate>`;
+  const v = parseDigiLockerXml(xml, "driving_license");
+  assertEquals(v.name, "Rahul Sharma");
+  assertEquals(v.documentNumberFull, "MH1420110012345");
+});
+
+Deno.test("DL happy-path: HMAC-verified XML+PDF returns normalized shape and token identity", async () => {
+  const xml = `<Certificate language="99" name="Driving License" number="MH1420110012345" dob="1990-01-01"><IssuedBy><Organization name="Ministry of Road Transport and Highways"/></IssuedBy><IssuedTo><Person name="Rahul Sharma" dob="1990-01-01" gender="M"/></IssuedTo><Address>Bengaluru</Address></Certificate>`;
   const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]); // "%PDF-"
   const xmlHmac = await hmacHeader(xml);
   const pdfHmac = await hmacHeader(pdf);

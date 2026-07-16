@@ -318,9 +318,16 @@ export function useKycQueue() {
   // or an earlier AI error). Note: ai-kyc-review intentionally skips DigiLocker
   // docs and already-approved accounts — it reports that back via `skipped`.
   const rerunAiReview = useCallback(
-    async (accountId: string, documentId: string) => {
+    async (accountId: string, documentId: string, digilockerFallback = false) => {
       const { data, error } = await supabase.functions.invoke("ai-kyc-review", {
-        body: { document_id: documentId, account_id: accountId },
+        body: {
+          document_id: documentId,
+          account_id: accountId,
+          // DigiLocker docs are normally skipped by the AI reviewer; this flag
+          // asks it for a second opinion on the certificate PDF (used when the
+          // name-match guard parked a government-verified doc in the queue).
+          digilocker_fallback: digilockerFallback,
+        },
       });
       if (error) { toast.error(error.message); return false; }
       const skipped = (data as any)?.skipped;

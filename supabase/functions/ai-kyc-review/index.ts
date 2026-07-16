@@ -79,12 +79,30 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // Only accept service-role invocations (this is triggered internally by
-  // kyc-handler). No user-JWT callers.
+  // Accept service-role invocations (kyc-handler / digilocker-callback) OR a
+  // staff JWT with a reviewer role (admin / sales_manager) so the "Re-run AI
+  // review" button in the KYC queue works for reviewers.
   const authHeader = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
-  if (authHeader !== SERVICE_KEY) return json({ error: "Unauthorized" }, 401);
+  let authorized = authHeader === SERVICE_KEY;
+  if (!authorized && authHeader) {
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const userClient = createClient(SUPABASE_URL, anonKey, {
+      global: { headers: { Authorization: `Bearer ${authHeader}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user } } = await userClient.auth.getUser();
+    if (user) {
+      const { data: roleRows } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      const allowed = new Set(["admin", "sales_manager"]);
+      authorized = ((roleRows as any[]) ?? []).some((r) => allowed.has(r.role));
+    }
+  }
+  if (!authorized) return json({ error: "Unauthorized" }, 401);
 
-  let body: { document_id?: string; account_id?: string };
+  let body: { document_id?: string; account_id?: string; digilocker_fallback?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -95,7 +113,7 @@ Deno.serve(async (req) => {
   if (!documentId || !accountId) return json({ error: "document_id and account_id required" }, 400);
 
   try {
-    return await runReview(admin, accountId, documentId);
+    return await runReview(admin, accountId, documentId, Boolean(body.digilocker_fallback));
   } catch (e) {
     console.error("[ai-kyc-review] fatal", e);
     await admin.from("ai_kyc_reviews").insert({
@@ -115,6 +133,7 @@ async function runReview(
   admin: ReturnType<typeof createClient>,
   accountId: string,
   documentId: string,
+  digilockerFallback = false,
 ) {
   // Load doc + declared reference (from kyc_sensitive_data — service-role only).
   const [{ data: doc }, { data: sens }, { data: acct }] = await Promise.all([
@@ -125,7 +144,7 @@ async function runReview(
       .maybeSingle(),
     admin
       .from("kyc_sensitive_data")
-      .select("aadhaar_full, document_reference")
+      .select("aadhaar_full, document_reference, document_number_full")
       .eq("document_id", documentId)
       .maybeSingle(),
     admin
@@ -143,8 +162,11 @@ async function runReview(
     return json({ skipped: "already_approved" });
   }
 
-  // DigiLocker path: skip. This function is for manual uploads only.
-  if ((doc as any).method === "digilocker") {
+  // DigiLocker path: normally skip (already government-verified) — EXCEPT
+  // when the callback explicitly asks for a second opinion because its
+  // name-match guard failed (digilocker_fallback). Then we read the signed
+  // certificate PDF ourselves and re-run the same hybrid decision.
+  if ((doc as any).method === "digilocker" && !digilockerFallback) {
     return json({ skipped: "digilocker_path" });
   }
 
@@ -185,7 +207,11 @@ async function runReview(
   }
 
   const declaredNumberRaw: string | null =
-    (isAadhaar ? (sens as any)?.aadhaar_full : (sens as any)?.document_reference) || null;
+    (isAadhaar
+      ? (sens as any)?.aadhaar_full
+      // DigiLocker docs store the government-returned number in
+      // document_number_full; manual uploads use document_reference.
+      : (sens as any)?.document_reference || (sens as any)?.document_number_full) || null;
 
   // Collect ALL of the customer's known names — the linked contact's full_name
   // (what the Customers list shows), the account's primary_contact_name, and the
@@ -317,7 +343,11 @@ async function runReview(
   const nameCmp = matchBestName(aiHolderName, nameCandidates, NAME_MATCH_THRESHOLD);
   const numberMatch = isAadhaar
     ? true // Aadhaar: name-only, don't check number (we don't ask AI for it).
-    : Boolean(aiNumberRaw && declaredNumberRaw && aiNumberRaw.toLowerCase() === declaredNumberRaw.replace(/\s|-/g, "").toLowerCase());
+    : (digilockerFallback && !declaredNumberRaw)
+      // DigiLocker fallback with no stored number: the number was already
+      // government-verified upstream — don't let its absence block approval.
+      ? true
+      : Boolean(aiNumberRaw && declaredNumberRaw && aiNumberRaw.toLowerCase() === declaredNumberRaw.replace(/\s|-/g, "").toLowerCase());
   const typeMatch = Boolean(aiDocType && declaredType && aiDocType === declaredType);
 
   const flags: string[] = [];
