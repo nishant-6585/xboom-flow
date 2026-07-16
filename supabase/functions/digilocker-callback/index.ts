@@ -172,6 +172,17 @@ Deno.serve(async (req) => {
       .eq("account_id", accountId)
       .eq("doc_type", docType);
 
+    const docMetadata: Record<string, unknown> = {
+      session_id: (sess as any).session_id,
+      verified_name: verified.name,
+      holder_name: verified.name, // what the review UI surfaces
+      token_identity_name: verified.tokenIdentity?.name ?? null,
+      verified_dob: verified.dob,
+      document_type: docType,
+      masked_document_number: verified.maskedDocumentNumber,
+      doctype_code: verified.doctypeCode,
+      uri: verified.uri,
+    };
     const { data: doc, error: docErr } = await admin
       .from("kyc_documents")
       .insert({
@@ -185,17 +196,7 @@ Deno.serve(async (req) => {
         method: "digilocker",
         provider: provider.name,
         version: (prevCount ?? 0) + 1,
-        metadata: {
-          session_id: (sess as any).session_id,
-          verified_name: verified.name,
-          holder_name: verified.name, // what the review UI surfaces
-          token_identity_name: verified.tokenIdentity?.name ?? null,
-          verified_dob: verified.dob,
-          document_type: docType,
-          masked_document_number: verified.maskedDocumentNumber,
-          doctype_code: verified.doctypeCode,
-          uri: verified.uri,
-        },
+        metadata: docMetadata,
       })
       .select("id")
       .single();
@@ -340,8 +341,28 @@ Deno.serve(async (req) => {
     }
 
     if (!match.matches) {
+      // Persist BOTH verdicts on the document so the review UI can show the
+      // DigiLocker guard result next to the internal AI second opinion.
       await admin.from("kyc_documents")
-        .update({ status: "pending_verification" })
+        .update({
+          status: "pending_verification",
+          metadata: {
+            ...docMetadata,
+            name_match_guard: {
+              score: Number(match.score.toFixed(3)),
+              threshold: DEFAULT_THRESHOLD,
+              expected_name: expectedName,
+              matched_candidate: match.matchedCandidate,
+              checked_token_identity: Boolean(tokenName),
+            },
+            ai_second_opinion: aiFallback
+              ? {
+                  recommendation: aiFallback.recommendation ?? null,
+                  name_match_score: aiFallback.name_match_score ?? null,
+                }
+              : null,
+          },
+        })
         .eq("id", doc.id);
       const { data: acctPrev1 } = await admin
         .from("portal_accounts").select("kyc_status").eq("id", accountId).maybeSingle();

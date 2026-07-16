@@ -98,18 +98,35 @@ function computePendingReason(
   if (isDigilocker) {
     const holder = meta.holder_name || meta.verified_name ||
       r.ai_review?.extracted_holder_name || null;
+    const guard = meta.name_match_guard || null;
     const details: string[] = [];
     if (holder && expected) {
       details.push(`DigiLocker holder: "${holder}"`);
       details.push(`Expected: "${expected}"`);
     }
+    if (guard?.score != null) {
+      details.push(
+        `DigiLocker name guard: ${Math.round(guard.score * 100)}% ` +
+        `(needs ${Math.round((guard.threshold ?? 0.8) * 100)}%)`,
+      );
+    }
+    // Internal AI second opinion — prefer the full review row; fall back to
+    // the outcome the callback stamped on the document metadata.
     const ai = r.ai_review;
+    const aiMeta = meta.ai_second_opinion || null;
     if (ai && typeof ai.name_match_score === "number") {
       details.push(
         `AI second opinion: name match ${Math.round(ai.name_match_score * 100)}%` +
         (ai.extracted_holder_name ? ` (read "${ai.extracted_holder_name}" from certificate)` : "") +
         (ai.recommendation ? ` — ${ai.recommendation.replace(/_/g, " ")}` : ""),
       );
+    } else if (aiMeta && typeof aiMeta.name_match_score === "number") {
+      details.push(
+        `AI second opinion: name match ${Math.round(aiMeta.name_match_score * 100)}%` +
+        (aiMeta.recommendation ? ` — ${String(aiMeta.recommendation).replace(/_/g, " ")}` : ""),
+      );
+    } else {
+      details.push("AI second opinion: not available — use the rerun button for one");
     }
     return {
       headline: "DigiLocker name didn't match — reviewer sign-off needed",
@@ -712,10 +729,75 @@ export default function KycVerification() {
                 {reviewing?.row.account.primary_contact_name || reviewing?.row.account.company_name}
               </div>
             </div>
+            {reviewing && rowMethod(reviewing.row) === "digilocker" && (() => {
+              const meta = (reviewing.row.document?.metadata as any) || {};
+              const guard = meta.name_match_guard || null;
+              const docStatus = reviewing.row.document?.status;
+              return (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <ShieldCheck className="h-3.5 w-3.5" /> DigiLocker verification
+                    {guard ? (
+                      <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-[10px]">
+                        auto-approve blocked
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]">
+                        government-verified
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div className="text-muted-foreground">Certificate holder</div>
+                    <div className="font-medium">{meta.holder_name || meta.verified_name || "—"}</div>
+                    {meta.token_identity_name && (
+                      <>
+                        <div className="text-muted-foreground">DigiLocker account name</div>
+                        <div>{meta.token_identity_name}</div>
+                      </>
+                    )}
+                    <div className="text-muted-foreground">Expected name</div>
+                    <div>{guard?.expected_name || reviewing.row.account.primary_contact_name || "—"}</div>
+                    {guard?.score != null && (
+                      <>
+                        <div className="text-muted-foreground">Name guard score</div>
+                        <div>
+                          {(guard.score * 100).toFixed(0)}%
+                          <span className="ml-1 text-muted-foreground">
+                            (needs {(Number(guard.threshold ?? 0.8) * 100).toFixed(0)}%)
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    <div className="text-muted-foreground">Document</div>
+                    <div>
+                      {formatDocType(meta.document_type || reviewing.row.document?.doc_type)}
+                      {meta.masked_document_number ? (
+                        <span className="ml-1 font-mono">{meta.masked_document_number}</span>
+                      ) : null}
+                    </div>
+                    {meta.verified_dob && (
+                      <>
+                        <div className="text-muted-foreground">DOB on certificate</div>
+                        <div>{meta.verified_dob}</div>
+                      </>
+                    )}
+                  </div>
+                  {guard && docStatus === "pending_verification" && (
+                    <div className="text-[11px] text-muted-foreground">
+                      The certificate itself is government-signed; only the name comparison
+                      fell below the auto-approve threshold. Compare both verdicts below
+                      before signing off.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             {reviewing?.row.ai_review && (
               <div className="rounded-md border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5" /> AI analysis
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {rowMethod(reviewing.row) === "digilocker" ? "Internal AI review (second opinion)" : "AI analysis"}
                   <AiRecommendationBadge ai={reviewing.row.ai_review} />
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
