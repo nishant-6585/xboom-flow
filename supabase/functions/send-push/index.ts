@@ -109,7 +109,9 @@ Deno.serve(async (req) => {
       title: "🔔 Test notification",
       body: "Push notifications are working — you're all set!",
       url: "/",
-      tag: `xboom-test-${userId}`,
+      // Unique per click — a reused tag silently REPLACES the previous
+      // notification on macOS instead of showing a new banner.
+      tag: `xboom-test-${Date.now()}`,
     });
     const result = await fanout(supa, subs as SubRow[], payload);
     return json(result);
@@ -160,7 +162,11 @@ Deno.serve(async (req) => {
     url: "/",
     notificationId: notification.id,
     enquiryId: notification.enquiry_id,
-    tag: `xboom-${notification.type}-${notification.enquiry_id ?? notification.id}`,
+    // Tag must be UNIQUE per notification. Reusing a tag (e.g. per enquiry)
+    // makes the browser REPLACE the previous notification, and on macOS the
+    // replacement happens silently in Notification Center with no new
+    // banner — users miss every alert after the first.
+    tag: `xboom-${notification.id}`,
   });
 
   const { sent, expired, failed } = await fanout(supa, subs as SubRow[], payload);

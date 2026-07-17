@@ -24,10 +24,12 @@ self.addEventListener("push", (event) => {
     body: payload.body || "",
     icon: "/favicon.png",
     badge: "/favicon.png",
-    // Same tag replaces older notifications for the same enquiry/type
-    // instead of stacking an entry per message.
-    tag: payload.tag || "xboom-notification",
-    renotify: true,
+    // IMPORTANT: tags must be unique per notification (the server sends
+    // one). A REUSED tag makes the browser replace the previous
+    // notification, and on macOS that replacement is silent — no new
+    // banner — so users miss every alert after the first. The fallback
+    // is unique for the same reason.
+    tag: payload.tag || `xboom-${Date.now()}`,
     data: { url: payload.url || "/" },
   };
 
