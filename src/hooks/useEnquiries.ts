@@ -328,9 +328,11 @@ export function useEnquiries() {
 
       if (error) throw error;
 
-      // Mirror the quote (and the salesperson-facing response notes, when
-      // provided) into the Respond & Discuss thread so the conversation
-      // stays complete. buildQuoteMirrorMessage centralizes the rules:
+      // Mirror the quote (pricing / availability / lead time only) into the
+      // Respond & Discuss thread. The Response Notes textarea has been
+      // removed from the UI — responders now write free-form text directly
+      // in the thread — so notes are intentionally NOT passed here.
+      // buildQuoteMirrorMessage centralizes the rules:
       //   - only fires when status === "responded"
       //   - never posts empty / whitespace-only content
       // A failure here MUST NOT fail the response submission — we log to
@@ -341,7 +343,6 @@ export function useEnquiries() {
           pricing: response.pricing,
           availability: response.availability,
           leadTime: response.leadTime,
-          notes: response.notes,
         },
         status,
       );
