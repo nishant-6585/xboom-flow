@@ -34,7 +34,7 @@ import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { AILeadScoring } from "./AILeadScoring";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck, Timer, StickyNote, Save, Pencil, X } from "lucide-react";
+import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, ShieldCheck, StickyNote, Save, Pencil, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { differenceInHours, differenceInMinutes, differenceInDays } from "date-fns";
 import { formatDistanceToNow } from "date-fns";
@@ -467,54 +467,6 @@ export function EnquiryDialog({
               }}
             />
 
-            {/* Display existing Supply Chain Response (for everyone to see) */}
-            {enquiry.responded_at && (
-              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="w-5 h-5 text-primary" />
-                    <h4 className="font-medium">Supply Chain Response</h4>
-                  </div>
-                  {responseTimeInfo && (
-                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium ${responseTimeInfo.colorClass}`}>
-                      <Timer className="w-3.5 h-3.5" />
-                      <span>Responded in {responseTimeInfo.displayText}</span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                  {enquiry.response_pricing && (
-                    <div>
-                      <span className="text-muted-foreground">Pricing:</span>
-                      <span className="ml-2 font-medium">{enquiry.response_pricing}</span>
-                    </div>
-                  )}
-                  {enquiry.response_availability && (
-                    <div>
-                      <span className="text-muted-foreground">Availability:</span>
-                      <span className="ml-2 font-medium">{enquiry.response_availability}</span>
-                    </div>
-                  )}
-                  {enquiry.response_lead_time && (
-                    <div>
-                      <span className="text-muted-foreground">Lead Time:</span>
-                      <span className="ml-2 font-medium">{enquiry.response_lead_time}</span>
-                    </div>
-                  )}
-                </div>
-                
-                {enquiry.response_notes && (
-                  <p className="text-sm text-muted-foreground">{enquiry.response_notes}</p>
-                )}
-                
-                <p className="text-xs text-muted-foreground border-t border-border pt-2">
-                  Responded by <span className="font-medium text-foreground">{enquiry.responded_by_name || 'Unknown'}</span>
-                  {enquiry.responded_at && ` on ${new Date(enquiry.responded_at).toLocaleString()}`}
-                </p>
-              </div>
-            )}
-
             {/* Display Admin Response (for escalated enquiries) */}
             {enquiry.is_escalated && enquiry.admin_response && (
               <div className="p-4 rounded-lg bg-success/5 border border-success/20 space-y-3">
@@ -687,6 +639,16 @@ export function EnquiryDialog({
               ref={threadRef}
               enquiryId={enquiry.id}
               onDraftChange={setThreadDraft}
+              responseMeta={
+                enquiry.responded_at
+                  ? {
+                      respondedAt: enquiry.responded_at,
+                      respondedByName: enquiry.responded_by_name,
+                      responseTimeText: responseTimeInfo?.displayText,
+                      responseTimeColorClass: responseTimeInfo?.colorClass,
+                    }
+                  : undefined
+              }
               headerRight={
                 <EnquiryNudgeButton
                   enquiryId={enquiry.id}

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, MessageSquare, Loader2, HandMetal, CornerDownLeft } from "lucide-react";
+import { Send, MessageSquare, Loader2, HandMetal, CornerDownLeft, Timer, UserCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -22,11 +22,22 @@ interface EnquiryMessage {
   is_nudge?: boolean;
 }
 
+interface ResponseMeta {
+  respondedAt?: string | null;
+  respondedByName?: string | null;
+  /** e.g. "2 min" — precomputed by the parent from created_at/responded_at */
+  responseTimeText?: string;
+  /** SLA color classes for the "Responded in …" chip */
+  responseTimeColorClass?: string;
+}
+
 interface EnquiryMessageThreadProps {
   enquiryId: string;
   onMessageSent?: () => void;
   headerRight?: React.ReactNode;
   onDraftChange?: (draft: string) => void;
+  /** When set, the first supply-chain/admin message is tagged as THE response */
+  responseMeta?: ResponseMeta;
 }
 
 export interface EnquiryMessageThreadHandle {
@@ -35,7 +46,7 @@ export interface EnquiryMessageThreadHandle {
 }
 
 export const EnquiryMessageThread = forwardRef<EnquiryMessageThreadHandle, EnquiryMessageThreadProps>(
-  function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight, onDraftChange }, ref) {
+  function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight, onDraftChange, responseMeta }, ref) {
   const { user, profile, role } = useAuth();
   const [messages, setMessages] = useState<EnquiryMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -125,6 +136,14 @@ export const EnquiryMessageThread = forwardRef<EnquiryMessageThreadHandle, Enqui
     }
   };
 
+  // The message that answered the enquiry: first non-nudge reply from the
+  // supply side. Tagged with the "Responded in …" chip when responseMeta is set.
+  const responseMessageId = responseMeta?.respondedAt
+    ? messages.find(
+        (m) => !m.is_nudge && ["supply_chain", "admin"].includes(m.sender_role)
+      )?.id
+    : undefined;
+
   const getRoleBadgeVariant = (senderRole: string) => {
     switch (senderRole) {
       case "admin": return "destructive";
@@ -191,11 +210,22 @@ export const EnquiryMessageThread = forwardRef<EnquiryMessageThreadHandle, Enqui
                   isOwn ? "ml-auto items-end" : "items-start"
                 )}
               >
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-xs flex-wrap">
                   <span className="font-medium">{msg.sender_name}</span>
                   <Badge variant={getRoleBadgeVariant(msg.sender_role)} className="text-[10px] px-1.5 py-0">
                     {getRoleLabel(msg.sender_role)}
                   </Badge>
+                  {msg.id === responseMessageId && responseMeta?.responseTimeText && (
+                    <span
+                      className={cn(
+                        "flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium",
+                        responseMeta.responseTimeColorClass
+                      )}
+                    >
+                      <Timer className="w-3 h-3" />
+                      Responded in {responseMeta.responseTimeText}
+                    </span>
+                  )}
                 </div>
                 <div
                   className={cn(
@@ -213,6 +243,18 @@ export const EnquiryMessageThread = forwardRef<EnquiryMessageThreadHandle, Enqui
               </div>
             );
           })
+        )}
+        {/* Legacy fallback: enquiry was answered (e.g. via the quote form
+            before quotes were mirrored here) but no supply message exists */}
+        {!loading && responseMeta?.respondedAt && !responseMessageId && (
+          <div className="flex items-center justify-center gap-1.5 py-1">
+            <UserCheck className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-[11px] text-muted-foreground italic">
+              Responded by {responseMeta.respondedByName || "Supply team"} on{" "}
+              {new Date(responseMeta.respondedAt).toLocaleString()}
+              {responseMeta.responseTimeText ? ` · in ${responseMeta.responseTimeText}` : ""}
+            </span>
+          </div>
         )}
       </div>
 
