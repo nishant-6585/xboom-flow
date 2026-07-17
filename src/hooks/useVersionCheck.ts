@@ -5,14 +5,16 @@
 //
 // How: vite.config.ts bakes __BUILD_ID__ into the bundle and emits the same
 // id as /version.json next to the built assets. This hook re-fetches
-// version.json whenever the tab regains focus (deliberately NOT on a timer —
-// a mid-work popup for every publish felt noisy; someone actively typing is
-// prompted the next time they come back to the tab) and shows a persistent
-// "Refresh" toast when the server's id differs from the running bundle's.
+// version.json whenever the tab regains focus, PLUS a slow 15-minute
+// heartbeat so long uninterrupted sessions still get the prompt without
+// ever switching tabs. (A fast timer felt noisy with frequent publishes;
+// 15 minutes is the compromise.) Shows a persistent "Refresh" toast when
+// the server's id differs from the running bundle's.
 
 import { useEffect } from "react";
 import { toast } from "sonner";
 
+const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 const TOAST_ID = "app-update-available";
 
 export function useVersionCheck() {
@@ -47,12 +49,14 @@ export function useVersionCheck() {
       if (document.visibilityState === "visible") check();
     };
 
+    const interval = setInterval(check, CHECK_INTERVAL_MS);
     window.addEventListener("focus", onVisible);
     document.addEventListener("visibilitychange", onVisible);
     check();
 
     return () => {
       stopped = true;
+      clearInterval(interval);
       window.removeEventListener("focus", onVisible);
       document.removeEventListener("visibilitychange", onVisible);
     };
