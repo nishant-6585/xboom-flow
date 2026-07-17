@@ -54,6 +54,7 @@ import { sendInvoiceEmail } from '@/lib/invoiceEmail';
 import { KycInviteBadge } from '@/components/orders/KycInviteBadge';
 import { CompanyOwnerPicker } from '@/components/crm/CompanyOwnerPicker';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
+import { canMarkDeliveryDone } from '@/lib/deliveryProofGuard';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -779,19 +780,24 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       return;
     }
 
-    // Office-pickup delivery requires an approved (or at least uploaded) proof
-    // photo before the order can be marked delivered.
-    const isOfficeCourier = /(office\s*deliver|office\s*pickup|self\s*deliver|hand\s*deliver|walk[-\s]?in|showroom|^\s*bus\s*$)/i.test(courierName || '');
-    if (
-      status === 'delivery_done' &&
-      (deliveryMode === 'office_pickup' || isOfficeCourier) &&
-      !(order as any).delivery_proof_url
-    ) {
-      toast.error('Upload the customer-receiving proof photo before marking this office/self-delivery order as delivered.');
-      if (isOfficeCourier && deliveryMode !== 'office_pickup') {
-        setDeliveryMode('office_pickup');
+    // Office-pickup delivery requires an approved proof photo before the
+    // order can be marked delivered. Mirror the server-side trigger locally
+    // so the user gets a clear, immediate message.
+    if (status === 'delivery_done') {
+      const proofCheck = canMarkDeliveryDone({
+        delivery_mode: deliveryMode,
+        courier_name: courierName,
+        delivery_proof_url: (order as any).delivery_proof_url ?? null,
+        delivery_proof_status: (order as any).delivery_proof_status ?? null,
+      });
+      if (proofCheck.ok === false) {
+        toast.error(proofCheck.reason);
+        const isOfficeCourier = /(office\s*deliver|office\s*pickup|self\s*deliver|hand\s*deliver|walk[-\s]?in|showroom|^\s*bus\s*$)/i.test(courierName || '');
+        if (isOfficeCourier && deliveryMode !== 'office_pickup') {
+          setDeliveryMode('office_pickup');
+        }
+        return;
       }
-      return;
     }
 
     // Validate tracking URL is a proper http(s) link
