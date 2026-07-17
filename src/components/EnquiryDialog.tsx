@@ -70,7 +70,6 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
-    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -94,7 +93,6 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
-        notes: enquiry.response_notes || "",
       });
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
@@ -121,17 +119,19 @@ export function EnquiryDialog({
     pricing: enquiry.response_pricing || "",
     availability: enquiry.response_availability || "",
     leadTime: enquiry.response_lead_time || "",
-    notes: enquiry.response_notes || "",
     adminResponseText: enquiry.admin_response || "",
     lostReason: enquiry.lost_reason || "",
     lostReasonNotes: enquiry.lost_reason_notes || "",
   };
-  const isDirty =
+  // The quote form (status + pricing fields) drives the Submit Response
+  // button — it stays disabled until something here actually changed.
+  const quoteDirty =
     status !== initialSnapshot.status ||
     response.pricing !== initialSnapshot.pricing ||
     response.availability !== initialSnapshot.availability ||
-    response.leadTime !== initialSnapshot.leadTime ||
-    response.notes !== initialSnapshot.notes ||
+    response.leadTime !== initialSnapshot.leadTime;
+  const isDirty =
+    quoteDirty ||
     threadDraft.trim() !== "" ||
     adminResponseText !== initialSnapshot.adminResponseText ||
     (status === "order_lost" && (
@@ -208,7 +208,9 @@ export function EnquiryDialog({
     const success = await onSubmitResponse(
       enquiry.id,
       status,
-      { ...response, notes: response.notes.trim() || undefined },
+      // Conversation happens in the thread; carry existing notes forward
+      // so legacy response_notes are not wiped by the update.
+      { ...response, notes: enquiry.response_notes || undefined },
       status === "order_lost" ? (lostReason as LostReason) : undefined,
       status === "order_lost" ? lostReasonNotes : undefined
     );
@@ -630,15 +632,20 @@ export function EnquiryDialog({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="responseNotes">Response Notes</Label>
-                  <Textarea
-                    id="responseNotes"
-                    placeholder="Write your response to the salesperson — it will also appear in the discussion below..."
-                    rows={3}
-                    value={response.notes}
-                    onChange={(e) => setResponse({ ...response, notes: e.target.value })}
-                  />
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    {quoteDirty
+                      ? "Click Submit Response to save the status and quote details."
+                      : "Change the status or fill a quote field to enable Submit Response. For conversation, use the discussion below."}
+                  </p>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={loading || !quoteDirty || (status === "order_lost" && !lostReason)}
+                    className="shrink-0"
+                  >
+                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Submit Response
+                  </Button>
                 </div>
 
               </div>
@@ -707,20 +714,14 @@ export function EnquiryDialog({
                 </Button>
               )}
               {canRespondToEscalation && (
-                <Button 
-                  onClick={handleAdminResponse} 
+                <Button
+                  onClick={handleAdminResponse}
                   disabled={loading || !adminResponseText.trim()}
                   variant="default"
                 >
                   {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <ShieldCheck className="w-4 h-4 mr-2" />
                   Submit Admin Response
-                </Button>
-              )}
-              {canRespond && (
-                <Button onClick={handleSubmit} disabled={loading}>
-                  {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Submit Response
                 </Button>
               )}
             </div>
