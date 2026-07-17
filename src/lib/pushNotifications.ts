@@ -100,17 +100,16 @@ export async function enablePush(userId: string): Promise<string | null> {
       return "Could not read the push subscription from the browser.";
     }
 
-    // Upsert on endpoint: re-enabling in the same browser refreshes the row.
-    const { error } = await supabase.from("push_subscriptions").upsert(
-      {
-        user_id: userId,
-        endpoint: json.endpoint,
-        p256dh: json.keys.p256dh,
-        auth: json.keys.auth,
-        user_agent: navigator.userAgent.slice(0, 250),
-      },
-      { onConflict: "endpoint" },
-    );
+    // Save via SECURITY DEFINER RPC: a browser's endpoint is unique, and on
+    // shared computers the previous row may belong to ANOTHER user — a plain
+    // client-side upsert then violates RLS (cannot touch someone else's
+    // row). The RPC reassigns the endpoint to whoever enables push last.
+    const { error } = await supabase.rpc("save_push_subscription", {
+      p_endpoint: json.endpoint,
+      p_p256dh: json.keys.p256dh,
+      p_auth: json.keys.auth,
+      p_user_agent: navigator.userAgent.slice(0, 250),
+    });
     if (error) return `Could not save the subscription: ${error.message}`;
 
     return null;
