@@ -17312,10 +17312,14 @@ export type Database = {
         Args: {
           _approved_by: string
           _approved_by_name: string
+          _check_in_time: string
+          _check_out_time: string
           _corrected_at: string
           _corrected_by: string
           _id: string
           _reconciliation_status: string
+          _status: string
+          _working_hours: number
         }
         Returns: boolean
       }
