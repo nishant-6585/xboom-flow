@@ -741,7 +741,18 @@ export function useHR() {
         return true;
       }
 
-      const { error } = await supabase
+      // Approvals must only act on still-submitted requests — sick leaves
+      // are auto-decided by the AI reviewer moments after submission, and
+      // an unguarded update here would overwrite `approver_name='AI
+      // Auto-Review'` with the HR user's name from a stale pending list.
+      // Rejections stay unguarded: HR may reject an already-approved leave
+      // (the balance refund flow).
+      if (approve && leaveReq && leaveReq.status !== 'submitted') {
+        toast.info(`This request was already ${leaveReq.status}.`);
+        return false;
+      }
+
+      let update = supabase
         .from('leave_requests')
         .update({
           status: approve ? 'approved' : 'rejected',
@@ -751,8 +762,15 @@ export function useHR() {
           comments,
         })
         .eq('id', leaveId);
+      if (approve) update = update.eq('status', 'submitted');
+
+      const { data: updated, error } = await update.select('id');
 
       if (error) throw error;
+      if (approve && (!updated || updated.length === 0)) {
+        toast.info('This request was already processed (it may have been auto-approved by AI review).');
+        return false;
+      }
 
       // Balance deduction / refund is handled atomically by the
       // `trg_sync_leave_balance_on_approval` DB trigger (SECURITY DEFINER,

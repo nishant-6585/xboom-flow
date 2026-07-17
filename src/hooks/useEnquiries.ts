@@ -326,6 +326,28 @@ export function useEnquiries() {
 
       if (error) throw error;
 
+      // Mirror the quote into the Respond & Discuss thread so the response
+      // text is visible in the conversation, not only in the header card.
+      // A failure here MUST NOT fail the response submission itself.
+      if (status === "responded") {
+        const quoteLine = [
+          response.pricing?.trim() && `Pricing: ${response.pricing.trim()}`,
+          response.availability?.trim() && `Availability: ${response.availability.trim()}`,
+          response.leadTime?.trim() && `Lead time: ${response.leadTime.trim()}`,
+        ].filter(Boolean).join(" · ");
+        const message = [quoteLine, response.notes?.trim()].filter(Boolean).join("\n");
+        if (message) {
+          const { error: msgError } = await supabase.from("enquiry_messages").insert({
+            enquiry_id: enquiryId,
+            sender_id: user.id,
+            sender_name: profile.name,
+            sender_role: role || "supply_chain",
+            message,
+          });
+          if (msgError) console.error("Failed to mirror quote into discussion thread:", msgError);
+        }
+      }
+
       // Auto-create pipeline order when moved to pipeline
       if (status === "moved_to_pipeline" && enquiry) {
         const { error: pipelineError } = await supabase

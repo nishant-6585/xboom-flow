@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { LeadMeetingsPanel } from "@/components/meetings/LeadMeetingsPanel";
-import { EnquiryMessageThread } from "@/components/enquiry/EnquiryMessageThread";
+import { EnquiryMessageThread, EnquiryMessageThreadHandle } from "@/components/enquiry/EnquiryMessageThread";
 import { EnquiryNudgeButton } from "@/components/enquiry/EnquiryNudgeButton";
 import {
   Dialog,
@@ -70,6 +70,7 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
+    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -82,6 +83,8 @@ export function EnquiryDialog({
   const [followupNote, setFollowupNote] = useState("");
   const [editingNote, setEditingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
+  const [threadDraft, setThreadDraft] = useState("");
+  const threadRef = useRef<EnquiryMessageThreadHandle>(null);
 
   // Reset form when enquiry changes
   useEffect(() => {
@@ -91,12 +94,14 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
+        notes: enquiry.response_notes || "",
       });
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
       setLostReasonNotes(enquiry.lost_reason_notes || "");
       setFollowupNote(enquiry.followup_note || "");
       setEditingNote(false);
+      setThreadDraft("");
     }
   }, [enquiry]);
 
@@ -116,6 +121,7 @@ export function EnquiryDialog({
     pricing: enquiry.response_pricing || "",
     availability: enquiry.response_availability || "",
     leadTime: enquiry.response_lead_time || "",
+    notes: enquiry.response_notes || "",
     adminResponseText: enquiry.admin_response || "",
     lostReason: enquiry.lost_reason || "",
     lostReasonNotes: enquiry.lost_reason_notes || "",
@@ -125,6 +131,8 @@ export function EnquiryDialog({
     response.pricing !== initialSnapshot.pricing ||
     response.availability !== initialSnapshot.availability ||
     response.leadTime !== initialSnapshot.leadTime ||
+    response.notes !== initialSnapshot.notes ||
+    threadDraft.trim() !== "" ||
     adminResponseText !== initialSnapshot.adminResponseText ||
     (status === "order_lost" && (
       lostReason !== initialSnapshot.lostReason ||
@@ -189,10 +197,18 @@ export function EnquiryDialog({
       return; // Don't submit without lost reason
     }
     setLoading(true);
+    // A typed-but-unsent thread message must not be lost when the dialog
+    // closes after submit — send it first. Abort if the send fails so the
+    // user's text stays in the composer.
+    const flushed = await threadRef.current?.flushDraft();
+    if (flushed === false) {
+      setLoading(false);
+      return;
+    }
     const success = await onSubmitResponse(
-      enquiry.id, 
-      status, 
-      { ...response, notes: enquiry.response_notes || undefined },
+      enquiry.id,
+      status,
+      { ...response, notes: response.notes.trim() || undefined },
       status === "order_lost" ? (lostReason as LostReason) : undefined,
       status === "order_lost" ? lostReasonNotes : undefined
     );
@@ -614,6 +630,17 @@ export function EnquiryDialog({
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="responseNotes">Response Notes</Label>
+                  <Textarea
+                    id="responseNotes"
+                    placeholder="Write your response to the salesperson — it will also appear in the discussion below..."
+                    rows={3}
+                    value={response.notes}
+                    onChange={(e) => setResponse({ ...response, notes: e.target.value })}
+                  />
+                </div>
+
               </div>
             )}
 
@@ -650,7 +677,9 @@ export function EnquiryDialog({
               </p>
             )}
             <EnquiryMessageThread
+              ref={threadRef}
               enquiryId={enquiry.id}
+              onDraftChange={setThreadDraft}
               headerRight={
                 <EnquiryNudgeButton
                   enquiryId={enquiry.id}

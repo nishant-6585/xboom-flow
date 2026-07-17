@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, MessageSquare, Loader2, HandMetal } from "lucide-react";
+import { Send, MessageSquare, Loader2, HandMetal, CornerDownLeft } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -25,9 +26,16 @@ interface EnquiryMessageThreadProps {
   enquiryId: string;
   onMessageSent?: () => void;
   headerRight?: React.ReactNode;
+  onDraftChange?: (draft: string) => void;
 }
 
-export function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight }: EnquiryMessageThreadProps) {
+export interface EnquiryMessageThreadHandle {
+  /** Sends any unsent composer text. Returns false if a send was attempted and failed. */
+  flushDraft: () => Promise<boolean>;
+}
+
+export const EnquiryMessageThread = forwardRef<EnquiryMessageThreadHandle, EnquiryMessageThreadProps>(
+  function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight, onDraftChange }, ref) {
   const { user, profile, role } = useAuth();
   const [messages, setMessages] = useState<EnquiryMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -76,8 +84,12 @@ export function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight }: 
     }
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!newMessage.trim() || !user || !profile) return;
+  const handleSend = async (): Promise<boolean> => {
+    if (!newMessage.trim()) return true;
+    if (!user || !profile) {
+      toast.error("Your profile is still loading — please try again in a moment.");
+      return false;
+    }
     setSending(true);
 
     const { error } = await supabase.from("enquiry_messages").insert({
@@ -88,12 +100,23 @@ export function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight }: 
       message: newMessage.trim(),
     });
 
-    if (!error) {
-      setNewMessage("");
-      onMessageSent?.();
+    if (error) {
+      console.error("Failed to send enquiry message:", error);
+      toast.error(`Message not sent: ${error.message}`);
+      setSending(false);
+      return false;
     }
+
+    setNewMessage("");
+    onDraftChange?.("");
+    // Refresh directly — don't rely on the realtime event arriving.
+    await fetchMessages();
+    onMessageSent?.();
     setSending(false);
+    return true;
   };
+
+  useImperativeHandle(ref, () => ({ flushDraft: handleSend }));
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -144,7 +167,7 @@ export function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight }: 
           </div>
         ) : messages.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No messages yet. Start a conversation about this enquiry.
+            No messages yet. Type below and click Send to start the discussion.
           </p>
         ) : (
           messages.map((msg) => {
@@ -176,7 +199,7 @@ export function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight }: 
                 </div>
                 <div
                   className={cn(
-                    "rounded-lg px-3 py-2 text-sm",
+                    "rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
                     isOwn
                       ? "bg-primary text-primary-foreground"
                       : "bg-background border border-border"
@@ -193,24 +216,36 @@ export function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight }: 
         )}
       </div>
 
-      <div className="flex gap-2">
-        <Textarea
-          placeholder="Type your message..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={2}
-          className="resize-none"
-        />
-        <Button
-          size="icon"
-          onClick={handleSend}
-          disabled={!newMessage.trim() || sending}
-          className="shrink-0 self-end"
-        >
-          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </Button>
+      <div className="space-y-1.5">
+        <div className="flex gap-2">
+          <Textarea
+            placeholder="Type your message, then press Enter or Send..."
+            value={newMessage}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              onDraftChange?.(e.target.value);
+            }}
+            onKeyDown={handleKeyDown}
+            rows={2}
+            className="resize-none"
+          />
+          <Button
+            size="sm"
+            onClick={handleSend}
+            disabled={!newMessage.trim() || sending}
+            className="shrink-0 self-end gap-1.5"
+          >
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {sending ? "Sending..." : "Send"}
+          </Button>
+        </div>
+        {newMessage.trim() && !sending && (
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <CornerDownLeft className="w-3 h-3 shrink-0" />
+            Not posted yet — press Enter or click Send and your message will appear above.
+          </p>
+        )}
       </div>
     </div>
   );
-}
+});
