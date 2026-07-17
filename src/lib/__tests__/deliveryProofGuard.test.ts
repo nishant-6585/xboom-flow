@@ -4,8 +4,8 @@ import { canMarkDeliveryDone } from '../deliveryProofGuard';
 describe('canMarkDeliveryDone', () => {
   it('blocks office_pickup without any proof', () => {
     const r = canMarkDeliveryDone({ delivery_mode: 'office_pickup' });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toMatch(/approved delivery photo/i);
+    if (r.ok) throw new Error('expected block');
+    expect(r.reason).toMatch(/approved delivery photo/i);
   });
 
   it('blocks office_pickup with pending (unapproved) proof', () => {
@@ -14,8 +14,8 @@ describe('canMarkDeliveryDone', () => {
       delivery_proof_url: 'delivery-proofs/x.jpg',
       delivery_proof_status: 'pending',
     });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toMatch(/awaiting approval/i);
+    if (r.ok) throw new Error('expected block');
+    expect(r.reason).toMatch(/awaiting approval/i);
   });
 
   it('allows office_pickup with approved proof', () => {
