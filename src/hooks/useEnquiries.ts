@@ -327,11 +327,15 @@ export function useEnquiries() {
 
       if (error) throw error;
 
-      // Mirror the quote (and the salesperson-facing response notes, when
-      // provided) into the Respond & Discuss thread so the conversation
-      // stays complete. buildQuoteMirrorMessage centralizes the rules:
+      // Mirror the quote into the Respond & Discuss thread so the
+      // conversation stays complete. buildQuoteMirrorMessage centralizes
+      // the rules:
       //   - only fires when status === "responded"
       //   - never posts empty / whitespace-only content
+      // Notes are deliberately NOT mirrored: the field was removed from the
+      // form (conversation happens in the thread itself) and response.notes
+      // now only carries legacy values forward — re-posting them on every
+      // submit would spam the thread.
       // A failure here MUST NOT fail the response submission — we log to
       // the console AND surface a non-blocking warning toast so the mirror
       // failure is diagnosable without breaking the response flow.
@@ -340,7 +344,6 @@ export function useEnquiries() {
           pricing: response.pricing,
           availability: response.availability,
           leadTime: response.leadTime,
-          notes: response.notes,
         },
         status,
       );
