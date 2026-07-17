@@ -790,7 +790,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         delivery_proof_url: (order as any).delivery_proof_url ?? null,
         delivery_proof_status: (order as any).delivery_proof_status ?? null,
       });
-      if (!proofCheck.ok) {
+      if (proofCheck.ok === false) {
         toast.error(proofCheck.reason);
         const isOfficeCourier = /(office\s*deliver|office\s*pickup|self\s*deliver|hand\s*deliver|walk[-\s]?in|showroom|^\s*bus\s*$)/i.test(courierName || '');
         if (isOfficeCourier && deliveryMode !== 'office_pickup') {
