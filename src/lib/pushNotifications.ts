@@ -104,7 +104,7 @@ export async function enablePush(userId: string): Promise<string | null> {
     // shared computers the previous row may belong to ANOTHER user — a plain
     // client-side upsert then violates RLS (cannot touch someone else's
     // row). The RPC reassigns the endpoint to whoever enables push last.
-    const { error } = await supabase.rpc("save_push_subscription", {
+    const { error } = await (supabase.rpc as any)("save_push_subscription", {
       p_endpoint: json.endpoint,
       p_p256dh: json.keys.p256dh,
       p_auth: json.keys.auth,
