@@ -244,6 +244,79 @@ async function notifySlackWebsiteOrder(orderRow: Record<string, unknown>, orderI
   }
 }
 
+// Sent to the SAME channel as the new-order announcement so the audience
+// that saw "New Website Order Received!" also sees its cancellation —
+// otherwise sales keeps wondering where the order went. Failures are
+// swallowed — Slack must never block order ingestion.
+async function notifySlackWebsiteOrderCancelled(
+  info: { order_number: string; customer_name: string; product_name: string; total: number },
+  orderId: string,
+  wooStatus: string,
+) {
+  try {
+    const botToken = Deno.env.get("SLACK_BOT_TOKEN");
+    if (!botToken) {
+      console.warn("[woo-mirror] SLACK_BOT_TOKEN not set, skipping Slack cancel notify");
+      return;
+    }
+    const channel = "sales-order-confirmations";
+    const formatINR = (n: number) => `₹${(n || 0).toLocaleString("en-IN")}`;
+    const reason = wooStatus === "refunded"
+      ? "Refunded on the Xboom website"
+      : "Cancelled by the customer on the Xboom website";
+    const message = {
+      channel,
+      text: `❌ Website Order #${info.order_number} from ${info.customer_name} was cancelled`,
+      blocks: [
+        {
+          type: "header",
+          text: { type: "plain_text", text: "❌ Website Order Cancelled", emoji: true },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Order *#${info.order_number}* (announced here earlier) is no longer an active order.`,
+          },
+        },
+        {
+          type: "section",
+          fields: [
+            { type: "mrkdwn", text: `*📋 Order #:*\n\`${info.order_number}\`` },
+            { type: "mrkdwn", text: `*👤 Customer:*\n${info.customer_name}` },
+            { type: "mrkdwn", text: `*📦 Product:*\n${info.product_name}` },
+            { type: "mrkdwn", text: `*💰 Order Value:*\n${formatINR(info.total)}` },
+            { type: "mrkdwn", text: `*📄 Reason:*\n${reason}` },
+            { type: "mrkdwn", text: `*➡️ Where is it now:*\nSales → Leads → Xboom Website (Order Lost)` },
+          ],
+        },
+        {
+          type: "context",
+          elements: [{
+            type: "mrkdwn",
+            text: "The order was moved to the Leads section — follow up there if the customer can be recovered.",
+          }],
+        },
+        { type: "divider" },
+      ],
+    };
+    const resp = await fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${botToken}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify(message),
+    });
+    const result = await resp.json();
+    if (!result.ok) {
+      console.error(`[woo-mirror] Slack cancel notify failed for order ${orderId}: ${result.error}`);
+    }
+  } catch (err) {
+    console.error(`[woo-mirror] Slack cancel notify exception for order ${orderId}:`, err);
+  }
+}
+
 // deno-lint-ignore no-explicit-any
 export async function mirrorIntoInternalOrders(supabase: any, payload: any, orderId: string, eventType: string) {
   const wooStatus: string = (payload?.status || "").toLowerCase();
@@ -371,6 +444,12 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
   // trigger which PUTs back to Woo and causes Woo to re-fire order.updated,
   // creating an infinite webhook loop (see the 143256/143468 flood).
   const existingStatus = existing?.status ?? null;
+  // First transition into cancelled/refunded for an order we already
+  // mirrored (and likely announced on Slack) — used to notify the same
+  // Slack channel after the row is updated.
+  const becameCancelled =
+    (wooStatus === "cancelled" || wooStatus === "refunded") &&
+    !!existing && existingStatus !== "cancelled";
   if (wooStatus === "cancelled" && existingStatus !== "cancelled") {
     orderRow.cancelled_at = new Date().toISOString();
     orderRow.cancellation_reason = "Cancelled on WooCommerce";
@@ -462,6 +541,21 @@ export async function mirrorIntoInternalOrders(supabase: any, payload: any, orde
         woo_status: wooStatus, error_message: `update error: ${updErr.message}`,
       });
       return;
+    }
+    // Close the loop on the earlier "New Website Order" announcement.
+    // Transition-guarded (like the timestamp stamps above), so repeat
+    // cancelled/refunded webhooks never re-post to Slack.
+    if (becameCancelled) {
+      await notifySlackWebsiteOrderCancelled(
+        {
+          order_number: String(orderRow.order_number ?? `WOO-${orderId}`),
+          customer_name: customerName,
+          product_name: productName,
+          total: totalAmount,
+        },
+        orderId,
+        wooStatus,
+      );
     }
   } else {
     if (wooTracking.number) orderRow.tracking_number = wooTracking.number;
