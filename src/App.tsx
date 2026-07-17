@@ -18,6 +18,7 @@ import { EnquiryResponseAlert } from "@/components/sales/EnquiryResponseAlert";
 import { NewEnquiryAlert } from "@/components/sales/NewEnquiryAlert";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeLoader } from "@/hooks/useThemeLoader";
+import { useVersionCheck } from "@/hooks/useVersionCheck";
 
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -118,7 +119,8 @@ const queryClient = new QueryClient({
 function AppInner() {
   const isMobile = useIsMobile();
   useThemeLoader();
-  
+  useVersionCheck();
+
   return (
     <>
       <DuplicateOrderGuardModal />
