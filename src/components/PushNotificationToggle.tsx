@@ -27,6 +27,7 @@ export function PushNotificationToggle() {
     | { kind: "err"; message: string }
     | null
   >(null);
+  const [swReport, setSwReport] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +38,24 @@ export function PushNotificationToggle() {
       }
     });
     return () => { cancelled = true; };
+  }, []);
+
+  // The service worker reports every push it handles (see public/sw.js) —
+  // shown here so push delivery is diagnosable without DevTools.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      const d = event.data;
+      if (!d || d.type !== "xboom-sw-push") return;
+      const time = new Date(d.at).toLocaleTimeString();
+      setSwReport(
+        d.ok
+          ? `Service worker showed "${d.title}" at ${time}${d.hadData ? "" : " (payload missing)"}.`
+          : `Service worker received a push at ${time} but display FAILED: ${d.error}`,
+      );
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
   }, []);
 
   if (!isPushSupported() || !user || !ready) return null;
@@ -145,6 +164,9 @@ export function PushNotificationToggle() {
         >
           {testResult.message}
         </p>
+      )}
+      {swReport && (
+        <p className="text-[11px] text-muted-foreground">{swReport}</p>
       )}
     </div>
   );
