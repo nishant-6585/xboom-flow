@@ -23,7 +23,7 @@ export function getPushPermission(): NotificationPermission | "unsupported" {
   return Notification.permission;
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
@@ -68,9 +68,19 @@ export async function enablePush(userId: string): Promise<string | null> {
 
     let subscription = await reg.pushManager.getSubscription();
     if (!subscription) {
+      let keyBytes: Uint8Array;
+      try {
+        keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY!);
+      } catch {
+        return "Push is misconfigured: the VAPID public key is invalid — contact the administrator.";
+      }
+      // Uncompressed P-256 public key: 65 bytes, leading 0x04.
+      if (keyBytes.length !== 65 || keyBytes[0] !== 0x04) {
+        return "Push is misconfigured: the VAPID public key is invalid — contact the administrator.";
+      }
       subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!).buffer as ArrayBuffer,
+        applicationServerKey: keyBytes.buffer as ArrayBuffer,
       });
     }
 
