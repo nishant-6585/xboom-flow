@@ -110,27 +110,33 @@ Deno.serve(async (req) => {
       .eq("account_id", accountId)
       .ilike("email", email)
       .maybeSingle();
-    if (existingContact?.auth_user_id) {
-      return json({ error: "This email is already invited for this account" }, 409);
-    }
+    // NOTE: we intentionally do NOT 409 when auth_user_id is already set —
+    // the admin "Resend invite" action reuses this endpoint and expects a
+    // fresh invite token + email for the same contact/auth user.
 
     // 5. Create or look up the auth user (email_confirm: true so they can set a password right away)
     // Always use the production portal URL so the invite link works regardless of where the admin invited from.
     const PORTAL_BASE = "https://xboomflow.com";
     const redirectTo = `${PORTAL_BASE}/portal/set-password`;
 
-    let authUserId: string | null = null;
+    let authUserId: string | null = existingContact?.auth_user_id ?? null;
     let isExistingUser = false;
     const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
 
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    // If the contact is already linked to an auth user, skip createUser and
+    // go straight to minting a new invite token.
+    const { data: created, error: createErr } = authUserId
+      ? { data: null, error: null as any }
+      : await admin.auth.admin.createUser({
       email,
       password: tempPassword,
       email_confirm: true,
       user_metadata: { full_name: body.full_name, portal: true },
     });
 
-    if (createErr) {
+    if (authUserId) {
+      isExistingUser = true;
+    } else if (createErr) {
       if (/already.*registered|already exists/i.test(createErr.message)) {
         // Page through existing users to find by email
         let page = 1;
