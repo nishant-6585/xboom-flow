@@ -15,9 +15,9 @@ describe("urlBase64ToUint8Array", () => {
   });
 
   it("translates url-safe chars (- and _) back to + and /", () => {
-    // Bytes [0xfb, 0xff, 0xbf] -> standard base64 "+/+/" -> url-safe "-_-_"
+    // "-_-_" (url-safe) == "+/+/" (standard base64) -> bytes [0xfb, 0xff, 0xbf]
     const out = urlBase64ToUint8Array("-_-_");
-    expect(Array.from(out)).toEqual([0xfb, 0xff, 0xbf, 0xff]);
+    expect(Array.from(out)).toEqual([0xfb, 0xff, 0xbf]);
   });
 
   it("returns a Uint8Array backed by an ArrayBuffer (applicationServerKey shape)", () => {
