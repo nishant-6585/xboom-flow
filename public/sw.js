@@ -9,6 +9,19 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// Report what happens with each push back to any open app tabs, so the
+// notification panel can display it — debugging without DevTools.
+async function reportToClients(report) {
+  try {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      client.postMessage({ type: "xboom-sw-push", at: Date.now(), ...report });
+    }
+  } catch {
+    // Reporting is best-effort only.
+  }
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   if (event.data) {
@@ -37,7 +50,14 @@ self.addEventListener("push", (event) => {
     data: { url: payload.url || "/" },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil((async () => {
+    try {
+      await self.registration.showNotification(title, options);
+      await reportToClients({ ok: true, title, hadData: !!event.data });
+    } catch (err) {
+      await reportToClients({ ok: false, error: String(err), hadData: !!event.data });
+    }
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {
