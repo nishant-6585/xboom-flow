@@ -10,13 +10,17 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  if (!event.data) return;
-
   let payload = {};
-  try {
-    payload = event.data.json();
-  } catch {
-    payload = { title: "XBoom Flow", body: event.data.text() };
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch {
+      payload = { title: "XBoom Flow", body: event.data.text() };
+    }
+  } else {
+    // Payload-less push (or one the browser could not decrypt): still show
+    // a generic alert rather than silently dropping the wake-up.
+    payload = { title: "XBoom Flow", body: "You have new activity — open the app to see it." };
   }
 
   const title = payload.title || "XBoom Flow";
