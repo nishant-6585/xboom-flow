@@ -42,10 +42,6 @@ import { LeadSourceBadge } from "./LeadSourceBadge";
 import { FollowupNoteInput } from "./crm/FollowupNoteInput";
 import { FOLLOWUP_NOTE_OPTIONS } from "@/lib/followupNotes";
 import { markEnquiryOpen, markEnquiryClosed } from "@/lib/enquiryPresence";
-import {
-  RESPONSE_NOTES_MAX_LENGTH,
-  validateResponseNotes,
-} from "@/lib/enquiryQuoteMirror";
 
 interface EnquiryDialogProps {
   enquiry: Enquiry | null;
@@ -80,7 +76,6 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
-    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -105,7 +100,6 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
-        notes: enquiry.response_notes || "",
       });
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
@@ -113,6 +107,7 @@ export function EnquiryDialog({
       setFollowupNote(enquiry.followup_note || "");
       setEditingNote(false);
       setThreadDraft("");
+      setMirrorError(null);
     }
   }, [enquiry]);
 
@@ -142,8 +137,7 @@ export function EnquiryDialog({
     status !== initialSnapshot.status ||
     response.pricing !== initialSnapshot.pricing ||
     response.availability !== initialSnapshot.availability ||
-    response.leadTime !== initialSnapshot.leadTime ||
-    response.notes !== (enquiry.response_notes || "");
+    response.leadTime !== initialSnapshot.leadTime;
   const isDirty =
     quoteDirty ||
     threadDraft.trim() !== "" ||
@@ -210,11 +204,6 @@ export function EnquiryDialog({
     if (status === "order_lost" && !lostReason) {
       return; // Don't submit without lost reason
     }
-    // Optional notes — but if provided, enforce min/max length client-side.
-    const notesValidation = validateResponseNotes(response.notes);
-    if (!notesValidation.ok) {
-      return;
-    }
     setLoading(true);
     // A typed-but-unsent thread message must not be lost when the dialog
     // closes after submit — send it first. Abort if the send fails so the
@@ -227,14 +216,14 @@ export function EnquiryDialog({
     const success = await onSubmitResponse(
       enquiry.id,
       status,
-      // Pass the trimmed notes (empty string ⇒ undefined so we don't wipe
-      // legacy response_notes with whitespace).
-      { ...response, notes: notesValidation.trimmed || undefined },
+      // Conversation happens in the thread; carry existing notes forward
+      // so legacy response_notes are not wiped by the update.
+      { ...response, notes: enquiry.response_notes || undefined },
       status === "order_lost" ? (lostReason as LostReason) : undefined,
       status === "order_lost" ? lostReasonNotes : undefined
     );
     setLoading(false);
-    // Record mirror failure so it can be shown inline next to Response Notes.
+    // Record mirror failure so it can be shown inline above Submit Response.
     setMirrorError(success.mirrorError ?? null);
     if (success.success && !success.mirrorError) {
       onOpenChange(false);
@@ -605,54 +594,16 @@ export function EnquiryDialog({
                   </div>
                 </div>
 
-                {/* Response Notes — OPTIONAL, but when provided it must
-                    fall inside the min/max bounds enforced by
-                    validateResponseNotes(). The trimmed value is mirrored
-                    into the discussion thread on Submit Response. */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="responseNotes" className="flex items-center gap-2">
-                    <StickyNote className="w-4 h-4 text-muted-foreground" />
-                    Response Notes <span className="text-xs text-muted-foreground">(optional)</span>
-                  </Label>
-                  <Textarea
-                    id="responseNotes"
-                    placeholder="Write your response to the salesperson — it will also appear in the discussion below..."
-                    rows={3}
-                    maxLength={RESPONSE_NOTES_MAX_LENGTH}
-                    value={response.notes}
-                    onChange={(e) => {
-                      setResponse({ ...response, notes: e.target.value });
-                      if (mirrorError) setMirrorError(null);
-                    }}
-                  />
-                  {mirrorError && (
-                    <div className="flex items-start gap-1.5 text-[11px] text-destructive">
-                      <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                      <span>
-                        Mirror failed — check logs. Your response was saved, but the quote
-                        summary could not be posted to the discussion thread
-                        ({mirrorError}). Retype it in the thread below.
-                      </span>
-                    </div>
-                  )}
-                  {(() => {
-                    const v = validateResponseNotes(response.notes);
-                    const count = (response.notes || "").trim().length;
-                    return (
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className={v.ok ? "text-muted-foreground" : "text-destructive"}>
-                          {v.ok
-                            ? "Leave blank if you have nothing to add — otherwise it will be posted to the thread."
-                            : v.error}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {count}/{RESPONSE_NOTES_MAX_LENGTH}
-                        </span>
-                      </div>
-                    );
-                  })()}
-                </div>
-
+                {mirrorError && (
+                  <div className="flex items-start gap-1.5 text-[11px] text-destructive">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                    <span>
+                      Your response was saved, but the quote summary could not be
+                      posted to the discussion thread ({mirrorError}). Retype it
+                      in the thread below.
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs text-muted-foreground">
                     {quoteDirty
@@ -661,12 +612,7 @@ export function EnquiryDialog({
                   </p>
                   <Button
                     onClick={handleSubmit}
-                    disabled={
-                      loading ||
-                      !quoteDirty ||
-                      (status === "order_lost" && !lostReason) ||
-                      !validateResponseNotes(response.notes).ok
-                    }
+                    disabled={loading || !quoteDirty || (status === "order_lost" && !lostReason)}
                     className="shrink-0"
                   >
                     {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

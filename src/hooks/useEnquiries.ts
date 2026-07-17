@@ -331,7 +331,9 @@ export function useEnquiries() {
       // Mirror the quote (pricing / availability / lead time only) into the
       // Respond & Discuss thread. The Response Notes textarea has been
       // removed from the UI — responders now write free-form text directly
-      // in the thread — so notes are intentionally NOT passed here.
+      // in the thread — so notes are intentionally NOT passed here (they
+      // only carry legacy values forward; re-posting them on every submit
+      // would spam the thread).
       // buildQuoteMirrorMessage centralizes the rules:
       //   - only fires when status === "responded"
       //   - never posts empty / whitespace-only content
