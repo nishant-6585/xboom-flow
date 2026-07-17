@@ -36,7 +36,6 @@ export interface UnavailabilityWindow {
 
 /** Round-robin pool members + Rohit (drone-repair-intake). Mirrors `allowed_website_lead_assignees()`. */
 export const WEBSITE_LEAD_POOL = [
-  { user_id: "e05f9afe-0160-4956-bb1f-496028386062", name: "Arjav Chauhan",     role: "Sales" as const },
   { user_id: "a790b58d-8e3d-4333-b6d6-08be631c865d", name: "Narasimha",         role: "Sales" as const },
   { user_id: "457fc2d5-9fc5-439a-938e-5b998549b811", name: "Mohammed Musthak",  role: "Sales" as const },
   { user_id: "456e91f8-34cc-4f92-a1c1-a092f2bbed39", name: "Suman Das",         role: "Sales" as const },
@@ -74,7 +73,48 @@ export function useTeamAvailability() {
     staleTime: 60_000,
   });
 
-  const windows = q.data ?? [];
+  // Also treat approved leaves overlapping today as unavailability so
+  // pool members auto-show as "Unavailable" while on HR-approved leave.
+  const leaveQ = useQuery({
+    queryKey: ["team-availability-leaves"],
+    queryFn: async (): Promise<UnavailabilityWindow[]> => {
+      const poolIds = WEBSITE_LEAD_POOL.map((m) => m.user_id);
+      const { data: emps, error: eErr } = await supabase
+        .from("employees")
+        .select("id, user_id")
+        .in("user_id", poolIds);
+      if (eErr) throw eErr;
+      const empToUser = new Map<string, string>();
+      (emps || []).forEach((e: any) => e.user_id && empToUser.set(e.id, e.user_id));
+      const empIds = Array.from(empToUser.keys());
+      if (empIds.length === 0) return [];
+      const today = todayISO();
+      const { data: leaves, error: lErr } = await supabase
+        .from("leave_requests")
+        .select("id, employee_id, leave_type, start_date, end_date, reason")
+        .eq("status", "approved")
+        .lte("start_date", today)
+        .gte("end_date", today)
+        .in("employee_id", empIds);
+      if (lErr) throw lErr;
+      return (leaves || []).map((l: any): UnavailabilityWindow => ({
+        id: `leave:${l.id}`,
+        user_id: empToUser.get(l.employee_id)!,
+        starts_at: l.start_date,
+        ends_at: l.end_date,
+        reason: (l.leave_type?.toLowerCase() === "sick" ? "sick_leave" : "vacation") as UnavailabilityReason,
+        notes: l.reason || `On ${l.leave_type} leave`,
+        created_by: null,
+        created_by_name: "HR (approved leave)",
+        cancelled_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const windows = [...(q.data ?? []), ...(leaveQ.data ?? [])];
   const today = todayISO();
 
   const currentlyUnavailable = new Set<string>();
@@ -97,10 +137,12 @@ export function useTeamAvailability() {
     windows,
     currentlyUnavailable,
     poolStatus,
-    isLoading: q.isLoading,
-    isError: q.isError,
-    error: q.error as Error | null,
-    refetch: q.refetch,
+    isLoading: q.isLoading || leaveQ.isLoading,
+    isError: q.isError || leaveQ.isError,
+    error: (q.error || leaveQ.error) as Error | null,
+    refetch: async () => {
+      await Promise.all([q.refetch(), leaveQ.refetch()]);
+    },
   };
 }
 
