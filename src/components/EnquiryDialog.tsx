@@ -618,6 +618,20 @@ export function EnquiryDialog({
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="responseNotes" className="flex items-center gap-2">
+                    <StickyNote className="w-4 h-4 text-muted-foreground" />
+                    Response Notes
+                  </Label>
+                  <Textarea
+                    id="responseNotes"
+                    rows={3}
+                    placeholder="Write your response to the salesperson — it will also appear in the discussion below..."
+                    value={response.notes}
+                    onChange={(e) => setResponse({ ...response, notes: e.target.value })}
+                  />
+                </div>
+
               </div>
             )}
 
