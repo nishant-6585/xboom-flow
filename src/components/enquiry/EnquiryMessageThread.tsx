@@ -176,7 +176,7 @@ export function EnquiryMessageThread({ enquiryId, onMessageSent, headerRight }: 
                 </div>
                 <div
                   className={cn(
-                    "rounded-lg px-3 py-2 text-sm",
+                    "rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
                     isOwn
                       ? "bg-primary text-primary-foreground"
                       : "bg-background border border-border"
