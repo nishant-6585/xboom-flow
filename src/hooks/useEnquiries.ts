@@ -291,8 +291,9 @@ export function useEnquiries() {
     response: EnquiryResponse,
     lostReason?: LostReason,
     lostReasonNotes?: string
-  ) => {
-    if (!user || !profile) return false;
+  ): Promise<{ success: boolean; mirrorError?: string | null }> => {
+    if (!user || !profile) return { success: false };
+    let mirrorError: string | null = null;
 
     try {
       // Find the enquiry to get its data for auto-creation
@@ -327,15 +328,15 @@ export function useEnquiries() {
 
       if (error) throw error;
 
-      // Mirror the quote into the Respond & Discuss thread so the
-      // conversation stays complete. buildQuoteMirrorMessage centralizes
-      // the rules:
+      // Mirror the quote (pricing / availability / lead time only) into the
+      // Respond & Discuss thread. The Response Notes textarea has been
+      // removed from the UI — responders now write free-form text directly
+      // in the thread — so notes are intentionally NOT passed here (they
+      // only carry legacy values forward; re-posting them on every submit
+      // would spam the thread).
+      // buildQuoteMirrorMessage centralizes the rules:
       //   - only fires when status === "responded"
       //   - never posts empty / whitespace-only content
-      // Notes are deliberately NOT mirrored: the field was removed from the
-      // form (conversation happens in the thread itself) and response.notes
-      // now only carries legacy values forward — re-posting them on every
-      // submit would spam the thread.
       // A failure here MUST NOT fail the response submission — we log to
       // the console AND surface a non-blocking warning toast so the mirror
       // failure is diagnosable without breaking the response flow.
@@ -356,6 +357,7 @@ export function useEnquiries() {
           message: mirrorMessage,
         });
         if (msgError) {
+          mirrorError = msgError.message;
           console.error("[enquiry mirror] failed to post quote into discussion thread", {
             enquiryId,
             code: msgError.code,
@@ -442,7 +444,7 @@ export function useEnquiries() {
           : "The enquiry has been updated successfully.",
       });
 
-      return true;
+      return { success: true, mirrorError };
     } catch (error) {
       console.error("Error updating enquiry:", error);
       toast({
@@ -450,7 +452,7 @@ export function useEnquiries() {
         description: "Failed to update enquiry",
         variant: "destructive",
       });
-      return false;
+      return { success: false, mirrorError };
     }
   };
 

@@ -38,6 +38,28 @@ describe("validateResponseNotes", () => {
     expect(r.ok).toBe(true);
     expect(r.trimmed).toBe("In stock, shipping Monday.");
   });
+
+  it("boundary — accepts exactly MAX_LENGTH characters", () => {
+    const r = validateResponseNotes("x".repeat(RESPONSE_NOTES_MAX_LENGTH));
+    expect(r.ok).toBe(true);
+    expect(r.trimmed.length).toBe(RESPONSE_NOTES_MAX_LENGTH);
+  });
+
+  it("boundary — rejects MIN_LENGTH - 1", () => {
+    const r = validateResponseNotes("x".repeat(RESPONSE_NOTES_MIN_LENGTH - 1));
+    expect(r.ok).toBe(false);
+  });
+
+  it("boundary — rejects MAX_LENGTH + 1", () => {
+    const r = validateResponseNotes("x".repeat(RESPONSE_NOTES_MAX_LENGTH + 1));
+    expect(r.ok).toBe(false);
+  });
+
+  it("counts trimmed length, not raw length, when checking boundaries", () => {
+    // Raw = MAX + 4 spaces, trimmed = MAX ⇒ valid.
+    const r = validateResponseNotes("  " + "x".repeat(RESPONSE_NOTES_MAX_LENGTH) + "  ");
+    expect(r.ok).toBe(true);
+  });
 });
 
 describe("buildQuoteMirrorMessage", () => {
@@ -101,5 +123,31 @@ describe("buildQuoteMirrorMessage", () => {
     // Guard against regressions where trim() is skipped: a mirror must not
     // be created for pure-whitespace notes even if the header is also empty.
     expect(buildQuoteMirrorMessage({ notes: "     " }, "responded")).toBeNull();
+  });
+
+  it("preserves multi-line note formatting on the notes line", () => {
+    const notes = "Line A\nLine B\n\nLine D";
+    const msg = buildQuoteMirrorMessage(
+      { pricing: "₹500", notes },
+      "responded",
+    );
+    // Header ends with \n before notes; notes' own newlines are preserved.
+    expect(msg).toBe(`Pricing: ₹500\n${notes}`);
+  });
+
+  it("trims outer whitespace on notes but keeps interior newlines", () => {
+    const msg = buildQuoteMirrorMessage(
+      { notes: "\n\n  Alpha\nBeta  \n" },
+      "responded",
+    );
+    expect(msg).toBe("Alpha\nBeta");
+  });
+
+  it("header parts never appear when their field is only whitespace", () => {
+    const msg = buildQuoteMirrorMessage(
+      { pricing: "  ", availability: "  ", leadTime: "  ", notes: "Real note here." },
+      "responded",
+    );
+    expect(msg).toBe("Real note here.");
   });
 });
