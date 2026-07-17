@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
 import { sendSlackNotification } from "@/hooks/useSlackSettings";
+import { buildQuoteMirrorMessage } from "@/lib/enquiryQuoteMirror";
 
 export type QueryStatus = "pending" | "responded" | "follow_up" | "on_hold" | "moved_to_pipeline" | "order_won" | "order_lost";
 export type UrgencyLevel = "low" | "medium" | "high" | "critical";
@@ -326,25 +327,43 @@ export function useEnquiries() {
 
       if (error) throw error;
 
-      // Mirror the quote into the Respond & Discuss thread so the quote is
-      // visible in the conversation, not only in the header card. Notes are
-      // deliberately excluded — conversation happens in the thread itself.
-      // A failure here MUST NOT fail the response submission itself.
-      if (status === "responded") {
-        const message = [
-          response.pricing?.trim() && `Pricing: ${response.pricing.trim()}`,
-          response.availability?.trim() && `Availability: ${response.availability.trim()}`,
-          response.leadTime?.trim() && `Lead time: ${response.leadTime.trim()}`,
-        ].filter(Boolean).join(" · ");
-        if (message) {
-          const { error: msgError } = await supabase.from("enquiry_messages").insert({
-            enquiry_id: enquiryId,
-            sender_id: user.id,
-            sender_name: profile.name,
-            sender_role: role || "supply_chain",
-            message,
+      // Mirror the quote (and the salesperson-facing response notes, when
+      // provided) into the Respond & Discuss thread so the conversation
+      // stays complete. buildQuoteMirrorMessage centralizes the rules:
+      //   - only fires when status === "responded"
+      //   - never posts empty / whitespace-only content
+      // A failure here MUST NOT fail the response submission — we log to
+      // the console AND surface a non-blocking warning toast so the mirror
+      // failure is diagnosable without breaking the response flow.
+      const mirrorMessage = buildQuoteMirrorMessage(
+        {
+          pricing: response.pricing,
+          availability: response.availability,
+          leadTime: response.leadTime,
+          notes: response.notes,
+        },
+        status,
+      );
+      if (mirrorMessage) {
+        const { error: msgError } = await supabase.from("enquiry_messages").insert({
+          enquiry_id: enquiryId,
+          sender_id: user.id,
+          sender_name: profile.name,
+          sender_role: role || "supply_chain",
+          message: mirrorMessage,
+        });
+        if (msgError) {
+          console.error("[enquiry mirror] failed to post quote into discussion thread", {
+            enquiryId,
+            code: msgError.code,
+            message: msgError.message,
+            details: msgError.details,
           });
-          if (msgError) console.error("Failed to mirror quote into discussion thread:", msgError);
+          toast({
+            title: "Response saved — thread mirror failed",
+            description: `Your response was saved, but posting the quote summary into the discussion thread failed (${msgError.message}). You can retype it in the thread below.`,
+            variant: "destructive",
+          });
         }
       }
 
