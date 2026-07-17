@@ -38,24 +38,90 @@ function json(body: unknown, status = 200) {
   });
 }
 
+type SubRow = { id: string; endpoint: string; p256dh: string; auth: string };
+
+async function fanout(
+  supa: ReturnType<typeof createClient>,
+  subs: SubRow[],
+  payload: string,
+) {
+  let sent = 0, expired = 0, failed = 0;
+  await Promise.all(subs.map(async (sub) => {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload,
+      );
+      sent++;
+      await supa.from("push_subscriptions")
+        .update({ last_used_at: new Date().toISOString() })
+        .eq("id", sub.id);
+    } catch (e: unknown) {
+      const statusCode = (e as { statusCode?: number })?.statusCode;
+      if (statusCode === 404 || statusCode === 410) {
+        expired++;
+        await supa.from("push_subscriptions").delete().eq("id", sub.id);
+      } else {
+        failed++;
+        console.error("web-push send failed:", statusCode, (e as Error)?.message);
+      }
+    }
+  }));
+  return { sent, expired, failed };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  if (CRON_SECRET && req.headers.get("x-cron-secret") !== CRON_SECRET) {
-    return json({ error: "unauthorized" }, 401);
-  }
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     return json({ skipped: "VAPID keys not configured" });
   }
 
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-  let body: { notification_id?: string } = {};
+  let body: { notification_id?: string; test?: boolean } = {};
   try { body = await req.json(); } catch { /* ignore */ }
-  const notificationId = body.notification_id;
-  if (!notificationId) return json({ error: "notification_id required" }, 400);
 
   const supa = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+  // TEST MODE: send only to the calling user's own subscriptions.
+  if (body.test === true) {
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+    const jwt = authHeader?.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : null;
+    if (!jwt) return json({ error: "unauthorized" }, 401);
+
+    const { data: userData, error: userErr } = await supa.auth.getUser(jwt);
+    if (userErr || !userData?.user) return json({ error: "unauthorized" }, 401);
+    const userId = userData.user.id;
+
+    const { data: subs } = await supa
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("user_id", userId);
+
+    if (!subs || subs.length === 0) {
+      return json({ sent: 0, expired: 0, failed: 0, skipped: "no subscriptions" });
+    }
+
+    const payload = JSON.stringify({
+      title: "🔔 Test notification",
+      body: "Push notifications are working — you're all set!",
+      url: "/",
+      tag: `xboom-test-${userId}`,
+    });
+    const result = await fanout(supa, subs as SubRow[], payload);
+    return json(result);
+  }
+
+  // DB-trigger path — protected by CRON_SECRET when configured.
+  if (CRON_SECRET && req.headers.get("x-cron-secret") !== CRON_SECRET) {
+    return json({ error: "unauthorized" }, 401);
+  }
+
+  const notificationId = body.notification_id;
+  if (!notificationId) return json({ error: "notification_id required" }, 400);
 
   const { data: notification, error: notifErr } = await supa
     .from("notifications")
@@ -97,29 +163,6 @@ Deno.serve(async (req) => {
     tag: `xboom-${notification.type}-${notification.enquiry_id ?? notification.id}`,
   });
 
-  let sent = 0, expired = 0, failed = 0;
-  await Promise.all(subs.map(async (sub) => {
-    try {
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload,
-      );
-      sent++;
-      await supa.from("push_subscriptions")
-        .update({ last_used_at: new Date().toISOString() })
-        .eq("id", sub.id);
-    } catch (e: unknown) {
-      const statusCode = (e as { statusCode?: number })?.statusCode;
-      if (statusCode === 404 || statusCode === 410) {
-        // Browser revoked / expired subscription — clean it up.
-        expired++;
-        await supa.from("push_subscriptions").delete().eq("id", sub.id);
-      } else {
-        failed++;
-        console.error("web-push send failed:", statusCode, (e as Error)?.message);
-      }
-    }
-  }));
-
+  const { sent, expired, failed } = await fanout(supa, subs as SubRow[], payload);
   return json({ ok: true, sent, expired, failed });
 });
