@@ -70,6 +70,7 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
+    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -91,6 +92,7 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
+        notes: enquiry.response_notes || "",
       });
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
@@ -116,6 +118,7 @@ export function EnquiryDialog({
     pricing: enquiry.response_pricing || "",
     availability: enquiry.response_availability || "",
     leadTime: enquiry.response_lead_time || "",
+    notes: enquiry.response_notes || "",
     adminResponseText: enquiry.admin_response || "",
     lostReason: enquiry.lost_reason || "",
     lostReasonNotes: enquiry.lost_reason_notes || "",
@@ -125,6 +128,7 @@ export function EnquiryDialog({
     response.pricing !== initialSnapshot.pricing ||
     response.availability !== initialSnapshot.availability ||
     response.leadTime !== initialSnapshot.leadTime ||
+    response.notes !== initialSnapshot.notes ||
     adminResponseText !== initialSnapshot.adminResponseText ||
     (status === "order_lost" && (
       lostReason !== initialSnapshot.lostReason ||
@@ -192,7 +196,7 @@ export function EnquiryDialog({
     const success = await onSubmitResponse(
       enquiry.id, 
       status, 
-      { ...response, notes: enquiry.response_notes || undefined },
+      { ...response, notes: response.notes.trim() || undefined },
       status === "order_lost" ? (lostReason as LostReason) : undefined,
       status === "order_lost" ? lostReasonNotes : undefined
     );
