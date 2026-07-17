@@ -1,3 +1,5 @@
+[functions.jarvis-report]
+verify_jwt = false
 project_id = "mxsotxddcvmeluqonuuj"
 
 [functions]
