@@ -216,9 +216,7 @@ export function Header() {
             </Button>
             <ErrorBoundary fallback={null}><AttendanceWidget /></ErrorBoundary>
             <ErrorBoundary fallback={null}><MessagesNavButton /></ErrorBoundary>
-            {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
-              <NotificationPanel />
-            )}
+            <ErrorBoundary fallback={null}><NotificationPanel /></ErrorBoundary>
             
 
             <div className="w-px h-6 bg-border/60 mx-1" />
@@ -287,9 +285,7 @@ export function Header() {
           {/* Mobile right */}
           <div className="flex sm:hidden items-center gap-2">
             <ErrorBoundary fallback={null}><MessagesNavButton /></ErrorBoundary>
-            {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
-              <NotificationPanel />
-            )}
+            <ErrorBoundary fallback={null}><NotificationPanel /></ErrorBoundary>
             <AvatarBubble size="w-8 h-8" textSize="text-xs" />
           </div>
         </div>
