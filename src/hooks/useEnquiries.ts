@@ -326,6 +326,31 @@ export function useEnquiries() {
 
       if (error) throw error;
 
+      // Mirror quote submission into the discussion thread so the salesperson
+      // sees the response inline. Fire-and-forget — do not fail the response
+      // submission if the message insert errors (same pattern as createEnquiry).
+      if (status === "responded") {
+        const summaryParts: string[] = [];
+        if (response.pricing) summaryParts.push(`Pricing: ${response.pricing}`);
+        if (response.availability) summaryParts.push(`Availability: ${response.availability}`);
+        if (response.leadTime) summaryParts.push(`Lead time: ${response.leadTime}`);
+        const summaryLine = summaryParts.join(" · ");
+        const notesLine = (response.notes || "").trim();
+        const combined = [summaryLine, notesLine].filter(Boolean).join("\n");
+        if (combined.length > 0) {
+          const { error: msgError } = await supabase.from("enquiry_messages").insert({
+            enquiry_id: enquiryId,
+            sender_id: user.id,
+            sender_name: profile.name,
+            sender_role: role || "supply_chain",
+            message: combined,
+          });
+          if (msgError) {
+            console.error("Failed to mirror quote into enquiry thread:", msgError);
+          }
+        }
+      }
+
       // Auto-create pipeline order when moved to pipeline
       if (status === "moved_to_pipeline" && enquiry) {
         const { error: pipelineError } = await supabase
