@@ -476,6 +476,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                       <TableHead className="w-[120px]">Company</TableHead>
                       <TableHead className="w-[100px]">City</TableHead>
                       <TableHead className="w-[120px]">Product</TableHead>
+                      <TableHead className="w-[130px]">Product Category</TableHead>
                       <TableHead className="w-[80px]">Type</TableHead>
                       <TableHead className="w-[90px]">Status</TableHead>
                       <TableHead className="w-[90px]">Date</TableHead>
@@ -510,6 +511,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                         <TableCell><span className="text-sm">{p.company || '—'}</span></TableCell>
                         <TableCell><span className="text-sm">{p.city || '—'}</span></TableCell>
                         <TableCell><span className="text-sm">{p.product_name || '—'}</span></TableCell>
+                        <TableCell><span className="text-sm">{(p as any).product_category || '—'}</span></TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select value={(p as any).prospect_type || 'none'} onValueChange={(v) => updateProspectType({ id: p.id, prospectType: v === 'none' ? null : v })}>
                             <SelectTrigger className="h-7 text-xs w-[90px]">
