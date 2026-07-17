@@ -117,7 +117,12 @@ describe("useEnquiries.updateEnquiry — thread mirror gating", () => {
         const row = messageInserts()[0].row;
         expect(row.enquiry_id).toBe("enq-1");
         expect(String(row.message)).toContain("Pricing: ₹1000");
-        expect(String(row.message)).toContain("Ship tomorrow.");
+        expect(String(row.message)).toContain("Availability: In stock");
+        expect(String(row.message)).toContain("Lead time: 3 days");
+        // Response Notes textarea was removed from the UI — updateEnquiry
+        // must never pass notes into the mirror, even if the caller
+        // supplies a legacy `response.notes` value.
+        expect(String(row.message)).not.toContain("Ship tomorrow.");
       } else {
         expect(messageInserts()).toHaveLength(0);
       }
@@ -137,16 +142,31 @@ describe("useEnquiries.updateEnquiry — thread mirror gating", () => {
     expect(messageInserts()).toHaveLength(0);
   });
 
-  it("posts exactly ONE mirror row for a responded transition with only notes", async () => {
+  it("does NOT mirror a responded transition that carries only notes (notes are excluded from the mirror)", async () => {
     const { result } = renderHook(() => useEnquiries());
     await act(async () => {
       await result.current.updateEnquiry("enq-3", "responded", {
         notes: "Awaiting supplier confirmation, will update by EOD.",
       });
     });
+    // Notes are no longer part of the mirror payload; with no pricing /
+    // availability / lead time supplied, buildQuoteMirrorMessage yields
+    // null and NO thread row is inserted.
+    expect(messageInserts()).toHaveLength(0);
+  });
+
+  it("mirror contains ONLY the pricing/availability/lead-time line, never notes", async () => {
+    const { result } = renderHook(() => useEnquiries());
+    await act(async () => {
+      await result.current.updateEnquiry("enq-4", "responded", {
+        pricing: "₹500",
+        leadTime: "1 week",
+        notes: "secret internal comment",
+      });
+    });
     await waitFor(() => expect(messageInserts()).toHaveLength(1));
     expect(String(messageInserts()[0].row.message)).toBe(
-      "Awaiting supplier confirmation, will update by EOD.",
+      "Pricing: ₹500 · Lead time: 1 week",
     );
   });
 });
