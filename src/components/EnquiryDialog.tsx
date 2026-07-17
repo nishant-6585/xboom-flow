@@ -51,7 +51,13 @@ interface EnquiryDialogProps {
   enquiry: Enquiry | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmitResponse: (enquiryId: string, status: QueryStatus, response: EnquiryResponse, lostReason?: LostReason, lostReasonNotes?: string) => Promise<boolean>;
+  onSubmitResponse: (
+    enquiryId: string,
+    status: QueryStatus,
+    response: EnquiryResponse,
+    lostReason?: LostReason,
+    lostReasonNotes?: string,
+  ) => Promise<{ success: boolean; mirrorError?: string | null }>;
   onDelete: (enquiryId: string) => Promise<boolean>;
   onEscalate: (enquiryId: string, reason: string) => Promise<boolean>;
   onSubmitAdminResponse?: (enquiryId: string, adminResponse: string) => Promise<boolean>;
@@ -89,6 +95,7 @@ export function EnquiryDialog({
   const [savingNote, setSavingNote] = useState(false);
   const [threadDraft, setThreadDraft] = useState("");
   const threadRef = useRef<EnquiryMessageThreadHandle>(null);
+  const [mirrorError, setMirrorError] = useState<string | null>(null);
 
   // Reset form when enquiry changes
   useEffect(() => {
@@ -227,7 +234,9 @@ export function EnquiryDialog({
       status === "order_lost" ? lostReasonNotes : undefined
     );
     setLoading(false);
-    if (success) {
+    // Record mirror failure so it can be shown inline next to Response Notes.
+    setMirrorError(success.mirrorError ?? null);
+    if (success.success && !success.mirrorError) {
       onOpenChange(false);
     }
   };
@@ -611,8 +620,21 @@ export function EnquiryDialog({
                     rows={3}
                     maxLength={RESPONSE_NOTES_MAX_LENGTH}
                     value={response.notes}
-                    onChange={(e) => setResponse({ ...response, notes: e.target.value })}
+                    onChange={(e) => {
+                      setResponse({ ...response, notes: e.target.value });
+                      if (mirrorError) setMirrorError(null);
+                    }}
                   />
+                  {mirrorError && (
+                    <div className="flex items-start gap-1.5 text-[11px] text-destructive">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                      <span>
+                        Mirror failed — check logs. Your response was saved, but the quote
+                        summary could not be posted to the discussion thread
+                        ({mirrorError}). Retype it in the thread below.
+                      </span>
+                    </div>
+                  )}
                   {(() => {
                     const v = validateResponseNotes(response.notes);
                     const count = (response.notes || "").trim().length;

@@ -291,8 +291,9 @@ export function useEnquiries() {
     response: EnquiryResponse,
     lostReason?: LostReason,
     lostReasonNotes?: string
-  ) => {
-    if (!user || !profile) return false;
+  ): Promise<{ success: boolean; mirrorError?: string | null }> => {
+    if (!user || !profile) return { success: false };
+    let mirrorError: string | null = null;
 
     try {
       // Find the enquiry to get its data for auto-creation
@@ -353,6 +354,7 @@ export function useEnquiries() {
           message: mirrorMessage,
         });
         if (msgError) {
+          mirrorError = msgError.message;
           console.error("[enquiry mirror] failed to post quote into discussion thread", {
             enquiryId,
             code: msgError.code,
@@ -439,7 +441,7 @@ export function useEnquiries() {
           : "The enquiry has been updated successfully.",
       });
 
-      return true;
+      return { success: true, mirrorError };
     } catch (error) {
       console.error("Error updating enquiry:", error);
       toast({
@@ -447,7 +449,7 @@ export function useEnquiries() {
         description: "Failed to update enquiry",
         variant: "destructive",
       });
-      return false;
+      return { success: false, mirrorError };
     }
   };
 
