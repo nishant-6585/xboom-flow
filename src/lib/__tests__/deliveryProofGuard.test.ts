@@ -3,8 +3,8 @@ import { canMarkDeliveryDone } from '../deliveryProofGuard';
 
 describe('canMarkDeliveryDone', () => {
   it('blocks office_pickup without any proof', () => {
-    const r = canMarkDeliveryDone({ delivery_mode: 'office_pickup' });
-    if (r.ok) throw new Error('expected block');
+    const r = canMarkDeliveryDone({ delivery_mode: 'office_pickup' }) as { ok: false; reason: string };
+    expect(r.ok).toBe(false);
     expect(r.reason).toMatch(/approved delivery photo/i);
   });
 
@@ -13,8 +13,8 @@ describe('canMarkDeliveryDone', () => {
       delivery_mode: 'office_pickup',
       delivery_proof_url: 'delivery-proofs/x.jpg',
       delivery_proof_status: 'pending',
-    });
-    if (r.ok) throw new Error('expected block');
+    }) as { ok: false; reason: string };
+    expect(r.ok).toBe(false);
     expect(r.reason).toMatch(/awaiting approval/i);
   });
 
