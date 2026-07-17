@@ -12,6 +12,7 @@ import {
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Notification, useNotifications } from '@/hooks/useNotifications';
+import { PushNotificationToggle } from '@/components/PushNotificationToggle';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -270,6 +271,9 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
             </div>
             <SheetDescription>Payment reminders and alerts</SheetDescription>
           </SheetHeader>
+          <div className="mt-2">
+            <PushNotificationToggle />
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto px-4 pb-6">
             {loading ? (

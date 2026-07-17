@@ -85,6 +85,8 @@ project_id = "mxsotxddcvmeluqonuuj"
     verify_jwt = false
   [functions.send-order-notification]
     verify_jwt = false
+  [functions.send-push]
+    verify_jwt = false
   [functions.send-slack-notification]
     verify_jwt = false
   [functions.send-ticket-email]
