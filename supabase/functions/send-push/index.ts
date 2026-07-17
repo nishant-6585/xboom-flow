@@ -43,7 +43,7 @@ type SubRow = { id: string; endpoint: string; p256dh: string; auth: string };
 async function fanout(
   supa: ReturnType<typeof createClient>,
   subs: SubRow[],
-  payload: string,
+  payload?: string,
 ) {
   let sent = 0, expired = 0, failed = 0;
   await Promise.all(subs.map(async (sub) => {
@@ -114,7 +114,13 @@ Deno.serve(async (req) => {
       tag: `xboom-test-${Date.now()}`,
     });
     const result = await fanout(supa, subs as SubRow[], payload);
-    return json(result);
+    // Diagnostic companion: a BARE push (no payload → no encryption). The
+    // service worker shows a generic banner for it. If the bare banner
+    // arrives but the payload one doesn't, payload encryption is broken
+    // between the Deno web-push build and the browser; if neither arrives,
+    // the transport (push service → browser) is the problem.
+    const bare = await fanout(supa, subs as SubRow[]);
+    return json({ ...result, bare });
   }
 
   // DB-trigger path — protected by CRON_SECRET when configured.
