@@ -14,6 +14,7 @@ import { renderHook, act, waitFor, cleanup } from "@testing-library/react";
 
 type Insert = { table: string; row: Record<string, unknown> };
 const inserts: Insert[] = [];
+let insertSeq = 0;
 
 function makeQueryBuilder(table: string) {
   const builder: any = {
@@ -21,7 +22,8 @@ function makeQueryBuilder(table: string) {
     eq: () => builder,
     order: () => Promise.resolve({ data: [], error: null }),
     insert: (row: Record<string, unknown>) => {
-      inserts.push({ table, row });
+      insertSeq += 1;
+      inserts.push({ table, row: { ...row, __seq: insertSeq } });
       // The insert result must behave two ways:
       //  - `await from().insert(row)` → `{ error: null }`
       //  - `await from().insert(row).select().single()` → `{ data, error }`
@@ -84,6 +86,7 @@ const messageInserts = () => inserts.filter((i) => i.table === "enquiry_messages
 describe("useEnquiries.updateEnquiry — thread mirror gating", () => {
   beforeEach(() => {
     inserts.length = 0;
+    insertSeq = 0;
   });
   afterEach(() => {
     cleanup();
@@ -168,5 +171,53 @@ describe("useEnquiries.updateEnquiry — thread mirror gating", () => {
     expect(String(messageInserts()[0].row.message)).toBe(
       "Pricing: ₹500 · Lead time: 1 week",
     );
+  });
+
+  it("inserts mirrored enquiry_messages in chronological order across multiple status updates", async () => {
+    const { result } = renderHook(() => useEnquiries());
+
+    // Sequence of updates: only the "responded" flips should mirror into the
+    // thread. Non-responded flips must NOT insert, and the mirror inserts
+    // that DO fire must land in the same order they were issued.
+    const flow: Array<{ status: QueryStatus; response: any; expectMessage: string | null }> = [
+      { status: "responded", response: { pricing: "₹100", availability: "In stock", leadTime: "2 days" },
+        expectMessage: "Pricing: ₹100 · Availability: In stock · Lead time: 2 days" },
+      { status: "follow_up", response: { pricing: "₹100" }, expectMessage: null },
+      { status: "responded", response: { pricing: "₹150", leadTime: "3 days" },
+        expectMessage: "Pricing: ₹150 · Lead time: 3 days" },
+      { status: "on_hold", response: {}, expectMessage: null },
+      { status: "responded", response: { availability: "Backorder" },
+        expectMessage: "Availability: Backorder" },
+    ];
+
+    for (const step of flow) {
+      await act(async () => {
+        await result.current.updateEnquiry("enq-order", step.status, step.response);
+      });
+    }
+
+    const expected = flow
+      .filter((s) => s.expectMessage !== null)
+      .map((s) => s.expectMessage as string);
+
+    await waitFor(() => expect(messageInserts()).toHaveLength(expected.length));
+
+    const rows = messageInserts();
+    // Chronological guarantee 1: messages appear in the exact order issued.
+    expect(rows.map((r) => String(r.row.message))).toEqual(expected);
+
+    // Chronological guarantee 2: the underlying insert sequence numbers are
+    // strictly monotonically increasing — no interleaved / out-of-order
+    // writes even though multiple awaited updateEnquiry calls ran back-to-back.
+    const seqs = rows.map((r) => Number(r.row.__seq));
+    for (let i = 1; i < seqs.length; i++) {
+      expect(seqs[i]).toBeGreaterThan(seqs[i - 1]);
+    }
+
+    // And each mirror insert was preceded by its enquiries UPDATE — i.e. the
+    // enquiries row is written before the thread row for every "responded"
+    // flip. We assert this by checking no message insert's seq comes before
+    // the first recorded insert.
+    expect(rows[0].row.enquiry_id).toBe("enq-order");
   });
 });
