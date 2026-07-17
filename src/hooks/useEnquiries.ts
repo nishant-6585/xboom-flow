@@ -326,16 +326,16 @@ export function useEnquiries() {
 
       if (error) throw error;
 
-      // Mirror the quote into the Respond & Discuss thread so the response
-      // text is visible in the conversation, not only in the header card.
+      // Mirror the quote into the Respond & Discuss thread so the quote is
+      // visible in the conversation, not only in the header card. Notes are
+      // deliberately excluded — conversation happens in the thread itself.
       // A failure here MUST NOT fail the response submission itself.
       if (status === "responded") {
-        const quoteLine = [
+        const message = [
           response.pricing?.trim() && `Pricing: ${response.pricing.trim()}`,
           response.availability?.trim() && `Availability: ${response.availability.trim()}`,
           response.leadTime?.trim() && `Lead time: ${response.leadTime.trim()}`,
         ].filter(Boolean).join(" · ");
-        const message = [quoteLine, response.notes?.trim()].filter(Boolean).join("\n");
         if (message) {
           const { error: msgError } = await supabase.from("enquiry_messages").insert({
             enquiry_id: enquiryId,
