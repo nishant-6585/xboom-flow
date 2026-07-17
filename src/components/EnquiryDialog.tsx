@@ -42,6 +42,10 @@ import { LeadSourceBadge } from "./LeadSourceBadge";
 import { FollowupNoteInput } from "./crm/FollowupNoteInput";
 import { FOLLOWUP_NOTE_OPTIONS } from "@/lib/followupNotes";
 import { markEnquiryOpen, markEnquiryClosed } from "@/lib/enquiryPresence";
+import {
+  RESPONSE_NOTES_MAX_LENGTH,
+  validateResponseNotes,
+} from "@/lib/enquiryQuoteMirror";
 
 interface EnquiryDialogProps {
   enquiry: Enquiry | null;
@@ -70,6 +74,7 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
+    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -93,6 +98,7 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
+        notes: enquiry.response_notes || "",
       });
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
@@ -129,7 +135,8 @@ export function EnquiryDialog({
     status !== initialSnapshot.status ||
     response.pricing !== initialSnapshot.pricing ||
     response.availability !== initialSnapshot.availability ||
-    response.leadTime !== initialSnapshot.leadTime;
+    response.leadTime !== initialSnapshot.leadTime ||
+    response.notes !== (enquiry.response_notes || "");
   const isDirty =
     quoteDirty ||
     threadDraft.trim() !== "" ||
@@ -196,6 +203,11 @@ export function EnquiryDialog({
     if (status === "order_lost" && !lostReason) {
       return; // Don't submit without lost reason
     }
+    // Optional notes — but if provided, enforce min/max length client-side.
+    const notesValidation = validateResponseNotes(response.notes);
+    if (!notesValidation.ok) {
+      return;
+    }
     setLoading(true);
     // A typed-but-unsent thread message must not be lost when the dialog
     // closes after submit — send it first. Abort if the send fails so the
@@ -208,9 +220,9 @@ export function EnquiryDialog({
     const success = await onSubmitResponse(
       enquiry.id,
       status,
-      // Conversation happens in the thread; carry existing notes forward
-      // so legacy response_notes are not wiped by the update.
-      { ...response, notes: enquiry.response_notes || undefined },
+      // Pass the trimmed notes (empty string ⇒ undefined so we don't wipe
+      // legacy response_notes with whitespace).
+      { ...response, notes: notesValidation.trimmed || undefined },
       status === "order_lost" ? (lostReason as LostReason) : undefined,
       status === "order_lost" ? lostReasonNotes : undefined
     );
