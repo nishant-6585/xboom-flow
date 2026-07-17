@@ -596,6 +596,41 @@ export function EnquiryDialog({
                   </div>
                 </div>
 
+                {/* Response Notes — OPTIONAL, but when provided it must
+                    fall inside the min/max bounds enforced by
+                    validateResponseNotes(). The trimmed value is mirrored
+                    into the discussion thread on Submit Response. */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="responseNotes" className="flex items-center gap-2">
+                    <StickyNote className="w-4 h-4 text-muted-foreground" />
+                    Response Notes <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Textarea
+                    id="responseNotes"
+                    placeholder="Write your response to the salesperson — it will also appear in the discussion below..."
+                    rows={3}
+                    maxLength={RESPONSE_NOTES_MAX_LENGTH}
+                    value={response.notes}
+                    onChange={(e) => setResponse({ ...response, notes: e.target.value })}
+                  />
+                  {(() => {
+                    const v = validateResponseNotes(response.notes);
+                    const count = (response.notes || "").trim().length;
+                    return (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className={v.ok ? "text-muted-foreground" : "text-destructive"}>
+                          {v.ok
+                            ? "Leave blank if you have nothing to add — otherwise it will be posted to the thread."
+                            : v.error}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {count}/{RESPONSE_NOTES_MAX_LENGTH}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs text-muted-foreground">
                     {quoteDirty
@@ -604,7 +639,12 @@ export function EnquiryDialog({
                   </p>
                   <Button
                     onClick={handleSubmit}
-                    disabled={loading || !quoteDirty || (status === "order_lost" && !lostReason)}
+                    disabled={
+                      loading ||
+                      !quoteDirty ||
+                      (status === "order_lost" && !lostReason) ||
+                      !validateResponseNotes(response.notes).ok
+                    }
                     className="shrink-0"
                   >
                     {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
