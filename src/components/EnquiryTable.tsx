@@ -106,23 +106,23 @@ export function EnquiryTable({
       const enquiryIds = enquiries.map(e => e.id);
       if (enquiryIds.length === 0) return;
 
-      // Fetch orders linked to these enquiries
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("enquiry_id")
-        .in("enquiry_id", enquiryIds);
+      // Fetch the linked enquiry ids and match locally instead of sending
+      // every enquiry id in an `in.(...)` filter — with hundreds of
+      // enquiries that URL exceeds the server limit and the request fails
+      // with 400, silently breaking the has-order/has-pipeline badges.
+      const [{ data: orders }, { data: pipelineOrders }] = await Promise.all([
+        supabase.from("orders").select("enquiry_id").not("enquiry_id", "is", null),
+        supabase.from("pipeline_orders").select("enquiry_id").not("enquiry_id", "is", null),
+      ]);
 
-      // Fetch pipeline orders linked to these enquiries
-      const { data: pipelineOrders } = await supabase
-        .from("pipeline_orders")
-        .select("enquiry_id")
-        .in("enquiry_id", enquiryIds);
+      const orderIds = new Set((orders || []).map(o => o.enquiry_id));
+      const pipelineIds = new Set((pipelineOrders || []).map(p => p.enquiry_id));
 
       const records: RelatedRecords = {};
       enquiryIds.forEach(id => {
         records[id] = {
-          hasOrder: orders?.some(o => o.enquiry_id === id) || false,
-          hasPipeline: pipelineOrders?.some(p => p.enquiry_id === id) || false,
+          hasOrder: orderIds.has(id),
+          hasPipeline: pipelineIds.has(id),
         };
       });
       setRelatedRecords(records);
