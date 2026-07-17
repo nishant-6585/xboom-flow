@@ -781,12 +781,16 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
     // Office-pickup delivery requires an approved (or at least uploaded) proof
     // photo before the order can be marked delivered.
+    const isOfficeCourier = /(office\s*deliver|office\s*pickup|self\s*deliver|hand\s*deliver|walk[-\s]?in|showroom|^\s*bus\s*$)/i.test(courierName || '');
     if (
       status === 'delivery_done' &&
-      deliveryMode === 'office_pickup' &&
+      (deliveryMode === 'office_pickup' || isOfficeCourier) &&
       !(order as any).delivery_proof_url
     ) {
-      toast.error('Upload the customer-receiving proof photo before marking this office-pickup order as delivered.');
+      toast.error('Upload the customer-receiving proof photo before marking this office/self-delivery order as delivered.');
+      if (isOfficeCourier && deliveryMode !== 'office_pickup') {
+        setDeliveryMode('office_pickup');
+      }
       return;
     }
 
