@@ -59,12 +59,19 @@ export async function enablePush(userId: string): Promise<string | null> {
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
-    return "Notification permission was not granted. You can enable it from the browser's site settings.";
+    return "Notification permission was denied. Click the lock icon in your browser's address bar → Notifications → Allow, then try again.";
   }
 
   try {
     const reg = await getRegistration();
-    await navigator.serviceWorker.ready;
+    // Preflight: confirm the service worker actually reaches "active".
+    const ready = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+    if (!ready) {
+      return "The notification service could not start — try closing and reopening this tab, then enable again.";
+    }
 
     let subscription = await reg.pushManager.getSubscription();
     if (!subscription) {
@@ -78,10 +85,14 @@ export async function enablePush(userId: string): Promise<string | null> {
       if (keyBytes.length !== 65 || keyBytes[0] !== 0x04) {
         return "Push is misconfigured: the VAPID public key is invalid — contact the administrator.";
       }
-      subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: keyBytes.buffer as ArrayBuffer,
-      });
+      try {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: keyBytes.buffer as ArrayBuffer,
+        });
+      } catch (e) {
+        return `Could not subscribe to push in this browser: ${(e as Error).message}. If you're in private/incognito mode or an unsupported browser, switch to a normal window and reload before retrying.`;
+      }
     }
 
     const json = subscription.toJSON();
@@ -120,5 +131,29 @@ export async function disablePush(): Promise<string | null> {
     return null;
   } catch (e) {
     return `Could not disable browser notifications: ${(e as Error).message}`;
+  }
+}
+
+export type TestPushResult = { sent: number; expired: number; failed: number };
+
+/**
+ * Trigger a self-test push. The edge function authenticates the caller via
+ * the JWT that supabase.functions.invoke attaches and only pushes to their
+ * own subscription rows. Returns the delivery counts or an error string.
+ */
+export async function sendTestPush(): Promise<TestPushResult | string> {
+  try {
+    const { data, error } = await supabase.functions.invoke("send-push", {
+      body: { test: true },
+    });
+    if (error) return error.message || "Could not send test notification.";
+    const d = data as Partial<TestPushResult> | null;
+    return {
+      sent: d?.sent ?? 0,
+      expired: d?.expired ?? 0,
+      failed: d?.failed ?? 0,
+    };
+  } catch (e) {
+    return `Could not send test notification: ${(e as Error).message}`;
   }
 }
