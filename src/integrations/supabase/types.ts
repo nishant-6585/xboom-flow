@@ -18554,6 +18554,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      save_push_subscription: {
+        Args: {
+          p_auth: string
+          p_endpoint: string
+          p_p256dh: string
+          p_user_agent?: string
+        }
+        Returns: undefined
+      }
       scan_company_field_quality: { Args: never; Returns: number }
       scan_suspect_companies: {
         Args: never
