@@ -1229,6 +1229,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             status: n.status || 'draft',
             notes: n.notes || null,
             supplier_id: n.supplier_id || null,
+            discount_amount: n.discount_amount ? Number(n.discount_amount) : 0,
           }));
           const { error: insErr } = await supabase.from('order_items').insert(inserts);
           if (insErr) throw insErr;
@@ -1251,7 +1252,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         setOrderItems(refreshedItems);
 
         const itemsSubtotal = refreshedItems.reduce(
-          (sum, it) => sum + (Number(it.unit_price) || 0) * (Number(it.quantity) || 0),
+          (sum, it) => sum + Math.max(0, (Number(it.unit_price) || 0) * (Number(it.quantity) || 0) - (Number(it.discount_amount) || 0)),
           0,
         );
         const discount = Number((order as any).discount_amount) || 0;
@@ -2085,6 +2086,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             notes: item.notes || '',
                             procurement_rate: item.procurement_rate || '',
                             supplier_id: item.supplier_id || '',
+                            discount_amount: item.discount_amount ?? 0,
                           };
                         });
                         setEditedOrderItems(initialEdits);
@@ -2114,6 +2116,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             notes: '',
                             procurement_rate: '',
                             supplier_id: '',
+                            discount_amount: '',
                           }]);
                         }}
                         className="h-8 gap-1"
@@ -2169,6 +2172,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <TableHead>Supplier</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Discount</TableHead>
                       {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
                       <TableHead className="text-right">Total</TableHead>
                       {editingOrderItems && <TableHead className="w-10" />}
@@ -2310,6 +2314,26 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             item.unit_price ? `₹${item.unit_price.toLocaleString('en-IN')}` : '-'
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          {editingOrderItems ? (
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={editedOrderItems[item.id]?.discount_amount ?? ''}
+                              onChange={(e) => setEditedOrderItems(prev => ({
+                                ...prev,
+                                [item.id]: { ...prev[item.id], discount_amount: e.target.value }
+                              }))}
+                              className="h-8 w-24 text-right text-sm"
+                              placeholder="₹0"
+                            />
+                          ) : (
+                            item.discount_amount && Number(item.discount_amount) > 0
+                              ? `-₹${Number(item.discount_amount).toLocaleString('en-IN')}`
+                              : '-'
+                          )}
+                        </TableCell>
                         {canSeeProcurement && (
                           <TableCell className="text-right">
                             {editingOrderItems ? (
@@ -2334,11 +2358,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                           {editingOrderItems ? (
                             <span className="text-sm">
                               {editedOrderItems[item.id]?.unit_price && editedOrderItems[item.id]?.quantity
-                                ? `₹${(parseFloat(editedOrderItems[item.id].unit_price) * parseInt(editedOrderItems[item.id].quantity)).toLocaleString('en-IN')}`
+                                ? `₹${Math.max(0, parseFloat(editedOrderItems[item.id].unit_price) * parseInt(editedOrderItems[item.id].quantity) - (parseFloat(editedOrderItems[item.id].discount_amount) || 0)).toLocaleString('en-IN')}`
                                 : '-'}
                             </span>
                           ) : (
-                            item.unit_price ? `₹${(item.unit_price * item.quantity).toLocaleString('en-IN')}` : '-'
+                            item.unit_price ? `₹${Math.max(0, item.unit_price * item.quantity - (Number(item.discount_amount) || 0)).toLocaleString('en-IN')}` : '-'
                           )}
                         </TableCell>
                         {editingOrderItems && (
