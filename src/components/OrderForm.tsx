@@ -668,11 +668,11 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
           <>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal (excl. GST)</span>
-              <span className="font-medium">₹{subtotalExGst.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              <span className="font-medium">₹{subtotalExGst.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">GST</span>
-              <span className="font-medium">₹{totalGst.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              <span className="font-medium">₹{totalGst.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </>
         )}
@@ -685,7 +685,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         <Separator className="my-2" />
         <div className="flex justify-between text-base">
           <span className="font-medium">Total Amount (incl. GST)</span>
-          <span className="font-bold text-primary">₹{totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <span className="font-bold text-primary">₹{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         {formData.customer_name && (
           <>
