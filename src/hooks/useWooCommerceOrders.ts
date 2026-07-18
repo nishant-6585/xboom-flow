@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { WOO_ORDER_STATUSES } from '@/lib/wooOrderStatuses';
@@ -67,7 +68,9 @@ export function useWooCommerceOrders(options: UseWooCommerceOrdersOptions = {}) 
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ordersInvalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
 
   const fetchOrders = useCallback(async () => {
@@ -181,8 +184,20 @@ export function useWooCommerceOrders(options: UseWooCommerceOrdersOptions = {}) 
     refetchTimerRef.current = setTimeout(() => {
       refetchTimerRef.current = null;
       fetchOrders();
+      // The woo-mirror writes the INTERNAL orders row in the same webhook
+      // that changed woocommerce_orders, so the internal list is stale too.
+      // Refresh it here as well — the dedicated orders realtime channel can
+      // lag or drop on this route, which left new website orders stuck as
+      // the raw "incomplete" card until a manual page refresh. A second
+      // invalidation shortly after covers a mirror that finishes late.
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (ordersInvalidateTimerRef.current) clearTimeout(ordersInvalidateTimerRef.current);
+      ordersInvalidateTimerRef.current = setTimeout(() => {
+        ordersInvalidateTimerRef.current = null;
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+      }, 5000);
     }, 5000);
-  }, [fetchOrders]);
+  }, [fetchOrders, queryClient]);
 
   useEffect(() => {
     fetchOrders();
@@ -196,6 +211,7 @@ export function useWooCommerceOrders(options: UseWooCommerceOrdersOptions = {}) 
 
     return () => {
       if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+      if (ordersInvalidateTimerRef.current) clearTimeout(ordersInvalidateTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [fetchOrders, scheduleRefetch]);
