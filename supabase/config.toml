@@ -5,6 +5,9 @@ project_id = "mxsotxddcvmeluqonuuj"
 [functions.jarvis-ads]
 verify_jwt = false
 
+[functions.attribution-integrity-report]
+verify_jwt = false
+
 [functions]
   [functions.admin-reset-mfa]
     verify_jwt = false
