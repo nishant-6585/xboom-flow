@@ -1136,6 +1136,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               updates.procurement_rate = Number.isFinite(next) ? next : null;
             }
           }
+          if (edits.discount_amount !== (originalItem.discount_amount ?? 0)) {
+            const raw = String(edits.discount_amount ?? '').trim();
+            const next = raw === '' ? 0 : Number(raw);
+            updates.discount_amount = Number.isFinite(next) && next >= 0 ? next : 0;
+          }
           if (edits.supplier_id !== (originalItem.supplier_id || '')) {
             updates.supplier_id = edits.supplier_id || null;
           }
