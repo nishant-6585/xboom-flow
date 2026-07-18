@@ -79,13 +79,14 @@ export default function PortalKyc() {
   const [docType, setDocType] = useState<DocType>("aadhaar");
   const [docNumber, setDocNumber] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  // Aadhaar needs BOTH sides — front (photo/name/DOB/number) and back
-  // (address). Customers photograph them separately, so we take two images
-  // and merge them client-side into one file. A checkbox covers the case
-  // where they already have a single file showing both sides.
+  // Two-sided documents (Aadhaar, Passport) need BOTH sides — e.g. Aadhaar
+  // front (photo/name/DOB/number) + back (address); Passport bio page +
+  // last page (address). Customers photograph them separately, so we take
+  // two images and merge them client-side into one file. A checkbox covers
+  // the case where they already have a single file showing both sides.
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
-  const [aadhaarSingleFile, setAadhaarSingleFile] = useState(false);
+  const [bothSidesInOneFile, setBothSidesInOneFile] = useState(false);
   const [merging, setMerging] = useState(false);
   const [digilockerVisible, setDigilockerVisible] = useState(false);
   const [dlStarting, setDlStarting] = useState(false);
@@ -179,18 +180,19 @@ export default function PortalKyc() {
 
   const cfg = fieldConfig(docType);
   const numberError = validateNumber(docType, docNumber);
-  const aadhaarTwoFileMode = docType === "aadhaar" && !aadhaarSingleFile;
-  const filesReady = aadhaarTwoFileMode ? !!frontFile && !!backFile : !!file;
+  const isTwoSidedDoc = docType === "aadhaar" || docType === "passport";
+  const twoFileMode = isTwoSidedDoc && !bothSidesInOneFile;
+  const filesReady = twoFileMode ? !!frontFile && !!backFile : !!file;
   const canSend = filesReady && !numberError && (!cfg.required || docNumber.trim().length > 0);
 
   async function handleSubmit() {
     if (!canSend) return;
     let fileToSubmit = file;
-    if (aadhaarTwoFileMode) {
+    if (twoFileMode) {
       if (!frontFile || !backFile) return;
       setMerging(true);
       try {
-        fileToSubmit = await mergeIdCardImages(frontFile, backFile);
+        fileToSubmit = await mergeIdCardImages(frontFile, backFile, `${docType}-front-back.jpg`);
       } catch (e) {
         toast.error((e as Error).message);
         return;
@@ -356,39 +358,50 @@ export default function PortalKyc() {
                   {numberError && docNumber ? numberError : cfg.hint}
                 </p>
               </div>
-              {docType === "aadhaar" && (
+              {isTwoSidedDoc && (
                 <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-900 text-sm">
                   <Info className="h-4 w-4 mt-0.5 shrink-0" />
                   <div>
-                    <div className="font-medium">Aadhaar needs BOTH sides</div>
+                    <div className="font-medium">
+                      {docType === "aadhaar" ? "Aadhaar needs BOTH sides" : "Passport needs BOTH pages"}
+                    </div>
                     <div className="mt-0.5">
-                      Front (your photo, name, date of birth and Aadhaar number) and back
-                      (your address). Uploads showing only one side cannot be approved.
+                      {docType === "aadhaar"
+                        ? "Front (your photo, name, date of birth and Aadhaar number) and back (your address). Uploads showing only one side cannot be approved."
+                        : "The front/bio page (your photo, name and passport number) and the last page (your address). Uploads showing only one page cannot be approved."}
                     </div>
                   </div>
                 </div>
               )}
-              {aadhaarTwoFileMode ? (
+              {twoFileMode ? (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="file-front">Front side photo <span className="text-red-600">*</span></Label>
+                    <Label htmlFor="file-front">
+                      {docType === "aadhaar" ? "Front side photo" : "Front/bio page photo"} <span className="text-red-600">*</span>
+                    </Label>
                     <Input
                       id="file-front"
                       type="file"
                       accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                       onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)}
                     />
-                    <p className="text-xs text-muted-foreground">The side with your photo, name, DOB and Aadhaar number. JPG or PNG.</p>
+                    <p className="text-xs text-muted-foreground">
+                      {docType === "aadhaar"
+                        ? "The side with your photo, name, DOB and Aadhaar number. JPG or PNG."
+                        : "The page with your photo, name and passport number. JPG or PNG."}
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="file-back">Back side photo <span className="text-red-600">*</span></Label>
+                    <Label htmlFor="file-back">
+                      {docType === "aadhaar" ? "Back side photo" : "Last page photo"} <span className="text-red-600">*</span>
+                    </Label>
                     <Input
                       id="file-back"
                       type="file"
                       accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                       onChange={(e) => setBackFile(e.target.files?.[0] ?? null)}
                     />
-                    <p className="text-xs text-muted-foreground">The side with your address. JPG or PNG.</p>
+                    <p className="text-xs text-muted-foreground">The {docType === "aadhaar" ? "side" : "page"} with your address. JPG or PNG.</p>
                   </div>
                 </>
               ) : (
@@ -403,23 +416,24 @@ export default function PortalKyc() {
                   <p className="text-xs text-muted-foreground">
                     PDF, JPG, JPEG, or PNG. Max 10MB.
                     {docType === "aadhaar" && " The file must clearly show BOTH the front and the back of your Aadhaar."}
+                    {docType === "passport" && " The file must clearly show BOTH the bio page and the last (address) page."}
                   </p>
                 </div>
               )}
-              {docType === "aadhaar" && (
+              {isTwoSidedDoc && (
                 <div className="flex items-center gap-2">
                   <Checkbox
-                    id="aadhaar-single"
-                    checked={aadhaarSingleFile}
+                    id="both-sides-single"
+                    checked={bothSidesInOneFile}
                     onCheckedChange={(v) => {
-                      setAadhaarSingleFile(v === true);
+                      setBothSidesInOneFile(v === true);
                       setFile(null);
                       setFrontFile(null);
                       setBackFile(null);
                     }}
                   />
-                  <Label htmlFor="aadhaar-single" className="text-sm font-normal cursor-pointer">
-                    I have one file that already shows both sides
+                  <Label htmlFor="both-sides-single" className="text-sm font-normal cursor-pointer">
+                    I have one file that already shows both {docType === "aadhaar" ? "sides" : "pages"}
                   </Label>
                 </div>
               )}
