@@ -167,6 +167,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     notes: string;
     procurement_rate: string;
     supplier_id: string;
+    discount_amount: string;
   }>>([]);
   // Line items removed during the current edit session — deleted on save.
   const [deletedOrderItemIds, setDeletedOrderItemIds] = useState<Set<string>>(new Set());
