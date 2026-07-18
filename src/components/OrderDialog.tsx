@@ -2462,6 +2462,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             placeholder="₹0"
                           />
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={item.discount_amount}
+                            onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, discount_amount: e.target.value } : p))}
+                            className="h-8 w-24 text-right text-sm"
+                            placeholder="₹0"
+                          />
+                        </TableCell>
                         {canSeeProcurement && (
                           <TableCell className="text-right">
                             <Input
@@ -2478,7 +2489,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         <TableCell className="text-right font-medium">
                           <span className="text-sm">
                             {item.unit_price && item.quantity
-                              ? `₹${(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}`
+                              ? `₹${Math.max(0, parseFloat(item.unit_price) * item.quantity - (parseFloat(item.discount_amount) || 0)).toLocaleString('en-IN')}`
                               : '-'}
                           </span>
                         </TableCell>
