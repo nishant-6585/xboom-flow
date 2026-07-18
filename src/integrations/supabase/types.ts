@@ -9420,6 +9420,7 @@ export type Database = {
       order_items: {
         Row: {
           created_at: string
+          discount_amount: number
           estimated_procurement_rate: number | null
           fulfilled_from_stock: boolean | null
           id: string
@@ -9445,6 +9446,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          discount_amount?: number
           estimated_procurement_rate?: number | null
           fulfilled_from_stock?: boolean | null
           id?: string
@@ -9470,6 +9472,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          discount_amount?: number
           estimated_procurement_rate?: number | null
           fulfilled_from_stock?: boolean | null
           id?: string
