@@ -411,12 +411,15 @@ export function useOrders() {
   const orders = rawOrders.filter((o: any) => {
     if (o?.deleted_at) return false;
     if ((o?.source || 'manual') !== 'website') return true;
-    // Website orders: hide pending-payment (po_received) and cancelled rows
-    // from the main Orders list. These live in dedicated tabs:
-    //   - po_received -> Orders > Website Pending Payment tab
-    //   - cancelled  -> Sales > Leads > Website abandoned carts
+    // Website orders: hide pending-payment (po_received) rows from the main
+    // Orders list — they live in Orders > Website Pending Payment tab.
+    // Cancelled website orders STAY in the list (marked Cancelled, same as
+    // manually-cancelled orders) so sales sees the cancellation instead of
+    // the order silently vanishing; the raw woo row additionally surfaces
+    // in Sales > Leads > Website for recovery follow-up. Dashboard financial
+    // totals already exclude cancelled orders.
     const status = (o?.status || '').toLowerCase();
-    if (status === 'po_received' || status === 'cancelled') return false;
+    if (status === 'po_received') return false;
     const refDate = o.order_date || o.created_at;
     if (!refDate) return false;
     return new Date(refDate).getTime() >= WEBSITE_ORDER_CUTOFF;
