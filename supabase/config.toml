@@ -2,6 +2,9 @@
 verify_jwt = false
 project_id = "mxsotxddcvmeluqonuuj"
 
+[functions.jarvis-ads]
+verify_jwt = false
+
 [functions]
   [functions.admin-reset-mfa]
     verify_jwt = false
