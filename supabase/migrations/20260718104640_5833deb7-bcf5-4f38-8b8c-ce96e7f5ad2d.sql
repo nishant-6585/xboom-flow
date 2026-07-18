@@ -1,0 +1,90 @@
+
+CREATE OR REPLACE FUNCTION public.guard_website_order_sales_attribution()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_flag text;
+  v_uid uuid;
+  v_name text;
+  v_log_needed boolean := false;
+  v_from_id uuid;
+BEGIN
+  IF NEW.external_id IS NULL OR OLD.source <> 'website' THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.sales_person_id IS DISTINCT FROM OLD.sales_person_id
+     OR NEW.sales_person_name IS DISTINCT FROM OLD.sales_person_name THEN
+
+    BEGIN v_flag := current_setting('app.attribution_rpc', true); EXCEPTION WHEN OTHERS THEN v_flag := NULL; END;
+    IF v_flag = 'on' THEN
+      RETURN NEW;
+    END IF;
+
+    IF pg_trigger_depth() = 1
+       AND NEW.sales_person_id IS NOT NULL
+       AND NEW.sales_person_id <> 'a8050cc3-7d17-44ac-a083-d8023d505331'::uuid THEN
+      PERFORM set_config('app.attribution_source', 'trigger_normalize', true);
+      NEW.source := 'manual';
+      NEW.lead_source := COALESCE(NEW.lead_source, 'website');
+      NEW.sales_attribution_locked := true;
+      IF NEW.attributed_at IS NULL THEN
+        NEW.attributed_at := now();
+      END IF;
+      v_uid := auth.uid();
+      IF v_uid IS NOT NULL THEN
+        IF NEW.attributed_by IS NULL THEN
+          NEW.attributed_by := v_uid;
+        END IF;
+        IF NEW.attributed_by_name IS NULL THEN
+          SELECT COALESCE(p.full_name, p.name, e.name)
+            INTO v_name
+            FROM public.profiles p
+            LEFT JOIN public.employees e ON e.profile_id = p.id
+           WHERE p.id = v_uid
+           LIMIT 1;
+          NEW.attributed_by_name := v_name;
+        END IF;
+      END IF;
+      IF NEW.sales_attribution_reason IS NULL THEN
+        NEW.sales_attribution_reason := 'direct_admin_edit';
+      END IF;
+      v_log_needed := true;
+      v_from_id := OLD.sales_person_id;
+    END IF;
+  END IF;
+
+  IF v_log_needed THEN
+    INSERT INTO public.sales_attribution_log (
+      order_id, from_sales_person_id, to_sales_person_id, to_sales_person_name,
+      reason, reason_custom, changed_by, changed_by_name, source
+    ) VALUES (
+      NEW.id, v_from_id, NEW.sales_person_id, NEW.sales_person_name,
+      COALESCE(NEW.sales_attribution_reason, 'direct_admin_edit'),
+      NEW.sales_attribution_reason_custom,
+      NEW.attributed_by, NEW.attributed_by_name,
+      'direct'
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+INSERT INTO public.sales_attribution_log (
+  order_id, from_sales_person_id, to_sales_person_id, to_sales_person_name,
+  reason, reason_custom, changed_by, changed_by_name, source, created_at
+)
+SELECT o.id, NULL, o.sales_person_id, o.sales_person_name,
+       COALESCE(o.sales_attribution_reason, 'direct_admin_edit'),
+       o.sales_attribution_reason_custom,
+       o.attributed_by, o.attributed_by_name,
+       'direct', COALESCE(o.attributed_at, now())
+  FROM public.orders o
+ WHERE o.order_number IN ('144656','145666')
+   AND NOT EXISTS (
+     SELECT 1 FROM public.sales_attribution_log l WHERE l.order_id = o.id
+   );
