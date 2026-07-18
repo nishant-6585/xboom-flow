@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useMyKyc, kycStatusMeta } from "@/hooks/useKyc";
-import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
+import { mergeIdCardImages } from "@/portal/lib/mergeIdCardImages";
+import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ShieldCheck, Info } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -77,6 +79,14 @@ export default function PortalKyc() {
   const [docType, setDocType] = useState<DocType>("aadhaar");
   const [docNumber, setDocNumber] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  // Aadhaar needs BOTH sides — front (photo/name/DOB/number) and back
+  // (address). Customers photograph them separately, so we take two images
+  // and merge them client-side into one file. A checkbox covers the case
+  // where they already have a single file showing both sides.
+  const [frontFile, setFrontFile] = useState<File | null>(null);
+  const [backFile, setBackFile] = useState<File | null>(null);
+  const [aadhaarSingleFile, setAadhaarSingleFile] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [digilockerVisible, setDigilockerVisible] = useState(false);
   const [dlStarting, setDlStarting] = useState(false);
 
@@ -169,16 +179,37 @@ export default function PortalKyc() {
 
   const cfg = fieldConfig(docType);
   const numberError = validateNumber(docType, docNumber);
-  const canSend = !!file && !numberError && (!cfg.required || docNumber.trim().length > 0);
+  const aadhaarTwoFileMode = docType === "aadhaar" && !aadhaarSingleFile;
+  const filesReady = aadhaarTwoFileMode ? !!frontFile && !!backFile : !!file;
+  const canSend = filesReady && !numberError && (!cfg.required || docNumber.trim().length > 0);
 
   async function handleSubmit() {
-    if (!file || !canSend) return;
+    if (!canSend) return;
+    let fileToSubmit = file;
+    if (aadhaarTwoFileMode) {
+      if (!frontFile || !backFile) return;
+      setMerging(true);
+      try {
+        fileToSubmit = await mergeIdCardImages(frontFile, backFile);
+      } catch (e) {
+        toast.error((e as Error).message);
+        return;
+      } finally {
+        setMerging(false);
+      }
+    }
+    if (!fileToSubmit) return;
     const ok = await submitDocument({
       documentType: docType,
       documentNumber: docNumber.trim(),
-      file,
+      file: fileToSubmit,
     });
-    if (ok) { setDocNumber(""); setFile(null); }
+    if (ok) {
+      setDocNumber("");
+      setFile(null);
+      setFrontFile(null);
+      setBackFile(null);
+    }
   }
 
   async function viewDoc(path: string) {
@@ -285,7 +316,16 @@ export default function PortalKyc() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="doc-type">Document Type <span className="text-red-600">*</span></Label>
-                <Select value={docType} onValueChange={(v) => { setDocType(v as DocType); setDocNumber(""); }}>
+                <Select
+                  value={docType}
+                  onValueChange={(v) => {
+                    setDocType(v as DocType);
+                    setDocNumber("");
+                    setFile(null);
+                    setFrontFile(null);
+                    setBackFile(null);
+                  }}
+                >
                   <SelectTrigger id="doc-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {DOC_TYPES.map((d) => (
@@ -316,22 +356,81 @@ export default function PortalKyc() {
                   {numberError && docNumber ? numberError : cfg.hint}
                 </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="file">Document file <span className="text-red-600">*</span></Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                />
-                <p className="text-xs text-muted-foreground">PDF, JPG, JPEG, or PNG. Max 10MB.</p>
-              </div>
+              {docType === "aadhaar" && (
+                <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-900 text-sm">
+                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-medium">Aadhaar needs BOTH sides</div>
+                    <div className="mt-0.5">
+                      Front (your photo, name, date of birth and Aadhaar number) and back
+                      (your address). Uploads showing only one side cannot be approved.
+                    </div>
+                  </div>
+                </div>
+              )}
+              {aadhaarTwoFileMode ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="file-front">Front side photo <span className="text-red-600">*</span></Label>
+                    <Input
+                      id="file-front"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                      onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)}
+                    />
+                    <p className="text-xs text-muted-foreground">The side with your photo, name, DOB and Aadhaar number. JPG or PNG.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="file-back">Back side photo <span className="text-red-600">*</span></Label>
+                    <Input
+                      id="file-back"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                      onChange={(e) => setBackFile(e.target.files?.[0] ?? null)}
+                    />
+                    <p className="text-xs text-muted-foreground">The side with your address. JPG or PNG.</p>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="file">Document file <span className="text-red-600">*</span></Label>
+                  <Input
+                    id="file"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    PDF, JPG, JPEG, or PNG. Max 10MB.
+                    {docType === "aadhaar" && " The file must clearly show BOTH the front and the back of your Aadhaar."}
+                  </p>
+                </div>
+              )}
+              {docType === "aadhaar" && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="aadhaar-single"
+                    checked={aadhaarSingleFile}
+                    onCheckedChange={(v) => {
+                      setAadhaarSingleFile(v === true);
+                      setFile(null);
+                      setFrontFile(null);
+                      setBackFile(null);
+                    }}
+                  />
+                  <Label htmlFor="aadhaar-single" className="text-sm font-normal cursor-pointer">
+                    I have one file that already shows both sides
+                  </Label>
+                </div>
+              )}
               <Button
                 onClick={handleSubmit}
-                disabled={submitting || !canSend}
+                disabled={submitting || merging || !canSend}
                 className="w-full sm:w-auto"
               >
-                {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</> : <><Upload className="h-4 w-4 mr-2" /> Submit for verification</>}
+                {submitting || merging
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {merging ? "Preparing images…" : "Submitting…"}</>
+                  : <><Upload className="h-4 w-4 mr-2" /> Submit for verification</>}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Manual uploads are reviewed by our team before approval.

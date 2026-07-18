@@ -350,11 +350,16 @@ async function runReview(
       : Boolean(aiNumberRaw && declaredNumberRaw && aiNumberRaw.toLowerCase() === declaredNumberRaw.replace(/\s|-/g, "").toLowerCase());
   const typeMatch = Boolean(aiDocType && declaredType && aiDocType === declaredType);
 
+  // Aadhaar must show BOTH sides — the back carries the address. A front-only
+  // upload must never auto-approve; it queues for staff with a clear flag.
+  const addressSideVisible = parsed.address_side_visible === true;
+
   const flags: string[] = [];
   if (!legOk) flags.push("poor_image");
   if (!typeMatch) flags.push("type_mismatch");
   if (!nameCmp.matches) flags.push("name_mismatch");
   if (!isAadhaar && !numberMatch) flags.push("number_mismatch");
+  if (isAadhaar && !addressSideVisible) flags.push("aadhaar_back_missing");
   if (aiConfidence < AI_CONFIDENCE_THRESHOLD) flags.push("low_confidence");
 
   const allGreen =
@@ -362,6 +367,7 @@ async function runReview(
     numberMatch &&
     typeMatch &&
     legOk &&
+    (!isAadhaar || addressSideVisible) &&
     aiConfidence >= AI_CONFIDENCE_THRESHOLD;
 
   let recommendation: Recommendation;
@@ -478,7 +484,9 @@ async function runReview(
 
 function buildPrompt(isAadhaar: boolean, declaredType: string) {
   const aadhaarNote = isAadhaar
-    ? "This document is an Indian Aadhaar card. For privacy, do NOT return the 12-digit Aadhaar number — set document_number to null. Only extract the holder's name and confirm the document type."
+    ? "This document is an Indian Aadhaar card. For privacy, do NOT return the 12-digit Aadhaar number — set document_number to null. Only extract the holder's name and confirm the document type. " +
+      "An Aadhaar has TWO sides: the FRONT carries the photo, name, date of birth and the number; the BACK carries the holder's address (often with a QR code). " +
+      "The document may contain both sides stacked in one image or across PDF pages — inspect everything provided."
     : "";
   return [
     `The customer declared this document as: "${declaredType || "unknown"}".`,
@@ -489,6 +497,7 @@ function buildPrompt(isAadhaar: boolean, declaredType: string) {
     '  "holder_name": string (as printed) or null,',
     '  "document_number": string (no spaces or dashes) or null,',
     '  "legibility": "good" | "poor",',
+    '  "address_side_visible": boolean (Aadhaar only: true when the BACK/address side is clearly visible somewhere in the document; false when only the front is shown; null for non-Aadhaar documents),',
     '  "confidence": number between 0 and 1 (your overall confidence)',
     "}",
     "Rules:",
