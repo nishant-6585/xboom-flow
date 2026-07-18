@@ -682,6 +682,28 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
             <span className="font-medium">₹{formData.delivery_charges.toLocaleString()}</span>
           </div>
         )}
+        <div className="flex justify-between items-center gap-2 pt-1">
+          <span className="text-muted-foreground whitespace-nowrap">Discount (₹)</span>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={formData.discount_amount ?? ''}
+            onChange={e => setFormData(prev => ({
+              ...prev,
+              discount_amount: e.target.value === '' ? undefined : parseFloat(e.target.value) || undefined,
+            }))}
+            disabled={loading}
+            placeholder="0"
+            className="h-8 max-w-[120px] text-right"
+          />
+        </div>
+        {formData.discount_amount && formData.discount_amount > 0 && (
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Discount applied</span>
+            <span className="text-destructive">− ₹{Number(formData.discount_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+        )}
         <Separator className="my-2" />
         <div className="flex justify-between text-base">
           <span className="font-medium">Total Amount (incl. GST)</span>
