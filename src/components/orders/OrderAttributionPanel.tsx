@@ -80,15 +80,23 @@ export function OrderAttributionPanel({
           <span className="font-medium text-sm">Sales attribution</span>
         </div>
         {isAttributed ? (
-          <Badge
-            variant="outline"
-            className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-            title={`By ${order.attributed_by_name ?? 'manager'} on ${
-              order.attributed_at ? new Date(order.attributed_at).toLocaleString('en-IN') : ''
-            }`}
-          >
-            Credited to {order.sales_person_name} · {reasonLabel(order.sales_attribution_reason)}
-          </Badge>
+          <div className="flex flex-col items-end gap-0.5">
+            <Badge
+              variant="outline"
+              className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+              title={`By ${order.attributed_by_name ?? 'manager'} on ${
+                order.attributed_at ? new Date(order.attributed_at).toLocaleString('en-IN') : ''
+              }`}
+            >
+              Credited to {order.sales_person_name} · {reasonLabel(order.sales_attribution_reason)}
+            </Badge>
+            <span className="text-[11px] text-muted-foreground">
+              Credited by {order.attributed_by_name ?? 'system'}
+              {order.attributed_at && (
+                <> · {new Date(order.attributed_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</>
+              )}
+            </span>
+          </div>
         ) : (
           <Badge variant="outline" className="text-muted-foreground">Unattributed — WooCommerce (Vishal)</Badge>
         )}
