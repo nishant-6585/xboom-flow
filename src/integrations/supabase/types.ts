@@ -1267,6 +1267,67 @@ export type Database = {
         }
         Relationships: []
       }
+      attribution_field_audit: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          db_session_user: string | null
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          order_id: string
+          source_path: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          db_session_user?: string | null
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          order_id: string
+          source_path: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          db_session_user?: string | null
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          order_id?: string
+          source_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attribution_field_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "attribution_field_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attribution_field_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attribution_grants: {
         Row: {
           created_at: string
@@ -3054,6 +3115,13 @@ export type Database = {
           testimonial?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_testimonials_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "customer_testimonials_order_id_fkey"
             columns: ["order_id"]
@@ -5277,6 +5345,13 @@ export type Database = {
             foreignKeyName: "expense_order_links_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "expense_order_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -7168,6 +7243,13 @@ export type Database = {
             foreignKeyName: "inventory_procurements_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "inventory_procurements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -7268,6 +7350,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "inventory_procurements"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "inventory_transactions_order_id_fkey"
@@ -7748,6 +7837,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "invoices_order_id_fkey"
             columns: ["order_id"]
@@ -8640,6 +8736,13 @@ export type Database = {
             foreignKeyName: "meetings_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "meetings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -9061,6 +9164,13 @@ export type Database = {
             foreignKeyName: "notifications_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -9151,6 +9261,13 @@ export type Database = {
             foreignKeyName: "order_duplicate_candidates_manual_order_id_fkey"
             columns: ["manual_order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_duplicate_candidates_manual_order_id_fkey"
+            columns: ["manual_order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -9160,6 +9277,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders_missing_phone"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_duplicate_candidates_website_order_id_fkey"
+            columns: ["website_order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "order_duplicate_candidates_website_order_id_fkey"
@@ -9267,6 +9391,13 @@ export type Database = {
             foreignKeyName: "order_invoices_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -9363,6 +9494,13 @@ export type Database = {
           weight_grams?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
@@ -9602,6 +9740,13 @@ export type Database = {
             foreignKeyName: "order_phone_audit_log_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_phone_audit_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -9655,6 +9800,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "inventory_procurements"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_procurement_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "order_procurement_links_order_id_fkey"
@@ -10532,6 +10684,13 @@ export type Database = {
           submitted_by?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "payment_records_order_id_fkey"
             columns: ["order_id"]
@@ -12070,6 +12229,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "procurement_payment_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "procurement_payment_requests_order_id_fkey"
             columns: ["order_id"]
@@ -13656,6 +13822,13 @@ export type Database = {
             foreignKeyName: "sales_attribution_log_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "sales_attribution_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -13718,6 +13891,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_attribution_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "sales_attribution_requests_order_id_fkey"
             columns: ["order_id"]
@@ -14777,6 +14957,13 @@ export type Database = {
             foreignKeyName: "supplier_payments_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -14852,6 +15039,13 @@ export type Database = {
           validity_date?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_quotations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "supplier_quotations_order_id_fkey"
             columns: ["order_id"]
@@ -14938,6 +15132,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "inventory_procurements"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_ratings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "supplier_ratings_order_id_fkey"
@@ -15202,6 +15403,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "meetings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "tasks_order_id_fkey"
@@ -15603,6 +15811,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "enquiries"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "tickets_order_id_fkey"
@@ -16592,6 +16807,13 @@ export type Database = {
             foreignKeyName: "zoho_books_invoices_linked_order_id_fkey"
             columns: ["linked_order_id"]
             isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "zoho_books_invoices_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -16739,6 +16961,51 @@ export type Database = {
       }
     }
     Views: {
+      attribution_integrity_violations: {
+        Row: {
+          attributed_at: string | null
+          attributed_by: string | null
+          attributed_by_name: string | null
+          external_id: string | null
+          issue: string | null
+          order_id: string | null
+          order_number: string | null
+          sales_attribution_reason: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
+          source: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          attributed_at?: string | null
+          attributed_by?: string | null
+          attributed_by_name?: string | null
+          external_id?: string | null
+          issue?: never
+          order_id?: string | null
+          order_number?: string | null
+          sales_attribution_reason?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          attributed_at?: string | null
+          attributed_by?: string | null
+          attributed_by_name?: string | null
+          external_id?: string | null
+          issue?: never
+          order_id?: string | null
+          order_number?: string | null
+          sales_attribution_reason?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       campaign_performance: {
         Row: {
           campaign_id: string | null
@@ -16948,6 +17215,13 @@ export type Database = {
           primary_payment_mode: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "payment_records_order_id_fkey"
             columns: ["order_id"]

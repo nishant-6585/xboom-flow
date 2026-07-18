@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -72,6 +74,37 @@ export function OrderAttributionPanel({
   const isAttributed =
     !!order.sales_attribution_locked && order.sales_person_id && order.sales_person_id !== SYSTEM_USER_ID;
 
+  // Fetch the most recent attribution field-audit row so we can show
+  // whether the last change came through the RPC, a direct edit, the
+  // Woo sync, or a normalising trigger.
+  const { data: latestAudit } = useQuery({
+    queryKey: ['attribution-field-audit-latest', order.id],
+    enabled: !!order.id && isAttributed,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('attribution_field_audit')
+        .select('source_path, created_at, actor_name, field_name')
+        .eq('order_id', order.id)
+        .eq('field_name', 'sales_person_id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data ?? null) as { source_path: string; created_at: string; actor_name: string | null } | null;
+    },
+  });
+
+  const sourcePathLabel = (sp?: string | null) => {
+    switch (sp) {
+      case 'rpc': return { label: 'via Attribution RPC', cls: 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-400' };
+      case 'direct_edit': return { label: 'via Direct Edit', cls: 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400' };
+      case 'trigger_normalize': return { label: 'via Guard Trigger', cls: 'border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-400' };
+      case 'woo_sync': return { label: 'via WooCommerce Sync', cls: 'border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-400' };
+      case 'reconcile': return { label: 'via Reconcile', cls: 'border-slate-500/40 bg-slate-500/10 text-slate-700 dark:text-slate-400' };
+      case 'system': return { label: 'via System', cls: 'border-muted bg-muted/40 text-muted-foreground' };
+      default: return null;
+    }
+  };
+
   return (
     <div className="p-4 rounded-lg border border-primary/20 bg-muted/40 space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -81,15 +114,26 @@ export function OrderAttributionPanel({
         </div>
         {isAttributed ? (
           <div className="flex flex-col items-end gap-0.5">
-            <Badge
-              variant="outline"
-              className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-              title={`By ${order.attributed_by_name ?? 'manager'} on ${
-                order.attributed_at ? new Date(order.attributed_at).toLocaleString('en-IN') : ''
-              }`}
-            >
-              Credited to {order.sales_person_name} · {reasonLabel(order.sales_attribution_reason)}
-            </Badge>
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <Badge
+                variant="outline"
+                className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                title={`By ${order.attributed_by_name ?? 'manager'} on ${
+                  order.attributed_at ? new Date(order.attributed_at).toLocaleString('en-IN') : ''
+                }`}
+              >
+                Credited to {order.sales_person_name} · {reasonLabel(order.sales_attribution_reason)}
+              </Badge>
+              {latestAudit && sourcePathLabel(latestAudit.source_path) && (
+                <Badge
+                  variant="outline"
+                  className={sourcePathLabel(latestAudit.source_path)!.cls}
+                  title={`Source path: ${latestAudit.source_path}`}
+                >
+                  {sourcePathLabel(latestAudit.source_path)!.label}
+                </Badge>
+              )}
+            </div>
             <span className="text-[11px] text-muted-foreground">
               Credited by {order.attributed_by_name ?? 'system'}
               {order.attributed_at && (
