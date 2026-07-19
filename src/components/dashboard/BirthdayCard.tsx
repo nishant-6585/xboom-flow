@@ -86,6 +86,13 @@ export function pickWish(employeeId: string, dateKey: string, pool: string[] = B
   return pool[idx];
 }
 
+// Show the card only on the birthday itself or in the 4 days leading up to it.
+export const BIRTHDAY_VISIBILITY_WINDOW_DAYS = 4;
+
+export function isBirthdayVisible(row: Pick<NextBirthday, "is_today" | "days_until">): boolean {
+  return row.is_today || row.days_until <= BIRTHDAY_VISIBILITY_WINDOW_DAYS;
+}
+
 function initialsOf(name: string): string {
   return name
     .split(/\s+/)
@@ -116,6 +123,7 @@ export function BirthdayCard() {
 
   if (row === undefined) return null; // loading
   if (row === null) return null; // no upcoming birthday (shouldn't happen if active employees have dob)
+  if (!isBirthdayVisible(row)) return null;
 
   const dateKey = istDateKey();
   const wish = pickWish(row.employee_id, dateKey);
