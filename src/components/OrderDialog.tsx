@@ -2335,6 +2335,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                               type="number"
                               min={0}
                               step={0.01}
+                              max={
+                                (parseFloat(editedOrderItems[item.id]?.unit_price) || 0) *
+                                (parseInt(editedOrderItems[item.id]?.quantity) || 0) || undefined
+                              }
                               value={editedOrderItems[item.id]?.discount_amount ?? ''}
                               onChange={(e) => setEditedOrderItems(prev => ({
                                 ...prev,
@@ -2481,6 +2485,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             type="number"
                             min={0}
                             step={0.01}
+                            max={
+                              (parseFloat(item.unit_price) || 0) * (Number(item.quantity) || 0) || undefined
+                            }
                             value={item.discount_amount}
                             onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, discount_amount: e.target.value } : p))}
                             className="h-8 w-24 text-right text-sm"
