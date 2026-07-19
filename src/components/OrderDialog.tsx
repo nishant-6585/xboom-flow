@@ -2692,25 +2692,39 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   {(() => {
                     const currentTotal = parseFloat(totalSalesAmount) || order.total_sales_amount || 0;
                     const currentDiscount = parseFloat(discountAmount) || order.discount_amount || 0;
-                    const hasDiscount = currentDiscount > 0;
-                    const subtotal = currentTotal + currentDiscount;
+                    const itemDiscountTotal = orderItems.reduce(
+                      (s, it) => s + (Number(it.discount_amount) || 0),
+                      0,
+                    );
+                    const hasOrderDiscount = currentDiscount > 0;
+                    const hasItemDiscount = itemDiscountTotal > 0;
+                    const hasDiscount = hasOrderDiscount || hasItemDiscount;
+                    // currentTotal already reflects item discounts (net of them);
+                    // gross subtotal = currentTotal + order-level discount + item discounts.
+                    const subtotal = currentTotal + currentDiscount + itemDiscountTotal;
                     return (
                       <>
                         {hasDiscount && (
                           <div>
                             <span className="text-muted-foreground">Subtotal:</span>
-                            <p className="font-medium">₹{subtotal.toLocaleString('en-IN')}</p>
+                            <p className="font-medium">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                         )}
-                        {hasDiscount && (
+                        {hasItemDiscount && (
                           <div>
-                            <span className="text-muted-foreground">Discount:</span>
-                            <p className="font-medium text-purple-600">-₹{currentDiscount.toLocaleString('en-IN')}</p>
+                            <span className="text-muted-foreground">Item Discounts:</span>
+                            <p className="font-medium text-purple-600">-₹{itemDiscountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          </div>
+                        )}
+                        {hasOrderDiscount && (
+                          <div>
+                            <span className="text-muted-foreground">Order Discount:</span>
+                            <p className="font-medium text-purple-600">-₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                         )}
                         <div>
                           <span className="text-muted-foreground">{hasDiscount ? 'Net Amount:' : 'Total Amount:'}</span>
-                          <p className="font-medium">₹{currentTotal.toLocaleString('en-IN')}</p>
+                          <p className="font-medium">₹{currentTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </>
                     );
