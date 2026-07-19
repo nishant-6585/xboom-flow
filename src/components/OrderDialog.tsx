@@ -1140,7 +1140,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           if (edits.discount_amount !== (originalItem.discount_amount ?? 0)) {
             const raw = String(edits.discount_amount ?? '').trim();
             const next = raw === '' ? 0 : Number(raw);
-            updates.discount_amount = Number.isFinite(next) && next >= 0 ? next : 0;
+            const qty = Number(updates.quantity ?? originalItem.quantity) || 0;
+            const price = Number(
+              updates.unit_price ?? originalItem.unit_price ?? 0,
+            ) || 0;
+            const lineGross = qty * price;
+            const safe = Number.isFinite(next) && next >= 0 ? next : 0;
+            const clamped = lineGross > 0 ? Math.min(safe, lineGross) : safe;
+            updates.discount_amount = Math.round(clamped * 100) / 100;
           }
           if (edits.supplier_id !== (originalItem.supplier_id || '')) {
             updates.supplier_id = edits.supplier_id || null;
@@ -1230,7 +1237,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             status: n.status || 'draft',
             notes: n.notes || null,
             supplier_id: n.supplier_id || null,
-            discount_amount: n.discount_amount ? Number(n.discount_amount) : 0,
+            discount_amount: (() => {
+              const raw = String(n.discount_amount ?? '').trim();
+              const parsed = raw === '' ? 0 : Number(raw);
+              const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+              const gross = (Number(n.quantity) || 0) * (Number(n.unit_price) || 0);
+              const clamped = gross > 0 ? Math.min(safe, gross) : safe;
+              return Math.round(clamped * 100) / 100;
+            })(),
           }));
           const { error: insErr } = await supabase.from('order_items').insert(inserts);
           if (insErr) throw insErr;
@@ -2321,6 +2335,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                               type="number"
                               min={0}
                               step={0.01}
+                              max={
+                                (parseFloat(editedOrderItems[item.id]?.unit_price) || 0) *
+                                (parseInt(editedOrderItems[item.id]?.quantity) || 0) || undefined
+                              }
                               value={editedOrderItems[item.id]?.discount_amount ?? ''}
                               onChange={(e) => setEditedOrderItems(prev => ({
                                 ...prev,
@@ -2467,6 +2485,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             type="number"
                             min={0}
                             step={0.01}
+                            max={
+                              (parseFloat(item.unit_price) || 0) * (Number(item.quantity) || 0) || undefined
+                            }
                             value={item.discount_amount}
                             onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, discount_amount: e.target.value } : p))}
                             className="h-8 w-24 text-right text-sm"
@@ -2671,25 +2692,39 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   {(() => {
                     const currentTotal = parseFloat(totalSalesAmount) || order.total_sales_amount || 0;
                     const currentDiscount = parseFloat(discountAmount) || order.discount_amount || 0;
-                    const hasDiscount = currentDiscount > 0;
-                    const subtotal = currentTotal + currentDiscount;
+                    const itemDiscountTotal = orderItems.reduce(
+                      (s, it) => s + (Number(it.discount_amount) || 0),
+                      0,
+                    );
+                    const hasOrderDiscount = currentDiscount > 0;
+                    const hasItemDiscount = itemDiscountTotal > 0;
+                    const hasDiscount = hasOrderDiscount || hasItemDiscount;
+                    // currentTotal already reflects item discounts (net of them);
+                    // gross subtotal = currentTotal + order-level discount + item discounts.
+                    const subtotal = currentTotal + currentDiscount + itemDiscountTotal;
                     return (
                       <>
                         {hasDiscount && (
                           <div>
                             <span className="text-muted-foreground">Subtotal:</span>
-                            <p className="font-medium">₹{subtotal.toLocaleString('en-IN')}</p>
+                            <p className="font-medium">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                         )}
-                        {hasDiscount && (
+                        {hasItemDiscount && (
                           <div>
-                            <span className="text-muted-foreground">Discount:</span>
-                            <p className="font-medium text-purple-600">-₹{currentDiscount.toLocaleString('en-IN')}</p>
+                            <span className="text-muted-foreground">Item Discounts:</span>
+                            <p className="font-medium text-purple-600">-₹{itemDiscountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          </div>
+                        )}
+                        {hasOrderDiscount && (
+                          <div>
+                            <span className="text-muted-foreground">Order Discount:</span>
+                            <p className="font-medium text-purple-600">-₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                         )}
                         <div>
                           <span className="text-muted-foreground">{hasDiscount ? 'Net Amount:' : 'Total Amount:'}</span>
-                          <p className="font-medium">₹{currentTotal.toLocaleString('en-IN')}</p>
+                          <p className="font-medium">₹{currentTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </>
                     );
