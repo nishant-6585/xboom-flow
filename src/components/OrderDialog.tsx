@@ -1140,7 +1140,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           if (edits.discount_amount !== (originalItem.discount_amount ?? 0)) {
             const raw = String(edits.discount_amount ?? '').trim();
             const next = raw === '' ? 0 : Number(raw);
-            updates.discount_amount = Number.isFinite(next) && next >= 0 ? next : 0;
+            const qty = Number(updates.quantity ?? originalItem.quantity) || 0;
+            const price = Number(
+              updates.unit_price ?? originalItem.unit_price ?? 0,
+            ) || 0;
+            const lineGross = qty * price;
+            const safe = Number.isFinite(next) && next >= 0 ? next : 0;
+            const clamped = lineGross > 0 ? Math.min(safe, lineGross) : safe;
+            updates.discount_amount = Math.round(clamped * 100) / 100;
           }
           if (edits.supplier_id !== (originalItem.supplier_id || '')) {
             updates.supplier_id = edits.supplier_id || null;
@@ -1230,7 +1237,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             status: n.status || 'draft',
             notes: n.notes || null,
             supplier_id: n.supplier_id || null,
-            discount_amount: n.discount_amount ? Number(n.discount_amount) : 0,
+            discount_amount: (() => {
+              const raw = String(n.discount_amount ?? '').trim();
+              const parsed = raw === '' ? 0 : Number(raw);
+              const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+              const gross = (Number(n.quantity) || 0) * (Number(n.unit_price) || 0);
+              const clamped = gross > 0 ? Math.min(safe, gross) : safe;
+              return Math.round(clamped * 100) / 100;
+            })(),
           }));
           const { error: insErr } = await supabase.from('order_items').insert(inserts);
           if (insErr) throw insErr;
