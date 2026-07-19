@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BIRTHDAY_WISHES, pickWish } from "../BirthdayCard";
+import { BIRTHDAY_WISHES, pickWish, isBirthdayVisible } from "../BirthdayCard";
 
 describe("BirthdayCard wish selection", () => {
   it("is deterministic for the same (employeeId, dateKey)", () => {
@@ -34,5 +34,23 @@ describe("BirthdayCard wish selection", () => {
   it("pool has ~15 wishes", () => {
     expect(BIRTHDAY_WISHES.length).toBeGreaterThanOrEqual(12);
     expect(BIRTHDAY_WISHES.length).toBeLessThanOrEqual(20);
+  });
+});
+
+describe("BirthdayCard visibility window", () => {
+  it("shows on the birthday itself", () => {
+    expect(isBirthdayVisible({ is_today: true, days_until: 0 })).toBe(true);
+  });
+
+  it("shows within 4 days of the birthday", () => {
+    for (const days of [1, 2, 3, 4]) {
+      expect(isBirthdayVisible({ is_today: false, days_until: days })).toBe(true);
+    }
+  });
+
+  it("hides when the birthday is more than 4 days away", () => {
+    for (const days of [5, 10, 50, 200]) {
+      expect(isBirthdayVisible({ is_today: false, days_until: days })).toBe(false);
+    }
   });
 });
