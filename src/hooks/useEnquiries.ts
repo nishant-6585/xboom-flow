@@ -328,49 +328,10 @@ export function useEnquiries() {
 
       if (error) throw error;
 
-      // Mirror the quote (pricing / availability / lead time only) into the
-      // Respond & Discuss thread. The Response Notes textarea has been
-      // removed from the UI — responders now write free-form text directly
-      // in the thread — so notes are intentionally NOT passed here (they
-      // only carry legacy values forward; re-posting them on every submit
-      // would spam the thread).
-      // buildQuoteMirrorMessage centralizes the rules:
-      //   - only fires when status === "responded"
-      //   - never posts empty / whitespace-only content
-      // A failure here MUST NOT fail the response submission — we log to
-      // the console AND surface a non-blocking warning toast so the mirror
-      // failure is diagnosable without breaking the response flow.
-      const mirrorMessage = buildQuoteMirrorMessage(
-        {
-          pricing: response.pricing,
-          availability: response.availability,
-          leadTime: response.leadTime,
-        },
-        status,
-      );
-      if (mirrorMessage) {
-        const { error: msgError } = await supabase.from("enquiry_messages").insert({
-          enquiry_id: enquiryId,
-          sender_id: user.id,
-          sender_name: profile.name,
-          sender_role: role || "supply_chain",
-          message: mirrorMessage,
-        });
-        if (msgError) {
-          mirrorError = msgError.message;
-          console.error("[enquiry mirror] failed to post quote into discussion thread", {
-            enquiryId,
-            code: msgError.code,
-            message: msgError.message,
-            details: msgError.details,
-          });
-          toast({
-            title: "Response saved — thread mirror failed",
-            description: `Your response was saved, but posting the quote summary into the discussion thread failed (${msgError.message}). You can retype it in the thread below.`,
-            variant: "destructive",
-          });
-        }
-      }
+      // Mirror-into-thread is handled by the DB trigger
+      // `mirror_enquiry_quote_to_thread` on public.enquiries. Every UPDATE
+      // path (this hook, direct SQL, admin tools) is covered, so no
+      // client-side insert is needed and duplicates are impossible.
 
       // Auto-create pipeline order when moved to pipeline
       if (status === "moved_to_pipeline" && enquiry) {
