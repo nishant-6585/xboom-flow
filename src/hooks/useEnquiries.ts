@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
 import { sendSlackNotification } from "@/hooks/useSlackSettings";
-import { buildQuoteMirrorMessage } from "@/lib/enquiryQuoteMirror";
 
 export type QueryStatus = "pending" | "responded" | "follow_up" | "on_hold" | "moved_to_pipeline" | "order_won" | "order_lost";
 export type UrgencyLevel = "low" | "medium" | "high" | "critical";
