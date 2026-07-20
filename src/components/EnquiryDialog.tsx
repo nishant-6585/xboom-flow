@@ -358,6 +358,22 @@ export function EnquiryDialog({
                 )}
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm pt-2 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground font-medium">Lead Source:</span>
+                  {enquiry.lead_source ? (
+                    <LeadSourceBadge source={enquiry.lead_source} size="sm" />
+                  ) : (
+                    <span className="text-muted-foreground italic">Not specified</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground font-medium">Created by:</span>
+                  <span className="font-medium text-foreground">{enquiry.sales_person_name || 'Unassigned'}</span>
+                </div>
+              </div>
+
               {enquiry.requested_timeline && (
                 <div className="pt-2 border-t border-border">
                   <p className="text-sm flex items-center gap-2">
