@@ -9,7 +9,7 @@
  * unchanged; we only stop NEW bad input from being submitted.
  */
 
-export type ValidationResult = { ok: true } | { ok: false; error: string };
+export type ValidationResult = { ok: boolean; error: string };
 
 /** Fixed set of availability choices shown as a Select in the UI. */
 export const AVAILABILITY_OPTIONS = [
@@ -31,7 +31,7 @@ const PRICING_REGEX =
 
 export function validatePricing(raw: string | null | undefined): ValidationResult {
   const v = (raw ?? "").trim();
-  if (v === "") return { ok: true };
+  if (v === "") return { ok: true, error: "" };
   if (!PRICING_REGEX.test(v)) {
     return {
       ok: false,
@@ -39,16 +39,16 @@ export function validatePricing(raw: string | null | undefined): ValidationResul
         "Enter a price in ₹. If the product is unavailable, set Availability instead.",
     };
   }
-  return { ok: true };
+  return { ok: true, error: "" };
 }
 
 export function validateAvailability(raw: string | null | undefined): ValidationResult {
   const v = (raw ?? "").trim();
-  if (v === "") return { ok: true };
+  if (v === "") return { ok: true, error: "" };
   if (v.length > 120) {
     return { ok: false, error: "Availability must be 120 characters or fewer." };
   }
-  return { ok: true };
+  return { ok: true, error: "" };
 }
 
 /**
@@ -62,14 +62,14 @@ const LEAD_TIME_REGEX =
 
 export function validateLeadTime(raw: string | null | undefined): ValidationResult {
   const v = (raw ?? "").trim();
-  if (v === "") return { ok: true };
+  if (v === "") return { ok: true, error: "" };
   if (!LEAD_TIME_REGEX.test(v)) {
     return {
       ok: false,
       error: 'Use a number + unit, e.g. "5 days", "5-7 days", "2 weeks", "1 month".',
     };
   }
-  return { ok: true };
+  return { ok: true, error: "" };
 }
 
 /** Any-field validity summary for gating Submit buttons. */
