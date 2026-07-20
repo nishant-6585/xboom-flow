@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, MessageSquare, Loader2, HandMetal, CornerDownLeft, Timer, UserCheck } from "lucide-react";
+import { Send, MessageSquare, Loader2, HandMetal, CornerDownLeft, Timer, UserCheck, ClipboardList } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,7 @@ interface EnquiryMessage {
   is_read: boolean;
   created_at: string;
   is_nudge?: boolean;
+  is_quote_mirror?: boolean;
 }
 
 interface ResponseMeta {
@@ -199,6 +200,33 @@ export const EnquiryMessageThread = forwardRef<EnquiryMessageThreadHandle, Enqui
                     👋 {msg.sender_name} nudged the supply chain team ·{" "}
                     {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                   </span>
+                </div>
+              );
+            }
+            if (msg.is_quote_mirror) {
+              // Structured quote summary posted by the DB trigger. Rendered
+              // as a distinct system card (not a chat bubble) so the
+              // salesperson recognizes it as the official quote response.
+              const lines = msg.message.split("\n");
+              return (
+                <div
+                  key={msg.id}
+                  className="mx-auto w-full max-w-[92%] rounded-lg border border-primary/30 bg-primary/5 px-3 py-2"
+                >
+                  <div className="flex items-center gap-2 text-[11px] font-medium text-primary">
+                    <ClipboardList className="w-3.5 h-3.5" />
+                    Quote from {msg.sender_name}
+                    <span className="ml-auto text-[10px] font-normal text-muted-foreground">
+                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                  <div className="mt-1 space-y-0.5 text-sm">
+                    {lines.map((line, i) => (
+                      <div key={i} className="whitespace-pre-wrap">
+                        {line}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             }
