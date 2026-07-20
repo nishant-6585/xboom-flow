@@ -10,13 +10,15 @@ export type PaymentMode =
   | 'credit_card'
   | 'debit_card'
   | 'bank_transfer'
+  | 'bajaj_finserv'
+  | 'snapmint'
   | 'other';
 
 export interface PaymentModeDef {
   value: PaymentMode;
   label: string;
   shortLabel: string;
-  category: 'digital' | 'bank' | 'physical' | 'other';
+  category: 'digital' | 'bank' | 'physical' | 'financing' | 'other';
   description?: string;
 }
 
@@ -32,6 +34,8 @@ export const PAYMENT_MODES: ReadonlyArray<PaymentModeDef> = [
   { value: 'credit_card',     label: 'Credit Card',     shortLabel: 'Credit',  category: 'digital' },
   { value: 'debit_card',      label: 'Debit Card',      shortLabel: 'Debit',   category: 'digital' },
   { value: 'bank_transfer',   label: 'Bank Transfer',   shortLabel: 'Bank',    category: 'bank',    description: 'Generic / legacy' },
+  { value: 'bajaj_finserv',   label: 'Bajaj Finserv (EMI)', shortLabel: 'Bajaj',    category: 'financing', description: 'EMI via Bajaj Finserv' },
+  { value: 'snapmint',        label: 'Snapmint (EMI)',      shortLabel: 'Snapmint', category: 'financing', description: 'EMI via Snapmint (website checkout)' },
   { value: 'other',           label: 'Other',           shortLabel: 'Other',   category: 'other' },
 ];
 
@@ -43,6 +47,7 @@ export const PAYMENT_MODE_CATEGORIES: ReadonlyArray<{ value: PaymentModeDef['cat
   { value: 'digital',  label: 'Digital' },
   { value: 'bank',     label: 'Bank' },
   { value: 'physical', label: 'Physical' },
+  { value: 'financing', label: 'Financing' },
   { value: 'other',    label: 'Other' },
 ];
 
@@ -65,6 +70,7 @@ export function getPaymentModeBadgeClass(mode: string | null | undefined): strin
     case 'digital':  return 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20';
     case 'bank':     return 'bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20';
     case 'physical': return 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20';
+    case 'financing': return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20';
     case 'other':    return 'bg-muted text-muted-foreground border-border';
     default:         return 'bg-muted text-muted-foreground border-border';
   }
@@ -80,6 +86,9 @@ export function getReferenceNumberPlaceholder(mode: string | null | undefined): 
       return 'UTR or transaction reference';
     case 'payment_gateway':
       return 'Gateway transaction ID';
+    case 'bajaj_finserv':
+    case 'snapmint':
+      return 'EMI application / loan reference ID';
     case 'cheque':
     case 'dd':
       return 'Cheque / DD number';
@@ -93,6 +102,7 @@ export function getReferenceNumberPlaceholder(mode: string | null | undefined): 
 // Modes where a payment screenshot is REQUIRED before submission.
 export const SCREENSHOT_REQUIRED_MODES: ReadonlySet<PaymentMode> = new Set<PaymentMode>([
   'upi', 'neft', 'rtgs', 'imps', 'cheque', 'dd', 'credit_card', 'debit_card',
+  'bajaj_finserv', 'snapmint',
 ]);
 
 export function isScreenshotRequired(mode: PaymentMode | null | undefined): boolean {
@@ -116,6 +126,9 @@ export function getScreenshotHint(mode: PaymentMode | null | undefined): string 
     case 'credit_card':
     case 'debit_card':
       return 'Upload POS terminal slip OR processor dashboard screenshot.';
+    case 'bajaj_finserv':
+    case 'snapmint':
+      return 'Upload the EMI approval / disbursal confirmation.';
     case 'payment_gateway':
       return 'Gateway transactions are auto-confirmed via webhook. Screenshot only needed for manual gateway links.';
     case 'cash':
