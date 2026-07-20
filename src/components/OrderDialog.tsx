@@ -2692,10 +2692,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   {(() => {
                     const currentTotal = parseFloat(totalSalesAmount) || order.total_sales_amount || 0;
                     const currentDiscount = parseFloat(discountAmount) || order.discount_amount || 0;
-                    const itemDiscountTotal = orderItems.reduce(
-                      (s, it) => s + (Number(it.discount_amount) || 0),
-                      0,
-                    );
+                     const itemDiscountTotal = (orderItems ?? []).reduce(
+                       (s, it) => s + (Number(it?.discount_amount) || 0),
+                       0,
+                     );
                     const hasOrderDiscount = currentDiscount > 0;
                     const hasItemDiscount = itemDiscountTotal > 0;
                     const hasDiscount = hasOrderDiscount || hasItemDiscount;
