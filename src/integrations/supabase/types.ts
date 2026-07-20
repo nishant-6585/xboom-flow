@@ -5175,6 +5175,7 @@ export type Database = {
           id: string
           is_initial: boolean
           is_nudge: boolean
+          is_quote_mirror: boolean
           is_read: boolean
           message: string
           sender_id: string
@@ -5188,6 +5189,7 @@ export type Database = {
           id?: string
           is_initial?: boolean
           is_nudge?: boolean
+          is_quote_mirror?: boolean
           is_read?: boolean
           message: string
           sender_id: string
@@ -5201,6 +5203,7 @@ export type Database = {
           id?: string
           is_initial?: boolean
           is_nudge?: boolean
+          is_quote_mirror?: boolean
           is_read?: boolean
           message?: string
           sender_id?: string
@@ -18690,6 +18693,7 @@ export type Database = {
           id: string
           is_initial: boolean
           is_nudge: boolean
+          is_quote_mirror: boolean
           is_read: boolean
           message: string
           sender_id: string
