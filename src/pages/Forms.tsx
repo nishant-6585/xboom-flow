@@ -15,7 +15,7 @@ import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
 import { FormQRCodeDialog } from "@/components/forms/FormQRCodeDialog";
 import { FormsOverallAnalytics } from "@/components/forms/FormsOverallAnalytics";
 import { FormsDashboard } from "@/components/forms/FormsDashboard";
-import { Plus, FileText, Inbox, Trash2, Code, Eye, Link2, QrCode, LayoutGrid, BarChart3, LayoutDashboard } from "lucide-react";
+import { Plus, FileText, Inbox, Trash2, Code, Link2, QrCode, LayoutGrid, BarChart3, LayoutDashboard } from "lucide-react";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
