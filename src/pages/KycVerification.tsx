@@ -579,6 +579,18 @@ export default function KycVerification() {
                             {r.ai_review && effectiveStatus === "pending_verification" && (
                               <AiRecommendationBadge ai={r.ai_review} />
                             )}
+                            {effectiveStatus === "pending_verification" && (() => {
+                              const expected = r.ai_review?.expected_name || r.account.primary_contact_name || r.account.company_name || null;
+                              const findings = aiFindingsSummary(r.ai_review, expected);
+                              if (findings.length === 0) return null;
+                              return (
+                                <ul className="text-[11px] leading-snug text-red-700 space-y-0.5">
+                                  {findings.map((f, i) => (
+                                    <li key={i} className="whitespace-normal break-words">• {f}</li>
+                                  ))}
+                                </ul>
+                              );
+                            })()}
                             {(() => {
                               const reason = computePendingReason(r, effectiveStatus, isDigilocker);
                               if (!reason) return null;
