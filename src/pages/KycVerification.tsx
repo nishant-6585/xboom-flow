@@ -74,6 +74,45 @@ function AiRecommendationBadge({ ai }: { ai: NonNullable<KycQueueRow["ai_review"
 }
 
 /**
+ * Concrete, human-readable findings extracted from an AI review — the
+ * specific mismatches that would cause (or did cause) the doc to fall out
+ * of auto-approve. Rendered inline for reviewers so the reason is visible
+ * without having to hover, and preserved after manual approval so the
+ * audit trail still shows what the AI flagged.
+ */
+function aiFindingsSummary(
+  ai: KycQueueRow["ai_review"] | null | undefined,
+  expectedName?: string | null,
+): string[] {
+  if (!ai) return [];
+  const findings: string[] = [];
+  if (ai.type_match === false) {
+    findings.push(
+      `Type mismatch (declared ${formatDocType(ai.declared_doc_type)}, detected ${formatDocType(ai.extracted_doc_type)})`,
+    );
+  }
+  if (ai.number_match === false) {
+    findings.push("Number mismatch");
+  }
+  if (typeof ai.name_match_score === "number" && ai.name_match_score < 0.75) {
+    const pct = Math.round(ai.name_match_score * 100);
+    const holder = ai.extracted_holder_name || "—";
+    const expected = expectedName || ai.expected_name || "—";
+    findings.push(`Name mismatch ${pct}% (document: "${holder}" vs expected "${expected}")`);
+  }
+  if (ai.legibility && ai.legibility.toLowerCase() !== "good") {
+    findings.push(`Legibility: ${ai.legibility}`);
+  }
+  if (Array.isArray(ai.flags) && ai.flags.length > 0) {
+    findings.push(`Flags: ${ai.flags.join(", ")}`);
+  }
+  if (ai.error) {
+    findings.push(`AI error: ${ai.error}`);
+  }
+  return findings;
+}
+
+/**
  * Human-readable explanation of why a submission is still pending, so
  * reviewers don't have to open the drawer to see what didn't reconcile.
  * Returns null when the row isn't pending (approved/rejected already
