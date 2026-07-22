@@ -981,6 +981,9 @@ export function TallyDashboard() {
                 </div>
               </div>
               <p className="text-lg sm:text-xl font-bold">{s.value}</p>
+              {"sub" in s && s.sub ? (
+                <p className="text-[10px] text-muted-foreground mt-1 truncate">{s.sub}</p>
+              ) : null}
             </CardContent>
           </Card>
         ))}
