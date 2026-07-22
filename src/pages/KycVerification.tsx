@@ -722,6 +722,26 @@ export default function KycVerification() {
                                   Reason: {r.document.rejection_reason}
                                 </span>
                               )}
+                              {/* Preserve the AI's original findings even after a human
+                                  approves/rejects — reviewers and auditors need to see
+                                  what the AI flagged (e.g. name mismatch) on the record. */}
+                              {r.document?.reviewed_by && (() => {
+                                const expected = r.ai_review?.expected_name || r.account.primary_contact_name || r.account.company_name || null;
+                                const findings = aiFindingsSummary(r.ai_review, expected);
+                                if (findings.length === 0) return null;
+                                return (
+                                  <div className="mt-1 rounded border border-amber-200 bg-amber-50 p-1.5">
+                                    <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-amber-800">
+                                      <Sparkles className="h-3 w-3" /> AI original finding
+                                    </div>
+                                    <ul className="mt-0.5 text-[11px] leading-snug text-amber-900 space-y-0.5">
+                                      {findings.map((f, i) => (
+                                        <li key={i} className="whitespace-normal break-words">• {f}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                );
+                              })()}
                               {effectiveStatus === "approved" && r.document?.reviewed_by && r.document?.doc_type === "aadhaar" && (
                                 <TooltipProvider delayDuration={150}>
                                   <Tooltip>
