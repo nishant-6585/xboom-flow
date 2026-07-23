@@ -1944,7 +1944,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             Change via Sales attribution ↑
                           </button>
                         </>
-                      ) : editingSalesPerson && isAdmin ? (
+                      ) : editingSalesPerson && (isAdmin || isSalesManager) ? (
                         <>
                           <Select
                             value={salesPersonId ?? undefined}
@@ -1992,7 +1992,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       ) : (
                         <>
                           <span className="font-medium">{salesPersonName || order.sales_person_name}</span>
-                          {isAdmin && (
+                          {(isAdmin || isSalesManager) && (
                             <Button
                               variant="ghost"
                               size="icon"
