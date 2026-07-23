@@ -1923,7 +1923,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Sales:</span>
-                      {isWebsiteOrder ? (
+                      {isWebsiteOrder && !isAdmin ? (
                         <>
                           <span className="font-medium">
                             {salesPersonName || order.sales_person_name || 'Unattributed'}
