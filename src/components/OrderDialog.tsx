@@ -1923,88 +1923,34 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Sales:</span>
-                      {isWebsiteOrder && !isAdmin ? (
-                        <>
-                          <span className="font-medium">
-                            {salesPersonName || order.sales_person_name || 'Unattributed'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const el = document.getElementById('order-attribution-panel');
-                              if (el) {
-                                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                const focusable = el.querySelector<HTMLElement>('button, [role="button"], input, select, a');
-                                focusable?.focus?.();
-                              }
-                            }}
-                            className="text-xs text-muted-foreground italic hover:text-foreground underline underline-offset-2"
-                            title="Sales attribution for website orders is managed in the Sales attribution panel"
-                          >
-                            Change via Sales attribution ↑
-                          </button>
-                        </>
-                      ) : editingSalesPerson && isAdmin ? (
-                        <>
-                          <Select
-                            value={salesPersonId ?? undefined}
-                            disabled={savingSalesPerson}
-                            onValueChange={async (newId) => {
-                              const selected = salesUsers.find((u) => u.user_id === newId);
-                              if (!selected || !order?.id) return;
-                              setSavingSalesPerson(true);
-                              const { error } = await supabase
-                                .from('orders')
-                                .update({ sales_person_id: selected.user_id, sales_person_name: selected.name })
-                                .eq('id', order.id);
-                              setSavingSalesPerson(false);
-                              if (error) {
-                                toast.error(`Failed to reassign salesperson: ${error.message}`);
-                                return;
-                              }
-                              setSalesPersonId(selected.user_id);
-                              setSalesPersonName(selected.name);
-                              toast.success(`Salesperson reassigned to ${selected.name}`);
-                              setEditingSalesPerson(false);
-                            }}
-                          >
-                            <SelectTrigger className="h-7 w-56 text-sm">
-                              <SelectValue placeholder="Select salesperson" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {salesUsers.map((u) => (
-                                <SelectItem key={u.user_id} value={u.user_id}>
-                                  {u.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            disabled={savingSalesPerson}
-                            onClick={() => setEditingSalesPerson(false)}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium">{salesPersonName || order.sales_person_name}</span>
-                          {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => setEditingSalesPerson(true)}
-                              title="Reassign salesperson"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </>
-                      )}
+                      {/*
+                        Sales is READ-ONLY in Customer Information for every role.
+                        Reassignment MUST go through the Sales attribution panel so
+                        the DB triggers stamp attributed_by / attributed_at and
+                        write a sales_attribution_log entry. Do NOT reintroduce an
+                        inline editor, pencil affordance, or a direct
+                        orders.update({ sales_person_id }) call here — the test
+                        src/components/__tests__/OrderDialogSalesReadOnly.test.tsx
+                        guards this.
+                      */}
+                      <span className="font-medium">
+                        {salesPersonName || order.sales_person_name || 'Unattributed'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById('order-attribution-panel');
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            const focusable = el.querySelector<HTMLElement>('button, [role="button"], input, select, a');
+                            focusable?.focus?.();
+                          }
+                        }}
+                        className="text-xs text-muted-foreground italic hover:text-foreground underline underline-offset-2"
+                        title="Sales attribution is managed in the Sales attribution panel"
+                      >
+                        Change via Sales attribution ↑
+                      </button>
                     </div>
                   )}
                   {(committedTimeline || order.committed_timeline) && (
