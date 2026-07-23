@@ -1929,7 +1929,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         the DB triggers stamp attributed_by / attributed_at and
                         write a sales_attribution_log entry. Do NOT reintroduce an
                         inline editor, pencil affordance, or a direct
-                        orders.update({ sales_person_id }) call here — the test
+                        orders update on sales_person_id here — the test
                         src/components/__tests__/OrderDialogSalesReadOnly.test.tsx
                         guards this.
                       */}
