@@ -26,8 +26,10 @@ export type AvailabilityOption = (typeof AVAILABILITY_OPTIONS)[number];
  * leading ₹ or `Rs`, and an optional `/unit` (or /pc / /piece) suffix.
  * Rejects alphabetic content like "NOT AVAILABLE".
  */
+// Accept plain digits ("4500"), Indian-style grouping ("4,500" / "1,00,000"),
+// optional ₹/Rs prefix, optional decimals, and optional /unit suffix.
 const PRICING_REGEX =
-  /^\s*(?:₹|rs\.?)?\s*\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?\s*(?:\/\s*(?:unit|pc|pcs|piece))?\s*$/i;
+  /^\s*(?:₹|rs\.?)?\s*(?:\d+|\d{1,3}(?:,\d{2,3})+)(?:\.\d{1,2})?\s*(?:\/\s*(?:unit|pc|pcs|piece))?\s*$/i;
 
 export function validatePricing(raw: string | null | undefined): ValidationResult {
   const v = (raw ?? "").trim();
