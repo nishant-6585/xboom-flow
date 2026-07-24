@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, CheckCircle, AlertCircle, Wrench, Send } from "lucide-react";
 import { z } from "zod";
+import { validateEmail, validatePhone } from "@/lib/contactValidation";
 
 const DRONE_CATEGORIES = [
   { value: "Consumer", label: "Consumer Drone" },
@@ -39,8 +40,24 @@ const ISSUE_TYPES = [
 
 const formSchema = z.object({
   customer_name: z.string().trim().min(1, "Name is required").max(100),
-  email: z.string().trim().email("Invalid email").max(255).optional().or(z.literal("")),
-  phone: z.string().trim().min(6, "Phone number is required").max(20).regex(/^[\d\s+\-().]{6,20}$/, "Invalid phone number"),
+  email: z
+    .string()
+    .trim()
+    .max(255)
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || validateEmail(v).valid === true, {
+      message: "Enter a valid email (e.g. name@example.com)",
+    }),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Phone number is required")
+    .max(20)
+    .refine((v) => validatePhone(v, { required: true }).valid === true, {
+      message:
+        "Enter a 10-digit Indian mobile (6-9…) or international number with country code",
+    }),
   drone_model: z.string().trim().min(1, "Drone model is required").max(200),
   drone_category: z.string().min(1, "Category is required"),
   serial_number: z.string().trim().max(100).optional().or(z.literal("")),

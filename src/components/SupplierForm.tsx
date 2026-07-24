@@ -168,6 +168,9 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
               onChange={(e) => handleChange('phone', e.target.value)}
               placeholder="+91 XXXXX XXXXX"
             />
+            {phoneError(formData.phone) && (
+              <p className="text-xs text-destructive">{phoneError(formData.phone)}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="mobile">Mobile</Label>
@@ -177,6 +180,9 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
               onChange={(e) => handleChange('mobile', e.target.value)}
               placeholder="+91 XXXXX XXXXX"
             />
+            {phoneError(formData.mobile) && (
+              <p className="text-xs text-destructive">{phoneError(formData.mobile)}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -187,6 +193,9 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
               onChange={(e) => handleChange('email', e.target.value)}
               placeholder="supplier@example.com"
             />
+            {emailError(formData.email) && (
+              <p className="text-xs text-destructive">{emailError(formData.email)}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="city">City</Label>
