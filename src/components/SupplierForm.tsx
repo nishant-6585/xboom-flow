@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Plus, X } from 'lucide-react';
 import { Supplier, SupplierPreference } from '@/hooks/useSuppliers';
 import { ProductSelect } from '@/components/ProductSelect';
+import { emailError, phoneError, validateEmail, validatePhone } from '@/lib/contactValidation';
+import { toast } from 'sonner';
 
 interface SupplierFormProps {
   initialData?: Partial<Supplier>;
@@ -81,6 +83,14 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
     if (!formData.name.trim() || !formData.contact_name.trim()) {
       return;
     }
+
+    // Email + phone/mobile must validate when provided (all optional here).
+    const emailCheck = validateEmail(formData.email);
+    if (emailCheck.valid === false) { toast.error(emailCheck.error); return; }
+    const phoneCheck = validatePhone(formData.phone);
+    if (phoneCheck.valid === false) { toast.error(`Phone: ${phoneCheck.error}`); return; }
+    const mobileCheck = validatePhone(formData.mobile);
+    if (mobileCheck.valid === false) { toast.error(`Mobile: ${mobileCheck.error}`); return; }
 
     const success = await onSubmit({
       ...formData,
