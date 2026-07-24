@@ -405,14 +405,14 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
 
     // Mobile is mandatory — required for MSG91 SMS updates to customers
     const phoneCheck = validatePhone(formData.customer_phone, { required: true });
-    if (!phoneCheck.valid) {
+    if (phoneCheck.valid === false) {
       toast.error(phoneCheck.error);
       return;
     }
 
     // Email is optional but must be valid when present.
     const emailCheck = validateEmail(formData.customer_email);
-    if (!emailCheck.valid) {
+    if (emailCheck.valid === false) {
       toast.error(emailCheck.error);
       return;
     }
