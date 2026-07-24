@@ -25,6 +25,7 @@ import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
+import { emailError as emailErrorInline, phoneError as phoneErrorInline, validateEmail, validatePhone } from '@/lib/contactValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
 import { stripHtmlLabel } from '@/lib/stripHtml';
@@ -804,6 +805,19 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // Validate tracking URL is a proper http(s) link
     if (trackingUrl && !isValidHttpUrl(trackingUrl)) {
       toast.error('Tracking URL must be a valid link starting with http:// or https://');
+      return;
+    }
+
+    // Contact-field validation: mobile is required, email optional but must
+    // be valid when present. Blocks Save with an inline toast.
+    const phoneCheck = validatePhone(customerPhone, { required: true });
+    if (phoneCheck.valid === false) {
+      toast.error(phoneCheck.error);
+      return;
+    }
+    const emailCheck = validateEmail(customerEmail);
+    if (emailCheck.valid === false) {
+      toast.error(emailCheck.error);
       return;
     }
 
@@ -1831,6 +1845,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       disabled={loading}
                       placeholder="+91 98765 43210"
                     />
+                    {phoneErrorInline(customerPhone) && (
+                      <p className="text-xs text-destructive">{phoneErrorInline(customerPhone)}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_customer_email">Email <span className="text-muted-foreground text-xs">(Optional)</span></Label>
@@ -1842,6 +1859,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       disabled={loading}
                       placeholder="customer@example.com"
                     />
+                    {emailErrorInline(customerEmail) && (
+                      <p className="text-xs text-destructive">{emailErrorInline(customerEmail)}</p>
+                    )}
                   </div>
                   {isAdmin && (
                     <div className="space-y-2 md:col-span-2">

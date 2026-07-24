@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Plus, X } from 'lucide-react';
 import { Supplier, SupplierPreference } from '@/hooks/useSuppliers';
 import { ProductSelect } from '@/components/ProductSelect';
+import { emailError, phoneError, validateEmail, validatePhone } from '@/lib/contactValidation';
+import { toast } from 'sonner';
 
 interface SupplierFormProps {
   initialData?: Partial<Supplier>;
@@ -81,6 +83,14 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
     if (!formData.name.trim() || !formData.contact_name.trim()) {
       return;
     }
+
+    // Email + phone/mobile must validate when provided (all optional here).
+    const emailCheck = validateEmail(formData.email);
+    if (emailCheck.valid === false) { toast.error(emailCheck.error); return; }
+    const phoneCheck = validatePhone(formData.phone);
+    if (phoneCheck.valid === false) { toast.error(`Phone: ${phoneCheck.error}`); return; }
+    const mobileCheck = validatePhone(formData.mobile);
+    if (mobileCheck.valid === false) { toast.error(`Mobile: ${mobileCheck.error}`); return; }
 
     const success = await onSubmit({
       ...formData,
@@ -158,6 +168,9 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
               onChange={(e) => handleChange('phone', e.target.value)}
               placeholder="+91 XXXXX XXXXX"
             />
+            {phoneError(formData.phone) && (
+              <p className="text-xs text-destructive">{phoneError(formData.phone)}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="mobile">Mobile</Label>
@@ -167,6 +180,9 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
               onChange={(e) => handleChange('mobile', e.target.value)}
               placeholder="+91 XXXXX XXXXX"
             />
+            {phoneError(formData.mobile) && (
+              <p className="text-xs text-destructive">{phoneError(formData.mobile)}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -177,6 +193,9 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
               onChange={(e) => handleChange('email', e.target.value)}
               placeholder="supplier@example.com"
             />
+            {emailError(formData.email) && (
+              <p className="text-xs text-destructive">{emailError(formData.email)}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="city">City</Label>
