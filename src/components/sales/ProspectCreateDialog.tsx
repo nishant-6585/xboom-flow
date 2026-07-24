@@ -13,6 +13,7 @@ import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { emailError, phoneError, validateEmail, validatePhone } from '@/lib/contactValidation';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
@@ -127,6 +128,10 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
       toast.error('Prospect Type is required');
       return;
     }
+    const emailCheck = validateEmail(form.email);
+    if (emailCheck.valid === false) { toast.error(emailCheck.error); return; }
+    const phoneCheck = validatePhone(form.phone_number);
+    if (phoneCheck.valid === false) { toast.error(phoneCheck.error); return; }
     if (!user || !profile) return;
 
     setSaving(true);
@@ -195,6 +200,9 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
               <div className="space-y-2">
                 <Label>Phone Number</Label>
                 <Input value={form.phone_number} onChange={(e) => setForm(f => ({ ...f, phone_number: e.target.value }))} />
+                {phoneError(form.phone_number) && (
+                  <p className="text-xs text-destructive">{phoneError(form.phone_number)}</p>
+                )}
               </div>
             </div>
 
@@ -202,6 +210,9 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
+                {emailError(form.email) && (
+                  <p className="text-xs text-destructive">{emailError(form.email)}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Company</Label>
