@@ -1831,6 +1831,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       disabled={loading}
                       placeholder="+91 98765 43210"
                     />
+                    {phoneErrorInline(customerPhone) && (
+                      <p className="text-xs text-destructive">{phoneErrorInline(customerPhone)}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_customer_email">Email <span className="text-muted-foreground text-xs">(Optional)</span></Label>
@@ -1842,6 +1845,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       disabled={loading}
                       placeholder="customer@example.com"
                     />
+                    {emailErrorInline(customerEmail) && (
+                      <p className="text-xs text-destructive">{emailErrorInline(customerEmail)}</p>
+                    )}
                   </div>
                   {isAdmin && (
                     <div className="space-y-2 md:col-span-2">

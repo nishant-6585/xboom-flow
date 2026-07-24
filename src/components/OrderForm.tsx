@@ -18,6 +18,7 @@ import { OrderItemsInput } from '@/components/OrderItemsInput';
 import { OrderItemFormData } from '@/hooks/useOrderItems';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { validateEmail, validatePhone, emailError, phoneError } from '@/lib/contactValidation';
 import { isValidHttpUrl } from '@/lib/urlValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
@@ -403,9 +404,16 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     }
 
     // Mobile is mandatory — required for MSG91 SMS updates to customers
-    const phoneDigits = (formData.customer_phone || '').replace(/\D/g, '');
-    if (!formData.customer_phone || phoneDigits.length < 10 || phoneDigits.length > 15) {
-      toast.error('Customer mobile is required (10–15 digits). It is used to send SMS order updates.');
+    const phoneCheck = validatePhone(formData.customer_phone, { required: true });
+    if (!phoneCheck.valid) {
+      toast.error(phoneCheck.error);
+      return;
+    }
+
+    // Email is optional but must be valid when present.
+    const emailCheck = validateEmail(formData.customer_email);
+    if (!emailCheck.valid) {
+      toast.error(emailCheck.error);
       return;
     }
 
@@ -526,10 +534,11 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return orderItems.some(item => item.product_name.trim());
     }
     if (currentStep === 2) {
-      const phoneDigits = (formData.customer_phone || '').replace(/\D/g, '');
+      const phoneOk = validatePhone(formData.customer_phone, { required: true }).valid;
+      const emailOk = validateEmail(formData.customer_email).valid;
       return !!formData.customer_name &&
              (formData.is_website_order || !!formData.sales_person_name) &&
-             phoneDigits.length >= 10 && phoneDigits.length <= 15;
+             phoneOk && emailOk;
     }
     return true;
   };
@@ -801,6 +810,11 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                         placeholder="customer@example.com"
                         className="h-11"
                       />
+                      {emailError(formData.customer_email) && (
+                        <p className="text-xs text-destructive">
+                          {emailError(formData.customer_email)}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="customer_phone">
@@ -811,7 +825,6 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                         id="customer_phone"
                         type="tel"
                         inputMode="tel"
-                        pattern="^\+?[0-9 \-]{7,20}$"
                         value={formData.customer_phone || ''}
                         onChange={e => setFormData(prev => ({ ...prev, customer_phone: e.target.value }))}
                         disabled={loading}
@@ -819,6 +832,11 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                         required
                         className="h-11"
                       />
+                      {phoneError(formData.customer_phone, { required: true }) && (
+                        <p className="text-xs text-destructive">
+                          {phoneError(formData.customer_phone, { required: true })}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Customer Type</Label>
