@@ -152,7 +152,7 @@ export function emailError(
   opts: EmailValidationOptions = {},
 ): string | null {
   const r = validateEmail(input, opts);
-  return r.valid ? null : r.error;
+  return r.valid === false ? r.error : null;
 }
 
 export function phoneError(
@@ -160,5 +160,5 @@ export function phoneError(
   opts: PhoneValidationOptions = {},
 ): string | null {
   const r = validatePhone(input, opts);
-  return r.valid ? null : r.error;
+  return r.valid === false ? r.error : null;
 }
