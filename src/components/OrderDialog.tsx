@@ -808,6 +808,19 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       return;
     }
 
+    // Contact-field validation: mobile is required, email optional but must
+    // be valid when present. Blocks Save with an inline toast.
+    const phoneCheck = validatePhone(customerPhone, { required: true });
+    if (phoneCheck.valid === false) {
+      toast.error(phoneCheck.error);
+      return;
+    }
+    const emailCheck = validateEmail(customerEmail);
+    if (emailCheck.valid === false) {
+      toast.error(emailCheck.error);
+      return;
+    }
+
     const updates = buildOrderUpdatePayload();
     if (Object.keys(updates).length === 0) {
       // No changes — skip the write entirely.
