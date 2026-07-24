@@ -25,6 +25,7 @@ import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
+import { emailError as emailErrorInline, phoneError as phoneErrorInline, validateEmail, validatePhone } from '@/lib/contactValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
 import { stripHtmlLabel } from '@/lib/stripHtml';
