@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     // Orders in current month (by order_date per project policy)
     const { data: orders, error: ordersErr } = await supabase
       .from('orders')
-      .select('id, total_amount, source, order_date')
+      .select('id, total_sales_amount, source, order_date')
       .gte('order_date', monthStart)
       .lt('order_date', nextMonthStart);
     if (ordersErr) throw ordersErr;
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     let monthlyRevenue = 0;
     const bySource: Record<string, { count: number; revenue: number }> = {};
     for (const o of orders ?? []) {
-      const amt = Number(o.total_amount) || 0;
+      const amt = Number((o as any).total_sales_amount) || 0;
       monthlyRevenue += amt;
       const src = (o.source ?? 'unknown') as string;
       if (!bySource[src]) bySource[src] = { count: 0, revenue: 0 };
@@ -86,6 +86,16 @@ Deno.serve(async (req) => {
     );
   } catch (e) {
     console.error('jarvis-report error', e);
-    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500, headers: jsonHeaders });
+    const err = e as { message?: string; stack?: string; code?: string; details?: string; hint?: string };
+    return new Response(
+      JSON.stringify({
+        error: err?.message ?? String(e),
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint,
+        stack: err?.stack,
+      }),
+      { status: 500, headers: jsonHeaders },
+    );
   }
 });
