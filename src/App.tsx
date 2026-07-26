@@ -105,6 +105,7 @@ import PortalRfqs from "@/portal/pages/PortalRfqs";
 import PortalTickets from "@/portal/pages/PortalTickets";
 import PortalTicketDetail from "@/portal/pages/PortalTicketDetail";
 import PortalSettings from "@/portal/pages/PortalSettings";
+import PortalFeedback from "@/portal/pages/PortalFeedback";
 import PortalKyc from "@/portal/pages/PortalKyc";
 
 const queryClient = new QueryClient({
@@ -276,6 +277,14 @@ function AppInner() {
                   element={
                     <PortalProtectedRoute>
                       <PortalTicketDetail />
+                    </PortalProtectedRoute>
+                  }
+                />
+                <Route
+                  path="feedback"
+                  element={
+                    <PortalProtectedRoute>
+                      <PortalFeedback />
                     </PortalProtectedRoute>
                   }
                 />

@@ -11,6 +11,7 @@ import { template as dlqAlert } from './dlq-alert.tsx'
 import { template as ticketAssigned } from './ticket-assigned.tsx'
 import { template as ticketStatusUpdate } from './ticket-status-update.tsx'
 import { template as portalOrderState } from './portal-order-state.tsx'
+import { template as portalOrderDeliveredFeedback } from './portal-order-delivered-feedback.tsx'
 import { template as portalRfqSubmitted } from './portal-rfq-submitted.tsx'
 import { template as portalRfqAssigned } from './portal-rfq-assigned.tsx'
 import { template as portalTicketCreated } from './portal-ticket-created.tsx'
@@ -62,6 +63,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'ticket-assigned': ticketAssigned,
   'ticket-status-update': ticketStatusUpdate,
   'portal-order-state': portalOrderState,
+  'portal-order-delivered-feedback': portalOrderDeliveredFeedback,
   'portal-rfq-submitted': portalRfqSubmitted,
   'portal-rfq-assigned': portalRfqAssigned,
   'portal-ticket-created': portalTicketCreated,

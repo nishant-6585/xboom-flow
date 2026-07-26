@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FileText, MessageSquare, FileQuestion, Settings, LogOut, ShieldCheck, ShoppingBag, UserCircle2 } from "lucide-react";
+import { LayoutDashboard, FileText, MessageSquare, FileQuestion, Settings, LogOut, ShieldCheck, ShoppingBag, UserCircle2, Star } from "lucide-react";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +11,7 @@ const NAV = [
   { to: "/portal/documents", label: "Documents", icon: FileText },
   { to: "/portal/rfqs", label: "Quotes & RFQs", icon: FileQuestion },
   { to: "/portal/tickets", label: "Support", icon: MessageSquare },
+  { to: "/portal/feedback", label: "Feedback", icon: Star },
   { to: "/portal/settings", label: "Settings", icon: Settings },
 ];
 

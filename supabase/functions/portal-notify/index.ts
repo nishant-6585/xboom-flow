@@ -27,6 +27,12 @@ const INTERAKT_API_KEY = Deno.env.get("INTERAKT_API_KEY");
 const PORTAL_BASE_URL =
   Deno.env.get("PORTAL_BASE_URL") ?? "https://xboomflow.com/portal";
 const STAFF_BASE_URL = "https://xboomflow.com";
+// Public "write a review" link for the Xboom Google Business listing.
+// Set the GOOGLE_REVIEW_URL secret to the canonical
+// https://search.google.com/local/writereview?placeid=<PLACE_ID> link.
+const GOOGLE_REVIEW_URL =
+  Deno.env.get("GOOGLE_REVIEW_URL") ??
+  "https://www.google.com/search?q=xboom+reviews";
 
 /**
  * Per-state WhatsApp template mapping.
@@ -290,6 +296,25 @@ Deno.serve(async (req) => {
               thirdValue,
             ]);
             results.push({ channel: "whatsapp", to: c.whatsapp_number, ok: r.ok, error: r.error });
+          }
+        }
+        // Delivered orders additionally get a feedback + Google review ask.
+        if (o.current_state === "delivered") {
+          for (const c of contacts) {
+            const p = c.id ? prefs[c.id] : { email: true, whatsapp: true };
+            if (!c.email || !p.email) continue;
+            const r = await sendEmail(
+              c.email,
+              "portal-order-delivered-feedback",
+              {
+                order_number: o.order_number,
+                contact_name: c.full_name ?? undefined,
+                feedback_url: `${PORTAL_BASE_URL}/feedback?order=${orderId}`,
+                google_review_url: GOOGLE_REVIEW_URL,
+              },
+              `portal-notify:order_delivered_feedback:${orderId}:${c.email}`,
+            );
+            results.push({ channel: "email", to: c.email, ok: r.ok, error: r.error });
           }
         }
         break;
