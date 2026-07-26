@@ -52,7 +52,7 @@ const formatCurrency = (value: number) => {
   return `₹${value.toFixed(0)}`;
 };
 
-type TimeFilter = 'today' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'last_90' | 'all' | 'custom';
+type TimeFilter = 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'last_90' | 'all' | 'custom';
 
 interface DetailItem {
   id: string;
@@ -71,6 +71,10 @@ function getDateRange(filter: TimeFilter, customRange?: { from?: Date; to?: Date
   const now = new Date();
   switch (filter) {
     case 'today': return { start: startOfDay(now), end: endOfDay(now) };
+    case 'yesterday': {
+      const y = subDays(now, 1);
+      return { start: startOfDay(y), end: endOfDay(y) };
+    }
     case 'this_week': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
     case 'last_week': {
       const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
@@ -127,6 +131,7 @@ const COLORS = [
 
 const TIME_LABELS: Record<TimeFilter, string> = {
   today: 'Today',
+  yesterday: 'Yesterday',
   this_week: 'This Week',
   last_week: 'Last Week',
   this_month: 'This Month',
