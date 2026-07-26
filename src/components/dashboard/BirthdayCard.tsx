@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Cake, PartyPopper, Gift, Sparkles, Megaphone } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Cake, PartyPopper, Gift, Sparkles, Megaphone, Music, Pause } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -102,10 +102,19 @@ function initialsOf(name: string): string {
     .join("");
 }
 
+interface BirthdaySong {
+  file_path: string;
+  title: string | null;
+}
+
 export function BirthdayCard() {
   const [row, setRow] = useState<NextBirthday | null | undefined>(undefined);
   const [revealed, setRevealed] = useState(false);
   const [flashing, setFlashing] = useState(false);
+  const [song, setSong] = useState<BirthdaySong | null>(null);
+  const [songPlaying, setSongPlaying] = useState(false);
+  const [songLoading, setSongLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const load = async () => {
     const { data, error } = await supabase.rpc("get_next_birthday" as never);
@@ -120,6 +129,56 @@ export function BirthdayCard() {
   useEffect(() => {
     void load();
   }, []);
+
+  // The tagged song is only fetched (and only playable, enforced by storage
+  // RLS) on the birthday itself.
+  useEffect(() => {
+    if (!row?.is_today) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("birthday_songs")
+        .select("file_path, title")
+        .eq("employee_id", row.employee_id)
+        .maybeSingle();
+      if (!cancelled) setSong(data ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [row?.is_today, row?.employee_id]);
+
+  // Stop the music when the card unmounts.
+  useEffect(() => () => audioRef.current?.pause(), []);
+
+  const toggleSong = async () => {
+    if (!song) return;
+    if (audioRef.current) {
+      if (songPlaying) {
+        audioRef.current.pause();
+        setSongPlaying(false);
+      } else {
+        setSongPlaying(true);
+        void audioRef.current.play().catch(() => setSongPlaying(false));
+      }
+      return;
+    }
+    setSongLoading(true);
+    const { data, error } = await supabase.storage
+      .from("birthday-songs")
+      .createSignedUrl(song.file_path, 3600);
+    setSongLoading(false);
+    if (error || !data?.signedUrl) {
+      toast.error("Couldn't load the birthday song", { description: error?.message });
+      return;
+    }
+    const audio = new Audio(data.signedUrl);
+    audio.onended = () => setSongPlaying(false);
+    audio.onerror = () => setSongPlaying(false);
+    audioRef.current = audio;
+    setSongPlaying(true);
+    void audio.play().catch(() => setSongPlaying(false));
+  };
 
   if (row === undefined) return null; // loading
   if (row === null) return null; // no upcoming birthday (shouldn't happen if active employees have dob)
@@ -168,7 +227,11 @@ export function BirthdayCard() {
         {row.is_today && row.is_owner && !revealed && !row.is_flashed ? (
           <button
             type="button"
-            onClick={() => setRevealed(true)}
+            onClick={() => {
+              setRevealed(true);
+              // Autoplay is allowed here because it starts from this tap.
+              if (song) void toggleSong();
+            }}
             className="w-full text-left rounded-lg border border-dashed border-pink-400/60 bg-pink-500/5 hover:bg-pink-500/10 transition p-4 flex items-center gap-3"
           >
             <div className="w-10 h-10 rounded-full bg-pink-500 text-white flex items-center justify-center shadow-sm">
@@ -224,6 +287,35 @@ export function BirthdayCard() {
                     </p>
                   )}
                 </div>
+              )}
+
+              {row.is_today && song && (
+                <button
+                  type="button"
+                  onClick={() => void toggleSong()}
+                  disabled={songLoading}
+                  className="mt-2 w-full flex items-center gap-2 rounded-md border border-pink-300/60 bg-pink-500/5 hover:bg-pink-500/10 transition px-2.5 py-2 text-left disabled:opacity-60"
+                >
+                  <span className="flex items-center justify-center w-7 h-7 rounded-full bg-pink-500 text-white shrink-0">
+                    {songPlaying ? <Pause className="w-3.5 h-3.5" /> : <Music className="w-3.5 h-3.5" />}
+                  </span>
+                  <span className="text-xs font-medium min-w-0 truncate">
+                    {songLoading
+                      ? "Loading song…"
+                      : songPlaying
+                        ? "Now playing 🎶"
+                        : row.is_owner
+                          ? "Play your birthday song 🎁"
+                          : `Play ${row.name.split(" ")[0]}'s birthday song`}
+                  </span>
+                  {songPlaying && (
+                    <span className="ml-auto flex items-end gap-0.5 h-4 shrink-0" aria-hidden>
+                      <span className="w-1 rounded-sm bg-pink-500 animate-pulse [animation-duration:600ms] h-2" />
+                      <span className="w-1 rounded-sm bg-pink-500 animate-pulse [animation-duration:800ms] h-4" />
+                      <span className="w-1 rounded-sm bg-pink-500 animate-pulse [animation-duration:700ms] h-3" />
+                    </span>
+                  )}
+                </button>
               )}
 
               {/* Owner controls after reveal */}

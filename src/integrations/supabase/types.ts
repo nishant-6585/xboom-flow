@@ -1527,6 +1527,57 @@ export type Database = {
           },
         ]
       }
+      birthday_songs: {
+        Row: {
+          created_at: string
+          employee_id: string
+          file_path: string
+          generation_prompt: string | null
+          id: string
+          source: string
+          title: string | null
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          file_path: string
+          generation_prompt?: string | null
+          id?: string
+          source?: string
+          title?: string | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          file_path?: string
+          generation_prompt?: string | null
+          id?: string
+          source?: string
+          title?: string | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "birthday_songs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "birthday_songs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyback_drones: {
         Row: {
           buyback_date: string
@@ -18378,6 +18429,7 @@ export type Database = {
       invoke_send_order_sms_msg91: { Args: never; Returns: number }
       invoke_woocommerce_orders_reconcile: { Args: never; Returns: number }
       invoke_woocommerce_products_backfill: { Args: never; Returns: number }
+      is_birthday_today: { Args: { p_employee_id: string }; Returns: boolean }
       is_component_category: { Args: { cat: string }; Returns: boolean }
       is_digilocker_kyc_visible: { Args: never; Returns: boolean }
       is_drone_category: { Args: { cat: string }; Returns: boolean }
