@@ -30,6 +30,7 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
   target_role: string | null;
+  order_number?: string | null;
 }
 
 export function useNotifications() {
@@ -92,7 +93,9 @@ export function useNotifications() {
       : '🌟';
     
     toast(notification.title, {
-      description: notification.message,
+      description: notification.order_number
+        ? `Order #${notification.order_number} — ${notification.message}`
+        : notification.message,
       // Enquiry thread messages persist until the user closes them so they
       // aren't missed. Everything else keeps the default 8s auto-dismiss.
       duration: isEnquiryMessage ? Infinity : 8000,
@@ -118,13 +121,16 @@ export function useNotifications() {
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('*, orders(order_number)')
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
 
-      const notifs = (data || []) as Notification[];
+      const notifs = ((data || []) as any[]).map((n) => ({
+        ...n,
+        order_number: n.orders?.order_number ?? null,
+      })) as Notification[];
       // Dedup by id defensively — realtime may have already inserted some rows
       const uniq = Array.from(new Map(notifs.map(n => [n.id, n])).values());
       setNotifications(uniq);
@@ -154,8 +160,22 @@ export function useNotifications() {
           schema: 'public',
           table: 'notifications',
         },
-        (payload) => {
+        async (payload) => {
           const newNotification = payload.new as Notification;
+
+          // Enrich with order_number if linked to an order
+          if (newNotification.order_id && !newNotification.order_number) {
+            try {
+              const { data: ord } = await supabase
+                .from('orders')
+                .select('order_number')
+                .eq('id', newNotification.order_id)
+                .maybeSingle();
+              if (ord?.order_number) newNotification.order_number = ord.order_number;
+            } catch {
+              // best-effort enrichment
+            }
+          }
 
           // Dedup by id — prevents the same row from stacking up if
           // the INSERT event is delivered more than once (multiple
