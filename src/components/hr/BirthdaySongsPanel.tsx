@@ -12,6 +12,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -272,7 +273,20 @@ export function BirthdaySongsPanel() {
           length_seconds: Number(form.lengthSeconds),
         },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        // The real reason lives in the function's JSON body, which supabase-js
+        // tucks away in FunctionsHttpError.context instead of error.message.
+        let detail = error.message;
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const body = await error.context.json();
+            detail = [body?.error, body?.detail].filter(Boolean).join(" — ") || detail;
+          } catch {
+            // body wasn't JSON; keep the generic message
+          }
+        }
+        throw new Error(detail);
+      }
       if (data?.error) throw new Error(String(data.error));
 
       toast.success(`Song generated and tagged to ${generateFor.name} 🎶`, {
