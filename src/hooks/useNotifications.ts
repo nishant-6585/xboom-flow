@@ -158,8 +158,22 @@ export function useNotifications() {
           schema: 'public',
           table: 'notifications',
         },
-        (payload) => {
+        async (payload) => {
           const newNotification = payload.new as Notification;
+
+          // Enrich with order_number if linked to an order
+          if (newNotification.order_id && !newNotification.order_number) {
+            try {
+              const { data: ord } = await supabase
+                .from('orders')
+                .select('order_number')
+                .eq('id', newNotification.order_id)
+                .maybeSingle();
+              if (ord?.order_number) newNotification.order_number = ord.order_number;
+            } catch {
+              // best-effort enrichment
+            }
+          }
 
           // Dedup by id — prevents the same row from stacking up if
           // the INSERT event is delivered more than once (multiple
