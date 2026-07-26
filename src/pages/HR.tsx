@@ -40,7 +40,8 @@ import { HiringPanel } from "@/components/hr/HiringPanel";
 import { ReferralsPanel } from "@/components/hr/ReferralsPanel";
 import { MonthlyPulsePanel } from "@/components/hr/MonthlyPulsePanel";
 import { HolidaysManager } from "@/components/hr/HolidaysManager";
-import { Newspaper } from "lucide-react";
+import { Newspaper, Music } from "lucide-react";
+import { BirthdaySongsPanel } from "@/components/hr/BirthdaySongsPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
 
@@ -148,6 +149,9 @@ export default function HR() {
               <TabsTrigger value="referrals" className="gap-1.5 whitespace-nowrap"><Share2 className="h-4 w-4 shrink-0" /><span>Referrals</span></TabsTrigger>
               {isHROrAdmin && (
                 <TabsTrigger value="monthly_pulse" className="gap-1.5 whitespace-nowrap"><Newspaper className="h-4 w-4 shrink-0" /><span>Monthly Pulse</span></TabsTrigger>
+              )}
+              {isHROrAdmin && (
+                <TabsTrigger value="birthday_songs" className="gap-1.5 whitespace-nowrap"><Music className="h-4 w-4 shrink-0" /><span>Birthday Songs</span></TabsTrigger>
               )}
               {isHROrAdmin && (
                 <TabsTrigger value="financial_list" className="gap-1.5 whitespace-nowrap"><Wallet className="h-4 w-4 shrink-0" /><span>Financial Details</span></TabsTrigger>
@@ -259,6 +263,7 @@ export default function HR() {
           <TabsContent value="hiring"><HiringPanel /></TabsContent>
           <TabsContent value="referrals"><ReferralsPanel /></TabsContent>
           {isHROrAdmin && <TabsContent value="monthly_pulse"><MonthlyPulsePanel /></TabsContent>}
+          {isHROrAdmin && <TabsContent value="birthday_songs"><BirthdaySongsPanel /></TabsContent>}
           {isHROrAdmin && <TabsContent value="financial_list" className="space-y-6"><EmployeeFinancialDetailsPanel /><EmployeeFinancialDetailsList /></TabsContent>}
           {isHROrAdmin && <TabsContent value="bank_requests"><BankUpdateRequestsPanel /></TabsContent>}
           {(isHROrAdmin || isFinance) && <TabsContent value="salary"><SalarySheetsList /></TabsContent>}
