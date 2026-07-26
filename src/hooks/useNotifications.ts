@@ -93,7 +93,9 @@ export function useNotifications() {
       : '🌟';
     
     toast(notification.title, {
-      description: notification.message,
+      description: notification.order_number
+        ? `Order #${notification.order_number} — ${notification.message}`
+        : notification.message,
       // Enquiry thread messages persist until the user closes them so they
       // aren't missed. Everything else keeps the default 8s auto-dismiss.
       duration: isEnquiryMessage ? Infinity : 8000,
