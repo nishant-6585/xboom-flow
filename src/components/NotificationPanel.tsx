@@ -100,6 +100,13 @@ function NotificationItem({
               </Badge>
             )}
           </div>
+          {notification.order_number && (
+            <div className="mb-1">
+              <Badge variant="outline" className="text-[10px] font-mono">
+                Order #{notification.order_number}
+              </Badge>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground line-clamp-2">
             {notification.message}
           </p>
