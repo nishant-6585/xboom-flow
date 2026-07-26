@@ -4420,6 +4420,9 @@ export type Database = {
       employee_kpi_progress: {
         Row: {
           achieved_value: number
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           attachment_url: string | null
           created_at: string
           id: string
@@ -4430,6 +4433,9 @@ export type Database = {
         }
         Insert: {
           achieved_value: number
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           attachment_url?: string | null
           created_at?: string
           id?: string
@@ -4440,6 +4446,9 @@ export type Database = {
         }
         Update: {
           achieved_value?: number
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           attachment_url?: string | null
           created_at?: string
           id?: string
