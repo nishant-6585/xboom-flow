@@ -25,6 +25,7 @@ import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
 import { isValidHttpUrl } from '@/lib/urlValidation';
+import { emailError as emailErrorInline, phoneError as phoneErrorInline, validateEmail, validatePhone } from '@/lib/contactValidation';
 import { COURIER_NAMES, buildTrackingUrl } from '@/lib/courierTracking';
 import { CourierCombobox } from '@/components/CourierCombobox';
 import { stripHtmlLabel } from '@/lib/stripHtml';
@@ -167,6 +168,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     notes: string;
     procurement_rate: string;
     supplier_id: string;
+    discount_amount: string;
   }>>([]);
   // Line items removed during the current edit session — deleted on save.
   const [deletedOrderItemIds, setDeletedOrderItemIds] = useState<Set<string>>(new Set());
@@ -806,6 +808,19 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       return;
     }
 
+    // Contact-field validation: mobile is required, email optional but must
+    // be valid when present. Blocks Save with an inline toast.
+    const phoneCheck = validatePhone(customerPhone, { required: true });
+    if (phoneCheck.valid === false) {
+      toast.error(phoneCheck.error);
+      return;
+    }
+    const emailCheck = validateEmail(customerEmail);
+    if (emailCheck.valid === false) {
+      toast.error(emailCheck.error);
+      return;
+    }
+
     const updates = buildOrderUpdatePayload();
     if (Object.keys(updates).length === 0) {
       // No changes — skip the write entirely.
@@ -1136,6 +1151,18 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               updates.procurement_rate = Number.isFinite(next) ? next : null;
             }
           }
+          if (edits.discount_amount !== (originalItem.discount_amount ?? 0)) {
+            const raw = String(edits.discount_amount ?? '').trim();
+            const next = raw === '' ? 0 : Number(raw);
+            const qty = Number(updates.quantity ?? originalItem.quantity) || 0;
+            const price = Number(
+              updates.unit_price ?? originalItem.unit_price ?? 0,
+            ) || 0;
+            const lineGross = qty * price;
+            const safe = Number.isFinite(next) && next >= 0 ? next : 0;
+            const clamped = lineGross > 0 ? Math.min(safe, lineGross) : safe;
+            updates.discount_amount = Math.round(clamped * 100) / 100;
+          }
           if (edits.supplier_id !== (originalItem.supplier_id || '')) {
             updates.supplier_id = edits.supplier_id || null;
           }
@@ -1224,6 +1251,14 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             status: n.status || 'draft',
             notes: n.notes || null,
             supplier_id: n.supplier_id || null,
+            discount_amount: (() => {
+              const raw = String(n.discount_amount ?? '').trim();
+              const parsed = raw === '' ? 0 : Number(raw);
+              const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+              const gross = (Number(n.quantity) || 0) * (Number(n.unit_price) || 0);
+              const clamped = gross > 0 ? Math.min(safe, gross) : safe;
+              return Math.round(clamped * 100) / 100;
+            })(),
           }));
           const { error: insErr } = await supabase.from('order_items').insert(inserts);
           if (insErr) throw insErr;
@@ -1246,7 +1281,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
         setOrderItems(refreshedItems);
 
         const itemsSubtotal = refreshedItems.reduce(
-          (sum, it) => sum + (Number(it.unit_price) || 0) * (Number(it.quantity) || 0),
+          (sum, it) => sum + Math.max(0, (Number(it.unit_price) || 0) * (Number(it.quantity) || 0) - (Number(it.discount_amount) || 0)),
           0,
         );
         const discount = Number((order as any).discount_amount) || 0;
@@ -1810,6 +1845,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       disabled={loading}
                       placeholder="+91 98765 43210"
                     />
+                    {phoneErrorInline(customerPhone) && (
+                      <p className="text-xs text-destructive">{phoneErrorInline(customerPhone)}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="inline_customer_email">Email <span className="text-muted-foreground text-xs">(Optional)</span></Label>
@@ -1821,6 +1859,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       disabled={loading}
                       placeholder="customer@example.com"
                     />
+                    {emailErrorInline(customerEmail) && (
+                      <p className="text-xs text-destructive">{emailErrorInline(customerEmail)}</p>
+                    )}
                   </div>
                   {isAdmin && (
                     <div className="space-y-2 md:col-span-2">
@@ -1902,88 +1943,34 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Sales:</span>
-                      {isWebsiteOrder ? (
-                        <>
-                          <span className="font-medium">
-                            {salesPersonName || order.sales_person_name || 'Unattributed'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const el = document.getElementById('order-attribution-panel');
-                              if (el) {
-                                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                const focusable = el.querySelector<HTMLElement>('button, [role="button"], input, select, a');
-                                focusable?.focus?.();
-                              }
-                            }}
-                            className="text-xs text-muted-foreground italic hover:text-foreground underline underline-offset-2"
-                            title="Sales attribution for website orders is managed in the Sales attribution panel"
-                          >
-                            Change via Sales attribution ↑
-                          </button>
-                        </>
-                      ) : editingSalesPerson && isAdmin ? (
-                        <>
-                          <Select
-                            value={salesPersonId ?? undefined}
-                            disabled={savingSalesPerson}
-                            onValueChange={async (newId) => {
-                              const selected = salesUsers.find((u) => u.user_id === newId);
-                              if (!selected || !order?.id) return;
-                              setSavingSalesPerson(true);
-                              const { error } = await supabase
-                                .from('orders')
-                                .update({ sales_person_id: selected.user_id, sales_person_name: selected.name })
-                                .eq('id', order.id);
-                              setSavingSalesPerson(false);
-                              if (error) {
-                                toast.error(`Failed to reassign salesperson: ${error.message}`);
-                                return;
-                              }
-                              setSalesPersonId(selected.user_id);
-                              setSalesPersonName(selected.name);
-                              toast.success(`Salesperson reassigned to ${selected.name}`);
-                              setEditingSalesPerson(false);
-                            }}
-                          >
-                            <SelectTrigger className="h-7 w-56 text-sm">
-                              <SelectValue placeholder="Select salesperson" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {salesUsers.map((u) => (
-                                <SelectItem key={u.user_id} value={u.user_id}>
-                                  {u.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            disabled={savingSalesPerson}
-                            onClick={() => setEditingSalesPerson(false)}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium">{salesPersonName || order.sales_person_name}</span>
-                          {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => setEditingSalesPerson(true)}
-                              title="Reassign salesperson"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </>
-                      )}
+                      {/*
+                        Sales is READ-ONLY in Customer Information for every role.
+                        Reassignment MUST go through the Sales attribution panel so
+                        the DB triggers stamp attributed_by / attributed_at and
+                        write a sales_attribution_log entry. Do NOT reintroduce an
+                        inline editor, pencil affordance, or a direct
+                        orders update on sales_person_id here — the test
+                        src/components/__tests__/OrderDialogSalesReadOnly.test.tsx
+                        guards this.
+                      */}
+                      <span className="font-medium">
+                        {salesPersonName || order.sales_person_name || 'Unattributed'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById('order-attribution-panel');
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            const focusable = el.querySelector<HTMLElement>('button, [role="button"], input, select, a');
+                            focusable?.focus?.();
+                          }
+                        }}
+                        className="text-xs text-muted-foreground italic hover:text-foreground underline underline-offset-2"
+                        title="Sales attribution is managed in the Sales attribution panel"
+                      >
+                        Change via Sales attribution ↑
+                      </button>
                     </div>
                   )}
                   {(committedTimeline || order.committed_timeline) && (
@@ -2080,6 +2067,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             notes: item.notes || '',
                             procurement_rate: item.procurement_rate || '',
                             supplier_id: item.supplier_id || '',
+                            discount_amount: item.discount_amount ?? 0,
                           };
                         });
                         setEditedOrderItems(initialEdits);
@@ -2109,6 +2097,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             notes: '',
                             procurement_rate: '',
                             supplier_id: '',
+                            discount_amount: '',
                           }]);
                         }}
                         className="h-8 gap-1"
@@ -2164,6 +2153,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <TableHead>Supplier</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Discount</TableHead>
                       {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
                       <TableHead className="text-right">Total</TableHead>
                       {editingOrderItems && <TableHead className="w-10" />}
@@ -2305,6 +2295,30 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             item.unit_price ? `₹${item.unit_price.toLocaleString('en-IN')}` : '-'
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          {editingOrderItems ? (
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              max={
+                                (parseFloat(editedOrderItems[item.id]?.unit_price) || 0) *
+                                (parseInt(editedOrderItems[item.id]?.quantity) || 0) || undefined
+                              }
+                              value={editedOrderItems[item.id]?.discount_amount ?? ''}
+                              onChange={(e) => setEditedOrderItems(prev => ({
+                                ...prev,
+                                [item.id]: { ...prev[item.id], discount_amount: e.target.value }
+                              }))}
+                              className="h-8 w-24 text-right text-sm"
+                              placeholder="₹0"
+                            />
+                          ) : (
+                            item.discount_amount && Number(item.discount_amount) > 0
+                              ? `-₹${Number(item.discount_amount).toLocaleString('en-IN')}`
+                              : '-'
+                          )}
+                        </TableCell>
                         {canSeeProcurement && (
                           <TableCell className="text-right">
                             {editingOrderItems ? (
@@ -2329,11 +2343,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                           {editingOrderItems ? (
                             <span className="text-sm">
                               {editedOrderItems[item.id]?.unit_price && editedOrderItems[item.id]?.quantity
-                                ? `₹${(parseFloat(editedOrderItems[item.id].unit_price) * parseInt(editedOrderItems[item.id].quantity)).toLocaleString('en-IN')}`
+                                ? `₹${Math.max(0, parseFloat(editedOrderItems[item.id].unit_price) * parseInt(editedOrderItems[item.id].quantity) - (parseFloat(editedOrderItems[item.id].discount_amount) || 0)).toLocaleString('en-IN')}`
                                 : '-'}
                             </span>
                           ) : (
-                            item.unit_price ? `₹${(item.unit_price * item.quantity).toLocaleString('en-IN')}` : '-'
+                            item.unit_price ? `₹${Math.max(0, item.unit_price * item.quantity - (Number(item.discount_amount) || 0)).toLocaleString('en-IN')}` : '-'
                           )}
                         </TableCell>
                         {editingOrderItems && (
@@ -2432,6 +2446,20 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             placeholder="₹0"
                           />
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            max={
+                              (parseFloat(item.unit_price) || 0) * (Number(item.quantity) || 0) || undefined
+                            }
+                            value={item.discount_amount}
+                            onChange={(e) => setNewOrderItems(prev => prev.map((p, i) => i === idx ? { ...p, discount_amount: e.target.value } : p))}
+                            className="h-8 w-24 text-right text-sm"
+                            placeholder="₹0"
+                          />
+                        </TableCell>
                         {canSeeProcurement && (
                           <TableCell className="text-right">
                             <Input
@@ -2448,7 +2476,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         <TableCell className="text-right font-medium">
                           <span className="text-sm">
                             {item.unit_price && item.quantity
-                              ? `₹${(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}`
+                              ? `₹${Math.max(0, parseFloat(item.unit_price) * item.quantity - (parseFloat(item.discount_amount) || 0)).toLocaleString('en-IN')}`
                               : '-'}
                           </span>
                         </TableCell>
@@ -2630,25 +2658,39 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   {(() => {
                     const currentTotal = parseFloat(totalSalesAmount) || order.total_sales_amount || 0;
                     const currentDiscount = parseFloat(discountAmount) || order.discount_amount || 0;
-                    const hasDiscount = currentDiscount > 0;
-                    const subtotal = currentTotal + currentDiscount;
+                     const itemDiscountTotal = (orderItems ?? []).reduce(
+                       (s, it) => s + (Number(it?.discount_amount) || 0),
+                       0,
+                     );
+                    const hasOrderDiscount = currentDiscount > 0;
+                    const hasItemDiscount = itemDiscountTotal > 0;
+                    const hasDiscount = hasOrderDiscount || hasItemDiscount;
+                    // currentTotal already reflects item discounts (net of them);
+                    // gross subtotal = currentTotal + order-level discount + item discounts.
+                    const subtotal = currentTotal + currentDiscount + itemDiscountTotal;
                     return (
                       <>
                         {hasDiscount && (
                           <div>
                             <span className="text-muted-foreground">Subtotal:</span>
-                            <p className="font-medium">₹{subtotal.toLocaleString('en-IN')}</p>
+                            <p className="font-medium">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                         )}
-                        {hasDiscount && (
+                        {hasItemDiscount && (
                           <div>
-                            <span className="text-muted-foreground">Discount:</span>
-                            <p className="font-medium text-purple-600">-₹{currentDiscount.toLocaleString('en-IN')}</p>
+                            <span className="text-muted-foreground">Item Discounts:</span>
+                            <p className="font-medium text-purple-600">-₹{itemDiscountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          </div>
+                        )}
+                        {hasOrderDiscount && (
+                          <div>
+                            <span className="text-muted-foreground">Order Discount:</span>
+                            <p className="font-medium text-purple-600">-₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                         )}
                         <div>
                           <span className="text-muted-foreground">{hasDiscount ? 'Net Amount:' : 'Total Amount:'}</span>
-                          <p className="font-medium">₹{currentTotal.toLocaleString('en-IN')}</p>
+                          <p className="font-medium">₹{currentTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </>
                     );

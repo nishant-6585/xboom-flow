@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User, ExternalLink, RefreshCw,
+  IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User, ExternalLink, RefreshCw, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComp } from "@/components/ui/calendar";
@@ -713,7 +713,13 @@ export function TallyDashboard() {
     const knownSales = knownRows.reduce((s, r) => s + r.salesValue, 0);
     const knownProfit = knownRows.reduce((s, r) => s + r.profit, 0);
     const avgMargin = knownSales > 0 ? (knownProfit / knownSales) * 100 : 0;
-    return { totalSales, totalReceived, totalPending, totalProcurement, totalProfit, avgMargin, totalEstProcurement, totalEstProfit, avgEstMargin };
+    // Invoice generation coverage: how many orders in this period have at least
+    // one tax invoice generated (either uploaded locally or synced from Zoho
+    // Books). Proforma-only rows do not count as "invoice generated".
+    const invoicedOrders = rows.filter((r) => r.invoiceNumber && r.invoiceNumber !== "—").length;
+    const totalOrders = rows.length;
+    const invoicePct = totalOrders > 0 ? (invoicedOrders / totalOrders) * 100 : 0;
+    return { totalSales, totalReceived, totalPending, totalProcurement, totalProfit, avgMargin, totalEstProcurement, totalEstProfit, avgEstMargin, invoicedOrders, totalOrders, invoicePct };
   }, [rows]);
 
   // Received-by-mode summary (uses each row's primary mode and amountReceived)
@@ -871,6 +877,14 @@ export function TallyDashboard() {
     { label: "Total Profit", value: fmt(totals.totalProfit), icon: TrendingUp, color: totals.totalProfit >= 0 ? "text-emerald-500" : "text-rose-500", bg: totals.totalProfit >= 0 ? "bg-emerald-500/10" : "bg-rose-500/10" },
     { label: "Est. Profit", value: fmt(totals.totalEstProfit), icon: TrendingUp, color: totals.totalEstProfit >= 0 ? "text-amber-600" : "text-rose-500", bg: "bg-amber-500/10" },
     { label: "Avg Margin", value: `${totals.avgMargin.toFixed(1)}%`, icon: TrendingUp, color: totals.avgMargin >= 0 ? "text-primary" : "text-rose-500", bg: totals.avgMargin >= 0 ? "bg-primary/10" : "bg-rose-500/10" },
+    {
+      label: "Invoices Generated",
+      value: `${totals.invoicedOrders} / ${totals.totalOrders}`,
+      sub: `${totals.invoicePct.toFixed(1)}% of orders · ${periodLabel}`,
+      icon: FileText,
+      color: totals.invoicePct >= 80 ? "text-emerald-500" : totals.invoicePct >= 50 ? "text-amber-500" : "text-rose-500",
+      bg: totals.invoicePct >= 80 ? "bg-emerald-500/10" : totals.invoicePct >= 50 ? "bg-amber-500/10" : "bg-rose-500/10",
+    },
   ];
 
   const formatChartValue = (value: number) => {
@@ -967,6 +981,9 @@ export function TallyDashboard() {
                 </div>
               </div>
               <p className="text-lg sm:text-xl font-bold">{s.value}</p>
+              {"sub" in s && s.sub ? (
+                <p className="text-[10px] text-muted-foreground mt-1 truncate">{s.sub}</p>
+              ) : null}
             </CardContent>
           </Card>
         ))}

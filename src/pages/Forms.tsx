@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForms, Form } from "@/hooks/useForms";
+import { useLeadsFormAnalytics, countLeadsForForm } from "@/hooks/useLeadsFormAnalytics";
 import { useAuth } from "@/hooks/useAuth";
 import { useFormPermissions } from "@/hooks/useFormPermissions";
 import { FormCreateDialog } from "@/components/forms/FormCreateDialog";
@@ -14,7 +15,7 @@ import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
 import { FormQRCodeDialog } from "@/components/forms/FormQRCodeDialog";
 import { FormsOverallAnalytics } from "@/components/forms/FormsOverallAnalytics";
 import { FormsDashboard } from "@/components/forms/FormsDashboard";
-import { Plus, FileText, Inbox, Trash2, Code, Eye, Link2, QrCode, LayoutGrid, BarChart3, LayoutDashboard } from "lucide-react";
+import { Plus, FileText, Inbox, Trash2, Code, Link2, QrCode, LayoutGrid, BarChart3, LayoutDashboard } from "lucide-react";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ export default function Forms() {
   const { role, loading: authLoading } = useAuth();
   const { data: permissions, isLoading: permsLoading } = useFormPermissions();
   const { forms, isLoading, deleteForm } = useForms();
+  const { data: liveLeads = [] } = useLeadsFormAnalytics(90);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [embedForm, setEmbedForm] = useState<Form | null>(null);
@@ -136,11 +138,7 @@ export default function Forms() {
                           </div>
                           <div className="flex items-center gap-1">
                             <Inbox className="h-4 w-4" />
-                            {form.submission_count || 0} submissions
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Eye className="h-4 w-4" />
-                            {form.view_count || 0} views
+                            {countLeadsForForm(form.name, liveLeads)} live (90d)
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground mt-3">

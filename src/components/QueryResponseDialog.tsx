@@ -22,6 +22,13 @@ import { UrgencyIndicator } from "./UrgencyIndicator";
 import { useToast } from "@/hooks/use-toast";
 import { Package, User, Building2, Hash, Boxes, DollarSign, Clock, CheckCircle } from "lucide-react";
 import { EnquiryMessageThread } from "./enquiry/EnquiryMessageThread";
+import {
+  AVAILABILITY_OPTIONS,
+  isQuoteValid,
+  validateAvailability,
+  validateLeadTime,
+  validatePricing,
+} from "@/lib/quoteValidation";
 
 interface QueryResponseDialogProps {
   query: ProductQuery | null;
@@ -61,6 +68,7 @@ export function QueryResponseDialog({
   if (!query) return null;
 
   const handleSubmit = () => {
+    if (!isQuoteValid(response)) return;
     onSubmitResponse(query.id, status, response);
     toast({
       title: "Response Submitted",
@@ -145,42 +153,82 @@ export function QueryResponseDialog({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="pricing" className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                  Pricing
-                </Label>
-                <Input
-                  id="pricing"
-                  placeholder="e.g., $45.50/unit"
-                  value={response.pricing}
-                  onChange={(e) => setResponse({ ...response, pricing: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="availability" className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-muted-foreground" />
-                  Availability
-                </Label>
-                <Input
-                  id="availability"
-                  placeholder="e.g., In Stock"
-                  value={response.availability}
-                  onChange={(e) => setResponse({ ...response, availability: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="leadTime" className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  Lead Time
-                </Label>
-                <Input
-                  id="leadTime"
-                  placeholder="e.g., 5-7 days"
-                  value={response.leadTime}
-                  onChange={(e) => setResponse({ ...response, leadTime: e.target.value })}
-                />
-              </div>
+              {(() => {
+                const pe = validatePricing(response.pricing);
+                const ae = validateAvailability(response.availability);
+                const le = validateLeadTime(response.leadTime);
+                const isKnownAvail = (AVAILABILITY_OPTIONS as readonly string[]).includes(
+                  response.availability,
+                );
+                const showAvailOther = response.availability !== "" && !isKnownAvail;
+                return (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="pricing" className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-muted-foreground" />
+                        Pricing (INR)
+                      </Label>
+                      <Input
+                        id="pricing"
+                        placeholder="e.g., 4500 or ₹4,500/unit"
+                        value={response.pricing}
+                        aria-invalid={!pe.ok}
+                        onChange={(e) => setResponse({ ...response, pricing: e.target.value })}
+                      />
+                      {!pe.ok && <p className="text-[11px] text-destructive">{pe.error}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-muted-foreground" />
+                        Availability
+                      </Label>
+                      <Select
+                        value={showAvailOther ? "__other__" : response.availability || ""}
+                        onValueChange={(v) => {
+                          if (v === "__other__") setResponse({ ...response, availability: " " });
+                          else setResponse({ ...response, availability: v });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select availability" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AVAILABILITY_OPTIONS.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {opt}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__other__">Other…</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {showAvailOther && (
+                        <Input
+                          placeholder="Describe availability"
+                          value={response.availability}
+                          onChange={(e) =>
+                            setResponse({ ...response, availability: e.target.value })
+                          }
+                        />
+                      )}
+                      {!ae.ok && <p className="text-[11px] text-destructive">{ae.error}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="leadTime" className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        Lead Time
+                      </Label>
+                      <Input
+                        id="leadTime"
+                        placeholder='e.g., 5 days, 5-7 days, 2 weeks'
+                        value={response.leadTime}
+                        aria-invalid={!le.ok}
+                        onChange={(e) => setResponse({ ...response, leadTime: e.target.value })}
+                      />
+                      {!le.ok && <p className="text-[11px] text-destructive">{le.error}</p>}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             <div className="space-y-2">
@@ -202,7 +250,7 @@ export function QueryResponseDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button onClick={handleSubmit} disabled={!isQuoteValid(response)}>
               Submit Response
             </Button>
           </div>

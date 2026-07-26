@@ -5226,6 +5226,7 @@ export type Database = {
           id: string
           is_initial: boolean
           is_nudge: boolean
+          is_quote_mirror: boolean
           is_read: boolean
           message: string
           sender_id: string
@@ -5239,6 +5240,7 @@ export type Database = {
           id?: string
           is_initial?: boolean
           is_nudge?: boolean
+          is_quote_mirror?: boolean
           is_read?: boolean
           message: string
           sender_id: string
@@ -5252,6 +5254,7 @@ export type Database = {
           id?: string
           is_initial?: boolean
           is_nudge?: boolean
+          is_quote_mirror?: boolean
           is_read?: boolean
           message?: string
           sender_id?: string
@@ -9471,6 +9474,7 @@ export type Database = {
       order_items: {
         Row: {
           created_at: string
+          discount_amount: number
           estimated_procurement_rate: number | null
           fulfilled_from_stock: boolean | null
           id: string
@@ -9496,6 +9500,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          discount_amount?: number
           estimated_procurement_rate?: number | null
           fulfilled_from_stock?: boolean | null
           id?: string
@@ -9521,6 +9526,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          discount_amount?: number
           estimated_procurement_rate?: number | null
           fulfilled_from_stock?: boolean | null
           id?: string
@@ -18438,6 +18444,10 @@ export type Database = {
         Returns: boolean
       }
       is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_internal_directory_viewer: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_kyc_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_reporting_manager: {
         Args: { _employee_id: string; _manager_id: string }
@@ -18739,6 +18749,7 @@ export type Database = {
           id: string
           is_initial: boolean
           is_nudge: boolean
+          is_quote_mirror: boolean
           is_read: boolean
           message: string
           sender_id: string

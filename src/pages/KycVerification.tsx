@@ -74,6 +74,45 @@ function AiRecommendationBadge({ ai }: { ai: NonNullable<KycQueueRow["ai_review"
 }
 
 /**
+ * Concrete, human-readable findings extracted from an AI review — the
+ * specific mismatches that would cause (or did cause) the doc to fall out
+ * of auto-approve. Rendered inline for reviewers so the reason is visible
+ * without having to hover, and preserved after manual approval so the
+ * audit trail still shows what the AI flagged.
+ */
+function aiFindingsSummary(
+  ai: KycQueueRow["ai_review"] | null | undefined,
+  expectedName?: string | null,
+): string[] {
+  if (!ai) return [];
+  const findings: string[] = [];
+  if (ai.type_match === false) {
+    findings.push(
+      `Type mismatch (declared ${formatDocType(ai.declared_doc_type)}, detected ${formatDocType(ai.extracted_doc_type)})`,
+    );
+  }
+  if (ai.number_match === false) {
+    findings.push("Number mismatch");
+  }
+  if (typeof ai.name_match_score === "number" && ai.name_match_score < 0.75) {
+    const pct = Math.round(ai.name_match_score * 100);
+    const holder = ai.extracted_holder_name || "—";
+    const expected = expectedName || ai.expected_name || "—";
+    findings.push(`Name mismatch ${pct}% (document: "${holder}" vs expected "${expected}")`);
+  }
+  if (ai.legibility && ai.legibility.toLowerCase() !== "good") {
+    findings.push(`Legibility: ${ai.legibility}`);
+  }
+  if (Array.isArray(ai.flags) && ai.flags.length > 0) {
+    findings.push(`Flags: ${ai.flags.join(", ")}`);
+  }
+  if (ai.error) {
+    findings.push(`AI error: ${ai.error}`);
+  }
+  return findings;
+}
+
+/**
  * Human-readable explanation of why a submission is still pending, so
  * reviewers don't have to open the drawer to see what didn't reconcile.
  * Returns null when the row isn't pending (approved/rejected already
@@ -540,6 +579,18 @@ export default function KycVerification() {
                             {r.ai_review && effectiveStatus === "pending_verification" && (
                               <AiRecommendationBadge ai={r.ai_review} />
                             )}
+                            {effectiveStatus === "pending_verification" && (() => {
+                              const expected = r.ai_review?.expected_name || r.account.primary_contact_name || r.account.company_name || null;
+                              const findings = aiFindingsSummary(r.ai_review, expected);
+                              if (findings.length === 0) return null;
+                              return (
+                                <ul className="text-[11px] leading-snug text-red-700 space-y-0.5">
+                                  {findings.map((f, i) => (
+                                    <li key={i} className="whitespace-normal break-words">• {f}</li>
+                                  ))}
+                                </ul>
+                              );
+                            })()}
                             {(() => {
                               const reason = computePendingReason(r, effectiveStatus, isDigilocker);
                               if (!reason) return null;
@@ -671,6 +722,26 @@ export default function KycVerification() {
                                   Reason: {r.document.rejection_reason}
                                 </span>
                               )}
+                              {/* Preserve the AI's original findings even after a human
+                                  approves/rejects — reviewers and auditors need to see
+                                  what the AI flagged (e.g. name mismatch) on the record. */}
+                              {r.document?.reviewed_by && (() => {
+                                const expected = r.ai_review?.expected_name || r.account.primary_contact_name || r.account.company_name || null;
+                                const findings = aiFindingsSummary(r.ai_review, expected);
+                                if (findings.length === 0) return null;
+                                return (
+                                  <div className="mt-1 rounded border border-amber-200 bg-amber-50 p-1.5">
+                                    <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-amber-800">
+                                      <Sparkles className="h-3 w-3" /> AI original finding
+                                    </div>
+                                    <ul className="mt-0.5 text-[11px] leading-snug text-amber-900 space-y-0.5">
+                                      {findings.map((f, i) => (
+                                        <li key={i} className="whitespace-normal break-words">• {f}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                );
+                              })()}
                               {effectiveStatus === "approved" && r.document?.reviewed_by && r.document?.doc_type === "aadhaar" && (
                                 <TooltipProvider delayDuration={150}>
                                   <Tooltip>

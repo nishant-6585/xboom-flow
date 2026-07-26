@@ -62,6 +62,29 @@ export function OrderAttributionPanel({
   const [assignOpen, setAssignOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
 
+  const isAttributed =
+    !!order?.sales_attribution_locked && !!order?.sales_person_id && order?.sales_person_id !== SYSTEM_USER_ID;
+
+  // Fetch the most recent attribution field-audit row so we can show
+  // whether the last change came through the RPC, a direct edit, the
+  // Woo sync, or a normalising trigger. Must be called unconditionally
+  // to preserve hook order across renders.
+  const { data: latestAudit } = useQuery({
+    queryKey: ['attribution-field-audit-latest', order?.id],
+    enabled: !!order?.id && isAttributed,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('attribution_field_audit')
+        .select('source_path, created_at, actor_name, field_name')
+        .eq('order_id', order!.id)
+        .eq('field_name', 'sales_person_id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data ?? null) as { source_path: string; created_at: string; actor_name: string | null } | null;
+    },
+  });
+
   if (!order && !isMirroredAndPaid) {
     return (
       <div className="p-3 rounded-lg border border-dashed bg-muted/30 text-xs text-muted-foreground">
@@ -70,28 +93,6 @@ export function OrderAttributionPanel({
     );
   }
   if (!order) return null;
-
-  const isAttributed =
-    !!order.sales_attribution_locked && order.sales_person_id && order.sales_person_id !== SYSTEM_USER_ID;
-
-  // Fetch the most recent attribution field-audit row so we can show
-  // whether the last change came through the RPC, a direct edit, the
-  // Woo sync, or a normalising trigger.
-  const { data: latestAudit } = useQuery({
-    queryKey: ['attribution-field-audit-latest', order.id],
-    enabled: !!order.id && isAttributed,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from('attribution_field_audit')
-        .select('source_path, created_at, actor_name, field_name')
-        .eq('order_id', order.id)
-        .eq('field_name', 'sales_person_id')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return (data ?? null) as { source_path: string; created_at: string; actor_name: string | null } | null;
-    },
-  });
 
   const sourcePathLabel = (sp?: string | null) => {
     switch (sp) {

@@ -42,6 +42,13 @@ import { LeadSourceBadge } from "./LeadSourceBadge";
 import { FollowupNoteInput } from "./crm/FollowupNoteInput";
 import { FOLLOWUP_NOTE_OPTIONS } from "@/lib/followupNotes";
 import { markEnquiryOpen, markEnquiryClosed } from "@/lib/enquiryPresence";
+import {
+  AVAILABILITY_OPTIONS,
+  isQuoteValid,
+  validateAvailability,
+  validateLeadTime,
+  validatePricing,
+} from "@/lib/quoteValidation";
 
 interface EnquiryDialogProps {
   enquiry: Enquiry | null;
@@ -358,6 +365,22 @@ export function EnquiryDialog({
                 )}
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm pt-2 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground font-medium">Lead Source:</span>
+                  {enquiry.lead_source ? (
+                    <LeadSourceBadge source={enquiry.lead_source} size="sm" />
+                  ) : (
+                    <span className="text-muted-foreground italic">Not specified</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground font-medium">Created by:</span>
+                  <span className="font-medium text-foreground">{enquiry.sales_person_name || 'Unassigned'}</span>
+                </div>
+              </div>
+
               {enquiry.requested_timeline && (
                 <div className="pt-2 border-t border-border">
                   <p className="text-sm flex items-center gap-2">
@@ -556,42 +579,96 @@ export function EnquiryDialog({
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="pricing" className="flex items-center gap-2">
-                      <IndianRupee className="w-4 h-4 text-muted-foreground" />
-                      Pricing (INR)
-                    </Label>
-                    <Input
-                      id="pricing"
-                      placeholder="e.g., ₹4,500/unit"
-                      value={response.pricing}
-                      onChange={(e) => setResponse({ ...response, pricing: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="availability" className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-muted-foreground" />
-                      Availability
-                    </Label>
-                    <Input
-                      id="availability"
-                      placeholder="e.g., In Stock"
-                      value={response.availability}
-                      onChange={(e) => setResponse({ ...response, availability: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="leadTime" className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
-                      Lead Time
-                    </Label>
-                    <Input
-                      id="leadTime"
-                      placeholder="e.g., 5-7 days"
-                      value={response.leadTime}
-                      onChange={(e) => setResponse({ ...response, leadTime: e.target.value })}
-                    />
-                  </div>
+                  {(() => {
+                    const priceErr = validatePricing(response.pricing);
+                    const availErr = validateAvailability(response.availability);
+                    const leadErr = validateLeadTime(response.leadTime);
+                    const isKnownAvail = (AVAILABILITY_OPTIONS as readonly string[]).includes(
+                      response.availability,
+                    );
+                    const showAvailOther =
+                      response.availability !== "" && !isKnownAvail;
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="pricing" className="flex items-center gap-2">
+                            <IndianRupee className="w-4 h-4 text-muted-foreground" />
+                            Pricing (INR)
+                          </Label>
+                          <Input
+                            id="pricing"
+                            placeholder="e.g., 4500 or ₹4,500/unit"
+                            value={response.pricing}
+                            aria-invalid={!priceErr.ok}
+                            onChange={(e) =>
+                              setResponse({ ...response, pricing: e.target.value })
+                            }
+                          />
+                          {!priceErr.ok && (
+                            <p className="text-[11px] text-destructive">{priceErr.error}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-muted-foreground" />
+                            Availability
+                          </Label>
+                          <Select
+                            value={showAvailOther ? "__other__" : response.availability || ""}
+                            onValueChange={(v) => {
+                              if (v === "__other__") {
+                                setResponse({ ...response, availability: " " });
+                              } else {
+                                setResponse({ ...response, availability: v });
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select availability" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AVAILABILITY_OPTIONS.map((opt) => (
+                                <SelectItem key={opt} value={opt}>
+                                  {opt}
+                                </SelectItem>
+                              ))}
+                              <SelectItem value="__other__">Other…</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {showAvailOther && (
+                            <Input
+                              placeholder="Describe availability"
+                              value={response.availability}
+                              onChange={(e) =>
+                                setResponse({ ...response, availability: e.target.value })
+                              }
+                            />
+                          )}
+                          {!availErr.ok && (
+                            <p className="text-[11px] text-destructive">{availErr.error}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="leadTime" className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            Lead Time
+                          </Label>
+                          <Input
+                            id="leadTime"
+                            placeholder='e.g., 5 days, 5-7 days, 2 weeks'
+                            value={response.leadTime}
+                            aria-invalid={!leadErr.ok}
+                            onChange={(e) =>
+                              setResponse({ ...response, leadTime: e.target.value })
+                            }
+                          />
+                          {!leadErr.ok && (
+                            <p className="text-[11px] text-destructive">{leadErr.error}</p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {mirrorError && (
@@ -612,7 +689,12 @@ export function EnquiryDialog({
                   </p>
                   <Button
                     onClick={handleSubmit}
-                    disabled={loading || !quoteDirty || (status === "order_lost" && !lostReason)}
+                    disabled={
+                      loading ||
+                      !quoteDirty ||
+                      (status === "order_lost" && !lostReason) ||
+                      !isQuoteValid(response)
+                    }
                     className="shrink-0"
                   >
                     {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
