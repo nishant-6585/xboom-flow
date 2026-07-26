@@ -30,6 +30,7 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
   target_role: string | null;
+  order_number?: string | null;
 }
 
 export function useNotifications() {
@@ -118,13 +119,16 @@ export function useNotifications() {
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('*, orders(order_number)')
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
 
-      const notifs = (data || []) as Notification[];
+      const notifs = ((data || []) as any[]).map((n) => ({
+        ...n,
+        order_number: n.orders?.order_number ?? null,
+      })) as Notification[];
       // Dedup by id defensively — realtime may have already inserted some rows
       const uniq = Array.from(new Map(notifs.map(n => [n.id, n])).values());
       setNotifications(uniq);
