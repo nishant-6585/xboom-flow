@@ -8,6 +8,9 @@ verify_jwt = false
 [functions.attribution-integrity-report]
 verify_jwt = false
 
+[functions.jarvis-google]
+verify_jwt = false
+
 [functions]
   [functions.admin-reset-mfa]
     verify_jwt = false
