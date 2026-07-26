@@ -410,8 +410,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return;
     }
 
-    // Email is optional but must be valid when present.
-    const emailCheck = validateEmail(formData.customer_email);
+    // Email is mandatory — required for order notification emails to customers
+    const emailCheck = validateEmail(formData.customer_email, { required: true });
     if (emailCheck.valid === false) {
       toast.error(emailCheck.error);
       return;
@@ -535,7 +535,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     }
     if (currentStep === 2) {
       const phoneOk = validatePhone(formData.customer_phone, { required: true }).valid;
-      const emailOk = validateEmail(formData.customer_email).valid;
+      const emailOk = validateEmail(formData.customer_email, { required: true }).valid;
       return !!formData.customer_name &&
              (formData.is_website_order || !!formData.sales_person_name) &&
              phoneOk && emailOk;
@@ -800,19 +800,23 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="customer_email">Email</Label>
+                      <Label htmlFor="customer_email">
+                        Email <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="customer_email"
                         type="email"
+                        inputMode="email"
                         value={formData.customer_email || ''}
                         onChange={e => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
                         disabled={loading}
                         placeholder="customer@example.com"
+                        required
                         className="h-11"
                       />
-                      {emailError(formData.customer_email) && (
+                      {emailError(formData.customer_email, { required: true }) && (
                         <p className="text-xs text-destructive">
-                          {emailError(formData.customer_email)}
+                          {emailError(formData.customer_email, { required: true })}
                         </p>
                       )}
                     </div>
