@@ -26,6 +26,7 @@ import {
 import { Loader2, Truck, Package, CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { STATE_LABELS, type PortalOrderState } from "@/portal/lib/orderStates";
+import { notifyPortal } from "@/portal/lib/portalNotify";
 
 type LaneKey = "confirmed" | "in_production" | "qc_ready" | "dispatched";
 
@@ -47,6 +48,7 @@ interface OrderRow {
   awb_number: string | null;
   tracking_url: string | null;
   total: number | null;
+  portal_visible: boolean;
   updated_at: string;
   account?: { company_name: string } | null;
 }
@@ -78,7 +80,7 @@ export default function PortalDispatchQueue() {
       const { data, error } = await supabase
         .from("portal_orders")
         .select(
-          "id, order_number, account_id, current_state, customer_facing_eta, customer_po_number, courier_name, awb_number, tracking_url, total, updated_at, account:portal_accounts(company_name)",
+          "id, order_number, account_id, current_state, customer_facing_eta, customer_po_number, courier_name, awb_number, tracking_url, total, portal_visible, updated_at, account:portal_accounts(company_name)",
         )
         .in("current_state", states)
         .order("customer_facing_eta", { ascending: true, nullsFirst: false });
@@ -284,6 +286,13 @@ function AdvanceDialog({
           internal_note: internalNote || null,
         } as never);
       if (e2) throw e2;
+
+      if (order.portal_visible) {
+        notifyPortal("order_state_changed", {
+          order_id: order.id,
+          customer_facing_note: customerNote || undefined,
+        });
+      }
 
       toast.success(`${order.order_number} → ${STATE_LABELS[nextState]}`);
       onSaved();

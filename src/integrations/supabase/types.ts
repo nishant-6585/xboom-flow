@@ -11454,6 +11454,61 @@ export type Database = {
           },
         ]
       }
+      portal_feedback: {
+        Row: {
+          account_id: string
+          category: string
+          comment: string | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          order_id: string | null
+          rating: number
+        }
+        Insert: {
+          account_id: string
+          category?: string
+          comment?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          rating: number
+        }
+        Update: {
+          account_id?: string
+          category?: string
+          comment?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_feedback_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_feedback_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_feedback_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "portal_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_inbound_messages: {
         Row: {
           body: string | null
