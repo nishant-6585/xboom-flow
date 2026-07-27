@@ -53,11 +53,14 @@ export function OrderAttributionPanel({
   externalId,
   isMirroredAndPaid = true,
 }: Props) {
-  const { role, user } = useAuth();
+  const { roles, user } = useAuth();
   const { data: order } = useInternalOrderForAttribution({ internalOrderId, externalId });
   const { data: myRequest } = useMyAttributionRequest(order?.id);
   const canAttribute = useCanAttributeWebsiteOrder();
-  const isSalesRep = role === 'sales';
+  // Check the full roles list, not the single top-priority role: 'sales' is
+  // the LOWEST priority, so any second role (marketing, it, …) would hide the
+  // claim button from a rep even though the request RPC accepts them.
+  const isSalesRep = roles.includes('sales');
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
