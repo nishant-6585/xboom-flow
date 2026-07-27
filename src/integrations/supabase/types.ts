@@ -18155,6 +18155,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_gmail_integrations_status: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          last_synced_at: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_kyc_aadhaar_full: { Args: { _account_id: string }; Returns: string }
       get_low_stock_items: {
         Args: never
