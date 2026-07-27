@@ -28,11 +28,12 @@ const PORTAL_BASE_URL =
   Deno.env.get("PORTAL_BASE_URL") ?? "https://xboomflow.com/portal";
 const STAFF_BASE_URL = "https://xboomflow.com";
 // Public "write a review" link for the Xboom Google Business listing.
-// Set the GOOGLE_REVIEW_URL secret to the canonical
-// https://search.google.com/local/writereview?placeid=<PLACE_ID> link.
+// Override with the GOOGLE_REVIEW_URL secret if the listing ever changes.
 const GOOGLE_REVIEW_URL =
   Deno.env.get("GOOGLE_REVIEW_URL") ??
-  "https://www.google.com/search?q=xboom+reviews";
+  "https://g.page/r/CfJDbEcul78fEBM/review";
+// QR image (served from the app's public/ folder) encoding the same link.
+const GOOGLE_REVIEW_QR_URL = `${STAFF_BASE_URL}/google-review-qr.png`;
 
 /**
  * Per-state WhatsApp template mapping.
@@ -311,6 +312,7 @@ Deno.serve(async (req) => {
                 contact_name: c.full_name ?? undefined,
                 feedback_url: `${PORTAL_BASE_URL}/feedback?order=${orderId}`,
                 google_review_url: GOOGLE_REVIEW_URL,
+                google_review_qr_url: GOOGLE_REVIEW_QR_URL,
               },
               `portal-notify:order_delivered_feedback:${orderId}:${c.email}`,
             );
