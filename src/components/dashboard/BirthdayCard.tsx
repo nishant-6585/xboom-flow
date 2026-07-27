@@ -366,6 +366,39 @@ export function BirthdayCard() {
                 </div>
               )}
 
+              {row.is_today && row.is_owner && song && (
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    disabled={downloading}
+                    onClick={() => void handleDownloadSong()}
+                  >
+                    {downloading ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    Download song
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    disabled={emailing}
+                    onClick={() => void handleEmailSong()}
+                  >
+                    {emailing ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Mail className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    Email it to me
+                  </Button>
+                </div>
+              )}
+
               {!row.is_today && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Get ready — {row.name.split(" ")[0]}'s birthday is on {dayLabel}.
