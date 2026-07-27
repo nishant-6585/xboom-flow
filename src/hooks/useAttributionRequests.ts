@@ -72,6 +72,50 @@ export function useAttributionLog(orderId: string | null | undefined) {
   });
 }
 
+export interface WebsiteOrderForAttribution extends OrderAttribution {
+  customer_phone: string | null;
+  customer_email: string | null;
+}
+
+/**
+ * Fetch the mirrored internal website order for the attribution UI.
+ *
+ * Goes through the get_website_order_attribution SECURITY DEFINER RPC because
+ * the orders SELECT policy (20260717095242) scopes sales reps to rows where
+ * sales_person_id = auth.uid() — an unattributed website order belongs to the
+ * SYSTEM user, so a rep's direct select silently returns nothing and the
+ * claim panel would vanish. Falls back to a direct select when the RPC isn't
+ * deployed yet (deploy skew), which still works for managers/admin.
+ */
+export async function fetchWebsiteOrderForAttribution(opts: {
+  internalOrderId?: string | null;
+  externalId?: string | null;
+}): Promise<WebsiteOrderForAttribution | null> {
+  const { internalOrderId, externalId } = opts;
+  if (!internalOrderId && !externalId) return null;
+
+  const { data, error } = await (supabase as any).rpc('get_website_order_attribution', {
+    p_internal_order_id: internalOrderId ?? null,
+    p_external_id: externalId != null ? String(externalId) : null,
+  });
+  if (!error) {
+    return ((data as WebsiteOrderForAttribution[] | null)?.[0]) ?? null;
+  }
+
+  let q = supabase
+    .from('orders')
+    .select(
+      'id, external_id, order_number, customer_name, customer_phone, customer_email, total_sales_amount, sales_person_id, sales_person_name, sales_attribution_locked, sales_attribution_reason, sales_attribution_reason_custom, attributed_by_name, attributed_at, created_at, order_date',
+    )
+    .not('external_id', 'is', null)
+    .limit(1);
+  if (internalOrderId) q = q.eq('id', internalOrderId);
+  else q = q.eq('external_id', String(externalId));
+  const { data: row, error: selErr } = await q.maybeSingle();
+  if (selErr) throw selErr;
+  return (row as any) ?? null;
+}
+
 /** Look up an internal website order by external_id (woo_order_id) or internal id. */
 export function useInternalOrderForAttribution(opts: {
   internalOrderId?: string | null;
@@ -81,20 +125,7 @@ export function useInternalOrderForAttribution(opts: {
   return useQuery({
     queryKey: ['order-attribution', internalOrderId, externalId],
     enabled: !!(internalOrderId || externalId),
-    queryFn: async (): Promise<OrderAttribution | null> => {
-      let q = supabase
-        .from('orders')
-        .select(
-          'id, external_id, order_number, customer_name, total_sales_amount, sales_person_id, sales_person_name, sales_attribution_locked, sales_attribution_reason, sales_attribution_reason_custom, attributed_by_name, attributed_at',
-        )
-        .not('external_id', 'is', null)
-        .limit(1);
-      if (internalOrderId) q = q.eq('id', internalOrderId);
-      else if (externalId) q = q.eq('external_id', String(externalId));
-      const { data, error } = await q.maybeSingle();
-      if (error) throw error;
-      return (data as any) ?? null;
-    },
+    queryFn: () => fetchWebsiteOrderForAttribution({ internalOrderId, externalId }),
   });
 }
 

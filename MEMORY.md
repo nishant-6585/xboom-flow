@@ -10,7 +10,21 @@
 > previously clobbered entries). Code-level invariants live as doc comments at the seams
 > (e.g. `src/lib/orderSource.ts`, `supabase/functions/_shared/email.ts`) — those are authoritative.
 
-Last updated: 2026-07-16
+Last updated: 2026-07-27
+
+---
+
+## 🟡 IN PROGRESS (2026-07-27) — Restore rep "Request to claim" on website orders (RLS regression)
+
+**Root cause:** migration `20260717095242` scoped sales SELECT on `orders` to `sales_person_id = auth.uid()`. Unattributed website orders belong to the SYSTEM user → `useInternalOrderForAttribution`'s direct select returns 0 rows for reps → `OrderAttributionPanel` hits `if (!order) return null` and the whole attribution section (incl. "Request to claim this order") vanished from Woo/Shopify/Order dialogs for role `sales` (reported by Vishal). Same break blinded `AttributionEvidencePicker` (couldn't read customer phone/email → no call-log matching even in the Sales-page Claim panel). Request/approve/notify backend (`request_website_order_attribution`, `decide_attribution_request`, notifications both ways) was never broken.
+
+**Fix (branch `fix/rep-attribution-request-visibility`):**
+- Migration `20260727160000_restore_rep_attribution_visibility.sql` — `get_website_order_attribution(p_internal_order_id, p_external_id)` SECURITY DEFINER lookup RPC (same pattern as `find_claimable_website_order`): website-mirrored orders only (`external_id IS NOT NULL`), narrow column set, gated on approved + sales/sales_manager/admin/supply_chain/`can_attribute_website_order`. Does NOT reopen general orders SELECT for reps (caller must already hold the order uuid / woo id).
+- `useAttributionRequests.ts` — new `fetchWebsiteOrderForAttribution()` helper: RPC-first, falls back to direct select on RPC error (deploy skew safe; managers unaffected). Used by `useInternalOrderForAttribution` + `AttributionEvidencePicker`.
+- `NotificationPanel.tsx` — `attribution_decision` finally has its own icon/CTA (Award, emerald/rose by outcome; approved → `/orders?order_id=…`, rejected → `/sales?tab=claim_website_order` since the rep can't SELECT an order that isn't theirs).
+- `OrderAttributionPanel.tsx` — paid-but-not-yet-mirrored now shows a "still syncing" note instead of rendering nothing.
+
+**⏳ To go live:** run the migration SQL on the live DB (no CLI link/service key locally), then deploy frontend. Verify as a sales user: open a paid website order → panel + "Request to claim" visible; evidence picker shows matched calls; approve/reject round-trip notifications.
 
 ---
 

@@ -92,7 +92,16 @@ export function OrderAttributionPanel({
       </div>
     );
   }
-  if (!order) return null;
+  if (!order) {
+    // Paid but no mirrored internal order yet (sync lag) — say so instead of
+    // rendering nothing, so reps don't think the claim option is missing.
+    return (
+      <div className="p-3 rounded-lg border border-dashed bg-muted/30 text-xs text-muted-foreground">
+        Salesperson attribution will appear once this order finishes syncing. If this
+        persists, ask an admin to run "Sync from Website".
+      </div>
+    );
+  }
 
   const sourcePathLabel = (sp?: string | null) => {
     switch (sp) {

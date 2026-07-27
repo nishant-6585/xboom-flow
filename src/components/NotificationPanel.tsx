@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox, ShieldAlert } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox, ShieldAlert, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -38,6 +38,11 @@ function NotificationItem({
   const isOrderConfirmed = notification.type === 'order_confirmed_by_customer';
   const isEmailDlqAlert = notification.type === 'email_dlq_alert';
   const isAttributionRequest = notification.type === 'attribution_request';
+  const isAttributionDecision = notification.type === 'attribution_decision';
+  // The decision type doesn't carry the outcome — the RPC titles the row
+  // 'Attribution approved' / 'Attribution rejected'.
+  const isAttributionApproved =
+    isAttributionDecision && notification.title.toLowerCase().includes('approved');
   const isKycNameMismatch = notification.type === 'kyc_name_mismatch';
   const navigate = useNavigate();
 
@@ -50,6 +55,7 @@ function NotificationItem({
     if (isOrderConfirmed) return <ClipboardCheck className="w-4 h-4" />;
     if (isEmailDlqAlert) return <FileWarning className="w-4 h-4" />;
     if (isAttributionRequest) return <Inbox className="w-4 h-4" />;
+    if (isAttributionDecision) return <Award className="w-4 h-4" />;
     if (isKycNameMismatch) return <ShieldAlert className="w-4 h-4" />;
     if (isOverdue) return <AlertTriangle className="w-4 h-4" />;
     if (isDueToday) return <Clock className="w-4 h-4" />;
@@ -65,6 +71,10 @@ function NotificationItem({
     if (isOrderConfirmed) return 'bg-emerald-500/10 text-emerald-600';
     if (isEmailDlqAlert) return 'bg-destructive/10 text-destructive';
     if (isAttributionRequest) return 'bg-amber-500/10 text-amber-700 dark:text-amber-400';
+    if (isAttributionDecision)
+      return isAttributionApproved
+        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+        : 'bg-rose-500/10 text-rose-700 dark:text-rose-400';
     if (isKycNameMismatch) return 'bg-rose-500/10 text-rose-700 dark:text-rose-400';
     if (isOverdue) return 'bg-destructive/10 text-destructive';
     if (isDueToday) return 'bg-warning/10 text-warning';
@@ -174,6 +184,34 @@ function NotificationItem({
                 }}
               >
                 View request
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
+          {isAttributionDecision && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                className={cn(
+                  'h-7 text-xs text-white',
+                  isAttributionApproved
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-rose-600 hover:bg-rose-700'
+                )}
+                onClick={() => {
+                  if (!notification.is_read) onMarkAsRead(notification.id);
+                  // Approved → the order is now the rep's own, so the order
+                  // dialog is visible to them; rejected → the order stays
+                  // RLS-hidden, so send them to their claim-requests list.
+                  if (isAttributionApproved && notification.order_id) {
+                    navigate(`/orders?order_id=${notification.order_id}`);
+                  } else {
+                    navigate('/sales?tab=claim_website_order');
+                  }
+                }}
+              >
+                {isAttributionApproved ? 'Open order' : 'View my requests'}
                 <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </div>

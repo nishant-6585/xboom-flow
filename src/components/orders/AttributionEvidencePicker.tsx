@@ -10,6 +10,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { fetchWebsiteOrderForAttribution } from '@/hooks/useAttributionRequests';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -82,25 +83,13 @@ export function AttributionEvidencePicker({
   const [uploading, setUploading] = useState(false);
 
   // Order phone + date — drives the call-log match and the before/after badge.
+  // Fetched via the attribution RPC: sales reps can't SELECT unattributed
+  // website orders directly (orders RLS scopes them to their own rows), and
+  // without the phone/email the call-log and lead matching go blind.
   const { data: order } = useQuery({
     queryKey: ['attribution-evidence-order', orderId],
     enabled: !!orderId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('id, customer_phone, customer_email, customer_name, created_at, order_date')
-        .eq('id', orderId)
-        .maybeSingle();
-      if (error) throw error;
-      return data as {
-        id: string;
-        customer_phone: string | null;
-        customer_email: string | null;
-        customer_name: string | null;
-        created_at: string;
-        order_date: string | null;
-      } | null;
-    },
+    queryFn: () => fetchWebsiteOrderForAttribution({ internalOrderId: orderId }),
   });
 
   const orderAt = order?.order_date || order?.created_at || null;
