@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Cake, Download, Loader2, Mail, Music, Pause, Play, Sparkles, Trash2, Upload } from "lucide-react";
+import { Cake, Download, Gift, Loader2, Mail, Pause, Play, Sparkles, Trash2, Upload } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,13 @@ interface SongRow {
   source: string;
 }
 
+interface CardRow {
+  id: string;
+  employee_id: string;
+  photo_path: string | null;
+  greeting_message: string | null;
+}
+
 // Formats the browser's <audio> element can play natively. AI music tools
 // export MP3/WAV; the rest covers common uploads.
 export const ACCEPTED_AUDIO_EXTENSIONS = [
@@ -42,6 +49,14 @@ export const MAX_SONG_SIZE_MB = 20;
 export function isAcceptedAudioFile(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   return (ACCEPTED_AUDIO_EXTENSIONS as readonly string[]).includes(ext);
+}
+
+export const ACCEPTED_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"] as const;
+export const MAX_PHOTO_SIZE_MB = 5;
+
+export function isAcceptedImageFile(name: string): boolean {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return (ACCEPTED_IMAGE_EXTENSIONS as readonly string[]).includes(ext);
 }
 
 // Days until the next occurrence of a birthday (IST "today"), mirroring the
@@ -72,6 +87,7 @@ const MUSIC_STYLES = [
   "Upbeat Pop", "Bollywood", "Acoustic", "Rock", "Rap / Hip-Hop", "EDM", "Lo-fi Chill",
 ];
 const LANGUAGES = ["English", "Hindi", "Hinglish"];
+const GREETING_TONES = ["Warm & heartfelt", "Fun & playful", "Formal & professional"];
 
 interface GenerateForm {
   nickname: string;
@@ -101,18 +117,31 @@ export function BirthdaySongsPanel() {
   const [form, setForm] = useState<GenerateForm>(EMPTY_FORM);
   const [generating, setGenerating] = useState(false);
 
+  const [cards, setCards] = useState<Map<string, CardRow>>(new Map());
+  const [photoUrls, setPhotoUrls] = useState<Map<string, string>>(new Map());
+  const [cardFor, setCardFor] = useState<EmployeeRow | null>(null);
+  const [greetingText, setGreetingText] = useState("");
+  const [aiNotes, setAiNotes] = useState("");
+  const [aiTone, setAiTone] = useState(GREETING_TONES[0]);
+  const [greetingIsAi, setGreetingIsAi] = useState(false);
+  const [draftingGreeting, setDraftingGreeting] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const uploadTargetRef = useRef<EmployeeRow | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = useCallback(async () => {
-    const [empRes, songRes] = await Promise.all([
+    const [empRes, songRes, cardRes] = await Promise.all([
       supabase
         .from("employees")
         .select("id, name, department, date_of_birth")
         .eq("is_active", true)
         .order("name"),
       supabase.from("birthday_songs").select("id, employee_id, file_path, title, source"),
+      supabase.from("birthday_cards").select("id, employee_id, photo_path, greeting_message"),
     ]);
     if (empRes.error) {
       toast.error("Couldn't load employees", { description: empRes.error.message });
@@ -123,6 +152,30 @@ export function BirthdaySongsPanel() {
       toast.error("Couldn't load birthday songs", { description: songRes.error.message });
     } else {
       setSongs(new Map(((songRes.data as SongRow[]) ?? []).map((s) => [s.employee_id, s])));
+    }
+    if (cardRes.error) {
+      toast.error("Couldn't load birthday cards", { description: cardRes.error.message });
+    } else {
+      const cardRows = (cardRes.data as CardRow[]) ?? [];
+      setCards(new Map(cardRows.map((c) => [c.employee_id, c])));
+
+      // Signed thumbnail URLs for the uploaded photos, one batch call.
+      const paths = cardRows.map((c) => c.photo_path).filter(Boolean) as string[];
+      if (paths.length > 0) {
+        const { data: signed } = await supabase.storage
+          .from("birthday-cards")
+          .createSignedUrls(paths, 3600);
+        const byPath = new Map((signed ?? []).filter((s) => s.signedUrl).map((s) => [s.path, s.signedUrl]));
+        setPhotoUrls(
+          new Map(
+            cardRows
+              .filter((c) => c.photo_path && byPath.has(c.photo_path))
+              .map((c) => [c.employee_id, byPath.get(c.photo_path!)!]),
+          ),
+        );
+      } else {
+        setPhotoUrls(new Map());
+      }
     }
     setLoading(false);
   }, []);
@@ -272,6 +325,49 @@ export function BirthdaySongsPanel() {
     window.open(data.signedUrl, "_blank", "noopener");
   };
 
+  const [sendingToday, setSendingToday] = useState(false);
+
+  const handleSendToday = async () => {
+    setSendingToday(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-birthday-cards", {
+        body: {},
+      });
+      if (error) {
+        let detail = error.message;
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const body = await error.context.json();
+            detail = body?.error || detail;
+          } catch { /* not json */ }
+        }
+        throw new Error(detail);
+      }
+      if (data?.error) throw new Error(String(data.error));
+      const sent = (data?.sent ?? []) as string[];
+      const skipped = (data?.skipped ?? []) as { name: string; reason: string }[];
+      const failed = (data?.failed ?? []) as { name: string; reason: string }[];
+      if (sent.length === 0 && skipped.length === 0 && failed.length === 0) {
+        toast.info("No birthdays today 🎈");
+      } else {
+        const bits = [
+          sent.length > 0 ? `Sent: ${sent.join(", ")}` : null,
+          skipped.length > 0 ? `Skipped: ${skipped.map((s) => `${s.name} (${s.reason})`).join(", ")}` : null,
+          failed.length > 0 ? `Failed: ${failed.map((f) => `${f.name} (${f.reason})`).join(", ")}` : null,
+        ].filter(Boolean);
+        (failed.length > 0 ? toast.warning : toast.success)("Today's birthday emails", {
+          description: bits.join(" · "),
+        });
+      }
+    } catch (err) {
+      toast.error("Couldn't send today's birthday emails", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setSendingToday(false);
+    }
+  };
+
   const handleEmail = async (employee: EmployeeRow) => {
     setBusyId(employee.id);
     try {
@@ -289,15 +385,153 @@ export function BirthdaySongsPanel() {
         throw new Error(detail);
       }
       if (data?.error) throw new Error(String(data.error));
-      toast.success(`Song emailed to ${employee.name} 📧`, {
+      toast.success(`Birthday card emailed to ${employee.name} 📧`, {
         description: data?.recipient ? `Sent to ${data.recipient}` : undefined,
       });
     } catch (err) {
-      toast.error("Couldn't email the song", {
+      toast.error("Couldn't email the birthday card", {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const openCard = (employee: EmployeeRow) => {
+    const card = cards.get(employee.id);
+    setGreetingText(card?.greeting_message ?? "");
+    setAiNotes("");
+    setAiTone(GREETING_TONES[0]);
+    setGreetingIsAi(false);
+    setCardFor(employee);
+  };
+
+  const upsertCard = async (employeeId: string, patch: Partial<CardRow> & { greeting_source?: string }) => {
+    const { error } = await supabase
+      .from("birthday_cards")
+      .upsert(
+        { employee_id: employeeId, updated_by: user?.id ?? null, ...patch },
+        { onConflict: "employee_id" },
+      );
+    if (error) throw new Error(error.message);
+  };
+
+  const handlePhotoSelected = async (file: File | undefined) => {
+    const employee = cardFor;
+    if (!file || !employee) return;
+
+    if (!isAcceptedImageFile(file.name)) {
+      toast.error("Unsupported image format", {
+        description: `Use one of: ${ACCEPTED_IMAGE_EXTENSIONS.join(", ")}`,
+      });
+      return;
+    }
+    if (file.size > MAX_PHOTO_SIZE_MB * 1024 * 1024) {
+      toast.error(`Image too large — keep it under ${MAX_PHOTO_SIZE_MB} MB`);
+      return;
+    }
+
+    setPhotoBusy(true);
+    try {
+      const ext = file.name.split(".").pop()!.toLowerCase();
+      const photoPath = `${employee.id}/photo-${Date.now()}.${ext}`;
+      const previous = cards.get(employee.id)?.photo_path ?? null;
+
+      const { error: uploadError } = await supabase.storage
+        .from("birthday-cards")
+        .upload(photoPath, file, { contentType: file.type || undefined });
+      if (uploadError) throw new Error(uploadError.message);
+
+      try {
+        await upsertCard(employee.id, { photo_path: photoPath });
+      } catch (err) {
+        await supabase.storage.from("birthday-cards").remove([photoPath]);
+        throw err;
+      }
+
+      if (previous && previous !== photoPath) {
+        await supabase.storage.from("birthday-cards").remove([previous]);
+      }
+
+      toast.success(`Photo added to ${employee.name}'s birthday card 📸`);
+      await load();
+    } catch (err) {
+      toast.error("Photo upload failed", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setPhotoBusy(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    const employee = cardFor;
+    const card = employee ? cards.get(employee.id) : undefined;
+    if (!employee || !card?.photo_path) return;
+    setPhotoBusy(true);
+    try {
+      await upsertCard(employee.id, { photo_path: null });
+      await supabase.storage.from("birthday-cards").remove([card.photo_path]);
+      toast.success("Photo removed");
+      await load();
+    } catch (err) {
+      toast.error("Couldn't remove the photo", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const handleDraftGreeting = async () => {
+    if (!cardFor) return;
+    setDraftingGreeting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-birthday-greeting", {
+        body: { employee_id: cardFor.id, about: aiNotes, tone: aiTone },
+      });
+      if (error) {
+        let detail = error.message;
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const body = await error.context.json();
+            detail = body?.error || detail;
+          } catch { /* not json */ }
+        }
+        throw new Error(detail);
+      }
+      if (data?.error) throw new Error(String(data.error));
+      if (!data?.greeting) throw new Error("AI returned an empty greeting");
+      setGreetingText(String(data.greeting));
+      setGreetingIsAi(true);
+      toast.success("Greeting drafted — review and tweak before saving ✨");
+    } catch (err) {
+      toast.error("Couldn't draft the greeting", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setDraftingGreeting(false);
+    }
+  };
+
+  const handleSaveCard = async () => {
+    if (!cardFor) return;
+    setSavingCard(true);
+    try {
+      await upsertCard(cardFor.id, {
+        greeting_message: greetingText.trim() || null,
+        greeting_source: greetingIsAi ? "ai" : "manual",
+      });
+      toast.success(`Birthday card saved for ${cardFor.name} 💌`);
+      setCardFor(null);
+      await load();
+    } catch (err) {
+      toast.error("Couldn't save the card", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setSavingCard(false);
     }
   };
 
@@ -361,13 +595,33 @@ export function BirthdaySongsPanel() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Music className="h-5 w-5 text-pink-500" /> Birthday Songs
-          </CardTitle>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Gift className="h-5 w-5 text-pink-500" /> Birthday Cards
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={sendingToday}
+              onClick={() => void handleSendToday()}
+            >
+              {sendingToday ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Sending…
+                </>
+              ) : (
+                <>
+                  <Mail className="h-3.5 w-3.5 mr-1.5" /> Send today's cards
+                </>
+              )}
+            </Button>
+          </div>
           <CardDescription>
-            Tag a personalized song to each employee — it plays from their birthday card on the big
-            day. Upload an audio file ({ACCEPTED_AUDIO_EXTENSIONS.join(", ")}; max {MAX_SONG_SIZE_MB} MB)
-            or generate one with AI from a few personal details.
+            Put together a birthday card for each employee — a personalized song, their photo and a
+            greeting message. Cards are emailed automatically at 9:00 AM IST on each birthday (and
+            can be re-sent with the button above). Upload an audio file
+            ({ACCEPTED_AUDIO_EXTENSIONS.join(", ")}; max {MAX_SONG_SIZE_MB} MB) or generate one with
+            AI, then use the card button to add the photo and greeting.
             {missingDob > 0 && (
               <span className="block mt-1 text-amber-600 dark:text-amber-400">
                 {missingDob} active employee{missingDob > 1 ? "s have" : " has"} no date of birth on
@@ -390,6 +644,9 @@ export function BirthdaySongsPanel() {
           ) : (
             withDob.map((employee) => {
               const song = songs.get(employee.id);
+              const card = cards.get(employee.id);
+              const photoUrl = photoUrls.get(employee.id);
+              const hasCardContent = !!(card?.photo_path || card?.greeting_message);
               const days = daysUntilBirthday(employee.date_of_birth!, today);
               const busy = busyId === employee.id;
               return (
@@ -397,6 +654,17 @@ export function BirthdaySongsPanel() {
                   key={employee.id}
                   className="flex flex-wrap items-center gap-3 rounded-lg border p-3"
                 >
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt={employee.name}
+                      className="h-10 w-10 rounded-full object-cover border border-pink-200 dark:border-pink-900 shrink-0"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                      <Cake className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-sm truncate">{employee.name}</p>
@@ -425,6 +693,12 @@ export function BirthdaySongsPanel() {
                         </>
                       ) : (
                         "No song yet"
+                      )}
+                      {card?.greeting_message && (
+                        <span className="text-emerald-600 dark:text-emerald-400"> · Greeting ✓</span>
+                      )}
+                      {card?.photo_path && (
+                        <span className="text-emerald-600 dark:text-emerald-400"> · Photo ✓</span>
                       )}
                     </p>
                   </div>
@@ -457,13 +731,13 @@ export function BirthdaySongsPanel() {
                         <Download className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                    {song && (
+                    {(song || hasCardContent) && (
                       <Button
                         size="sm"
                         variant="outline"
                         className="h-8"
                         disabled={busy}
-                        title="Email song to employee"
+                        title="Email birthday card to employee"
                         onClick={() => void handleEmail(employee)}
                       >
                         {busy ? (
@@ -473,6 +747,17 @@ export function BirthdaySongsPanel() {
                         )}
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      disabled={busy}
+                      title="Card — photo & greeting message"
+                      onClick={() => openCard(employee)}
+                    >
+                      <Gift className="h-3.5 w-3.5 mr-1.5" />
+                      Card
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -522,6 +807,156 @@ export function BirthdaySongsPanel() {
         className="hidden"
         onChange={(e) => void handleFileSelected(e.target.files?.[0])}
       />
+
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept={ACCEPTED_IMAGE_EXTENSIONS.map((e) => `.${e}`).join(",") + ",image/*"}
+        className="hidden"
+        onChange={(e) => void handlePhotoSelected(e.target.files?.[0])}
+      />
+
+      <Dialog
+        open={!!cardFor}
+        onOpenChange={(open) => !open && !savingCard && !photoBusy && !draftingGreeting && setCardFor(null)}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-4 w-4 text-pink-500" />
+              Birthday card for {cardFor?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Add a photo and a greeting message — both go into the birthday email along with the
+              song. Draft the greeting with AI, then edit it to taste before saving.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Photo</Label>
+              <div className="flex items-center gap-3">
+                {cardFor && photoUrls.get(cardFor.id) ? (
+                  <img
+                    src={photoUrls.get(cardFor.id)}
+                    alt={cardFor.name}
+                    className="h-16 w-16 rounded-lg object-cover border"
+                  />
+                ) : (
+                  <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center">
+                    <Cake className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex flex-col gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={photoBusy}
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    {photoBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    {cardFor && cards.get(cardFor.id)?.photo_path ? "Replace photo" : "Upload photo"}
+                  </Button>
+                  {cardFor && cards.get(cardFor.id)?.photo_path && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      disabled={photoBusy}
+                      onClick={() => void handleRemovePhoto()}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove photo
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {ACCEPTED_IMAGE_EXTENSIONS.join(", ")} · max {MAX_PHOTO_SIZE_MB} MB
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="bc-greeting">Greeting message</Label>
+                <span className="text-[11px] text-muted-foreground">
+                  Goes at the top of the birthday email
+                </span>
+              </div>
+              <Textarea
+                id="bc-greeting"
+                placeholder="Write the birthday message yourself, or draft it with AI below…"
+                rows={5}
+                value={greetingText}
+                onChange={(e) => {
+                  setGreetingText(e.target.value);
+                  setGreetingIsAi(false);
+                }}
+              />
+            </div>
+
+            <div className="rounded-lg border p-3 space-y-2.5">
+              <p className="text-xs font-medium flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-pink-500" /> Draft with AI
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                <Input
+                  placeholder="Notes for AI (optional) — hobbies, fun facts…"
+                  value={aiNotes}
+                  onChange={(e) => setAiNotes(e.target.value)}
+                />
+                <Select value={aiTone} onValueChange={setAiTone}>
+                  <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {GREETING_TONES.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={draftingGreeting}
+                onClick={() => void handleDraftGreeting()}
+              >
+                {draftingGreeting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Drafting…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    {greetingText ? "Redraft greeting" : "Draft greeting"}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={savingCard || photoBusy || draftingGreeting}
+              onClick={() => setCardFor(null)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={savingCard || draftingGreeting} onClick={() => void handleSaveCard()}>
+              {savingCard ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…
+                </>
+              ) : (
+                "Save card"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!generateFor} onOpenChange={(open) => !open && !generating && setGenerateFor(null)}>
         <DialogContent className="sm:max-w-md">

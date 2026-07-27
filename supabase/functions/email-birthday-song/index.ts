@@ -8,8 +8,10 @@
 //   - The employee themself, on the day of their birthday
 //
 // Resolves the recipient email server-side (employees.personal_email or the
-// linked profile's email), creates a 7-day signed URL for the tagged birthday
-// song, and invokes send-transactional-email with the birthday-song template.
+// linked profile's email), creates 7-day signed URLs for the tagged birthday
+// song and the birthday-card photo, and invokes send-transactional-email with
+// the birthday-song template (song link + photo + HR's greeting message).
+// Sends as long as the employee has a song OR a card (photo/greeting).
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -109,23 +111,51 @@ Deno.serve(async (req) => {
       return json({ error: "No email on file for this employee" }, 400);
     }
 
-    // Load the tagged song
-    const { data: song } = await admin
-      .from("birthday_songs")
-      .select("file_path, title")
-      .eq("employee_id", employeeId)
-      .maybeSingle();
-    if (!song) return json({ error: "No birthday song tagged for this employee yet" }, 404);
+    // Load the tagged song and the birthday card (photo + greeting)
+    const [{ data: song }, { data: card }] = await Promise.all([
+      admin
+        .from("birthday_songs")
+        .select("file_path, title")
+        .eq("employee_id", employeeId)
+        .maybeSingle(),
+      admin
+        .from("birthday_cards")
+        .select("photo_path, greeting_message")
+        .eq("employee_id", employeeId)
+        .maybeSingle(),
+    ]);
+    if (!song && !card?.photo_path && !card?.greeting_message) {
+      return json({ error: "No birthday song or card set up for this employee yet" }, 404);
+    }
 
     // Create a longer-lived signed URL with download disposition
-    const safeName = (song.title || `birthday-song-${employee.name}`)
-      .replace(/[^\w\s.-]+/g, "")
-      .replace(/\s+/g, "-") + ".mp3";
-    const { data: signed, error: signError } = await admin.storage
-      .from("birthday-songs")
-      .createSignedUrl(song.file_path, SIGNED_URL_TTL_SECONDS, { download: safeName });
-    if (signError || !signed?.signedUrl) {
-      return json({ error: `Couldn't build download link: ${signError?.message}` }, 500);
+    let songUrl: string | null = null;
+    let songTitle: string | null = null;
+    if (song) {
+      const safeName = (song.title || `birthday-song-${employee.name}`)
+        .replace(/[^\w\s.-]+/g, "")
+        .replace(/\s+/g, "-") + ".mp3";
+      const { data: signed, error: signError } = await admin.storage
+        .from("birthday-songs")
+        .createSignedUrl(song.file_path, SIGNED_URL_TTL_SECONDS, { download: safeName });
+      if (signError || !signed?.signedUrl) {
+        return json({ error: `Couldn't build download link: ${signError?.message}` }, 500);
+      }
+      songUrl = signed.signedUrl;
+      songTitle = song.title;
+    }
+
+    // Signed URL for the card photo (inline display, not download)
+    let photoUrl: string | null = null;
+    if (card?.photo_path) {
+      const { data: signedPhoto, error: photoError } = await admin.storage
+        .from("birthday-cards")
+        .createSignedUrl(card.photo_path, SIGNED_URL_TTL_SECONDS);
+      if (photoError || !signedPhoto?.signedUrl) {
+        console.error(`[email-birthday-song] photo sign failed: ${photoError?.message}`);
+      } else {
+        photoUrl = signedPhoto.signedUrl;
+      }
     }
 
     // Send via the transactional email pipeline
@@ -138,8 +168,10 @@ Deno.serve(async (req) => {
           idempotencyKey: `birthday-song-${employeeId}-${new Date().toISOString().slice(0, 10)}`,
           templateData: {
             name: employee.name.split(/\s+/)[0],
-            song_url: signed.signedUrl,
-            song_title: song.title || `Birthday song for ${employee.name}`,
+            song_url: songUrl,
+            song_title: songUrl ? (songTitle || `Birthday song for ${employee.name}`) : null,
+            photo_url: photoUrl,
+            greeting_message: card?.greeting_message || null,
             expires_hint: "This link works for the next 7 days.",
             site_url: "https://xboomflow.com",
           },
