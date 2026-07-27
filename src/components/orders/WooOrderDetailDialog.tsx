@@ -237,7 +237,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4 -mr-4">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
           <div className="space-y-5 pb-2">
             {/* Order summary */}
             <section className="grid grid-cols-2 gap-3 text-sm">
@@ -657,7 +657,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
               />
             </section>
            </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
     {canGenerateProforma && (
