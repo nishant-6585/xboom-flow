@@ -119,7 +119,7 @@ function statusBadge(s: MyRequestRow['status']) {
 }
 
 export function ClaimWebsiteOrderPanel() {
-  const { user, role } = useAuth();
+  const { user, role, roles } = useAuth();
   const qc = useQueryClient();
   const { requestAttribution } = useAttributionMutations();
 
@@ -133,7 +133,10 @@ export function ClaimWebsiteOrderPanel() {
   const [claimTarget, setClaimTarget] = useState<string | null>(null); // order awaiting evidence
   const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
 
-  const allowed = role === 'admin' || role === 'sales_manager' || role === 'sales';
+  // roles list, not the single top-priority role — 'sales' is lowest priority,
+  // so a rep with any second role would lose the claim tab otherwise.
+  const allowed =
+    roles.includes('admin') || roles.includes('sales_manager') || roles.includes('sales');
 
   const searchQ = useQuery({
     queryKey: ['claimable-website-order', appliedQuery],
