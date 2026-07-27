@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Cake, PartyPopper, Gift, Sparkles, Megaphone, Music, Pause } from "lucide-react";
+import { Cake, PartyPopper, Gift, Sparkles, Megaphone, Music, Pause, Download, Mail, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -114,6 +114,8 @@ export function BirthdayCard() {
   const [song, setSong] = useState<BirthdaySong | null>(null);
   const [songPlaying, setSongPlaying] = useState(false);
   const [songLoading, setSongLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [emailing, setEmailing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const load = async () => {
@@ -178,6 +180,41 @@ export function BirthdayCard() {
     audioRef.current = audio;
     setSongPlaying(true);
     void audio.play().catch(() => setSongPlaying(false));
+  };
+
+  const handleDownloadSong = async () => {
+    if (!song || !row) return;
+    setDownloading(true);
+    const filename = ((song.title || `birthday-song-${row.name}`)
+      .replace(/[^\w\s.-]+/g, "")
+      .replace(/\s+/g, "-")) + ".mp3";
+    const { data, error } = await supabase.storage
+      .from("birthday-songs")
+      .createSignedUrl(song.file_path, 300, { download: filename });
+    setDownloading(false);
+    if (error || !data?.signedUrl) {
+      toast.error("Couldn't download the song", { description: error?.message });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener");
+  };
+
+  const handleEmailSong = async () => {
+    if (!row) return;
+    setEmailing(true);
+    const { data, error } = await supabase.functions.invoke("email-birthday-song", {
+      body: { employee_id: row.employee_id },
+    });
+    setEmailing(false);
+    if (error) {
+      toast.error("Couldn't email the song", { description: error.message });
+      return;
+    }
+    if ((data as { error?: string })?.error) {
+      toast.error("Couldn't email the song", { description: (data as { error?: string }).error });
+      return;
+    }
+    toast.success("Birthday song sent to your inbox 📧");
   };
 
   if (row === undefined) return null; // loading
