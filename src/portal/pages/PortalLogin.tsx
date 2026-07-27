@@ -137,9 +137,20 @@ export default function PortalLogin() {
               </Button>
             </form>
 
-            <p className="text-xs text-muted-foreground text-center mt-6">
-              Portal access is by invitation only. Contact your account manager to get set up.
-            </p>
+            <div className="mt-6 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground">or</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/portal/forgot-password">Forgot password / First-time setup</Link>
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Received an invite email but the link expired? Use the button above to get a fresh password-reset link.
+                New here? Portal access is by invitation — contact your account manager if you don't have one yet.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
