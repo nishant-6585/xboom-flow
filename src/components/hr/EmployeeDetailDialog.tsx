@@ -375,7 +375,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
               <ReadOnlyField label="Name" value={employee.name} />
               {renderEditableSelect({ label: "Gender", fieldKey: "gender", options: GENDER_OPTIONS })}
               {editing ? (
-                renderEditableField({ label: "Date of Birth", fieldKey: "date_of_birth", type: "date" })
+                renderEditableField({ label: "Date of Birth", fieldKey: "date_of_birth", type: "date", error: dateErrors.date_of_birth })
               ) : (
                 <ReadOnlyField label="Date of Birth" value={formatDate(employee.date_of_birth)} />
               )}
@@ -392,7 +392,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <h4 className="text-sm font-semibold text-primary mb-3">Employment Details</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {editing && !employee.joining_date ? (
-                renderEditableField({ label: "Joining Date", fieldKey: "joining_date", type: "date" })
+                renderEditableField({ label: "Joining Date", fieldKey: "joining_date", type: "date", error: dateErrors.joining_date })
               ) : (
                 <ReadOnlyField label="Joining Date" value={formatDate(employee.joining_date || form.joining_date)} />
               )}
