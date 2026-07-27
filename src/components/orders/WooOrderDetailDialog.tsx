@@ -4,7 +4,6 @@ import { OrderAttributionPanel } from '@/components/orders/OrderAttributionPanel
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck, MapPin, Package, ExternalLink, Calendar, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
@@ -223,8 +222,8 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] h-[90vh] max-h-[90vh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             Order #{order.order_number || order.woo_order_id}
             <Badge variant="outline" className="capitalize">
@@ -286,9 +285,9 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
               ) : lineItems.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No line items recorded.</p>
               ) : (
-                <div className="overflow-x-auto -mx-1">
-                  <table className="w-full text-xs">
-                    <thead className="text-muted-foreground">
+                <div className="overflow-x-auto overflow-y-auto max-h-64 -mx-1">
+                  <table className="w-full min-w-[420px] text-xs">
+                    <thead className="text-muted-foreground sticky top-0 bg-muted/50">
                       <tr className="border-b border-border/50">
                         <th className="text-left py-1.5 px-1 font-medium">Product</th>
                         <th className="text-right py-1.5 px-1 font-medium">Qty</th>
@@ -304,7 +303,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
                         return (
                           <tr key={idx} className="border-b border-border/30 last:border-0">
                             <td className="py-1.5 px-1">
-                              <div className="font-medium">{it.name || it.product_name || '—'}</div>
+                              <div className="font-medium break-words">{it.name || it.product_name || '—'}</div>
                               {it.sku && <div className="text-[10px] text-muted-foreground">{it.sku}</div>}
                             </td>
                             <td className="text-right py-1.5 px-1">{qty}</td>

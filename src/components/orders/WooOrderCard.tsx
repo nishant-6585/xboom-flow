@@ -107,7 +107,7 @@ export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
 
   const card = (
     <Card
-      className={`shadow-sm transition-all duration-200 group ${
+      className={`shadow-sm transition-all duration-200 group flex flex-col ${
         isCancelled
           ? 'border-red-500/20 bg-red-500/[0.03] opacity-90 hover:opacity-100 hover:border-red-500/30'
           : isTerminal
@@ -116,7 +116,7 @@ export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
       } ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick ? () => onClick(order) : undefined}
     >
-      <CardContent className="p-0">
+      <CardContent className="p-0 flex flex-col flex-1">
         {/* Header */}
         <div className="flex items-center justify-between p-4 pb-3 border-b border-border/30">
           <span className="font-mono text-sm font-bold text-primary">
@@ -128,7 +128,7 @@ export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
         </div>
 
         {/* Body */}
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3 flex flex-col flex-1">
           {/* Product */}
           <div className="flex items-start gap-2.5">
             <Package className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
