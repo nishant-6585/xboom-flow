@@ -286,9 +286,9 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
               ) : lineItems.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No line items recorded.</p>
               ) : (
-                <div className="overflow-x-auto -mx-1">
-                  <table className="w-full text-xs">
-                    <thead className="text-muted-foreground">
+                <div className="overflow-x-auto overflow-y-auto max-h-64 -mx-1">
+                  <table className="w-full min-w-[420px] text-xs">
+                    <thead className="text-muted-foreground sticky top-0 bg-muted/50">
                       <tr className="border-b border-border/50">
                         <th className="text-left py-1.5 px-1 font-medium">Product</th>
                         <th className="text-right py-1.5 px-1 font-medium">Qty</th>
@@ -304,7 +304,7 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
                         return (
                           <tr key={idx} className="border-b border-border/30 last:border-0">
                             <td className="py-1.5 px-1">
-                              <div className="font-medium">{it.name || it.product_name || '—'}</div>
+                              <div className="font-medium break-words">{it.name || it.product_name || '—'}</div>
                               {it.sku && <div className="text-[10px] text-muted-foreground">{it.sku}</div>}
                             </td>
                             <td className="text-right py-1.5 px-1">{qty}</td>
