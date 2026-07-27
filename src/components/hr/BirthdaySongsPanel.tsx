@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Cake, Loader2, Music, Pause, Play, Sparkles, Trash2, Upload } from "lucide-react";
+import { Cake, Download, Loader2, Mail, Music, Pause, Play, Sparkles, Trash2, Upload } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -254,6 +254,53 @@ export function BirthdaySongsPanel() {
     }
   };
 
+  const handleDownload = async (employee: EmployeeRow) => {
+    const song = songs.get(employee.id);
+    if (!song) return;
+    const filename = ((song.title || `birthday-song-${employee.name}`)
+      .replace(/[^\w\s.-]+/g, "")
+      .replace(/\s+/g, "-")) + ".mp3";
+    const { data, error } = await supabase.storage
+      .from("birthday-songs")
+      .createSignedUrl(song.file_path, 300, { download: filename });
+    if (error || !data?.signedUrl) {
+      toast.error("Couldn't build download link", { description: error?.message });
+      return;
+    }
+    // Trigger the download in a new tab; the download disposition on the
+    // signed URL forces the browser to save rather than navigate.
+    window.open(data.signedUrl, "_blank", "noopener");
+  };
+
+  const handleEmail = async (employee: EmployeeRow) => {
+    setBusyId(employee.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("email-birthday-song", {
+        body: { employee_id: employee.id },
+      });
+      if (error) {
+        let detail = error.message;
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const body = await error.context.json();
+            detail = body?.error || detail;
+          } catch { /* not json */ }
+        }
+        throw new Error(detail);
+      }
+      if (data?.error) throw new Error(String(data.error));
+      toast.success(`Song emailed to ${employee.name} 📧`, {
+        description: data?.recipient ? `Sent to ${data.recipient}` : undefined,
+      });
+    } catch (err) {
+      toast.error("Couldn't email the song", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const openGenerate = (employee: EmployeeRow) => {
     setForm(EMPTY_FORM);
     setGenerateFor(employee);
@@ -395,6 +442,34 @@ export function BirthdaySongsPanel() {
                           <Pause className="h-3.5 w-3.5" />
                         ) : (
                           <Play className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    )}
+                    {song && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                        disabled={busy}
+                        title="Download song"
+                        onClick={() => void handleDownload(employee)}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {song && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                        disabled={busy}
+                        title="Email song to employee"
+                        onClick={() => void handleEmail(employee)}
+                      >
+                        {busy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Mail className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     )}
