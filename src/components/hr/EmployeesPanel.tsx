@@ -10,6 +10,7 @@ import { Search, Eye, Users } from "lucide-react";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { EmployeeDetailDialog } from "./EmployeeDetailDialog";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 export interface EmployeeRecord {
   id: string;
@@ -49,7 +50,7 @@ export function EmployeesPanel() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRecord | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
-  type SortKey = "employee_number" | "name" | "department" | "role";
+  type SortKey = "employee_number" | "name" | "department" | "role" | "date_of_birth" | "joining_date";
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const toggleSort = (k: SortKey) => {
@@ -141,6 +142,8 @@ export function EmployeesPanel() {
       if (sortKey === "name") return (e.name || "").toLowerCase();
       if (sortKey === "department") return (e.department || "").toLowerCase();
       if (sortKey === "role") return (e.user_roles?.[0] || "").toLowerCase();
+      if (sortKey === "date_of_birth") return e.date_of_birth || "9999-12-31";
+      if (sortKey === "joining_date") return e.joining_date || "9999-12-31";
       return "";
     };
     const sorted = [...result].sort((a, b) => {
@@ -151,6 +154,15 @@ export function EmployeesPanel() {
     });
     return sorted;
   }, [employees, search, deptFilter, typeFilter, sortKey, sortDir]);
+
+  const formatDate = (d: string | null) => {
+    if (!d) return "—";
+    try {
+      return format(new Date(d), "dd MMM yyyy");
+    } catch {
+      return "—";
+    }
+  };
 
   const formatType = (t: string | null) => {
     if (!t) return "—";
@@ -209,6 +221,8 @@ export function EmployeesPanel() {
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>Name<SortIcon k="name" /></TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("department")}>Department<SortIcon k="department" /></TableHead>
                 <TableHead className="hidden md:table-cell cursor-pointer select-none" onClick={() => toggleSort("role")}>Role<SortIcon k="role" /></TableHead>
+                <TableHead className="hidden lg:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => toggleSort("date_of_birth")}>DOB<SortIcon k="date_of_birth" /></TableHead>
+                <TableHead className="hidden lg:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => toggleSort("joining_date")}>DOJ<SortIcon k="joining_date" /></TableHead>
                 <TableHead className="hidden lg:table-cell">Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-20">Action</TableHead>
@@ -222,6 +236,8 @@ export function EmployeesPanel() {
                   <TableCell className="font-medium">{emp.name}</TableCell>
                   <TableCell className="text-sm">{emp.department}</TableCell>
                    <TableCell className="hidden md:table-cell text-sm">{emp.user_roles && emp.user_roles.length > 0 ? emp.user_roles.map(r => formatType(r)).join(", ") : "—"}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-sm whitespace-nowrap">{formatDate(emp.date_of_birth)}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-sm whitespace-nowrap">{formatDate(emp.joining_date)}</TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Badge variant="outline" className="text-xs">{formatType(emp.employee_type)}</Badge>
                   </TableCell>
