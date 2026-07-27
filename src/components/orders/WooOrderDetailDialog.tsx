@@ -223,8 +223,8 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] h-[90vh] max-h-[90vh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             Order #{order.order_number || order.woo_order_id}
             <Badge variant="outline" className="capitalize">
