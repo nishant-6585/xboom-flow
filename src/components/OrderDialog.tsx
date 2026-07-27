@@ -118,7 +118,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   // payment_status are reserved for admin + sales_manager. Sales sees them
   // read-only. Discount is the salesperson's lever on OWN orders.
   const canEditFinancials = isAdmin || isSalesManager;
-  const canEditDiscount = canEditFinancials || isOwnOrder;
+  // Sales, sales_manager and admin can edit the payment-info levers
+  // (Discount, Amount Paid, Payment Status, Terms, Due Date). Only
+  // Total Sales Amount remains reserved for admin + sales_manager.
+  const canEditPaymentInfo = canEditFinancials || isSales;
+  const canEditDiscount = canEditPaymentInfo;
   const [hasPriceRefreshGrant, setHasPriceRefreshGrant] = useState(false);
   const canRefreshPrice = canEditFinancials || hasPriceRefreshGrant;
   useEffect(() => {
@@ -2601,10 +2605,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       step={0.01}
                       value={amountPaid}
                       onChange={e => setAmountPaid(e.target.value)}
-                      disabled={loading || !canEditFinancials}
-                      readOnly={!canEditFinancials}
+                      disabled={loading || !canEditPaymentInfo}
+                      readOnly={!canEditPaymentInfo}
                     />
-                    {!canEditFinancials && (
+                    {!canEditPaymentInfo && (
                       <p className="text-xs text-muted-foreground">
                         Derived from payment records — add a payment below.
                       </p>
@@ -2615,9 +2619,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <Select
                       value={paymentStatus}
                       onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}
-                      disabled={!canEditFinancials}
+                      disabled={!canEditPaymentInfo}
                     >
-                      <SelectTrigger disabled={!canEditFinancials}>
+                      <SelectTrigger disabled={!canEditPaymentInfo}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -2626,7 +2630,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         ))}
                       </SelectContent>
                     </Select>
-                    {!canEditFinancials && (
+                    {!canEditPaymentInfo && (
                       <p className="text-xs text-muted-foreground">
                         Derived from payment records — add a payment below.
                       </p>
