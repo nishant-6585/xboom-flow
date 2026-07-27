@@ -127,9 +127,23 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
     });
   };
 
-  const update = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
-
   const [dateErrors, setDateErrors] = useState({ date_of_birth: "", joining_date: "" });
+
+  const update = (key: string, value: string) => {
+    setForm(f => ({ ...f, [key]: value }));
+    if (key === "date_of_birth") {
+      setDateErrors(prev => ({
+        ...prev,
+        date_of_birth: validateDob(value),
+        joining_date: validateDoj(form.joining_date, value),
+      }));
+    } else if (key === "joining_date") {
+      setDateErrors(prev => ({
+        ...prev,
+        joining_date: validateDoj(value, form.date_of_birth),
+      }));
+    }
+  };
 
   const validateDob = (val: string): string => {
     if (!val) return "";
