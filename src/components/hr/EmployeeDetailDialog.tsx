@@ -251,7 +251,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
     }
   };
 
-  const renderEditableField = ({ label, fieldKey, type = "text", placeholder = "" }: { label: string; fieldKey: string; type?: string; placeholder?: string }) => {
+  const renderEditableField = ({ label, fieldKey, type = "text", placeholder = "", error }: { label: string; fieldKey: string; type?: string; placeholder?: string; error?: string }) => {
     if (!editing) return <ReadOnlyField label={label} value={(employee as any)[fieldKey]} />;
     return (
       <div className="space-y-1">
@@ -261,8 +261,10 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           value={(form as any)[fieldKey]}
           onChange={(e) => update(fieldKey, e.target.value)}
           placeholder={placeholder}
-          className="h-8 text-sm"
+          className={`h-8 text-sm ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
+          aria-invalid={error ? "true" : "false"}
         />
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
     );
   };
