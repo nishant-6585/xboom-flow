@@ -390,10 +390,11 @@ export function AttributionEvidencePicker({
                       onCheckedChange={() => toggleLead(l)}
                     />
                     <span className="font-mono">{format(new Date(l.created_at), 'dd MMM yy, HH:mm')}</span>
-                    <span className="text-muted-foreground">
-                      {l.source || l.lead_table} · via {l.matched_on}
-                    </span>
+                    <span className="text-muted-foreground">via {l.matched_on}</span>
                     <span className="ml-auto flex items-center gap-1">
+                      <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-700 text-[10px]">
+                        source: {l.source || l.lead_table}
+                      </Badge>
                       {salesPersonId && (
                         assignedMatch ? (
                           <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 text-[10px]">
