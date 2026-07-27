@@ -18469,6 +18469,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      is_internal_staff: { Args: { p_user_id: string }; Returns: boolean }
       is_kyc_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_reporting_manager: {
         Args: { _employee_id: string; _manager_id: string }
