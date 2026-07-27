@@ -129,7 +129,35 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
 
   const update = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
 
-  const startEditing = () => { resetForm(); setEditing(true); };
+  const [dateErrors, setDateErrors] = useState({ date_of_birth: "", joining_date: "" });
+
+  const validateDob = (val: string): string => {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return "Invalid date of birth";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (d > today) return "Date of birth cannot be in the future";
+    const min = new Date("1900-01-01");
+    if (d < min) return "Date of birth cannot be before 1900";
+    return "";
+  };
+
+  const validateDoj = (val: string, dobVal: string): string => {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return "Invalid joining date";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (d > today) return "Joining date cannot be in the future";
+    if (dobVal) {
+      const dob = new Date(dobVal);
+      if (!isNaN(dob.getTime()) && d < dob) return "Joining date cannot be before date of birth";
+    }
+    return "";
+  };
+
+  const startEditing = () => { resetForm(); setDateErrors({ date_of_birth: "", joining_date: "" }); setEditing(true); };
   const handleCancel = () => { setEditing(false); resetForm(); };
 
   const handleSave = async () => {
