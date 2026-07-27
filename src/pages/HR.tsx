@@ -40,7 +40,7 @@ import { HiringPanel } from "@/components/hr/HiringPanel";
 import { ReferralsPanel } from "@/components/hr/ReferralsPanel";
 import { MonthlyPulsePanel } from "@/components/hr/MonthlyPulsePanel";
 import { HolidaysManager } from "@/components/hr/HolidaysManager";
-import { Newspaper, Music } from "lucide-react";
+import { Newspaper, Gift } from "lucide-react";
 import { BirthdaySongsPanel } from "@/components/hr/BirthdaySongsPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
@@ -151,7 +151,7 @@ export default function HR() {
                 <TabsTrigger value="monthly_pulse" className="gap-1.5 whitespace-nowrap"><Newspaper className="h-4 w-4 shrink-0" /><span>Monthly Pulse</span></TabsTrigger>
               )}
               {isHROrAdmin && (
-                <TabsTrigger value="birthday_songs" className="gap-1.5 whitespace-nowrap"><Music className="h-4 w-4 shrink-0" /><span>Birthday Songs</span></TabsTrigger>
+                <TabsTrigger value="birthday_songs" className="gap-1.5 whitespace-nowrap"><Gift className="h-4 w-4 shrink-0" /><span>Birthday Cards</span></TabsTrigger>
               )}
               {isHROrAdmin && (
                 <TabsTrigger value="financial_list" className="gap-1.5 whitespace-nowrap"><Wallet className="h-4 w-4 shrink-0" /><span>Financial Details</span></TabsTrigger>

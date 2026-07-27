@@ -1527,6 +1527,54 @@ export type Database = {
           },
         ]
       }
+      birthday_cards: {
+        Row: {
+          created_at: string
+          employee_id: string
+          greeting_message: string | null
+          greeting_source: string
+          id: string
+          photo_path: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          greeting_message?: string | null
+          greeting_source?: string
+          id?: string
+          photo_path?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          greeting_message?: string | null
+          greeting_source?: string
+          id?: string
+          photo_path?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "birthday_cards_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "birthday_cards_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       birthday_songs: {
         Row: {
           created_at: string
