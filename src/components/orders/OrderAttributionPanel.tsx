@@ -648,14 +648,14 @@ function AssignDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Assign salesperson</DialogTitle>
           <DialogDescription>
             Credit this website order to a salesperson. They will get the same points a normal order earns.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3 overflow-y-auto flex-1 min-h-0 pr-1 -mr-1">
           <div className="space-y-1.5">
             <Label>Salesperson</Label>
             <Select value={salesPersonId} onValueChange={setSalesPersonId}>
@@ -721,7 +721,7 @@ function AssignDialog({
             salesPersonId={salesPersonId || null}
           />
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t pt-3 mt-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={!canSubmit || attribute.isPending}>
             {attribute.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -778,25 +778,27 @@ function RequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Request to claim this order</DialogTitle>
           <DialogDescription>
             Tell your manager why this website order should be credited to you, and attach proof
             you closed the deal. They will approve or reject.
           </DialogDescription>
         </DialogHeader>
-        <ReasonFields
-          reason={reason} setReason={setReason}
-          customReason={customReason} setCustomReason={setCustomReason}
-        />
-        <AttributionEvidencePicker
-          orderId={orderId}
-          value={evidence}
-          onChange={setEvidence}
-          salesPersonId={user?.id ?? null}
-        />
-        <DialogFooter>
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1 -mr-1">
+          <ReasonFields
+            reason={reason} setReason={setReason}
+            customReason={customReason} setCustomReason={setCustomReason}
+          />
+          <AttributionEvidencePicker
+            orderId={orderId}
+            value={evidence}
+            onChange={setEvidence}
+            salesPersonId={user?.id ?? null}
+          />
+        </div>
+        <DialogFooter className="shrink-0 border-t pt-3 mt-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={!canSubmit || requestAttribution.isPending}>
             {requestAttribution.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
