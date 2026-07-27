@@ -127,9 +127,51 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
     });
   };
 
-  const update = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
+  const [dateErrors, setDateErrors] = useState({ date_of_birth: "", joining_date: "" });
 
-  const startEditing = () => { resetForm(); setEditing(true); };
+  const update = (key: string, value: string) => {
+    setForm(f => ({ ...f, [key]: value }));
+    if (key === "date_of_birth") {
+      setDateErrors(prev => ({
+        ...prev,
+        date_of_birth: validateDob(value),
+        joining_date: validateDoj(form.joining_date, value),
+      }));
+    } else if (key === "joining_date") {
+      setDateErrors(prev => ({
+        ...prev,
+        joining_date: validateDoj(value, form.date_of_birth),
+      }));
+    }
+  };
+
+  const validateDob = (val: string): string => {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return "Invalid date of birth";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (d > today) return "Date of birth cannot be in the future";
+    const min = new Date("1900-01-01");
+    if (d < min) return "Date of birth cannot be before 1900";
+    return "";
+  };
+
+  const validateDoj = (val: string, dobVal: string): string => {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return "Invalid joining date";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (d > today) return "Joining date cannot be in the future";
+    if (dobVal) {
+      const dob = new Date(dobVal);
+      if (!isNaN(dob.getTime()) && d < dob) return "Joining date cannot be before date of birth";
+    }
+    return "";
+  };
+
+  const startEditing = () => { resetForm(); setDateErrors({ date_of_birth: "", joining_date: "" }); setEditing(true); };
   const handleCancel = () => { setEditing(false); resetForm(); };
 
   const handleSave = async () => {
@@ -151,6 +193,13 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
     }
     if (form.emergency_contact_phone && !/^[+\d\s()-]{7,20}$/.test(form.emergency_contact_phone)) {
       toast.error("Invalid emergency contact number"); return;
+    }
+
+    const dobError = validateDob(form.date_of_birth);
+    const dojError = validateDoj(form.joining_date, form.date_of_birth);
+    setDateErrors({ date_of_birth: dobError, joining_date: dojError });
+    if (dobError || dojError) {
+      toast.error("Please fix the date errors before saving"); return;
     }
 
     // Check xboom_email uniqueness
@@ -251,7 +300,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
     }
   };
 
-  const renderEditableField = ({ label, fieldKey, type = "text", placeholder = "" }: { label: string; fieldKey: string; type?: string; placeholder?: string }) => {
+  const renderEditableField = ({ label, fieldKey, type = "text", placeholder = "", error }: { label: string; fieldKey: string; type?: string; placeholder?: string; error?: string }) => {
     if (!editing) return <ReadOnlyField label={label} value={(employee as any)[fieldKey]} />;
     return (
       <div className="space-y-1">
@@ -261,8 +310,10 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           value={(form as any)[fieldKey]}
           onChange={(e) => update(fieldKey, e.target.value)}
           placeholder={placeholder}
-          className="h-8 text-sm"
+          className={`h-8 text-sm ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
+          aria-invalid={error ? "true" : "false"}
         />
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
     );
   };
@@ -338,7 +389,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
               <ReadOnlyField label="Name" value={employee.name} />
               {renderEditableSelect({ label: "Gender", fieldKey: "gender", options: GENDER_OPTIONS })}
               {editing ? (
-                renderEditableField({ label: "Date of Birth", fieldKey: "date_of_birth", type: "date" })
+                renderEditableField({ label: "Date of Birth", fieldKey: "date_of_birth", type: "date", error: dateErrors.date_of_birth })
               ) : (
                 <ReadOnlyField label="Date of Birth" value={formatDate(employee.date_of_birth)} />
               )}
@@ -355,7 +406,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <h4 className="text-sm font-semibold text-primary mb-3">Employment Details</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {editing && !employee.joining_date ? (
-                renderEditableField({ label: "Joining Date", fieldKey: "joining_date", type: "date" })
+                renderEditableField({ label: "Joining Date", fieldKey: "joining_date", type: "date", error: dateErrors.joining_date })
               ) : (
                 <ReadOnlyField label="Joining Date" value={formatDate(employee.joining_date || form.joining_date)} />
               )}
