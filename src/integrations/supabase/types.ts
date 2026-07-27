@@ -1491,42 +1491,6 @@ export type Database = {
           },
         ]
       }
-      birthday_flashes: {
-        Row: {
-          created_at: string
-          employee_id: string
-          flash_date: string
-          id: string
-        }
-        Insert: {
-          created_at?: string
-          employee_id: string
-          flash_date: string
-          id?: string
-        }
-        Update: {
-          created_at?: string
-          employee_id?: string
-          flash_date?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "birthday_flashes_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "birthday_flashes_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees_directory"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       birthday_cards: {
         Row: {
           created_at: string
@@ -1570,6 +1534,42 @@ export type Database = {
             foreignKeyName: "birthday_cards_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: true
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      birthday_flashes: {
+        Row: {
+          created_at: string
+          employee_id: string
+          flash_date: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          flash_date: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          flash_date?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "birthday_flashes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "birthday_flashes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
@@ -18501,6 +18501,7 @@ export type Database = {
       }
       infer_industry_from_name: { Args: { p_name: string }; Returns: string }
       invoke_elevenlabs_kb_refresh: { Args: never; Returns: number }
+      invoke_send_birthday_cards: { Args: never; Returns: number }
       invoke_send_order_sms_msg91: { Args: never; Returns: number }
       invoke_woocommerce_orders_reconcile: { Args: never; Returns: number }
       invoke_woocommerce_products_backfill: { Args: never; Returns: number }
