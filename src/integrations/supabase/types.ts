@@ -13951,6 +13951,7 @@ export type Database = {
           changed_by: string | null
           changed_by_name: string | null
           created_at: string
+          evidence: Json
           from_sales_person_id: string | null
           id: string
           order_id: string
@@ -13964,6 +13965,7 @@ export type Database = {
           changed_by?: string | null
           changed_by_name?: string | null
           created_at?: string
+          evidence?: Json
           from_sales_person_id?: string | null
           id?: string
           order_id: string
@@ -13977,6 +13979,7 @@ export type Database = {
           changed_by?: string | null
           changed_by_name?: string | null
           created_at?: string
+          evidence?: Json
           from_sales_person_id?: string | null
           id?: string
           order_id?: string
@@ -14017,6 +14020,7 @@ export type Database = {
           decided_by: string | null
           decided_by_name: string | null
           decision_note: string | null
+          evidence: Json
           id: string
           order_id: string
           reason: string | null
@@ -14033,6 +14037,7 @@ export type Database = {
           decided_by?: string | null
           decided_by_name?: string | null
           decision_note?: string | null
+          evidence?: Json
           id?: string
           order_id: string
           reason?: string | null
@@ -14049,6 +14054,7 @@ export type Database = {
           decided_by?: string | null
           decided_by_name?: string | null
           decision_note?: string | null
+          evidence?: Json
           id?: string
           order_id?: string
           reason?: string | null
@@ -17640,18 +17646,32 @@ export type Database = {
       }
     }
     Functions: {
-      _attribute_website_order_core: {
-        Args: {
-          p_actor_id: string
-          p_actor_name: string
-          p_order_id: string
-          p_reason: string
-          p_reason_custom: string
-          p_sales_person_id: string
-          p_source: string
-        }
-        Returns: undefined
-      }
+      _attribute_website_order_core:
+        | {
+            Args: {
+              p_actor_id: string
+              p_actor_name: string
+              p_order_id: string
+              p_reason: string
+              p_reason_custom: string
+              p_sales_person_id: string
+              p_source: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_actor_id: string
+              p_actor_name: string
+              p_evidence?: Json
+              p_order_id: string
+              p_reason: string
+              p_reason_custom: string
+              p_sales_person_id: string
+              p_source: string
+            }
+            Returns: undefined
+          }
       _create_procurement_for_order: {
         Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: undefined
@@ -17768,6 +17788,7 @@ export type Database = {
       }
       attribute_website_order: {
         Args: {
+          p_evidence?: Json
           p_order_id: string
           p_reason: string
           p_reason_custom?: string
@@ -18992,7 +19013,12 @@ export type Database = {
         Returns: Json
       }
       request_website_order_attribution: {
-        Args: { p_order_id: string; p_reason: string; p_reason_custom?: string }
+        Args: {
+          p_evidence?: Json
+          p_order_id: string
+          p_reason: string
+          p_reason_custom?: string
+        }
         Returns: string
       }
       resolve_agent_user: {
