@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
 
     const { data: employees, error: empError } = await admin
       .from("employees")
-      .select("id, name, personal_email, profile_id, date_of_birth")
+      .select("id, name, personal_email, xboom_email, user_id, date_of_birth")
       .eq("is_active", true)
       .not("date_of_birth", "is", null);
     if (empError) return json({ error: empError.message }, 500);
@@ -99,16 +99,17 @@ Deno.serve(async (req) => {
 
     for (const employee of celebrants) {
       try {
-        // Resolve recipient email
+        // Resolve recipient email: personal → linked profile → work email
         let recipient: string | null = employee.personal_email || null;
-        if (!recipient && employee.profile_id) {
+        if (!recipient && employee.user_id) {
           const { data: prof } = await admin
             .from("profiles")
             .select("email")
-            .eq("id", employee.profile_id)
+            .eq("user_id", employee.user_id)
             .maybeSingle();
           recipient = prof?.email || null;
         }
+        if (!recipient) recipient = employee.xboom_email || null;
         if (!recipient) {
           skipped.push({ name: employee.name, reason: "no email on file" });
           continue;

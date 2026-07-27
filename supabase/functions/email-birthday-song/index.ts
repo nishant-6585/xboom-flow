@@ -66,21 +66,15 @@ Deno.serve(async (req) => {
     // Load employee + linked profile email
     const { data: employee, error: empError } = await admin
       .from("employees")
-      .select("id, name, personal_email, profile_id, date_of_birth")
+      .select("id, name, personal_email, xboom_email, user_id, date_of_birth")
       .eq("id", employeeId)
       .maybeSingle();
     if (empError || !employee) return json({ error: "Employee not found" }, 404);
 
     // If caller is not HR/admin, they must be the employee themself AND it
-    // must be their birthday today (IST). We match on profile_id.
+    // must be their birthday today (IST). We match on user_id.
     if (!isPrivileged) {
-      if (!employee.profile_id) return json({ error: "Forbidden" }, 403);
-      const { data: myProfile } = await admin
-        .from("profiles")
-        .select("id, user_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!myProfile || myProfile.id !== employee.profile_id) {
+      if (!employee.user_id || employee.user_id !== user.id) {
         return json({ error: "Forbidden" }, 403);
       }
       // Birthday-today check in IST
@@ -97,16 +91,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Resolve recipient email
+    // Resolve recipient email: personal → linked profile → work email
     let recipient: string | null = employee.personal_email || null;
-    if (!recipient && employee.profile_id) {
+    if (!recipient && employee.user_id) {
       const { data: prof } = await admin
         .from("profiles")
         .select("email")
-        .eq("id", employee.profile_id)
+        .eq("user_id", employee.user_id)
         .maybeSingle();
       recipient = prof?.email || null;
     }
+    if (!recipient) recipient = employee.xboom_email || null;
     if (!recipient) {
       return json({ error: "No email on file for this employee" }, 400);
     }
