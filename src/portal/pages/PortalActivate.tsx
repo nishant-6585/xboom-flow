@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
@@ -23,6 +23,9 @@ export default function PortalActivate() {
   const [submitting, setSubmitting] = useState(false);
   const [invite, setInvite] = useState<string | null>(null);
   const [linkValid, setLinkValid] = useState<boolean | null>(null);
+  // When the token turns out to be expired/consumed on submit, we surface
+  // a self-serve "Send me a fresh link" CTA instead of a dead-end error.
+  const [linkExpired, setLinkExpired] = useState(false);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -56,7 +59,11 @@ export default function PortalActivate() {
         }
       } catch { /* ignore */ }
     }
-    if (error || apiErr) return setErr(apiErr || error?.message || "Failed to set password.");
+    if (error || apiErr) {
+      const msg = apiErr || error?.message || "Failed to set password.";
+      if (/expired|invalid|used|consumed|not.?found/i.test(msg)) setLinkExpired(true);
+      return setErr(msg);
+    }
     const session = (data as { session?: { access_token: string; refresh_token: string } | null })?.session;
     if (session) {
       await supabase.auth.setSession({
@@ -120,6 +127,16 @@ export default function PortalActivate() {
             <Alert className="mb-4" variant="destructive">
               <AlertDescription>{err}</AlertDescription>
             </Alert>
+          )}
+          {(linkValid === false || linkExpired) && (
+            <div className="mb-4 space-y-2">
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/portal/forgot-password">Send me a fresh link</Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full">
+                <Link to="/portal/login">Back to sign in</Link>
+              </Button>
+            </div>
           )}
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
