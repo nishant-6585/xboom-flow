@@ -2605,10 +2605,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       step={0.01}
                       value={amountPaid}
                       onChange={e => setAmountPaid(e.target.value)}
-                      disabled={loading || !canEditFinancials}
-                      readOnly={!canEditFinancials}
+                      disabled={loading || !canEditPaymentInfo}
+                      readOnly={!canEditPaymentInfo}
                     />
-                    {!canEditFinancials && (
+                    {!canEditPaymentInfo && (
                       <p className="text-xs text-muted-foreground">
                         Derived from payment records — add a payment below.
                       </p>
@@ -2619,9 +2619,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <Select
                       value={paymentStatus}
                       onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}
-                      disabled={!canEditFinancials}
+                      disabled={!canEditPaymentInfo}
                     >
-                      <SelectTrigger disabled={!canEditFinancials}>
+                      <SelectTrigger disabled={!canEditPaymentInfo}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -2630,7 +2630,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         ))}
                       </SelectContent>
                     </Select>
-                    {!canEditFinancials && (
+                    {!canEditPaymentInfo && (
                       <p className="text-xs text-muted-foreground">
                         Derived from payment records — add a payment below.
                       </p>
