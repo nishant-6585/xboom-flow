@@ -472,23 +472,25 @@ export function ClaimWebsiteOrderPanel() {
         open={!!claimTarget}
         onOpenChange={(b) => { if (!b) { setClaimTarget(null); setEvidence([]); } }}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Attach proof you closed this deal</DialogTitle>
             <DialogDescription>
               Approvers need evidence before crediting the order — pick the call(s) you made to
               this customer or attach a chat/email/quote document.
             </DialogDescription>
           </DialogHeader>
-          {claimTarget && (
-            <AttributionEvidencePicker
-              orderId={claimTarget}
-              value={evidence}
-              onChange={setEvidence}
-              salesPersonId={user?.id ?? null}
-            />
-          )}
-          <DialogFooter>
+          <div className="overflow-y-auto flex-1 min-h-0 pr-1 -mr-1">
+            {claimTarget && (
+              <AttributionEvidencePicker
+                orderId={claimTarget}
+                value={evidence}
+                onChange={setEvidence}
+                salesPersonId={user?.id ?? null}
+              />
+            )}
+          </div>
+          <DialogFooter className="shrink-0 border-t pt-3 mt-2">
             <Button variant="ghost" onClick={() => { setClaimTarget(null); setEvidence([]); }}>
               Cancel
             </Button>
