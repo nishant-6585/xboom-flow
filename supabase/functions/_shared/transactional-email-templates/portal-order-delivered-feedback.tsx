@@ -1,7 +1,7 @@
 /// <reference types="npm:@types/react@18.3.1" />
 import * as React from 'npm:react@18.3.1'
 import {
-  Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text,
+  Body, Button, Container, Head, Heading, Hr, Html, Img, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
 
@@ -10,6 +10,7 @@ interface Props {
   contact_name?: string
   feedback_url?: string
   google_review_url?: string
+  google_review_qr_url?: string
 }
 
 const Email = (p: Props = {}) => {
@@ -43,6 +44,17 @@ const Email = (p: Props = {}) => {
                 <Section style={{ margin: '8px 0 4px' }}>
                   <Button href={p.google_review_url} style={btnOutline}>Review us on Google</Button>
                 </Section>
+                {p.google_review_qr_url ? (
+                  <Section style={{ margin: '10px 0 0' }}>
+                    <Img
+                      src={p.google_review_qr_url}
+                      alt="QR code — scan to review xboom on Google"
+                      width="132"
+                      height="132"
+                    />
+                    <Text style={qrCaption}>…or scan with your phone camera</Text>
+                  </Section>
+                ) : null}
               </>
             ) : null}
             <Hr style={hr} />
@@ -63,6 +75,7 @@ const btn = { background: '#0c2340', color: '#fff', padding: '10px 18px', border
 const btnOutline = { background: '#ffffff', color: '#0c2340', border: '1px solid #0c2340', padding: '10px 18px', borderRadius: '8px', textDecoration: 'none', display: 'inline-block' as const }
 const hr = { border: 'none', borderTop: '1px solid #e5e7eb', margin: '24px 0' }
 const foot = { fontSize: '12px', color: '#6b7280', margin: 0 }
+const qrCaption = { fontSize: '12px', color: '#6b7280', margin: '6px 0 0' }
 
 export const template = {
   component: Email,
@@ -74,6 +87,7 @@ export const template = {
     order_number: 'PO-1001',
     contact_name: 'Priya',
     feedback_url: 'https://xboomflow.com/portal/feedback?order=demo',
-    google_review_url: 'https://search.google.com/local/writereview?placeid=demo',
+    google_review_url: 'https://g.page/r/CfJDbEcul78fEBM/review',
+    google_review_qr_url: 'https://xboomflow.com/google-review-qr.png',
   },
 } satisfies TemplateEntry

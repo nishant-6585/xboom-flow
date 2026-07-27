@@ -19,6 +19,10 @@ import {
 
 const NO_ORDER = "none";
 
+// Public "write a review" link for the Xboom Google Business listing.
+// public/google-review-qr.png encodes this same URL.
+const GOOGLE_REVIEW_URL = "https://g.page/r/CfJDbEcul78fEBM/review";
+
 function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [hover, setHover] = useState(0);
   return (
@@ -157,6 +161,28 @@ export default function PortalFeedback() {
             {submit.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
             Submit feedback
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardContent className="py-6 px-5 flex items-center gap-5 flex-wrap max-w-xl">
+          <img
+            src="/google-review-qr.png"
+            alt="QR code — scan to review xboom on Google"
+            className="h-28 w-28 rounded-md border"
+          />
+          <div className="flex-1 min-w-[200px]">
+            <p className="font-medium">Enjoying working with us?</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              A quick Google review goes a long way — scan the QR with your phone, or tap the button.
+            </p>
+            <Button asChild variant="outline" size="sm" className="mt-3">
+              <a href={GOOGLE_REVIEW_URL} target="_blank" rel="noopener noreferrer">
+                <Star className="h-3.5 w-3.5 mr-1.5 text-amber-400 fill-amber-400" />
+                Review us on Google
+              </a>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
