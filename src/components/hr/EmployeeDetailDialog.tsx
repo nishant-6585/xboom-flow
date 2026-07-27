@@ -181,6 +181,13 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       toast.error("Invalid emergency contact number"); return;
     }
 
+    const dobError = validateDob(form.date_of_birth);
+    const dojError = validateDoj(form.joining_date, form.date_of_birth);
+    setDateErrors({ date_of_birth: dobError, joining_date: dojError });
+    if (dobError || dojError) {
+      toast.error("Please fix the date errors before saving"); return;
+    }
+
     // Check xboom_email uniqueness
     if (form.xboom_email) {
       const { data: existing } = await supabase
