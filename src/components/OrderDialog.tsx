@@ -118,7 +118,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   // payment_status are reserved for admin + sales_manager. Sales sees them
   // read-only. Discount is the salesperson's lever on OWN orders.
   const canEditFinancials = isAdmin || isSalesManager;
-  const canEditDiscount = canEditFinancials || isOwnOrder;
+  // Sales, sales_manager and admin can edit the payment-info levers
+  // (Discount, Amount Paid, Payment Status, Terms, Due Date). Only
+  // Total Sales Amount remains reserved for admin + sales_manager.
+  const canEditPaymentInfo = canEditFinancials || isSales;
+  const canEditDiscount = canEditPaymentInfo;
   const [hasPriceRefreshGrant, setHasPriceRefreshGrant] = useState(false);
   const canRefreshPrice = canEditFinancials || hasPriceRefreshGrant;
   useEffect(() => {
