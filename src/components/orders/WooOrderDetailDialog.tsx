@@ -4,7 +4,6 @@ import { OrderAttributionPanel } from '@/components/orders/OrderAttributionPanel
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw, Truck, MapPin, Package, ExternalLink, Calendar, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
