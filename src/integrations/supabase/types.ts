@@ -17646,32 +17646,19 @@ export type Database = {
       }
     }
     Functions: {
-      _attribute_website_order_core:
-        | {
-            Args: {
-              p_actor_id: string
-              p_actor_name: string
-              p_order_id: string
-              p_reason: string
-              p_reason_custom: string
-              p_sales_person_id: string
-              p_source: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_actor_id: string
-              p_actor_name: string
-              p_evidence?: Json
-              p_order_id: string
-              p_reason: string
-              p_reason_custom: string
-              p_sales_person_id: string
-              p_source: string
-            }
-            Returns: undefined
-          }
+      _attribute_website_order_core: {
+        Args: {
+          p_actor_id: string
+          p_actor_name: string
+          p_evidence?: Json
+          p_order_id: string
+          p_reason: string
+          p_reason_custom: string
+          p_sales_person_id: string
+          p_source: string
+        }
+        Returns: undefined
+      }
       _create_procurement_for_order: {
         Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: undefined
@@ -18545,6 +18532,27 @@ export type Database = {
           new_tasks: number
           overdue_tasks: number
           total_tasks: number
+        }[]
+      }
+      get_website_order_attribution: {
+        Args: { p_external_id?: string; p_internal_order_id?: string }
+        Returns: {
+          attributed_at: string
+          attributed_by_name: string
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          external_id: string
+          id: string
+          order_date: string
+          order_number: string
+          sales_attribution_locked: boolean
+          sales_attribution_reason: string
+          sales_attribution_reason_custom: string
+          sales_person_id: string
+          sales_person_name: string
+          total_sales_amount: number
         }[]
       }
       get_zoho_connection_status: {
