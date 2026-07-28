@@ -10,6 +10,10 @@ function navigateToNotification(notification: Notification) {
     window.location.assign(`/?enquiry=${notification.enquiry_id}`);
     return;
   }
+  if (notification.portal_ticket_id) {
+    window.location.assign(`/admin/portal-tickets/${notification.portal_ticket_id}`);
+    return;
+  }
   if (notification.account_id) {
     window.location.assign(`/kyc?account=${notification.account_id}`);
     return;
@@ -24,6 +28,7 @@ export interface Notification {
   order_id: string | null;
   enquiry_id: string | null;
   account_id: string | null;
+  portal_ticket_id?: string | null;
   type: string;
   title: string;
   message: string;
