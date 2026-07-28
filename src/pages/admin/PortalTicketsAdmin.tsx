@@ -8,6 +8,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   Select,
@@ -24,9 +31,16 @@ import {
   Mail,
   Package,
   CheckCheck,
+  ChevronDown,
+  ChevronUp,
+  Send,
+  Settings2,
+  Eye,
 } from "lucide-react";
 import { TicketStatusBadge, TicketPriorityBadge } from "@/portal/components/TicketStatusBadge";
 import type { TicketStatus, TicketPriority } from "@/portal/hooks/usePortalTickets";
+import { useAuth } from "@/hooks/useAuth";
+import { notifyPortal } from "@/portal/lib/portalNotify";
 
 type InboxRow = {
   id: string;
@@ -88,6 +102,84 @@ function useTicketInbox() {
   });
 }
 
+type ReadRow = {
+  ticket_id: string;
+  user_id: string;
+  display_name: string;
+  email: string | null;
+  last_read_at: string;
+};
+
+function useTicketReads(ticketIds: string[]) {
+  const key = ticketIds.slice().sort().join(",");
+  return useQuery({
+    enabled: ticketIds.length > 0,
+    queryKey: ["admin", "portal-tickets", "reads", key],
+    queryFn: async (): Promise<Record<string, ReadRow[]>> => {
+      const { data, error } = await (supabase as any).rpc(
+        "list_portal_ticket_reads",
+        { _ticket_ids: ticketIds },
+      );
+      if (error) throw error;
+      const map: Record<string, ReadRow[]> = {};
+      for (const r of ((data ?? []) as ReadRow[])) {
+        (map[r.ticket_id] ||= []).push(r);
+      }
+      return map;
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+function initialsFor(name: string) {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+}
+
+function ReadByStack({ reads }: { reads: ReadRow[] }) {
+  if (!reads || reads.length === 0) {
+    return (
+      <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+        <Eye className="h-3 w-3" /> Not read yet
+      </span>
+    );
+  }
+  const shown = reads.slice(0, 3);
+  const extra = reads.length - shown.length;
+  return (
+    <TooltipProvider delayDuration={100}>
+      <div className="flex items-center gap-1">
+        <Eye className="h-3 w-3 text-muted-foreground" />
+        <div className="flex -space-x-1.5">
+          {shown.map((r) => (
+            <Tooltip key={r.user_id}>
+              <TooltipTrigger asChild>
+                <span
+                  data-testid="row-read-avatar"
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-background bg-muted text-[10px] font-medium"
+                >
+                  {initialsFor(r.display_name)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <div className="text-xs">
+                  <div className="font-medium">{r.display_name}</div>
+                  <div className="text-muted-foreground">
+                    read {new Date(r.last_read_at).toLocaleString()}
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+        {extra > 0 && (
+          <span className="text-[11px] text-muted-foreground">+{extra}</span>
+        )}
+      </div>
+    </TooltipProvider>
+  );
+}
+
 function fmt(dt: string | null) {
   if (!dt) return "—";
   return new Date(dt).toLocaleString(undefined, {
@@ -121,20 +213,32 @@ export default function PortalTicketsAdmin() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [q, setQ] = useState("");
+  const [orderQ, setOrderQ] = useState("");
+  const [emailQ, setEmailQ] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const { data, isLoading } = useTicketInbox();
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const filtered = useMemo(() => {
     const rows = data ?? [];
     const needle = q.trim().toLowerCase();
+    const orderNeedle = orderQ.trim().toLowerCase();
+    const emailNeedle = emailQ.trim().toLowerCase();
     return rows.filter((r) => {
       if (typeFilter !== "all" && r.ticket_type !== typeFilter) return false;
       if (statusFilter === "unread") {
         if ((r.unread_customer_count ?? 0) === 0) return false;
       } else if (statusFilter !== "all") {
         if (r.status !== statusFilter) return false;
+      }
+      if (orderNeedle && !(r.related_order_number ?? "").toLowerCase().includes(orderNeedle)) {
+        return false;
+      }
+      if (emailNeedle && !(r.customer_email ?? "").toLowerCase().includes(emailNeedle)) {
+        return false;
       }
       if (!needle) return true;
       return (
@@ -146,7 +250,10 @@ export default function PortalTicketsAdmin() {
         (r.item_summary ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [data, typeFilter, statusFilter, q]);
+  }, [data, typeFilter, statusFilter, q, orderQ, emailQ]);
+
+  const visibleTicketIds = useMemo(() => filtered.map((r) => r.id), [filtered]);
+  const { data: readsByTicket } = useTicketReads(visibleTicketIds);
 
   const stats = useMemo(() => {
     const rows = data ?? [];
@@ -228,6 +335,10 @@ export default function PortalTicketsAdmin() {
     }
   }
 
+  function toggleExpanded(id: string) {
+    setExpanded((p) => ({ ...p, [id]: !p[id] }));
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -246,8 +357,24 @@ export default function PortalTicketsAdmin() {
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search ticket #, subject, company, order, email, item…"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm w-72"
+              placeholder="Keyword: ticket #, subject, company, item…"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm w-64"
+            />
+            <input
+              type="search"
+              value={orderQ}
+              onChange={(e) => setOrderQ(e.target.value)}
+              placeholder="Order #"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm w-32"
+              aria-label="Filter by order number"
+            />
+            <input
+              type="search"
+              value={emailQ}
+              onChange={(e) => setEmailQ(e.target.value)}
+              placeholder="Customer email"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm w-52"
+              aria-label="Filter by customer email"
             />
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
@@ -265,6 +392,11 @@ export default function PortalTicketsAdmin() {
                 <SelectItem value="general">General only</SelectItem>
               </SelectContent>
             </Select>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/admin/portal-tickets/notification-config">
+                <Settings2 className="h-4 w-4 mr-1" /> Notification config
+              </Link>
+            </Button>
           </div>
         </div>
 
@@ -346,6 +478,8 @@ export default function PortalTicketsAdmin() {
             const breach = isBreached(t);
             const unread = t.unread_customer_count > 0;
             const isSelected = !!selected[t.id];
+            const reads = readsByTicket?.[t.id] ?? [];
+            const isExpanded = !!expanded[t.id];
             return (
               <Card
                 key={t.id}
@@ -419,11 +553,38 @@ export default function PortalTicketsAdmin() {
                         )}
                       </div>
                     )}
+                    <div className="mt-1.5">
+                      <ReadByStack reads={reads} />
+                    </div>
+                    {isExpanded && (
+                      <QuickReplyPanel
+                        ticketId={t.id}
+                        currentStatus={t.status}
+                        currentUserId={user?.id ?? null}
+                        onDone={() => {
+                          qc.invalidateQueries({ queryKey: ["admin", "portal-tickets", "inbox"] });
+                        }}
+                      />
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground text-right">
                     <div>First response due: {fmt(t.sla_first_response_due_at)}</div>
                     <div>Resolution due: {fmt(t.sla_resolution_due_at)}</div>
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center gap-2 justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => toggleExpanded(t.id)}
+                        aria-label={isExpanded ? "Hide quick reply" : "Show quick reply"}
+                        data-testid={`quick-reply-toggle-${t.id}`}
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="h-3 w-3 mr-1" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3 mr-1" />
+                        )}
+                        Quick reply
+                      </Button>
                       <Button asChild size="sm" variant={unread ? "default" : "outline"}>
                         <Link to={`/admin/portal-tickets/${t.id}`}>
                           {unread ? "Reply now" : "Open thread"}
@@ -439,5 +600,97 @@ export default function PortalTicketsAdmin() {
         </div>
       </div>
     </div>
+  );
+}
+
+function QuickReplyPanel({
+  ticketId,
+  currentStatus,
+  currentUserId,
+  onDone,
+}: {
+  ticketId: string;
+  currentStatus: TicketStatus;
+  currentUserId: string | null;
+  onDone: () => void;
+}) {
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<TicketStatus>(currentStatus);
+
+  async function submitReply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentUserId) {
+      toast.error("You must be signed in to reply.");
+      return;
+    }
+    const trimmed = body.trim();
+    if (!trimmed) {
+      toast.error("Type a reply first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from("portal_ticket_messages")
+        .insert({
+          ticket_id: ticketId,
+          sender_id: currentUserId,
+          body: trimmed,
+          attachments: [],
+          is_internal: false,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      notifyPortal("ticket_message_added", {
+        ticket_id: ticketId,
+        message_id: (data as { id: string }).id,
+      });
+      if (status !== currentStatus) {
+        const { error: statusErr } = await (supabase as any)
+          .from("portal_tickets")
+          .update({ status })
+          .eq("id", ticketId);
+        if (statusErr) throw statusErr;
+        notifyPortal("ticket_status_changed", { ticket_id: ticketId, new_status: status });
+      }
+      toast.success("Reply sent");
+      setBody("");
+      onDone();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to send reply");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={submitReply}
+      className="mt-2 rounded-md border border-input bg-muted/30 p-2 space-y-2"
+      data-testid={`quick-reply-panel-${ticketId}`}
+    >
+      <Textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Type a reply to the customer…"
+        rows={3}
+        className="text-sm"
+      />
+      <div className="flex items-center gap-2 flex-wrap">
+        <Select value={status} onValueChange={(v) => setStatus(v as TicketStatus)}>
+          <SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {BULK_STATUS_OPTIONS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>Status: {s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button type="submit" size="sm" disabled={busy || body.trim().length === 0}>
+          <Send className="h-3 w-3 mr-1" /> Send reply
+        </Button>
+      </div>
+    </form>
   );
 }
