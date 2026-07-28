@@ -18547,6 +18547,27 @@ export type Database = {
           total_tasks: number
         }[]
       }
+      get_website_order_attribution: {
+        Args: { p_external_id?: string; p_internal_order_id?: string }
+        Returns: {
+          attributed_at: string
+          attributed_by_name: string
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          external_id: string
+          id: string
+          order_date: string
+          order_number: string
+          sales_attribution_locked: boolean
+          sales_attribution_reason: string
+          sales_attribution_reason_custom: string
+          sales_person_id: string
+          sales_person_name: string
+          total_sales_amount: number
+        }[]
+      }
       get_zoho_connection_status: {
         Args: { p_provider?: string }
         Returns: {
