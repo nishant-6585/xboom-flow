@@ -18749,6 +18749,16 @@ export type Database = {
           updated_at: string
         }[]
       }
+      list_portal_ticket_reads: {
+        Args: { _ticket_ids: string[] }
+        Returns: {
+          display_name: string
+          email: string
+          last_read_at: string
+          ticket_id: string
+          user_id: string
+        }[]
+      }
       list_resume_access_failures: {
         Args: {
           _actor_role?: Database["public"]["Enums"]["app_role"]
