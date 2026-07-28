@@ -12149,6 +12149,41 @@ export type Database = {
           },
         ]
       }
+      portal_ticket_reads: {
+        Row: {
+          created_at: string
+          id: string
+          last_read_at: string
+          ticket_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_read_at?: string
+          ticket_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_read_at?: string
+          ticket_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_ticket_reads_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "portal_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_tickets: {
         Row: {
           account_id: string
@@ -17813,6 +17848,10 @@ export type Database = {
         Args: { _ids: string[]; _unlink_first?: boolean }
         Returns: Json
       }
+      bulk_update_portal_ticket_status: {
+        Args: { _status: string; _ticket_ids: string[] }
+        Returns: number
+      }
       bump_notification_rate: {
         Args: { _delta?: number; _provider: string }
         Returns: undefined
@@ -18689,8 +18728,10 @@ export type Database = {
           category: string
           company_name: string
           created_at: string
+          customer_email: string
           first_response_at: string
           id: string
+          item_summary: string
           last_message_at: string
           last_message_by_customer: boolean
           priority: string
@@ -18796,6 +18837,10 @@ export type Database = {
         Returns: number
       }
       mark_old_woo_leads_as_lost: { Args: never; Returns: number }
+      mark_portal_tickets_read: {
+        Args: { _ticket_ids: string[] }
+        Returns: number
+      }
       mark_website_order_paid: {
         Args: { _woo_order_id: string }
         Returns: {

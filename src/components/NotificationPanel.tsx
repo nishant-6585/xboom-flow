@@ -210,7 +210,9 @@ function NotificationItem({
                   if (isAttributionApproved && notification.order_id) {
                     navigate(`/orders?order_id=${notification.order_id}`);
                   } else {
-                    navigate('/sales?tab=claim_website_order');
+                    // Claim Order tab was removed — send reps to their sales
+                    // landing so they can review attribution status there.
+                    navigate('/sales');
                   }
                 }}
               >
