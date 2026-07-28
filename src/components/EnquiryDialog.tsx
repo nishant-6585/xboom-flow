@@ -597,12 +597,26 @@ export function EnquiryDialog({
                           </Label>
                           <Input
                             id="pricing"
-                            placeholder="e.g., 4500 or ₹4,500/unit"
+                            placeholder="e.g., 4500 or 4500.50"
+                            inputMode="decimal"
                             value={response.pricing}
                             aria-invalid={!priceErr.ok}
-                            onChange={(e) =>
-                              setResponse({ ...response, pricing: e.target.value })
-                            }
+                            onChange={(e) => {
+                              // Allow only digits, commas, and a single decimal point
+                              let v = e.target.value.replace(/[^\d.,]/g, "");
+                              const firstDot = v.indexOf(".");
+                              if (firstDot !== -1) {
+                                v =
+                                  v.slice(0, firstDot + 1) +
+                                  v.slice(firstDot + 1).replace(/\./g, "");
+                              }
+                              // Cap to 2 decimals
+                              const dot = v.indexOf(".");
+                              if (dot !== -1 && v.length - dot - 1 > 2) {
+                                v = v.slice(0, dot + 3);
+                              }
+                              setResponse({ ...response, pricing: v });
+                            }}
                           />
                           {!priceErr.ok && (
                             <p className="text-[11px] text-destructive">{priceErr.error}</p>
