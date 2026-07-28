@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { AlertTriangle, Wrench, MessageSquare, ArrowRight } from "lucide-react";
 import { TicketStatusBadge, TicketPriorityBadge } from "@/portal/components/TicketStatusBadge";
-import type { TicketStatus } from "@/portal/hooks/usePortalTickets";
+import type { TicketStatus, TicketPriority } from "@/portal/hooks/usePortalTickets";
 
 type InboxRow = {
   id: string;
@@ -196,7 +196,7 @@ export default function PortalTicketsAdmin() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-xs text-muted-foreground">{t.ticket_number}</span>
                       <TicketStatusBadge status={t.status} />
-                      <TicketPriorityBadge priority={t.priority} />
+                      <TicketPriorityBadge priority={t.priority as TicketPriority} />
                       {t.ticket_type === "service_request" && (
                         <Badge className="bg-blue-100 text-blue-800 border-blue-200">
                           <Wrench className="h-3 w-3 mr-1" /> Service request · 12h
