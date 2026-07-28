@@ -149,15 +149,14 @@ export default function PortalTicketAdminDetail() {
   const updateStatus = useMutation({
     mutationFn: async (status: TicketStatus) => {
       if (!ticketId) throw new Error("Missing ticket id");
-      const resolvedAt = status === "resolved" || status === "closed" ? new Date().toISOString() : null;
       const { error } = await supabase
         .from("portal_tickets")
-        .update({ status, resolved_at: resolvedAt } as never)
+        .update({ status } as never)
         .eq("id", ticketId);
       if (error) throw error;
-      if (status === "resolved" || status === "closed") {
-        notifyPortal("ticket_message_added", { ticket_id: ticketId });
-      }
+      // Fire dedicated status-changed event — emails the customer with the
+      // new status. The DB trigger keeps resolved_at in sync.
+      notifyPortal("ticket_status_changed", { ticket_id: ticketId, new_status: status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "portal-ticket", ticketId] });
