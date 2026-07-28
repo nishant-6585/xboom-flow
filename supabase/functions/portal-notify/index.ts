@@ -499,6 +499,60 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "ticket_status_changed": {
+        const ticketId = String(body.payload.ticket_id ?? "");
+        const newStatus = String(body.payload.new_status ?? "");
+        const note = body.payload.note ? String(body.payload.note) : "";
+        if (!ticketId || !newStatus) {
+          return json({ error: "Missing ticket_id or new_status" }, 400);
+        }
+        const { data: t } = await admin
+          .from("portal_tickets")
+          .select("ticket_number, subject, account_id")
+          .eq("id", ticketId)
+          .maybeSingle();
+        if (!t) return json({ error: "Ticket not found" }, 404);
+        const tk = t as { ticket_number: string; subject: string; account_id: string };
+
+        const contacts = await getAccountContacts(admin, tk.account_id);
+        const prefs = await getPrefMap(
+          admin,
+          contacts.map((c) => c.id!).filter(Boolean),
+          "ticket_replies",
+        );
+        const human = newStatus.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+        for (const c of contacts) {
+          if (!c.email) continue;
+          if (c.id && !prefs[c.id]?.email) continue;
+          const res = await sendEmail(
+            c.email,
+            "portal-ticket-status-changed",
+            {
+              ticket_number: tk.ticket_number,
+              subject: tk.subject,
+              new_status: newStatus,
+              note,
+              ticket_url: `${PORTAL_BASE_URL}/tickets/${ticketId}`,
+            },
+            `portal-notify:ticket_status_changed:${ticketId}:${newStatus}:${c.email}`,
+          );
+          results.push({ channel: "email", to: c.email, ok: res.ok, error: res.error });
+        }
+        // WhatsApp — reuse the generic ticket response template for the
+        // status update so we don't require a new HSM approval.
+        for (const c of contacts) {
+          if (!c.whatsapp_number) continue;
+          if (c.id && !prefs[c.id]?.whatsapp) continue;
+          const res = await sendWhatsApp(c.whatsapp_number, "portal_ticket_response", [
+            c.full_name ?? "Customer",
+            tk.ticket_number,
+            `Status updated to ${human}${note ? `. ${note.slice(0, 100)}` : ""}`,
+          ]);
+          results.push({ channel: "whatsapp", to: c.whatsapp_number, ok: res.ok, error: res.error });
+        }
+        break;
+      }
+
       default:
         return json({ error: `Unknown event_type: ${body.event_type}` }, 400);
     }
