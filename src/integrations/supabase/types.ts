@@ -18681,6 +18681,33 @@ export type Database = {
           total_count: number
         }[]
       }
+      list_portal_ticket_inbox: {
+        Args: never
+        Returns: {
+          account_id: string
+          assigned_to: string
+          category: string
+          company_name: string
+          created_at: string
+          first_response_at: string
+          id: string
+          last_message_at: string
+          last_message_by_customer: boolean
+          priority: string
+          related_order_id: string
+          related_order_number: string
+          related_product_name: string
+          resolved_at: string
+          sla_first_response_due_at: string
+          sla_resolution_due_at: string
+          status: string
+          subject: string
+          ticket_number: string
+          ticket_type: string
+          unread_customer_count: number
+          updated_at: string
+        }[]
+      }
       list_resume_access_failures: {
         Args: {
           _actor_role?: Database["public"]["Enums"]["app_role"]
