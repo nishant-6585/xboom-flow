@@ -17646,32 +17646,19 @@ export type Database = {
       }
     }
     Functions: {
-      _attribute_website_order_core:
-        | {
-            Args: {
-              p_actor_id: string
-              p_actor_name: string
-              p_order_id: string
-              p_reason: string
-              p_reason_custom: string
-              p_sales_person_id: string
-              p_source: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_actor_id: string
-              p_actor_name: string
-              p_evidence?: Json
-              p_order_id: string
-              p_reason: string
-              p_reason_custom: string
-              p_sales_person_id: string
-              p_source: string
-            }
-            Returns: undefined
-          }
+      _attribute_website_order_core: {
+        Args: {
+          p_actor_id: string
+          p_actor_name: string
+          p_evidence?: Json
+          p_order_id: string
+          p_reason: string
+          p_reason_custom: string
+          p_sales_person_id: string
+          p_source: string
+        }
+        Returns: undefined
+      }
       _create_procurement_for_order: {
         Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: undefined
