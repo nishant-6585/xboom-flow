@@ -17,6 +17,7 @@ import { template as portalRfqAssigned } from './portal-rfq-assigned.tsx'
 import { template as portalTicketCreated } from './portal-ticket-created.tsx'
 import { template as portalTicketReplyToStaff } from './portal-ticket-reply-to-staff.tsx'
 import { template as portalTicketReplyToCustomer } from './portal-ticket-reply-to-customer.tsx'
+import { template as portalTicketStatusChanged } from './portal-ticket-status-changed.tsx'
 import { template as customerConfirmationRequest } from './customer-confirmation-request.tsx'
 import { template as portalInvite } from './portal-invite.tsx'
 import { template as portalWelcome } from './portal-welcome.tsx'
@@ -70,6 +71,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portal-ticket-created': portalTicketCreated,
   'portal-ticket-reply-to-staff': portalTicketReplyToStaff,
   'portal-ticket-reply-to-customer': portalTicketReplyToCustomer,
+  'portal-ticket-status-changed': portalTicketStatusChanged,
   'customer-confirmation-request': customerConfirmationRequest,
   'portal-invite': portalInvite,
   'portal-welcome': portalWelcome,
