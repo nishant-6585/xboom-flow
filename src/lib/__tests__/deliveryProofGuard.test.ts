@@ -2,20 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { canMarkDeliveryDone } from '../deliveryProofGuard';
 
 describe('canMarkDeliveryDone', () => {
-  it('blocks office_pickup without any proof', () => {
-    const r = canMarkDeliveryDone({ delivery_mode: 'office_pickup' }) as { ok: false; reason: string };
-    expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/approved delivery photo/i);
+  it('allows office_pickup without any proof (proof is optional)', () => {
+    const r = canMarkDeliveryDone({ delivery_mode: 'office_pickup' });
+    expect(r.ok).toBe(true);
   });
 
-  it('blocks office_pickup with pending (unapproved) proof', () => {
+  it('allows office_pickup with pending proof', () => {
     const r = canMarkDeliveryDone({
       delivery_mode: 'office_pickup',
       delivery_proof_url: 'delivery-proofs/x.jpg',
       delivery_proof_status: 'pending',
-    }) as { ok: false; reason: string };
-    expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/awaiting approval/i);
+    });
+    expect(r.ok).toBe(true);
   });
 
   it('allows office_pickup with approved proof', () => {
@@ -35,20 +33,20 @@ describe('canMarkDeliveryDone', () => {
     expect(r.ok).toBe(true);
   });
 
-  it('treats "Office Delivery" courier as office pickup and blocks without proof', () => {
+  it('allows "Office Delivery" courier without proof', () => {
     const r = canMarkDeliveryDone({
       delivery_mode: 'courier',
       courier_name: 'Office Delivery',
     });
-    expect(r.ok).toBe(false);
+    expect(r.ok).toBe(true);
   });
 
-  it('blocks rejected proof', () => {
+  it('allows even when proof was rejected (proof is optional)', () => {
     const r = canMarkDeliveryDone({
       delivery_mode: 'office_pickup',
       delivery_proof_url: 'delivery-proofs/x.jpg',
       delivery_proof_status: 'rejected',
     });
-    expect(r.ok).toBe(false);
+    expect(r.ok).toBe(true);
   });
 });
