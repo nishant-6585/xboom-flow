@@ -81,6 +81,7 @@ import PortalDispatchQueue from "./pages/admin/PortalDispatchQueue";
 import AdminPortalDashboard from "./pages/admin/PortalDashboard";
 import PortalTicketsAdmin from "./pages/admin/PortalTicketsAdmin";
 import PortalTicketAdminDetail from "./pages/admin/PortalTicketAdminDetail";
+import PortalTicketNotificationConfig from "./pages/admin/PortalTicketNotificationConfig";
 import KycEmailLogs from "./pages/admin/KycEmailLogs";
 import ZohoInvoices from "./pages/admin/ZohoInvoices";
 import DevConsole from "./pages/admin/DevConsole";
@@ -177,6 +178,7 @@ function AppInner() {
         <Route path="/admin/portal-dispatch" element={<ProtectedRoute><PortalDispatchQueue /></ProtectedRoute>} />
         <Route path="/admin/portal-dashboard" element={<ProtectedRoute><AdminPortalDashboard /></ProtectedRoute>} />
         <Route path="/admin/portal-tickets" element={<ProtectedRoute><PortalTicketsAdmin /></ProtectedRoute>} />
+        <Route path="/admin/portal-tickets/notification-config" element={<ProtectedRoute><PortalTicketNotificationConfig /></ProtectedRoute>} />
         <Route path="/admin/portal-tickets/:ticketId" element={<ProtectedRoute><PortalTicketAdminDetail /></ProtectedRoute>} />
         <Route path="/sales/portal-tickets" element={<ProtectedRoute><PortalTicketsAdmin /></ProtectedRoute>} />
         <Route path="/sales/portal-tickets/:ticketId" element={<ProtectedRoute><PortalTicketAdminDetail /></ProtectedRoute>} />
