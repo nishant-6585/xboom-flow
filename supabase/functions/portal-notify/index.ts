@@ -8,6 +8,7 @@
 //   - rfq_assigned            payload: { rfq_id }                  (notifies customer)
 //   - ticket_created          payload: { ticket_id }               (notifies internal assignees)
 //   - ticket_message_added    payload: { ticket_id, message_id }   (notifies the *other* side)
+//   - ticket_status_changed   payload: { ticket_id, new_status, note? } (notifies customer)
 //
 // Resend-only for internal staff (no WhatsApp). Customers get both when a
 // whatsapp_number is on file.
@@ -63,7 +64,8 @@ type EventType =
   | "rfq_submitted"
   | "rfq_assigned"
   | "ticket_created"
-  | "ticket_message_added";
+  | "ticket_message_added"
+  | "ticket_status_changed";
 
 interface Body {
   event_type: EventType;
