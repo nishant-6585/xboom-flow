@@ -173,10 +173,9 @@ export function DeliveryProofCard({
         </Select>
 
         <p className="text-xs text-muted-foreground">
-          When the customer collects from the office/showroom, upload a photo of
-          them receiving the product. Marking the order <b>Delivered</b> is
-          blocked until proof is uploaded, and it stays pending review until
-          admin or sales manager approves it.
+          When the customer collects from the office/showroom, you may
+          <b> optionally </b> upload a photo of them receiving the product for
+          audit. It is not required to mark the order <b>Delivered</b>.
         </p>
       </div>
 

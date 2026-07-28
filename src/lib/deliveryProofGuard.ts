@@ -26,23 +26,8 @@ export function requiresDeliveryProof(order: DeliveryProofOrderLike): boolean {
 }
 
 export function canMarkDeliveryDone(order: DeliveryProofOrderLike): DeliveryProofCheck {
-  if (!requiresDeliveryProof(order)) return { ok: true };
-
-  if (!order.delivery_proof_url) {
-    return {
-      ok: false,
-      reason:
-        'Office-pickup orders need an approved delivery photo before they can be marked delivered. Upload one in the Delivery Proof section of this order.',
-    };
-  }
-
-  if (order.delivery_proof_status !== 'approved') {
-    return {
-      ok: false,
-      reason:
-        'The uploaded delivery photo is still awaiting approval. An admin or sales manager must approve it in the Delivery Proof section before this order can be marked delivered.',
-    };
-  }
-
+  // Delivery photo is optional for all delivery modes, including office
+  // pickup. Staff may still upload one for audit, but it is no longer
+  // required to mark the order delivered.
   return { ok: true };
 }
