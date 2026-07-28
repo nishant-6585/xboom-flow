@@ -9225,6 +9225,7 @@ export type Database = {
           is_read: boolean
           message: string
           order_id: string | null
+          portal_ticket_id: string | null
           target_role: string | null
           title: string
           type: string
@@ -9238,6 +9239,7 @@ export type Database = {
           is_read?: boolean
           message: string
           order_id?: string | null
+          portal_ticket_id?: string | null
           target_role?: string | null
           title: string
           type?: string
@@ -9251,6 +9253,7 @@ export type Database = {
           is_read?: boolean
           message?: string
           order_id?: string | null
+          portal_ticket_id?: string | null
           target_role?: string | null
           title?: string
           type?: string
@@ -9290,6 +9293,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_portal_ticket_id_fkey"
+            columns: ["portal_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "portal_tickets"
             referencedColumns: ["id"]
           },
         ]
