@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox, ShieldAlert, Award } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox, ShieldAlert, Award, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -44,6 +44,7 @@ function NotificationItem({
   const isAttributionApproved =
     isAttributionDecision && notification.title.toLowerCase().includes('approved');
   const isKycNameMismatch = notification.type === 'kyc_name_mismatch';
+  const isPortalTicket = notification.type === 'portal_ticket_created';
   const navigate = useNavigate();
 
   const getIcon = () => {
@@ -57,6 +58,7 @@ function NotificationItem({
     if (isAttributionRequest) return <Inbox className="w-4 h-4" />;
     if (isAttributionDecision) return <Award className="w-4 h-4" />;
     if (isKycNameMismatch) return <ShieldAlert className="w-4 h-4" />;
+    if (isPortalTicket) return <LifeBuoy className="w-4 h-4" />;
     if (isOverdue) return <AlertTriangle className="w-4 h-4" />;
     if (isDueToday) return <Clock className="w-4 h-4" />;
     return <CreditCard className="w-4 h-4" />;
@@ -76,6 +78,7 @@ function NotificationItem({
         ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
         : 'bg-rose-500/10 text-rose-700 dark:text-rose-400';
     if (isKycNameMismatch) return 'bg-rose-500/10 text-rose-700 dark:text-rose-400';
+    if (isPortalTicket) return 'bg-sky-500/10 text-sky-700 dark:text-sky-400';
     if (isOverdue) return 'bg-destructive/10 text-destructive';
     if (isDueToday) return 'bg-warning/10 text-warning';
     return 'bg-primary/10 text-primary';
@@ -248,6 +251,22 @@ function NotificationItem({
                 }}
               >
                 View enquiry
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
+          {isPortalTicket && notification.portal_ticket_id && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs bg-sky-600 hover:bg-sky-700 text-white"
+                onClick={() => {
+                  if (!notification.is_read) onMarkAsRead(notification.id);
+                  navigate(`/admin/portal-tickets/${notification.portal_ticket_id}`);
+                }}
+              >
+                Open ticket
                 <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
