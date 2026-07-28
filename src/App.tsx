@@ -178,6 +178,8 @@ function AppInner() {
         <Route path="/admin/portal-dashboard" element={<ProtectedRoute><AdminPortalDashboard /></ProtectedRoute>} />
         <Route path="/admin/portal-tickets" element={<ProtectedRoute><PortalTicketsAdmin /></ProtectedRoute>} />
         <Route path="/admin/portal-tickets/:ticketId" element={<ProtectedRoute><PortalTicketAdminDetail /></ProtectedRoute>} />
+        <Route path="/sales/portal-tickets" element={<ProtectedRoute><PortalTicketsAdmin /></ProtectedRoute>} />
+        <Route path="/sales/portal-tickets/:ticketId" element={<ProtectedRoute><PortalTicketAdminDetail /></ProtectedRoute>} />
         <Route path="/admin/kyc-emails" element={<ProtectedRoute><KycEmailLogs /></ProtectedRoute>} />
         <Route path="/admin/zoho-invoices" element={<ProtectedRoute><ZohoInvoices /></ProtectedRoute>} />
         <Route path="/admin/dev-console" element={<ProtectedRoute><DevConsole /></ProtectedRoute>} />

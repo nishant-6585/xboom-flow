@@ -5,7 +5,8 @@ export type PortalNotifyEvent =
   | "rfq_submitted"
   | "rfq_assigned"
   | "ticket_created"
-  | "ticket_message_added";
+  | "ticket_message_added"
+  | "ticket_status_changed";
 
 /**
  * Fire-and-forget portal notification dispatcher.

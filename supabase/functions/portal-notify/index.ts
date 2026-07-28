@@ -8,6 +8,7 @@
 //   - rfq_assigned            payload: { rfq_id }                  (notifies customer)
 //   - ticket_created          payload: { ticket_id }               (notifies internal assignees)
 //   - ticket_message_added    payload: { ticket_id, message_id }   (notifies the *other* side)
+//   - ticket_status_changed   payload: { ticket_id, new_status, note? } (notifies customer)
 //
 // Resend-only for internal staff (no WhatsApp). Customers get both when a
 // whatsapp_number is on file.
@@ -63,7 +64,8 @@ type EventType =
   | "rfq_submitted"
   | "rfq_assigned"
   | "ticket_created"
-  | "ticket_message_added";
+  | "ticket_message_added"
+  | "ticket_status_changed";
 
 interface Body {
   event_type: EventType;
@@ -493,6 +495,60 @@ Deno.serve(async (req) => {
             ]);
             results.push({ channel: "whatsapp", to: c.whatsapp_number, ok: res.ok, error: res.error });
           }
+        }
+        break;
+      }
+
+      case "ticket_status_changed": {
+        const ticketId = String(body.payload.ticket_id ?? "");
+        const newStatus = String(body.payload.new_status ?? "");
+        const note = body.payload.note ? String(body.payload.note) : "";
+        if (!ticketId || !newStatus) {
+          return json({ error: "Missing ticket_id or new_status" }, 400);
+        }
+        const { data: t } = await admin
+          .from("portal_tickets")
+          .select("ticket_number, subject, account_id")
+          .eq("id", ticketId)
+          .maybeSingle();
+        if (!t) return json({ error: "Ticket not found" }, 404);
+        const tk = t as { ticket_number: string; subject: string; account_id: string };
+
+        const contacts = await getAccountContacts(admin, tk.account_id);
+        const prefs = await getPrefMap(
+          admin,
+          contacts.map((c) => c.id!).filter(Boolean),
+          "ticket_replies",
+        );
+        const human = newStatus.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+        for (const c of contacts) {
+          if (!c.email) continue;
+          if (c.id && !prefs[c.id]?.email) continue;
+          const res = await sendEmail(
+            c.email,
+            "portal-ticket-status-changed",
+            {
+              ticket_number: tk.ticket_number,
+              subject: tk.subject,
+              new_status: newStatus,
+              note,
+              ticket_url: `${PORTAL_BASE_URL}/tickets/${ticketId}`,
+            },
+            `portal-notify:ticket_status_changed:${ticketId}:${newStatus}:${c.email}`,
+          );
+          results.push({ channel: "email", to: c.email, ok: res.ok, error: res.error });
+        }
+        // WhatsApp — reuse the generic ticket response template for the
+        // status update so we don't require a new HSM approval.
+        for (const c of contacts) {
+          if (!c.whatsapp_number) continue;
+          if (c.id && !prefs[c.id]?.whatsapp) continue;
+          const res = await sendWhatsApp(c.whatsapp_number, "portal_ticket_response", [
+            c.full_name ?? "Customer",
+            tk.ticket_number,
+            `Status updated to ${human}${note ? `. ${note.slice(0, 100)}` : ""}`,
+          ]);
+          results.push({ channel: "whatsapp", to: c.whatsapp_number, ok: res.ok, error: res.error });
         }
         break;
       }
