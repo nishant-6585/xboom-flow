@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Paperclip, Send, Wrench } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Loader2, Paperclip, Send, UserCheck, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { TicketPriorityBadge, TicketStatusBadge } from "@/portal/components/TicketStatusBadge";
 import { notifyPortal } from "@/portal/lib/portalNotify";
 import { signedAttachmentUrl } from "@/portal/lib/portalUploads";
-import type { PortalTicket, PortalTicketMessage, TicketStatus } from "@/portal/hooks/usePortalTickets";
+import type { PortalTicket, PortalTicketMessage, TicketStatus, TicketPriority } from "@/portal/hooks/usePortalTickets";
+import { TICKET_PRIORITIES } from "@/portal/hooks/usePortalTickets";
+import { useNotifications } from "@/hooks/useNotifications";
 
 type AdminTicket = PortalTicket & {
   account_id: string;
@@ -38,6 +40,7 @@ type AdminTicketMessage = PortalTicketMessage & {
 
 const STATUS_OPTIONS: TicketStatus[] = ["open", "in_progress", "awaiting_customer", "resolved", "closed"];
 const STAFF_ROLES = new Set(["admin", "support", "supply_chain", "sales", "sales_manager"]);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function formatDateTime(iso: string | null) {
   if (!iso) return "—";
