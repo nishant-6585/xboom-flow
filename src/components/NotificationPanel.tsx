@@ -44,7 +44,9 @@ function NotificationItem({
   const isAttributionApproved =
     isAttributionDecision && notification.title.toLowerCase().includes('approved');
   const isKycNameMismatch = notification.type === 'kyc_name_mismatch';
-  const isPortalTicket = notification.type === 'portal_ticket_created';
+  const isPortalTicket =
+    notification.type === 'portal_ticket_created' ||
+    notification.type === 'portal_service_request';
   const navigate = useNavigate();
 
   const getIcon = () => {
