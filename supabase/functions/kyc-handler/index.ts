@@ -620,11 +620,16 @@ async function submitKyc(admin: ReturnType<typeof createClient>, callerId: strin
     .maybeSingle();
   if (!contact?.account_id) return json({ error: "No portal account for this user" }, 403);
 
-  // Mark previous current docs (any type) as non-current — one active submission at a time.
+  // Mark previous current docs OF THE SAME TYPE as non-current. Cross-type
+  // cleanup (e.g. superseding a rejected Aadhaar with a newly approved PAN)
+  // is the responsibility of the approval path — see
+  // public.supersede_stale_kyc_documents. Superseding here across doc types
+  // would incorrectly hide a genuinely approved doc of another type.
   await admin
     .from("kyc_documents")
     .update({ is_current: false })
     .eq("account_id", contact.account_id)
+    .eq("doc_type", docType)
     .eq("is_current", true);
 
   const { data: prevCount } = await admin
@@ -823,6 +828,12 @@ async function reviewKyc(admin: ReturnType<typeof createClient>, callerId: strin
         kyc_rejection_reason: null,
       })
       .eq("id", body.account_id);
+    // Any older 'rejected' / 'resubmission_required' docs on this account are
+    // now stale — hide them from the active list (kept as history).
+    await admin.rpc("supersede_stale_kyc_documents", {
+      _account_id: body.account_id,
+      _approved_doc_id: body.document_id,
+    });
     await admin.from("kyc_audit_log").insert({
       account_id: body.account_id,
       document_id: body.document_id,

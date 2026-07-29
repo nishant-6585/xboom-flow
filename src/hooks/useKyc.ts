@@ -40,6 +40,8 @@ export interface KycDocumentRow {
   version: number;
   is_current: boolean;
   metadata?: Record<string, any> | null;
+  superseded_by?: string | null;
+  superseded_at?: string | null;
 }
 
 /** Status label + Tailwind classes shared across portal & flow */
@@ -95,15 +97,20 @@ export function useMyKyc() {
           .order("uploaded_at", { ascending: false }),
       ]);
       if (acctRes.error) throw acctRes.error;
+      const all = ((docRes.data as any) ?? []) as KycDocumentRow[];
       return {
         account: (acctRes.data as KycAccountSummary | null) ?? null,
-        documents: ((docRes.data as any) ?? []) as KycDocumentRow[],
+        // Every screen renders only currently-active documents. Superseded
+        // / historical rows are exposed separately via `documentHistory`.
+        documents: all.filter((d) => d.is_current === true),
+        documentHistory: all.filter((d) => d.is_current === false),
       };
     },
   });
 
   const account = query.data?.account ?? null;
   const documents = query.data?.documents ?? [];
+  const documentHistory = query.data?.documentHistory ?? [];
   // "loading" is true while portal auth hasn't resolved OR while the KYC
   // query is in-flight for a resolved accountId.
   const loading = portalLoading || (!!accountId && query.isLoading);
@@ -160,7 +167,7 @@ export function useMyKyc() {
     return data.signedUrl;
   }, []);
 
-  return { account, documents, loading, submitting, refresh, submitDocument, getSignedUrl };
+  return { account, documents, documentHistory, loading, submitting, refresh, submitDocument, getSignedUrl };
 }
 
 /** Flow-facing: queue of pending KYC submissions for staff review */

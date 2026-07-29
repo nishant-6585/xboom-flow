@@ -74,9 +74,10 @@ function validateNumber(t: DocType, raw: string): string | null {
 }
 
 export default function PortalKyc() {
-  const { account, documents, loading, submitting, submitDocument, getSignedUrl } = useMyKyc();
+  const { account, documents, documentHistory, loading, submitting, submitDocument, getSignedUrl } = useMyKyc();
   const { contact } = usePortalAuth();
   const [docType, setDocType] = useState<DocType>("aadhaar");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [docNumber, setDocNumber] = useState("");
   const [file, setFile] = useState<File | null>(null);
   // Two-sided documents (Aadhaar, Passport) need BOTH sides — e.g. Aadhaar
@@ -476,6 +477,52 @@ export default function PortalKyc() {
                 })}
               </div>
             </CardContent>
+          </Card>
+        )}
+
+        {documentHistory.length > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Previous submissions</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setHistoryOpen((v) => !v)}
+                aria-expanded={historyOpen}
+              >
+                {historyOpen ? "Hide" : `Show (${documentHistory.length})`}
+              </Button>
+            </CardHeader>
+            {historyOpen && (
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Kept for your records. These were replaced by a newer verified document.
+                </p>
+                <div className="space-y-2">
+                  {documentHistory.map((d) => {
+                    const m = kycStatusMeta(d.status);
+                    return (
+                      <div key={d.id} className="flex items-center justify-between gap-3 p-3 border rounded-md text-sm bg-muted/30">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{d.file_name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              v{d.version} · {format(new Date(d.uploaded_at), "dd MMM yyyy HH:mm")}
+                              {d.superseded_at && (
+                                <> · Superseded on {format(new Date(d.superseded_at), "dd MMM yyyy")}</>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className={`${m.className} text-xs shrink-0`}>{m.label}</Badge>
+                        <Button variant="link" size="sm" className="shrink-0" onClick={() => viewDoc(d.file_path)}>View</Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
       </div>

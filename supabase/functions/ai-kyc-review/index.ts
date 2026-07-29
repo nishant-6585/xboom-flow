@@ -424,6 +424,11 @@ async function runReview(
         kyc_rejection_reason: null,
       })
       .eq("id", accountId);
+    // Supersede any older stale rejected/resubmission-required docs.
+    await admin.rpc("supersede_stale_kyc_documents", {
+      _account_id: accountId,
+      _approved_doc_id: documentId,
+    });
     await admin.from("kyc_audit_log").insert({
       account_id: accountId,
       document_id: documentId,
