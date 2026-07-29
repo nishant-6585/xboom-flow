@@ -14,6 +14,11 @@ interface DlqEvent {
   reason: string
   message_id: string | null
   idempotency_key?: string | null
+  attempts?: number
+  // Raw enqueued payload — kept so admins can resend the exact message
+  // without needing to re-render the template. Sensitive fields are
+  // stripped before we persist this on the notification.
+  payload?: Record<string, unknown>
 }
 
 const MAX_RETRIES = 5
@@ -73,7 +78,8 @@ async function moveToDlq(
   queue: string,
   msg: { msg_id: number; message: Record<string, unknown> },
   reason: string,
-  dlqEvents?: DlqEvent[]
+  dlqEvents?: DlqEvent[],
+  attempts?: number
 ): Promise<void> {
   const payload = msg.message
   await supabase.from('email_send_log').insert({
@@ -101,6 +107,8 @@ async function moveToDlq(
       message_id: typeof payload.message_id === 'string' ? payload.message_id : null,
       idempotency_key:
         typeof payload.idempotency_key === 'string' ? payload.idempotency_key : null,
+      attempts: typeof attempts === 'number' ? attempts : undefined,
+      payload,
     })
   }
 }
@@ -483,14 +491,14 @@ Deno.serve(async (req) => {
             queued_at: queuedAt,
             ttl_minutes: ttlMinutes[queue],
           })
-          await moveToDlq(supabase, queue, msg, `TTL exceeded (${ttlMinutes[queue]} minutes)`, dlqEvents)
+          await moveToDlq(supabase, queue, msg, `TTL exceeded (${ttlMinutes[queue]} minutes)`, dlqEvents, failedAttempts)
           continue
         }
       }
 
       // Move to DLQ if max failed send attempts reached.
       if (failedAttempts >= MAX_RETRIES) {
-        await moveToDlq(supabase, queue, msg, `Max retries (${MAX_RETRIES}) exceeded (attempted ${failedAttempts} times)`, dlqEvents)
+        await moveToDlq(supabase, queue, msg, `Max retries (${MAX_RETRIES}) exceeded (attempted ${failedAttempts} times)`, dlqEvents, failedAttempts)
         continue
       }
 
@@ -586,7 +594,7 @@ Deno.serve(async (req) => {
         // 403s are permanent configuration or authorization failures for this
         // message, so move straight to DLQ and stop processing the rest of the batch.
         if (isForbidden(error)) {
-          await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000), dlqEvents)
+          await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000), dlqEvents, failedAttempts + 1)
           // Fire DLQ notification before returning early.
           await notifyDlqBatch(supabase, dlqEvents)
           return new Response(

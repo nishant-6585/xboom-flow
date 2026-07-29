@@ -9240,6 +9240,7 @@ export type Database = {
           id: string
           is_read: boolean
           message: string
+          metadata: Json | null
           order_id: string | null
           portal_ticket_id: string | null
           target_role: string | null
@@ -9254,6 +9255,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message: string
+          metadata?: Json | null
           order_id?: string | null
           portal_ticket_id?: string | null
           target_role?: string | null
@@ -9268,6 +9270,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message?: string
+          metadata?: Json | null
           order_id?: string | null
           portal_ticket_id?: string | null
           target_role?: string | null
