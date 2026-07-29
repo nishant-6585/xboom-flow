@@ -67,6 +67,7 @@ export default function HR() {
 
   const isAdmin = role === 'admin';
   const isHROrAdmin = role === 'admin' || role === 'hr';
+  const isCompoffApprover = isHROrAdmin || role === 'sales_manager';
   const isFinance = role === 'finance' || role === 'admin';
   const myLeaves = leaveRequests.filter((lr) => lr.employee_id === myEmployee?.id);
 
@@ -209,8 +210,8 @@ export default function HR() {
           )}
 
           <TabsContent value="leave" className="space-y-4">
-            {isHROrAdmin && <CompOffApprovalsInbox />}
-            {isHROrAdmin && pendingLeaves.length > 0 && (
+            {isCompoffApprover && <CompOffApprovalsInbox />}
+            {isCompoffApprover && pendingLeaves.length > 0 && (
               <BulkLeaveApprovalSection
                 pendingLeaves={pendingLeaves}
                 onApprove={approveLeave}
