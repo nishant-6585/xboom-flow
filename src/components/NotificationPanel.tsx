@@ -331,6 +331,44 @@ function NotificationItem({
 export function NotificationPanel({ className }: NotificationPanelProps) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, loading } =
     useNotifications();
+  const [ticketStatuses, setTicketStatuses] = useState<Record<string, TicketStatus>>({});
+
+  const ticketIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const n of notifications) {
+      if (
+        (n.type === 'portal_ticket_created' || n.type === 'portal_service_request') &&
+        isUuid(n.portal_ticket_id)
+      ) {
+        ids.add(n.portal_ticket_id as string);
+      }
+    }
+    return Array.from(ids);
+  }, [notifications]);
+
+  useEffect(() => {
+    if (ticketIds.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const missing = ticketIds.filter((id) => !ticketStatuses[id]);
+      if (missing.length === 0) return;
+      const { data, error } = await supabase
+        .from('portal_tickets')
+        .select('id, status')
+        .in('id', missing);
+      if (error || cancelled || !data) return;
+      setTicketStatuses((prev) => {
+        const next = { ...prev };
+        for (const row of data as { id: string; status: TicketStatus }[]) {
+          next[row.id] = row.status;
+        }
+        return next;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ticketIds, ticketStatuses]);
 
   return (
     <Sheet>
@@ -390,6 +428,11 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                     key={notification.id}
                     notification={notification}
                     onMarkAsRead={markAsRead}
+                    ticketStatus={
+                      notification.portal_ticket_id
+                        ? ticketStatuses[notification.portal_ticket_id] ?? null
+                        : null
+                    }
                   />
                 ))}
               </div>
