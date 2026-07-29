@@ -253,6 +253,32 @@ export function useNotifications() {
     }
   };
 
+  const markTicketNotificationsAsRead = useCallback(async (ticketId: string) => {
+    if (!ticketId) return;
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('portal_ticket_id', ticketId)
+        .eq('is_read', false);
+      if (error) throw error;
+      setNotifications(prev => {
+        let cleared = 0;
+        const next = prev.map(n => {
+          if (n.portal_ticket_id === ticketId && !n.is_read) {
+            cleared += 1;
+            return { ...n, is_read: true };
+          }
+          return n;
+        });
+        if (cleared > 0) setUnreadCount(c => Math.max(0, c - cleared));
+        return next;
+      });
+    } catch (error) {
+      console.error('Error marking ticket notifications as read:', error);
+    }
+  }, []);
+
   const generatePaymentReminders = async () => {
     try {
       const { error } = await supabase.rpc('generate_payment_reminders');
@@ -271,6 +297,7 @@ export function useNotifications() {
     unreadCount,
     markAsRead,
     markAllAsRead,
+    markTicketNotificationsAsRead,
     generatePaymentReminders,
     refetch: fetchNotifications,
   };

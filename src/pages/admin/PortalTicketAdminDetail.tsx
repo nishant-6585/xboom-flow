@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Paperclip, Send, Wrench } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Loader2, Paperclip, Send, UserCheck, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { TicketPriorityBadge, TicketStatusBadge } from "@/portal/components/TicketStatusBadge";
 import { notifyPortal } from "@/portal/lib/portalNotify";
 import { signedAttachmentUrl } from "@/portal/lib/portalUploads";
-import type { PortalTicket, PortalTicketMessage, TicketStatus } from "@/portal/hooks/usePortalTickets";
+import type { PortalTicket, PortalTicketMessage, TicketStatus, TicketPriority } from "@/portal/hooks/usePortalTickets";
+import { TICKET_PRIORITIES } from "@/portal/hooks/usePortalTickets";
+import { useNotifications } from "@/hooks/useNotifications";
 
 type AdminTicket = PortalTicket & {
   account_id: string;
@@ -38,6 +40,7 @@ type AdminTicketMessage = PortalTicketMessage & {
 
 const STATUS_OPTIONS: TicketStatus[] = ["open", "in_progress", "awaiting_customer", "resolved", "closed"];
 const STAFF_ROLES = new Set(["admin", "support", "supply_chain", "sales", "sales_manager"]);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function formatDateTime(iso: string | null) {
   if (!iso) return "—";
@@ -117,16 +120,26 @@ function useAdminTicket(ticketId: string | undefined) {
 
 export default function PortalTicketAdminDetail() {
   const { ticketId } = useParams<{ ticketId: string }>();
+  const isValidTicketId = !!ticketId && UUID_RE.test(ticketId);
   const { user, roles } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [replyBody, setReplyBody] = useState("");
   const [internalNote, setInternalNote] = useState(false);
   const canAccess = useMemo(() => (roles ?? []).some((role) => STAFF_ROLES.has(role)), [roles]);
-  const { data, isLoading, refetch } = useAdminTicket(canAccess ? ticketId : undefined);
+  const { data, isLoading, refetch, isError, error } = useAdminTicket(
+    canAccess && isValidTicketId ? ticketId : undefined,
+  );
+  const { markTicketNotificationsAsRead } = useNotifications();
+
+  // Auto-clear notifications for this ticket when the page is opened.
+  useEffect(() => {
+    if (!canAccess || !isValidTicketId || !ticketId) return;
+    markTicketNotificationsAsRead(ticketId);
+  }, [canAccess, isValidTicketId, ticketId, markTicketNotificationsAsRead]);
 
   useEffect(() => {
-    if (!ticketId || !canAccess) return;
+    if (!ticketId || !canAccess || !isValidTicketId) return;
     const channel = supabase
       .channel(`admin-portal-ticket-${ticketId}`)
       .on(
@@ -144,7 +157,7 @@ export default function PortalTicketAdminDetail() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [canAccess, ticketId, refetch]);
+  }, [canAccess, isValidTicketId, ticketId, refetch]);
 
   const updateStatus = useMutation({
     mutationFn: async (status: TicketStatus) => {
@@ -165,6 +178,44 @@ export default function PortalTicketAdminDetail() {
     },
     onError: (error: Error) => {
       toast({ title: "Couldn't update ticket", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updatePriority = useMutation({
+    mutationFn: async (priority: TicketPriority) => {
+      if (!ticketId) throw new Error("Missing ticket id");
+      const { error } = await supabase
+        .from("portal_tickets")
+        .update({ priority } as never)
+        .eq("id", ticketId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "portal-ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "portal-tickets"] });
+      toast({ title: "Priority updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Couldn't update priority", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const assignToMe = useMutation({
+    mutationFn: async () => {
+      if (!ticketId || !user?.id) throw new Error("Missing ticket or user");
+      const { error } = await supabase
+        .from("portal_tickets")
+        .update({ assigned_to: user.id } as never)
+        .eq("id", ticketId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "portal-ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "portal-tickets"] });
+      toast({ title: "Assigned to you" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Couldn't assign ticket", description: err.message, variant: "destructive" });
     },
   });
 
@@ -213,7 +264,35 @@ export default function PortalTicketAdminDetail() {
     );
   }
 
+  if (!isValidTicketId) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <AdminTabsNav active="portal-tickets" />
+        <main className="container mx-auto px-4 py-6 space-y-4">
+          <Link to="/admin/portal-tickets" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to portal tickets
+          </Link>
+          <Card>
+            <CardContent className="py-10 text-center space-y-3">
+              <AlertTriangle className="h-8 w-8 mx-auto text-amber-500" />
+              <div className="text-base font-medium">This ticket link isn't valid</div>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                The ticket reference in the URL is missing or malformed. It may be from an older
+                notification. Head back to the inbox to find the ticket.
+              </p>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin/portal-tickets">Go to ticket inbox</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   const ticket = data?.ticket;
+  const isAssignedToMe = !!user?.id && ticket?.assigned_to === user.id;
 
   return (
     <div className="min-h-screen bg-background">
@@ -226,9 +305,36 @@ export default function PortalTicketAdminDetail() {
 
         {isLoading && <Skeleton className="h-72 w-full" />}
 
-        {!isLoading && !ticket && (
+        {!isLoading && isError && (
           <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">Ticket not found.</CardContent>
+            <CardContent className="py-10 text-center space-y-3">
+              <AlertTriangle className="h-8 w-8 mx-auto text-destructive" />
+              <div className="text-base font-medium">Couldn't load this ticket</div>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                {error instanceof Error ? error.message : "Something went wrong while loading the ticket."}
+              </p>
+              <div className="flex justify-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/admin/portal-tickets">Back to inbox</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isLoading && !isError && !ticket && (
+          <Card>
+            <CardContent className="py-10 text-center space-y-3">
+              <AlertTriangle className="h-8 w-8 mx-auto text-muted-foreground" />
+              <div className="text-base font-medium">Ticket not found</div>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                It may have been removed, or you may not have access to view it.
+              </p>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin/portal-tickets">Back to inbox</Link>
+              </Button>
+            </CardContent>
           </Card>
         )}
 
@@ -252,17 +358,49 @@ export default function PortalTicketAdminDetail() {
                 </p>
               </div>
 
-              <div className="w-full sm:w-56">
-                <Select value={ticket.status} onValueChange={(value) => updateStatus.mutate(value as TicketStatus)} disabled={updateStatus.isPending}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((status) => (
-                      <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
+                <Button
+                  variant={isAssignedToMe ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => assignToMe.mutate()}
+                  disabled={assignToMe.isPending || isAssignedToMe}
+                  title={isAssignedToMe ? "You're the owner of this ticket" : "Assign this ticket to yourself"}
+                >
+                  {assignToMe.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {isAssignedToMe ? "Assigned to you" : "Assign to me"}
+                </Button>
+                <div className="w-40">
+                  <Select
+                    value={ticket.priority}
+                    onValueChange={(value) => updatePriority.mutate(value as TicketPriority)}
+                    disabled={updatePriority.isPending}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TICKET_PRIORITIES.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-44">
+                  <Select value={ticket.status} onValueChange={(value) => updateStatus.mutate(value as TicketStatus)} disabled={updateStatus.isPending}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((status) => (
+                        <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </section>
 

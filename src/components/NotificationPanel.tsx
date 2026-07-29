@@ -16,6 +16,14 @@ import { PushNotificationToggle } from '@/components/PushNotificationToggle';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { TicketStatusBadge } from '@/portal/components/TicketStatusBadge';
+import type { TicketStatus } from '@/portal/hooks/usePortalTickets';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID_RE.test(v);
 
 interface NotificationPanelProps {
   className?: string;
@@ -24,9 +32,11 @@ interface NotificationPanelProps {
 function NotificationItem({
   notification,
   onMarkAsRead,
+  ticketStatus,
 }: {
   notification: Notification;
   onMarkAsRead: (id: string) => void;
+  ticketStatus?: TicketStatus | null;
 }) {
   const isOverdue = notification.title.toLowerCase().includes('overdue');
   const isDueToday = notification.title.toLowerCase().includes('due today');
@@ -48,6 +58,18 @@ function NotificationItem({
     notification.type === 'portal_ticket_created' ||
     notification.type === 'portal_service_request';
   const navigate = useNavigate();
+
+  const openTicket = () => {
+    const id = notification.portal_ticket_id;
+    if (!isUuid(id)) {
+      toast.error("Can't open ticket", {
+        description: 'This notification is missing a valid ticket reference.',
+      });
+      return;
+    }
+    if (!notification.is_read) onMarkAsRead(notification.id);
+    navigate(`/admin/portal-tickets/${id}`);
+  };
 
   const getIcon = () => {
     if (isHotLead) return <Flame className="w-4 h-4" />;
@@ -120,6 +142,11 @@ function NotificationItem({
               <Badge variant="outline" className="text-[10px] font-mono">
                 Order #{notification.order_number}
               </Badge>
+            </div>
+          )}
+          {isPortalTicket && ticketStatus && (
+            <div className="mb-1">
+              <TicketStatusBadge status={ticketStatus} />
             </div>
           )}
           <p className="text-sm text-muted-foreground line-clamp-2">
@@ -259,16 +286,19 @@ function NotificationItem({
               </Button>
             </div>
           )}
-          {isPortalTicket && notification.portal_ticket_id && (
+          {isPortalTicket && (
             <div className="mt-2">
               <Button
                 size="sm"
                 variant="default"
                 className="h-7 text-xs bg-sky-600 hover:bg-sky-700 text-white"
-                onClick={() => {
-                  if (!notification.is_read) onMarkAsRead(notification.id);
-                  navigate(`/admin/portal-tickets/${notification.portal_ticket_id}`);
-                }}
+                onClick={openTicket}
+                disabled={!isUuid(notification.portal_ticket_id)}
+                title={
+                  isUuid(notification.portal_ticket_id)
+                    ? undefined
+                    : 'Ticket reference unavailable'
+                }
               >
                 Open ticket
                 <ArrowRight className="w-3 h-3 ml-1" />
@@ -301,6 +331,44 @@ function NotificationItem({
 export function NotificationPanel({ className }: NotificationPanelProps) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, loading } =
     useNotifications();
+  const [ticketStatuses, setTicketStatuses] = useState<Record<string, TicketStatus>>({});
+
+  const ticketIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const n of notifications) {
+      if (
+        (n.type === 'portal_ticket_created' || n.type === 'portal_service_request') &&
+        isUuid(n.portal_ticket_id)
+      ) {
+        ids.add(n.portal_ticket_id as string);
+      }
+    }
+    return Array.from(ids);
+  }, [notifications]);
+
+  useEffect(() => {
+    if (ticketIds.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const missing = ticketIds.filter((id) => !ticketStatuses[id]);
+      if (missing.length === 0) return;
+      const { data, error } = await supabase
+        .from('portal_tickets')
+        .select('id, status')
+        .in('id', missing);
+      if (error || cancelled || !data) return;
+      setTicketStatuses((prev) => {
+        const next = { ...prev };
+        for (const row of data as { id: string; status: TicketStatus }[]) {
+          next[row.id] = row.status;
+        }
+        return next;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ticketIds, ticketStatuses]);
 
   return (
     <Sheet>
@@ -360,6 +428,11 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                     key={notification.id}
                     notification={notification}
                     onMarkAsRead={markAsRead}
+                    ticketStatus={
+                      notification.portal_ticket_id
+                        ? ticketStatuses[notification.portal_ticket_id] ?? null
+                        : null
+                    }
                   />
                 ))}
               </div>
