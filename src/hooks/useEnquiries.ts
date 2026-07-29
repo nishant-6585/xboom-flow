@@ -48,6 +48,7 @@ export interface Enquiry {
   response_availability: string | null;
   response_lead_time: string | null;
   response_notes: string | null;
+  response_price_gst_mode: 'inclusive' | 'exclusive' | null;
   responded_by: string | null;
   responded_by_name: string | null;
   responded_at: string | null;
@@ -136,6 +137,7 @@ export interface EnquiryResponse {
   availability?: string;
   leadTime?: string;
   notes?: string;
+  priceGstMode?: 'inclusive' | 'exclusive' | '';
 }
 
 export function useEnquiries() {
@@ -304,6 +306,7 @@ export function useEnquiries() {
         response_availability: response.availability || null,
         response_lead_time: response.leadTime || null,
         response_notes: response.notes || null,
+        response_price_gst_mode: response.priceGstMode || null,
         responded_by: user.id,
         responded_by_name: profile.name,
         responded_at: new Date().toISOString(),
