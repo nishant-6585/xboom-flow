@@ -18055,6 +18055,10 @@ export type Database = {
         Args: { p_order_id: string; p_reason: string }
         Returns: undefined
       }
+      compoff_employee_is_sales: {
+        Args: { _employee_id: string }
+        Returns: boolean
+      }
       compute_contact_key: {
         Args: { _email: string; _phone: string }
         Returns: string
