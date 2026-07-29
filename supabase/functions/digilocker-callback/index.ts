@@ -441,6 +441,13 @@ Deno.serve(async (req) => {
       kyc_rejection_reason: null,
     }).eq("id", accountId);
 
+    // Newly-approved document supersedes any older rejected /
+    // resubmission-required docs on this account.
+    await admin.rpc("supersede_stale_kyc_documents", {
+      _account_id: accountId,
+      _approved_doc_id: doc.id,
+    });
+
     await admin.from("kyc_audit_log").insert({
       account_id: accountId,
       document_id: doc.id,
