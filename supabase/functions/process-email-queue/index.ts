@@ -13,6 +13,7 @@ interface DlqEvent {
   recipient: string
   reason: string
   message_id: string | null
+  idempotency_key?: string | null
 }
 
 const MAX_RETRIES = 5
@@ -98,6 +99,8 @@ async function moveToDlq(
       recipient: String(payload.to || 'unknown'),
       reason: reason.slice(0, 500),
       message_id: typeof payload.message_id === 'string' ? payload.message_id : null,
+      idempotency_key:
+        typeof payload.idempotency_key === 'string' ? payload.idempotency_key : null,
     })
   }
 }
@@ -142,15 +145,124 @@ async function notifyDlqBatch(
     .sort((a, b) => b[1] - a[1])
     .map(([reason, count]) => ({ reason, count }))
 
-  const summary = `${events.length} email(s) moved to DLQ. Templates: ${
-    templateBreakdown.map((t) => `${t.template} × ${t.count}`).join(', ')
-  }.`
+  // Human-readable template names for the admin notification. Keep in sync
+  // with the registry so ops see "Order confirmation email" instead of the
+  // raw template slug.
+  const TEMPLATE_LABELS: Record<string, string> = {
+    'customer-confirmation-request': 'Order confirmation email',
+    'portal-invite': 'Customer portal invite',
+    'kyc-onboarding': 'KYC onboarding email',
+    'kyc-reminder': 'KYC reminder email',
+    'password-reset': 'Password reset email',
+    'birthday-song': 'Birthday song email',
+  }
+  const friendlyTemplate = (slug: string): string =>
+    TEMPLATE_LABELS[slug] || slug.replace(/[-_]/g, ' ')
+
+  // Try to enrich each event with the order it was triggered from. All our
+  // per-order senders embed the order UUID in the idempotency key
+  // (e.g. "send-customer-confirmation-request:email:<orderId>:<attempt>"),
+  // so we pull the first UUID we find and look up the order in one query.
+  const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+  const orderIds = Array.from(
+    new Set(
+      events
+        .map((e) => (e.idempotency_key || '').match(UUID_RE)?.[0] || null)
+        .filter((v): v is string => !!v),
+    ),
+  )
+  type OrderRow = {
+    id: string
+    order_number: string | null
+    customer_name: string | null
+    sales_person_id: string | null
+    sales_person_name?: string | null
+  }
+  const orderById = new Map<string, OrderRow>()
+  if (orderIds.length > 0) {
+    try {
+      const { data: orderRows } = await supabase
+        .from('orders')
+        .select('id, order_number, customer_name, sales_person_id')
+        .in('id', orderIds)
+      const rows = (orderRows || []) as OrderRow[]
+      const spIds = Array.from(
+        new Set(rows.map((r) => r.sales_person_id).filter((v): v is string => !!v)),
+      )
+      const spNameById = new Map<string, string>()
+      if (spIds.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', spIds)
+        for (const p of (profs || []) as { id: string; full_name: string | null }[]) {
+          if (p.full_name) spNameById.set(p.id, p.full_name)
+        }
+      }
+      for (const r of rows) {
+        r.sales_person_name = r.sales_person_id
+          ? spNameById.get(r.sales_person_id) || null
+          : null
+        orderById.set(r.id, r)
+      }
+    } catch (err) {
+      console.error('DLQ enrichment: order lookup failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  const eventOrderId = (e: DlqEvent): string | null =>
+    (e.idempotency_key || '').match(UUID_RE)?.[0] || null
+
+  // Build a friendly, per-event line: order number, customer, salesperson,
+  // template, and short reason. Falls back gracefully when the order can
+  // no longer be resolved (rare — e.g. hard-deleted order).
+  const describeEvent = (e: DlqEvent): string => {
+    const tpl = friendlyTemplate(e.template)
+    const orderId = eventOrderId(e)
+    const ord = orderId ? orderById.get(orderId) : null
+    const parts: string[] = []
+    if (ord?.order_number) parts.push(`Order #${ord.order_number}`)
+    if (ord?.customer_name) parts.push(`customer ${ord.customer_name}`)
+    if (ord?.sales_person_name) parts.push(`salesperson ${ord.sales_person_name}`)
+    const who = parts.length > 0 ? ` — ${parts.join(', ')}` : ''
+    const reasonShort = e.reason.split('\n')[0].slice(0, 140)
+    return `${tpl}${who}. Reason: ${reasonShort}. Recipient: ${e.recipient}.`
+  }
+
+  // Compose the admin notification message. For a single failure, spell
+  // out the order/customer/salesperson inline so ops know exactly which
+  // email to resend. For multiple failures, list up to 3 and note the
+  // remainder so the row stays scannable.
+  const eventLines = events.map(describeEvent)
+  const friendlyMessage = eventLines.length === 1
+    ? `Delivery failed — ${eventLines[0]} Open the order to resend from the customer email button.`
+    : `${events.length} customer emails failed to deliver:\n• ${
+        eventLines.slice(0, 3).join('\n• ')
+      }${eventLines.length > 3 ? `\n• …and ${eventLines.length - 3} more` : ''}`
+  const friendlyTitle = events.length === 1
+    ? `Customer email not delivered${
+        (() => {
+          const ord = eventOrderId(events[0])
+            ? orderById.get(eventOrderId(events[0])!)
+            : null
+          return ord?.order_number ? ` — Order #${ord.order_number}` : ''
+        })()
+      }`
+    : `${events.length} customer emails not delivered`
 
   // 1. Admin notification row (existing feed).
   const { error: notifError } = await supabase.from('notifications').insert({
     type: 'email_dlq_alert',
-    title: `Email dispatcher: ${events.length} message(s) dead-lettered`,
-    message: summary,
+    title: friendlyTitle,
+    message: friendlyMessage,
+    // Best-effort deep link: only single-event failures unambiguously map
+    // to one order.
+    order_id:
+      events.length === 1 && eventOrderId(events[0])
+        ? eventOrderId(events[0])
+        : null,
     target_role: 'admin',
   })
   if (notifError) {
