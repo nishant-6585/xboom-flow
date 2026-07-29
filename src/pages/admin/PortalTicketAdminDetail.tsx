@@ -264,7 +264,35 @@ export default function PortalTicketAdminDetail() {
     );
   }
 
+  if (!isValidTicketId) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <AdminTabsNav active="portal-tickets" />
+        <main className="container mx-auto px-4 py-6 space-y-4">
+          <Link to="/admin/portal-tickets" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to portal tickets
+          </Link>
+          <Card>
+            <CardContent className="py-10 text-center space-y-3">
+              <AlertTriangle className="h-8 w-8 mx-auto text-amber-500" />
+              <div className="text-base font-medium">This ticket link isn't valid</div>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                The ticket reference in the URL is missing or malformed. It may be from an older
+                notification. Head back to the inbox to find the ticket.
+              </p>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin/portal-tickets">Go to ticket inbox</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   const ticket = data?.ticket;
+  const isAssignedToMe = !!user?.id && ticket?.assigned_to === user.id;
 
   return (
     <div className="min-h-screen bg-background">
@@ -277,9 +305,36 @@ export default function PortalTicketAdminDetail() {
 
         {isLoading && <Skeleton className="h-72 w-full" />}
 
-        {!isLoading && !ticket && (
+        {!isLoading && isError && (
           <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">Ticket not found.</CardContent>
+            <CardContent className="py-10 text-center space-y-3">
+              <AlertTriangle className="h-8 w-8 mx-auto text-destructive" />
+              <div className="text-base font-medium">Couldn't load this ticket</div>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                {error instanceof Error ? error.message : "Something went wrong while loading the ticket."}
+              </p>
+              <div className="flex justify-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/admin/portal-tickets">Back to inbox</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isLoading && !isError && !ticket && (
+          <Card>
+            <CardContent className="py-10 text-center space-y-3">
+              <AlertTriangle className="h-8 w-8 mx-auto text-muted-foreground" />
+              <div className="text-base font-medium">Ticket not found</div>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                It may have been removed, or you may not have access to view it.
+              </p>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin/portal-tickets">Back to inbox</Link>
+              </Button>
+            </CardContent>
           </Card>
         )}
 
@@ -303,17 +358,49 @@ export default function PortalTicketAdminDetail() {
                 </p>
               </div>
 
-              <div className="w-full sm:w-56">
-                <Select value={ticket.status} onValueChange={(value) => updateStatus.mutate(value as TicketStatus)} disabled={updateStatus.isPending}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((status) => (
-                      <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
+                <Button
+                  variant={isAssignedToMe ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => assignToMe.mutate()}
+                  disabled={assignToMe.isPending || isAssignedToMe}
+                  title={isAssignedToMe ? "You're the owner of this ticket" : "Assign this ticket to yourself"}
+                >
+                  {assignToMe.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {isAssignedToMe ? "Assigned to you" : "Assign to me"}
+                </Button>
+                <div className="w-40">
+                  <Select
+                    value={ticket.priority}
+                    onValueChange={(value) => updatePriority.mutate(value as TicketPriority)}
+                    disabled={updatePriority.isPending}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TICKET_PRIORITIES.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-44">
+                  <Select value={ticket.status} onValueChange={(value) => updateStatus.mutate(value as TicketStatus)} disabled={updateStatus.isPending}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((status) => (
+                        <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </section>
 
