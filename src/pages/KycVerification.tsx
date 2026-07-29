@@ -274,7 +274,13 @@ export default function KycVerification() {
   const [rerunning, setRerunning] = useState<string | null>(null); // document id being re-reviewed
   const [aadhaarMap, setAadhaarMap] = useState<Record<string, string>>({});
 
-  const effStatus = (r: KycQueueRow) => (r.document?.status as any) ?? r.account.kyc_status;
+  // Account-level approval is terminal (e.g. auto-approved via DigiLocker on a
+  // fresh resubmission). A stale rejected/pending kyc_documents row can linger
+  // as "current" — never let it override an approved account.
+  const effStatus = (r: KycQueueRow) =>
+    r.account.kyc_status === "approved"
+      ? "approved"
+      : ((r.document?.status as any) ?? r.account.kyc_status);
   const rowMethod = (r: KycQueueRow): "digilocker" | "manual" | null => {
     if (!r.document) return null;
     const m = r.document.method || (r.document.metadata as any)?.method;
@@ -531,8 +537,12 @@ export default function KycVerification() {
                 <TableBody>
                   {filtered.map((r) => {
                     // Prefer per-submission status so approve/reject reflects the latest doc,
-                    // not a stale account-level flag.
-                    const effectiveStatus = (r.document?.status as any) ?? r.account.kyc_status;
+                    // BUT never downgrade an already-approved account (e.g. DigiLocker
+                    // auto-approval after an earlier manual rejection).
+                    const effectiveStatus =
+                      r.account.kyc_status === "approved"
+                        ? "approved"
+                        : ((r.document?.status as any) ?? r.account.kyc_status);
                     const meta = kycStatusMeta(effectiveStatus);
                     const canReview = effectiveStatus === "pending_verification" && r.document;
                     const isDlMismatch =
