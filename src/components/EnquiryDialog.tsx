@@ -83,6 +83,7 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
+    priceGstMode: "" as "" | "inclusive" | "exclusive",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -107,6 +108,7 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
+        priceGstMode: (enquiry.response_price_gst_mode || "") as "" | "inclusive" | "exclusive",
       });
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
@@ -134,6 +136,7 @@ export function EnquiryDialog({
     pricing: enquiry.response_pricing || "",
     availability: enquiry.response_availability || "",
     leadTime: enquiry.response_lead_time || "",
+    priceGstMode: (enquiry.response_price_gst_mode || "") as "" | "inclusive" | "exclusive",
     adminResponseText: enquiry.admin_response || "",
     lostReason: enquiry.lost_reason || "",
     lostReasonNotes: enquiry.lost_reason_notes || "",
@@ -144,7 +147,8 @@ export function EnquiryDialog({
     status !== initialSnapshot.status ||
     response.pricing !== initialSnapshot.pricing ||
     response.availability !== initialSnapshot.availability ||
-    response.leadTime !== initialSnapshot.leadTime;
+    response.leadTime !== initialSnapshot.leadTime ||
+    response.priceGstMode !== initialSnapshot.priceGstMode;
   const isDirty =
     quoteDirty ||
     threadDraft.trim() !== "" ||
