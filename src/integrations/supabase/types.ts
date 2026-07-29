@@ -5072,6 +5072,7 @@ export type Database = {
           response_availability: string | null
           response_lead_time: string | null
           response_notes: string | null
+          response_price_gst_mode: string | null
           response_pricing: string | null
           sales_person_id: string | null
           sales_person_name: string
@@ -5134,6 +5135,7 @@ export type Database = {
           response_availability?: string | null
           response_lead_time?: string | null
           response_notes?: string | null
+          response_price_gst_mode?: string | null
           response_pricing?: string | null
           sales_person_id?: string | null
           sales_person_name: string
@@ -5196,6 +5198,7 @@ export type Database = {
           response_availability?: string | null
           response_lead_time?: string | null
           response_notes?: string | null
+          response_price_gst_mode?: string | null
           response_pricing?: string | null
           sales_person_id?: string | null
           sales_person_name?: string

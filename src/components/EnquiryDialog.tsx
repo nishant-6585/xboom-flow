@@ -83,6 +83,7 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
+    priceGstMode: "" as "" | "inclusive" | "exclusive",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -107,6 +108,7 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
+        priceGstMode: (enquiry.response_price_gst_mode || "") as "" | "inclusive" | "exclusive",
       });
       setAdminResponseText(enquiry.admin_response || "");
       setLostReason(enquiry.lost_reason || "");
@@ -134,6 +136,7 @@ export function EnquiryDialog({
     pricing: enquiry.response_pricing || "",
     availability: enquiry.response_availability || "",
     leadTime: enquiry.response_lead_time || "",
+    priceGstMode: (enquiry.response_price_gst_mode || "") as "" | "inclusive" | "exclusive",
     adminResponseText: enquiry.admin_response || "",
     lostReason: enquiry.lost_reason || "",
     lostReasonNotes: enquiry.lost_reason_notes || "",
@@ -144,7 +147,8 @@ export function EnquiryDialog({
     status !== initialSnapshot.status ||
     response.pricing !== initialSnapshot.pricing ||
     response.availability !== initialSnapshot.availability ||
-    response.leadTime !== initialSnapshot.leadTime;
+    response.leadTime !== initialSnapshot.leadTime ||
+    response.priceGstMode !== initialSnapshot.priceGstMode;
   const isDirty =
     quoteDirty ||
     threadDraft.trim() !== "" ||
@@ -621,6 +625,23 @@ export function EnquiryDialog({
                           {!priceErr.ok && (
                             <p className="text-[11px] text-destructive">{priceErr.error}</p>
                           )}
+                          <Select
+                            value={response.priceGstMode || ""}
+                            onValueChange={(v) =>
+                              setResponse({
+                                ...response,
+                                priceGstMode: v as "inclusive" | "exclusive",
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="GST mode (incl./excl.)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="inclusive">Inclusive of GST</SelectItem>
+                              <SelectItem value="exclusive">Exclusive of GST</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2">
