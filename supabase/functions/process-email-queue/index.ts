@@ -145,10 +145,6 @@ async function notifyDlqBatch(
     .sort((a, b) => b[1] - a[1])
     .map(([reason, count]) => ({ reason, count }))
 
-  const summary = `${events.length} email(s) moved to DLQ. Templates: ${
-    templateBreakdown.map((t) => `${t.template} × ${t.count}`).join(', ')
-  }.`
-
   // Human-readable template names for the admin notification. Keep in sync
   // with the registry so ops see "Order confirmation email" instead of the
   // raw template slug.
