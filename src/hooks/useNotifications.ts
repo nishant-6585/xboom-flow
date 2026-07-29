@@ -36,6 +36,7 @@ export interface Notification {
   created_at: string;
   target_role: string | null;
   order_number?: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export function useNotifications() {
