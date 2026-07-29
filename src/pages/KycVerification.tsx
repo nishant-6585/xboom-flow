@@ -274,13 +274,13 @@ export default function KycVerification() {
   const [rerunning, setRerunning] = useState<string | null>(null); // document id being re-reviewed
   const [aadhaarMap, setAadhaarMap] = useState<Record<string, string>>({});
 
-  // Account-level approval is terminal (e.g. auto-approved via DigiLocker on a
-  // fresh resubmission). A stale rejected/pending kyc_documents row can linger
-  // as "current" — never let it override an approved account.
+  // A document's badge reflects the document's own status. Cross-doc
+  // supersession (approved doc hides older rejected docs of a different
+  // type) is done at write time by supersede_stale_kyc_documents, so the
+  // "current" doc surfaced here is always the authoritative one — no need
+  // to override it with the account status.
   const effStatus = (r: KycQueueRow) =>
-    r.account.kyc_status === "approved"
-      ? "approved"
-      : ((r.document?.status as any) ?? r.account.kyc_status);
+    (r.document?.status as any) ?? r.account.kyc_status;
   const rowMethod = (r: KycQueueRow): "digilocker" | "manual" | null => {
     if (!r.document) return null;
     const m = r.document.method || (r.document.metadata as any)?.method;
@@ -536,13 +536,11 @@ export default function KycVerification() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((r) => {
-                    // Prefer per-submission status so approve/reject reflects the latest doc,
-                    // BUT never downgrade an already-approved account (e.g. DigiLocker
-                    // auto-approval after an earlier manual rejection).
+                    // Document status is the source of truth. Approval-time
+                    // supersession guarantees the "current" doc for the
+                    // account is not stale.
                     const effectiveStatus =
-                      r.account.kyc_status === "approved"
-                        ? "approved"
-                        : ((r.document?.status as any) ?? r.account.kyc_status);
+                      (r.document?.status as any) ?? r.account.kyc_status;
                     const meta = kycStatusMeta(effectiveStatus);
                     const canReview = effectiveStatus === "pending_verification" && r.document;
                     const isDlMismatch =

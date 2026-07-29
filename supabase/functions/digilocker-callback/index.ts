@@ -692,6 +692,11 @@ Deno.serve(async (req) => {
     })
     .eq("id", accountId);
 
+  await admin.rpc("supersede_stale_kyc_documents", {
+    _account_id: accountId,
+    _approved_doc_id: doc.id,
+  });
+
   await admin.from("kyc_audit_log").insert({
     account_id: accountId,
     document_id: doc.id,
