@@ -223,41 +223,112 @@ async function notifyDlqBatch(
   const eventOrderId = (e: DlqEvent): string | null =>
     (e.idempotency_key || '').match(UUID_RE)?.[0] || null
 
-  // Build a friendly, per-event line: order number, customer, salesperson,
-  // template, and short reason. Falls back gracefully when the order can
-  // no longer be resolved (rare — e.g. hard-deleted order).
-  const describeEvent = (e: DlqEvent): string => {
-    const tpl = friendlyTemplate(e.template)
+  // Mask a recipient email address for admin UI: keep the first character
+  // and TLD (e.g. `n***@e***le.com`). Never surface the full customer
+  // email in generic notification descriptions — the full value stays in
+  // the metadata for the "View details" dialog which is admin-only.
+  const maskEmail = (raw: string): string => {
+    if (!raw || typeof raw !== 'string') return 'unknown'
+    const at = raw.indexOf('@')
+    if (at < 1) return raw
+    const local = raw.slice(0, at)
+    const domain = raw.slice(at + 1)
+    const dot = domain.lastIndexOf('.')
+    const host = dot > 0 ? domain.slice(0, dot) : domain
+    const tld = dot > 0 ? domain.slice(dot) : ''
+    const maskedLocal = local.length <= 1 ? `${local}` : `${local[0]}${'*'.repeat(Math.min(3, Math.max(1, local.length - 1)))}`
+    const maskedHost =
+      host.length <= 2 ? '*'.repeat(host.length) : `${host[0]}${'*'.repeat(Math.min(3, host.length - 2))}${host[host.length - 1]}`
+    return `${maskedLocal}@${maskedHost}${tld}`
+  }
+
+  const reasonInPlainEnglish = (raw: string): string => {
+    const r = (raw || '').toLowerCase()
+    if (r.includes('max retries')) return 'Delivery kept failing after 5 attempts. Provider stopped retrying.'
+    if (r.includes('ttl exceeded')) return 'The email waited too long in the queue and was cancelled.'
+    if (r.includes('missing_unsubscribe')) return 'Send blocked because the unsubscribe token was missing (400).'
+    if (r.includes('suppressed') || r.includes('unsubscribed') || r.includes('suppression'))
+      return 'Recipient is on the unsubscribe or bounce list. Emails to this address are blocked.'
+    if (r.includes('invalid_recipient') || r.includes('invalid email') || r.includes('bounce'))
+      return 'The recipient address bounced or is not a valid mailbox.'
+    if (r.includes('rate_limited') || r.includes('429')) return 'Email provider rate-limited us (429). Try again shortly.'
+    if (r.includes('403')) return 'Email provider rejected the send (403). Check sender domain / API key.'
+    return raw.split('\n')[0].slice(0, 160)
+  }
+
+  // Strip anything we do not want to persist on a notification row.
+  const scrubPayloadForStore = (raw?: Record<string, unknown>): Record<string, unknown> => {
+    if (!raw || typeof raw !== 'object') return {}
+    const {
+      to,
+      from,
+      subject,
+      html,
+      text,
+      label,
+      purpose,
+      idempotency_key,
+      message_id,
+      reply_to,
+      run_id,
+      sender_domain,
+      queued_at,
+    } = raw as Record<string, unknown>
+    return { to, from, subject, html, text, label, purpose, idempotency_key, message_id, reply_to, run_id, sender_domain, queued_at }
+  }
+
+  const enrichedEvents = events.map((e) => {
     const orderId = eventOrderId(e)
     const ord = orderId ? orderById.get(orderId) : null
+    return {
+      queue: e.queue,
+      template: e.template,
+      template_label: friendlyTemplate(e.template),
+      recipient: e.recipient,
+      recipient_masked: maskEmail(e.recipient),
+      reason_raw: e.reason,
+      reason: reasonInPlainEnglish(e.reason),
+      reason_bucket: normalizeReason(e.reason),
+      attempts: e.attempts ?? null,
+      message_id: e.message_id,
+      idempotency_key: e.idempotency_key ?? null,
+      order_id: orderId,
+      order_number: ord?.order_number ?? null,
+      customer_name: ord?.customer_name ?? null,
+      sales_person_id: ord?.sales_person_id ?? null,
+      sales_person_name: ord?.sales_person_name ?? null,
+      payload: scrubPayloadForStore(e.payload),
+    }
+  })
+
+  // Build a friendly, per-event line: order number, customer, salesperson,
+  // template, masked recipient, attempts, and a plain-English reason.
+  // Every email-related notification MUST use these same fields so wording
+  // stays consistent across the app.
+  const describeEnriched = (e: typeof enrichedEvents[number]): string => {
     const parts: string[] = []
-    if (ord?.order_number) parts.push(`Order #${ord.order_number}`)
-    if (ord?.customer_name) parts.push(`customer ${ord.customer_name}`)
-    if (ord?.sales_person_name) parts.push(`salesperson ${ord.sales_person_name}`)
+    if (e.order_number) parts.push(`Order #${e.order_number}`)
+    if (e.customer_name) parts.push(`customer ${e.customer_name}`)
+    if (e.sales_person_name) parts.push(`salesperson ${e.sales_person_name}`)
     const who = parts.length > 0 ? ` — ${parts.join(', ')}` : ''
-    const reasonShort = e.reason.split('\n')[0].slice(0, 140)
-    return `${tpl}${who}. Reason: ${reasonShort}. Recipient: ${e.recipient}.`
+    const attempts = typeof e.attempts === 'number' && e.attempts > 0
+      ? ` Attempts: ${e.attempts}.`
+      : ''
+    return `${e.template_label}${who}. Recipient: ${e.recipient_masked}.${attempts} Reason: ${e.reason}`
   }
 
   // Compose the admin notification message. For a single failure, spell
   // out the order/customer/salesperson inline so ops know exactly which
   // email to resend. For multiple failures, list up to 3 and note the
   // remainder so the row stays scannable.
-  const eventLines = events.map(describeEvent)
+  const eventLines = enrichedEvents.map(describeEnriched)
   const friendlyMessage = eventLines.length === 1
-    ? `Delivery failed — ${eventLines[0]} Open the order to resend from the customer email button.`
+    ? `Delivery failed — ${eventLines[0]}`
     : `${events.length} customer emails failed to deliver:\n• ${
         eventLines.slice(0, 3).join('\n• ')
       }${eventLines.length > 3 ? `\n• …and ${eventLines.length - 3} more` : ''}`
   const friendlyTitle = events.length === 1
-    ? `Customer email not delivered${
-        (() => {
-          const ord = eventOrderId(events[0])
-            ? orderById.get(eventOrderId(events[0])!)
-            : null
-          return ord?.order_number ? ` — Order #${ord.order_number}` : ''
-        })()
-      }`
+    ? `Customer email not delivered${enrichedEvents[0].order_number ? ` — Order #${enrichedEvents[0].order_number}` : ''}`
     : `${events.length} customer emails not delivered`
 
   // 1. Admin notification row (existing feed).
@@ -265,13 +336,17 @@ async function notifyDlqBatch(
     type: 'email_dlq_alert',
     title: friendlyTitle,
     message: friendlyMessage,
-    // Best-effort deep link: only single-event failures unambiguously map
-    // to one order.
     order_id:
-      events.length === 1 && eventOrderId(events[0])
-        ? eventOrderId(events[0])
-        : null,
+      enrichedEvents.length === 1 ? enrichedEvents[0].order_id : null,
     target_role: 'admin',
+    metadata: {
+      kind: 'email_dlq_alert',
+      run_at: new Date().toISOString(),
+      total: events.length,
+      template_breakdown: templateBreakdown,
+      reason_breakdown: reasonBreakdown,
+      events: enrichedEvents,
+    },
   })
   if (notifError) {
     console.error('Failed to insert DLQ admin notification', { error: notifError })
