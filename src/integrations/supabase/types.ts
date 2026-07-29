@@ -8104,6 +8104,8 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["kyc_status"]
+          superseded_at: string | null
+          superseded_by: string | null
           updated_at: string
           uploaded_at: string
           uploaded_by: string | null
@@ -8126,6 +8128,8 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["kyc_status"]
+          superseded_at?: string | null
+          superseded_by?: string | null
           updated_at?: string
           uploaded_at?: string
           uploaded_by?: string | null
@@ -8148,6 +8152,8 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["kyc_status"]
+          superseded_at?: string | null
+          superseded_by?: string | null
           updated_at?: string
           uploaded_at?: string
           uploaded_by?: string | null
@@ -8159,6 +8165,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_documents_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "kyc_documents"
             referencedColumns: ["id"]
           },
         ]
@@ -19188,6 +19201,10 @@ export type Database = {
       submit_delivery_proof: {
         Args: { p_order_id: string; p_url: string }
         Returns: undefined
+      }
+      supersede_stale_kyc_documents: {
+        Args: { _account_id: string; _approved_doc_id: string }
+        Returns: number
       }
       sync_profiles_to_employees: { Args: never; Returns: number }
       touch_portal_last_login: { Args: never; Returns: undefined }
