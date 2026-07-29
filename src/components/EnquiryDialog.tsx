@@ -625,6 +625,23 @@ export function EnquiryDialog({
                           {!priceErr.ok && (
                             <p className="text-[11px] text-destructive">{priceErr.error}</p>
                           )}
+                          <Select
+                            value={response.priceGstMode || ""}
+                            onValueChange={(v) =>
+                              setResponse({
+                                ...response,
+                                priceGstMode: v as "inclusive" | "exclusive",
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="GST mode (incl./excl.)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="inclusive">Inclusive of GST</SelectItem>
+                              <SelectItem value="exclusive">Exclusive of GST</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2">
