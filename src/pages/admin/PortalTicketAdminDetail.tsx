@@ -120,16 +120,26 @@ function useAdminTicket(ticketId: string | undefined) {
 
 export default function PortalTicketAdminDetail() {
   const { ticketId } = useParams<{ ticketId: string }>();
+  const isValidTicketId = !!ticketId && UUID_RE.test(ticketId);
   const { user, roles } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [replyBody, setReplyBody] = useState("");
   const [internalNote, setInternalNote] = useState(false);
   const canAccess = useMemo(() => (roles ?? []).some((role) => STAFF_ROLES.has(role)), [roles]);
-  const { data, isLoading, refetch } = useAdminTicket(canAccess ? ticketId : undefined);
+  const { data, isLoading, refetch, isError, error } = useAdminTicket(
+    canAccess && isValidTicketId ? ticketId : undefined,
+  );
+  const { markTicketNotificationsAsRead } = useNotifications();
+
+  // Auto-clear notifications for this ticket when the page is opened.
+  useEffect(() => {
+    if (!canAccess || !isValidTicketId || !ticketId) return;
+    markTicketNotificationsAsRead(ticketId);
+  }, [canAccess, isValidTicketId, ticketId, markTicketNotificationsAsRead]);
 
   useEffect(() => {
-    if (!ticketId || !canAccess) return;
+    if (!ticketId || !canAccess || !isValidTicketId) return;
     const channel = supabase
       .channel(`admin-portal-ticket-${ticketId}`)
       .on(
@@ -147,7 +157,7 @@ export default function PortalTicketAdminDetail() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [canAccess, ticketId, refetch]);
+  }, [canAccess, isValidTicketId, ticketId, refetch]);
 
   const updateStatus = useMutation({
     mutationFn: async (status: TicketStatus) => {
@@ -168,6 +178,44 @@ export default function PortalTicketAdminDetail() {
     },
     onError: (error: Error) => {
       toast({ title: "Couldn't update ticket", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updatePriority = useMutation({
+    mutationFn: async (priority: TicketPriority) => {
+      if (!ticketId) throw new Error("Missing ticket id");
+      const { error } = await supabase
+        .from("portal_tickets")
+        .update({ priority } as never)
+        .eq("id", ticketId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "portal-ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "portal-tickets"] });
+      toast({ title: "Priority updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Couldn't update priority", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const assignToMe = useMutation({
+    mutationFn: async () => {
+      if (!ticketId || !user?.id) throw new Error("Missing ticket or user");
+      const { error } = await supabase
+        .from("portal_tickets")
+        .update({ assigned_to: user.id } as never)
+        .eq("id", ticketId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "portal-ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "portal-tickets"] });
+      toast({ title: "Assigned to you" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Couldn't assign ticket", description: err.message, variant: "destructive" });
     },
   });
 
