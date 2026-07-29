@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox, ShieldAlert, Award, LifeBuoy } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck, FileWarning, ArrowRight, Inbox, ShieldAlert, Award, LifeBuoy, RefreshCw, Loader2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TicketStatusBadge } from '@/portal/components/TicketStatusBadge';
 import type { TicketStatus } from '@/portal/hooks/usePortalTickets';
+import { EmailDlqDetailsDialog, type EmailDlqEvent } from '@/components/notifications/EmailDlqDetailsDialog';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID_RE.test(v);
@@ -47,6 +48,17 @@ function NotificationItem({
   const isProformaStale = notification.type === 'proforma_stale';
   const isOrderConfirmed = notification.type === 'order_confirmed_by_customer';
   const isEmailDlqAlert = notification.type === 'email_dlq_alert';
+  const dlqEvents = (isEmailDlqAlert
+    ? ((notification.metadata as { events?: EmailDlqEvent[] } | null | undefined)?.events ?? [])
+    : []) as EmailDlqEvent[];
+  const singleDlqEvent = dlqEvents.length === 1 ? dlqEvents[0] : null;
+  const canResendSingle = Boolean(
+    singleDlqEvent &&
+      ((singleDlqEvent.payload as Record<string, unknown> | undefined)?.html ||
+        (singleDlqEvent.payload as Record<string, unknown> | undefined)?.text)
+  );
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [resending, setResending] = useState(false);
   const isAttributionRequest = notification.type === 'attribution_request';
   const isAttributionDecision = notification.type === 'attribution_decision';
   // The decision type doesn't carry the outcome — the RPC titles the row
@@ -69,6 +81,29 @@ function NotificationItem({
     }
     if (!notification.is_read) onMarkAsRead(notification.id);
     navigate(`/admin/portal-tickets/${id}`);
+  };
+
+  const resendSingle = async () => {
+    setResending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-dlq-email', {
+        body: { notification_id: notification.id, event_index: 0 },
+      });
+      if (error) throw error;
+      if ((data as { ok?: boolean })?.ok) {
+        toast.success('Email re-queued for delivery');
+        if (!notification.is_read) onMarkAsRead(notification.id);
+      } else {
+        toast.error('Resend failed', {
+          description: (data as { error?: string })?.error ?? 'Unknown error',
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('Resend failed', { description: msg });
+    } finally {
+      setResending(false);
+    }
   };
 
   const getIcon = () => {
@@ -185,19 +220,57 @@ function NotificationItem({
             </div>
           )}
           {isEmailDlqAlert && (
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="default"
                 className="h-7 text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                onClick={() => {
-                  if (!notification.is_read) onMarkAsRead(notification.id);
-                  navigate('/admin/kyc-emails');
-                }}
+                onClick={() => setDetailsOpen(true)}
               >
+                <Eye className="w-3 h-3 mr-1" />
                 View details
-                <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
+              {singleDlqEvent && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={!canResendSingle || resending}
+                  onClick={resendSingle}
+                  title={
+                    canResendSingle
+                      ? 'Push the exact same email back onto the queue'
+                      : 'Original body no longer available — resend from the order'
+                  }
+                >
+                  {resending ? (
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                  )}
+                  Resend email
+                </Button>
+              )}
+              {singleDlqEvent?.order_id && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    if (!notification.is_read) onMarkAsRead(notification.id);
+                    navigate(`/orders?order_id=${singleDlqEvent.order_id}`);
+                  }}
+                >
+                  Open order
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              )}
+              <EmailDlqDetailsDialog
+                open={detailsOpen}
+                onOpenChange={setDetailsOpen}
+                notificationId={notification.id}
+                metadata={notification.metadata ?? null}
+              />
             </div>
           )}
           {isAttributionRequest && (
