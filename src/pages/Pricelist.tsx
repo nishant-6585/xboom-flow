@@ -99,6 +99,7 @@ export default function Pricelist() {
   const [lastSync, setLastSync] = useState<{ added: number; updated: number; removed: number; skipped?: number; failed?: number; at: string } | null>(null);
   const [syncSource, setSyncSource] = useState<string | null>(null);
   const [webhookInfo, setWebhookInfo] = useState<{ last_at: string | null; count_24h: number; count_7d: number } | null>(null);
+  const [syncStatus, setSyncStatus] = useState<PricelistSyncStatus | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -107,6 +108,7 @@ export default function Pricelist() {
       const { data, error } = await supabase.rpc("get_pricelist_sync_status" as any);
       const status = data as any;
       if (!error && status) {
+        setSyncStatus(status as PricelistSyncStatus);
         if (status.backfill) {
           setLastSync({
             added: status.backfill.added ?? 0,
