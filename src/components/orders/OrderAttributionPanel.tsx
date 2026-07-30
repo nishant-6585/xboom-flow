@@ -778,21 +778,26 @@ function RequestDialog({
   const { user } = useAuth(); // requests credit the requester themselves
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
+  const [leadSource, setLeadSource] = useState('');
   const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
 
   // Evidence is mandatory — approvers won't credit a deal without proof, and
   // the RPC rejects an empty evidence array server-side.
   const canSubmit =
     reason &&
+    leadSource &&
     (reason !== 'other' || customReason.trim().length > 0) &&
     evidence.length > 0;
 
   const submit = async () => {
     try {
+      const sourceNote = `Lead source: ${leadSource}`;
       await requestAttribution.mutateAsync({
         orderId,
         reason,
-        reasonCustom: reason === 'other' ? customReason.trim() : null,
+        reasonCustom: reason === 'other'
+          ? `${sourceNote} — ${customReason.trim()}`
+          : sourceNote,
         evidence,
       });
       toast({
@@ -800,7 +805,7 @@ function RequestDialog({
         description: 'Your request was sent to admins/sales managers.',
       });
       onOpenChange(false);
-      setReason(''); setCustomReason(''); setEvidence([]);
+      setReason(''); setCustomReason(''); setLeadSource(''); setEvidence([]);
     } catch (e) {
       toast({
         title: 'Failed to send request',
@@ -824,6 +829,7 @@ function RequestDialog({
           <ReasonFields
             reason={reason} setReason={setReason}
             customReason={customReason} setCustomReason={setCustomReason}
+            leadSource={leadSource} setLeadSource={setLeadSource}
           />
           <AttributionEvidencePicker
             orderId={orderId}
