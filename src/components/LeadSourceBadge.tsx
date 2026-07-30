@@ -43,6 +43,10 @@ const UNKNOWN: SourceMeta = {
   className: "bg-muted text-muted-foreground border-border",
 };
 
+/** Canonical lead-source options for dropdowns (same list used by lead badges). */
+export const LEAD_SOURCE_OPTIONS: { value: string; label: string }[] =
+  Object.entries(SOURCE_CONFIG).map(([value, meta]) => ({ value, label: meta.label }));
+
 /** Normalize free-text source values to a canonical key. */
 export function normalizeSource(raw?: string | null): string | null {
   if (!raw) return null;
