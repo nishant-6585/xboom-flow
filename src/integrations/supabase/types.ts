@@ -18498,6 +18498,7 @@ export type Database = {
           whatsapp_number: string
         }[]
       }
+      get_pricelist_sync_status: { Args: never; Returns: Json }
       get_sales_leaderboard:
         | {
             Args: { end_date?: string; start_date?: string }

@@ -97,15 +97,36 @@ export default function Pricelist() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<{ added: number; updated: number; removed: number; skipped?: number; failed?: number; at: string } | null>(null);
+  const [syncSource, setSyncSource] = useState<string | null>(null);
+  const [webhookInfo, setWebhookInfo] = useState<{ last_at: string | null; count_24h: number; count_7d: number } | null>(null);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
+      // Covers all sync paths: manual button, scheduled cron reconcile and
+      // live WooCommerce product webhooks.
+      const { data, error } = await supabase.rpc("get_pricelist_sync_status" as any);
+      const status = data as any;
+      if (!error && status) {
+        if (status.backfill) {
+          setLastSync({
+            added: status.backfill.added ?? 0,
+            updated: status.backfill.updated ?? 0,
+            removed: status.backfill.removed ?? 0,
+            skipped: status.backfill.skipped ?? 0,
+            failed: status.backfill.failed ?? 0,
+            at: status.backfill.at,
+          });
+          setSyncSource(status.backfill.source ?? null);
+        }
+        if (status.webhook) setWebhookInfo(status.webhook);
+        return;
+      }
+      const { data: settings } = await supabase
         .from("app_settings")
         .select("value")
         .eq("key", "pricelist_last_sync")
         .maybeSingle();
-      if (data?.value) setLastSync(data.value as any);
+      if (settings?.value) setLastSync(settings.value as any);
     })();
   }, [syncing]);
   const [sortBy, setSortBy] = useState<string | null>(null);
@@ -487,6 +508,11 @@ export default function Pricelist() {
                   <p className="text-xs text-muted-foreground">
                     <RefreshCw className="inline w-3 h-3 mr-1 align-[-2px]" />
                     Last synced from website: <span className="font-medium text-foreground">{stampedAt.toLocaleString()}</span>
+                    {syncSource && (
+                      <span className="ml-2 rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                        {syncSource === "cron" ? "Scheduled sync" : "Manual sync"}
+                      </span>
+                    )}
                   </p>
                   {lastSync && (
                     <p className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
@@ -499,6 +525,18 @@ export default function Pricelist() {
                       {typeof lastSync.failed === "number" && lastSync.failed > 0 && (
                         <span className="text-destructive"><span className="font-semibold">{lastSync.failed}</span> failed</span>
                       )}
+                    </p>
+                  )}
+                  {webhookInfo && (webhookInfo.last_at || webhookInfo.count_7d > 0) && (
+                    <p className="text-xs text-muted-foreground">
+                      Live website updates (webhook):{" "}
+                      <span className="font-medium text-foreground">
+                        {webhookInfo.last_at ? new Date(webhookInfo.last_at).toLocaleString() : "none yet"}
+                      </span>
+                      {" · "}
+                      <span className="font-semibold text-blue-600">{webhookInfo.count_24h}</span> in last 24h
+                      {" · "}
+                      <span className="font-semibold">{webhookInfo.count_7d}</span> in last 7 days
                     </p>
                   )}
                 </div>
