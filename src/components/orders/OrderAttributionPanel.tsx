@@ -24,6 +24,7 @@ import {
 } from '@/hooks/useAttributionRequests';
 import { toast } from '@/hooks/use-toast';
 import { AttributionEvidencePicker } from './AttributionEvidencePicker';
+import { LEAD_SOURCE_OPTIONS } from '@/components/LeadSourceBadge';
 import { AttributionEvidenceList } from './AttributionEvidenceList';
 import type { AttributionEvidence } from './attributionEvidence';
 
@@ -562,14 +563,29 @@ function ReasonFields({
   setReason,
   customReason,
   setCustomReason,
+  leadSource,
+  setLeadSource,
 }: {
   reason: string;
   setReason: (v: string) => void;
   customReason: string;
   setCustomReason: (v: string) => void;
+  leadSource: string;
+  setLeadSource: (v: string) => void;
 }) {
   return (
     <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Lead source</Label>
+        <Select value={leadSource} onValueChange={setLeadSource}>
+          <SelectTrigger><SelectValue placeholder="Select the lead source" /></SelectTrigger>
+          <SelectContent className="max-h-64">
+            {LEAD_SOURCE_OPTIONS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="space-y-1.5">
         <Label>Reason</Label>
         <Select value={reason} onValueChange={setReason}>
@@ -609,6 +625,7 @@ function AssignDialog({
   const [salesPersonId, setSalesPersonId] = useState<string>('');
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
+  const [leadSource, setLeadSource] = useState('');
   const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
   const [query, setQuery] = useState('');
 
@@ -617,21 +634,25 @@ function AssignDialog({
   const canSubmit =
     salesPersonId &&
     reason &&
+    leadSource &&
     (reason !== 'other' || customReason.trim().length > 0) &&
     evidence.length > 0;
 
   const submit = async () => {
     try {
+      const sourceNote = `Lead source: ${leadSource}`;
       await attribute.mutateAsync({
         orderId,
         salesPersonId,
         reason,
-        reasonCustom: reason === 'other' ? customReason.trim() : null,
+        reasonCustom: reason === 'other'
+          ? `${sourceNote} — ${customReason.trim()}`
+          : sourceNote,
         evidence,
       });
       toast({ title: 'Order attributed', description: 'Credit assigned to salesperson.' });
       onOpenChange(false);
-      setSalesPersonId(''); setReason(''); setCustomReason(''); setEvidence([]);
+      setSalesPersonId(''); setReason(''); setCustomReason(''); setLeadSource(''); setEvidence([]);
     } catch (e) {
       toast({
         title: 'Failed to assign',
@@ -725,6 +746,7 @@ function AssignDialog({
           <ReasonFields
             reason={reason} setReason={setReason}
             customReason={customReason} setCustomReason={setCustomReason}
+            leadSource={leadSource} setLeadSource={setLeadSource}
           />
           <AttributionEvidencePicker
             orderId={orderId}
@@ -756,21 +778,26 @@ function RequestDialog({
   const { user } = useAuth(); // requests credit the requester themselves
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
+  const [leadSource, setLeadSource] = useState('');
   const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
 
   // Evidence is mandatory — approvers won't credit a deal without proof, and
   // the RPC rejects an empty evidence array server-side.
   const canSubmit =
     reason &&
+    leadSource &&
     (reason !== 'other' || customReason.trim().length > 0) &&
     evidence.length > 0;
 
   const submit = async () => {
     try {
+      const sourceNote = `Lead source: ${leadSource}`;
       await requestAttribution.mutateAsync({
         orderId,
         reason,
-        reasonCustom: reason === 'other' ? customReason.trim() : null,
+        reasonCustom: reason === 'other'
+          ? `${sourceNote} — ${customReason.trim()}`
+          : sourceNote,
         evidence,
       });
       toast({
@@ -778,7 +805,7 @@ function RequestDialog({
         description: 'Your request was sent to admins/sales managers.',
       });
       onOpenChange(false);
-      setReason(''); setCustomReason(''); setEvidence([]);
+      setReason(''); setCustomReason(''); setLeadSource(''); setEvidence([]);
     } catch (e) {
       toast({
         title: 'Failed to send request',
@@ -802,6 +829,7 @@ function RequestDialog({
           <ReasonFields
             reason={reason} setReason={setReason}
             customReason={customReason} setCustomReason={setCustomReason}
+            leadSource={leadSource} setLeadSource={setLeadSource}
           />
           <AttributionEvidencePicker
             orderId={orderId}
