@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
 
     // Auth: cron secret OR admin/supply_chain JWT
     let authorized = await isAuthorizedCron(req);
+    let triggerSource: "cron" | "manual" = authorized ? "cron" : "manual";
     if (!authorized) {
       const authHeader = req.headers.get("authorization");
       if (authHeader?.startsWith("Bearer ")) {
@@ -223,11 +224,11 @@ Deno.serve(async (req) => {
       event_type: "product_backfill",
       direction: "in",
       status: "success",
-      payload: { created, updated, linked, skipped, failed, removed },
+      payload: { created, updated, linked, skipped, failed, removed, trigger_source: triggerSource },
     });
 
     return new Response(
-      JSON.stringify({ success: true, created, updated, linked, skipped, failed, removed }),
+      JSON.stringify({ success: true, created, updated, linked, skipped, failed, removed, trigger_source: triggerSource }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
