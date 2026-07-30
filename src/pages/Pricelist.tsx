@@ -97,15 +97,36 @@ export default function Pricelist() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<{ added: number; updated: number; removed: number; skipped?: number; failed?: number; at: string } | null>(null);
+  const [syncSource, setSyncSource] = useState<string | null>(null);
+  const [webhookInfo, setWebhookInfo] = useState<{ last_at: string | null; count_24h: number; count_7d: number } | null>(null);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
+      // Covers all sync paths: manual button, scheduled cron reconcile and
+      // live WooCommerce product webhooks.
+      const { data, error } = await supabase.rpc("get_pricelist_sync_status" as any);
+      const status = data as any;
+      if (!error && status) {
+        if (status.backfill) {
+          setLastSync({
+            added: status.backfill.added ?? 0,
+            updated: status.backfill.updated ?? 0,
+            removed: status.backfill.removed ?? 0,
+            skipped: status.backfill.skipped ?? 0,
+            failed: status.backfill.failed ?? 0,
+            at: status.backfill.at,
+          });
+          setSyncSource(status.backfill.source ?? null);
+        }
+        if (status.webhook) setWebhookInfo(status.webhook);
+        return;
+      }
+      const { data: settings } = await supabase
         .from("app_settings")
         .select("value")
         .eq("key", "pricelist_last_sync")
         .maybeSingle();
-      if (data?.value) setLastSync(data.value as any);
+      if (settings?.value) setLastSync(settings.value as any);
     })();
   }, [syncing]);
   const [sortBy, setSortBy] = useState<string | null>(null);
