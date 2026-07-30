@@ -625,6 +625,7 @@ function AssignDialog({
   const [salesPersonId, setSalesPersonId] = useState<string>('');
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
+  const [leadSource, setLeadSource] = useState('');
   const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
   const [query, setQuery] = useState('');
 
@@ -633,21 +634,25 @@ function AssignDialog({
   const canSubmit =
     salesPersonId &&
     reason &&
+    leadSource &&
     (reason !== 'other' || customReason.trim().length > 0) &&
     evidence.length > 0;
 
   const submit = async () => {
     try {
+      const sourceNote = `Lead source: ${leadSource}`;
       await attribute.mutateAsync({
         orderId,
         salesPersonId,
         reason,
-        reasonCustom: reason === 'other' ? customReason.trim() : null,
+        reasonCustom: reason === 'other'
+          ? `${sourceNote} — ${customReason.trim()}`
+          : sourceNote,
         evidence,
       });
       toast({ title: 'Order attributed', description: 'Credit assigned to salesperson.' });
       onOpenChange(false);
-      setSalesPersonId(''); setReason(''); setCustomReason(''); setEvidence([]);
+      setSalesPersonId(''); setReason(''); setCustomReason(''); setLeadSource(''); setEvidence([]);
     } catch (e) {
       toast({
         title: 'Failed to assign',
@@ -741,6 +746,7 @@ function AssignDialog({
           <ReasonFields
             reason={reason} setReason={setReason}
             customReason={customReason} setCustomReason={setCustomReason}
+            leadSource={leadSource} setLeadSource={setLeadSource}
           />
           <AttributionEvidencePicker
             orderId={orderId}
