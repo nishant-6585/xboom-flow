@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
 import { useCanAttributeWebsiteOrder } from '@/hooks/useCanAttributeWebsiteOrder';
+import { ORIGIN_LABEL, originOf } from '@/lib/attributionHistory';
 import {
   useInternalOrderForAttribution,
   useMyAttributionRequest,
@@ -503,6 +504,9 @@ function AttributionLogListInner({ orderId }: { orderId: string }) {
                     }
                   >
                     {entry.source === 'approved_request' ? 'approved request' : 'direct'}
+                  </Badge>
+                  <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground">
+                    {ORIGIN_LABEL[originOf(entry)]}
                   </Badge>
                   <span className="truncate max-w-[260px]">· {reasonLabel(entry.reason)}</span>
                   {entry.reason_custom && !isOpen && (
