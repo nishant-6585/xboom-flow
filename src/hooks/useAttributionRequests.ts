@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { SYSTEM_USER_ID } from '@/lib/orderSource';
+import { dedupeAttributionHistory, type AttributionHistoryEntry } from '@/lib/attributionHistory';
 
 export interface AttributionRequest {
   id: string;
@@ -60,14 +61,16 @@ export function useAttributionLog(orderId: string | null | undefined) {
   return useQuery({
     queryKey: ['attribution-log', orderId],
     enabled: !!orderId,
-    queryFn: async (): Promise<AttributionLogEntry[]> => {
+    queryFn: async (): Promise<AttributionHistoryEntry[]> => {
       const { data, error } = await supabase
         .from('sales_attribution_log')
         .select('*')
         .eq('order_id', orderId!)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data ?? []) as AttributionLogEntry[];
+      // Single source of truth for the UI: one row per event, no duplicates
+      // from the RPC + guard-trigger double write paths.
+      return dedupeAttributionHistory((data ?? []) as AttributionLogEntry[]);
     },
   });
 }
