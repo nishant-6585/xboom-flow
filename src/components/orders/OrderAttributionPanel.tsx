@@ -229,7 +229,6 @@ export function OrderAttributionPanel({
       )}
 
       <AttributionLogList orderId={order.id} />
-      <AttributionRequestAuditLog orderId={order.id} />
     </div>
   );
 }
