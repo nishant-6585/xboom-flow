@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { PricelistSyncPanel, type PricelistSyncStatus } from "@/components/pricelist/PricelistSyncPanel";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { usePricelist, PricelistFormData } from "@/hooks/usePricelist";
@@ -99,6 +100,7 @@ export default function Pricelist() {
   const [lastSync, setLastSync] = useState<{ added: number; updated: number; removed: number; skipped?: number; failed?: number; at: string } | null>(null);
   const [syncSource, setSyncSource] = useState<string | null>(null);
   const [webhookInfo, setWebhookInfo] = useState<{ last_at: string | null; count_24h: number; count_7d: number } | null>(null);
+  const [syncStatus, setSyncStatus] = useState<PricelistSyncStatus | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -107,6 +109,7 @@ export default function Pricelist() {
       const { data, error } = await supabase.rpc("get_pricelist_sync_status" as any);
       const status = data as any;
       if (!error && status) {
+        setSyncStatus(status as PricelistSyncStatus);
         if (status.backfill) {
           setLastSync({
             added: status.backfill.added ?? 0,
@@ -539,6 +542,28 @@ export default function Pricelist() {
                       <span className="font-semibold">{webhookInfo.count_7d}</span> in last 7 days
                     </p>
                   )}
+                  {(() => {
+                    const fails = [
+                      { label: 'Manual sync', run: syncStatus?.manual },
+                      { label: 'Scheduled sync', run: syncStatus?.cron },
+                    ].filter((f) => f.run && (f.run.error || f.run.failed));
+                    const wh = syncStatus?.webhook;
+                    if (fails.length === 0 && !wh?.last_failure_at && !wh?.failed_24h) return null;
+                    return (
+                      <div className="text-xs text-destructive space-y-0.5">
+                        {fails.map((f) => (
+                          <p key={f.label}>
+                            {f.label} issue: {f.run?.error || `${f.run?.failed} record(s) failed`}
+                          </p>
+                        ))}
+                        {(wh?.last_failure_at || wh?.failed_24h) && (
+                          <p>
+                            Webhook sync issue: {wh?.last_failure_error || `${wh?.failed_24h ?? 0} event(s) failed in last 24h`}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
@@ -565,6 +590,13 @@ export default function Pricelist() {
               )}
             </div>
           )}
+        </div>
+
+        <div className="mb-4">
+          <PricelistSyncPanel
+            status={syncStatus}
+            jobLogsUrl="https://lovable.dev/projects/873edcab-6e1e-46b0-9171-0a25ebe4e73c?view=more&subview=cloud&section=jobs"
+          />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
