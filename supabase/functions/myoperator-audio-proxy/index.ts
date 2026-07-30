@@ -34,6 +34,19 @@ Deno.serve(async (req) => {
     }
 
     // Get recording URL from query params
+    // Restrict to roles that legitimately need call recordings
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    const allowedRoles = new Set(['admin', 'sales', 'sales_manager', 'hr']);
+    if (!roles?.some((r: { role: string }) => allowedRoles.has(r.role))) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const reqUrl = new URL(req.url);
     const recordingUrl = reqUrl.searchParams.get('url');
     if (!recordingUrl) {
