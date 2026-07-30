@@ -24,6 +24,7 @@ import {
 } from '@/hooks/useAttributionRequests';
 import { toast } from '@/hooks/use-toast';
 import { AttributionEvidencePicker } from './AttributionEvidencePicker';
+import { LEAD_SOURCE_OPTIONS } from '@/components/LeadSourceBadge';
 import { AttributionEvidenceList } from './AttributionEvidenceList';
 import type { AttributionEvidence } from './attributionEvidence';
 
@@ -562,14 +563,29 @@ function ReasonFields({
   setReason,
   customReason,
   setCustomReason,
+  leadSource,
+  setLeadSource,
 }: {
   reason: string;
   setReason: (v: string) => void;
   customReason: string;
   setCustomReason: (v: string) => void;
+  leadSource: string;
+  setLeadSource: (v: string) => void;
 }) {
   return (
     <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Lead source</Label>
+        <Select value={leadSource} onValueChange={setLeadSource}>
+          <SelectTrigger><SelectValue placeholder="Select the lead source" /></SelectTrigger>
+          <SelectContent className="max-h-64">
+            {LEAD_SOURCE_OPTIONS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="space-y-1.5">
         <Label>Reason</Label>
         <Select value={reason} onValueChange={setReason}>
