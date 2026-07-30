@@ -542,6 +542,28 @@ export default function Pricelist() {
                       <span className="font-semibold">{webhookInfo.count_7d}</span> in last 7 days
                     </p>
                   )}
+                  {(() => {
+                    const fails = [
+                      { label: 'Manual sync', run: syncStatus?.manual },
+                      { label: 'Scheduled sync', run: syncStatus?.cron },
+                    ].filter((f) => f.run && (f.run.error || f.run.failed));
+                    const wh = syncStatus?.webhook;
+                    if (fails.length === 0 && !wh?.last_failure_at && !wh?.failed_24h) return null;
+                    return (
+                      <div className="text-xs text-destructive space-y-0.5">
+                        {fails.map((f) => (
+                          <p key={f.label}>
+                            {f.label} issue: {f.run?.error || `${f.run?.failed} record(s) failed`}
+                          </p>
+                        ))}
+                        {(wh?.last_failure_at || wh?.failed_24h) && (
+                          <p>
+                            Webhook sync issue: {wh?.last_failure_error || `${wh?.failed_24h ?? 0} event(s) failed in last 24h`}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
@@ -568,6 +590,13 @@ export default function Pricelist() {
               )}
             </div>
           )}
+        </div>
+
+        <div className="mb-4">
+          <PricelistSyncPanel
+            status={syncStatus}
+            jobLogsUrl="https://lovable.dev/projects/873edcab-6e1e-46b0-9171-0a25ebe4e73c?view=more&subview=cloud&section=jobs"
+          />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
