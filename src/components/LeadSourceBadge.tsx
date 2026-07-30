@@ -45,7 +45,10 @@ const UNKNOWN: SourceMeta = {
 
 /** Canonical lead-source options for dropdowns (same list used by lead badges). */
 export const LEAD_SOURCE_OPTIONS: { value: string; label: string }[] =
-  Object.entries(SOURCE_CONFIG).map(([value, meta]) => ({ value, label: meta.label }));
+  Object.entries(SOURCE_CONFIG).map(([value, meta]) => ({
+    value,
+    label: value === "myoperator" ? "MyOperator" : meta.label,
+  }));
 
 /** Normalize free-text source values to a canonical key. */
 export function normalizeSource(raw?: string | null): string | null {
