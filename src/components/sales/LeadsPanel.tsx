@@ -55,6 +55,7 @@ import { XboomWebsiteLeadsPanel } from './XboomWebsiteLeadsPanel';
 import { Globe } from 'lucide-react';
 import { Bot } from 'lucide-react';
 import { TouchedDashboard } from './TouchedDashboard';
+import { MetaLeadsUpload } from './MetaLeadsUpload';
 import { UnifiedLeadInbox } from './UnifiedLeadInbox';
 import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
 import { Inbox } from 'lucide-react';
