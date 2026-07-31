@@ -493,10 +493,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           <Facebook className="h-3.5 w-3.5" />
           Facebook Leads
         </TabsTrigger>
-        <TabsTrigger value="meta-leads" className="gap-1.5">
-          <Facebook className="h-3.5 w-3.5" />
-          Meta Leads
-        </TabsTrigger>
+        {role === 'admin' && (
+          <TabsTrigger value="meta-leads" className="gap-1.5">
+            <Facebook className="h-3.5 w-3.5" />
+            Meta Leads
+          </TabsTrigger>
+        )}
       </TabsList>
 
       <TabsContent value="all-inbox" className="space-y-6">
@@ -1354,12 +1356,14 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         </div>
       </TabsContent>
 
-      <TabsContent value="meta-leads">
-        <div className="space-y-6">
-          <MetaLeadsUpload />
-          <UnifiedLeadInbox sources={["facebook"]} />
-        </div>
-      </TabsContent>
+      {role === 'admin' && (
+        <TabsContent value="meta-leads">
+          <div className="space-y-6">
+            <MetaLeadsUpload />
+            <UnifiedLeadInbox sources={["facebook"]} />
+          </div>
+        </TabsContent>
+      )}
     </Tabs>
   );
 }
