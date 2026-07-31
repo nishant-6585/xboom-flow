@@ -55,6 +55,7 @@ import { XboomWebsiteLeadsPanel } from './XboomWebsiteLeadsPanel';
 import { Globe } from 'lucide-react';
 import { Bot } from 'lucide-react';
 import { TouchedDashboard } from './TouchedDashboard';
+import { MetaLeadsUpload } from './MetaLeadsUpload';
 import { UnifiedLeadInbox } from './UnifiedLeadInbox';
 import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
 import { Inbox } from 'lucide-react';
@@ -491,6 +492,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="facebook-leads" className="gap-1.5">
           <Facebook className="h-3.5 w-3.5" />
           Facebook Leads
+        </TabsTrigger>
+        <TabsTrigger value="meta-leads" className="gap-1.5">
+          <Facebook className="h-3.5 w-3.5" />
+          Meta Leads
         </TabsTrigger>
       </TabsList>
 
@@ -1346,6 +1351,13 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <div className="space-y-6">
         <TouchedDashboard source="facebook-leads" />
         <UnifiedLeadInbox sources={["facebook"]} />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="meta-leads">
+        <div className="space-y-6">
+          <MetaLeadsUpload />
+          <UnifiedLeadInbox sources={["facebook"]} />
         </div>
       </TabsContent>
     </Tabs>
