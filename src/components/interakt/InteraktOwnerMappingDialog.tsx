@@ -147,9 +147,8 @@ function OwnerRowCard({
   onSalespersonChange: (userId: string) => void;
 }) {
   const [draft, setDraft] = useState(owner.owner_label ?? '');
-
-  const displayName = owner.owner_label || owner.owner_label || `Owner ${owner.owner_id.slice(0, 8)}`;
   const isDirty = draft !== (owner.owner_label ?? '');
+
 
   return (
     <div className="rounded-lg border p-3 space-y-2">
