@@ -29,7 +29,7 @@ interface OwnerRow {
 export function InteraktOwnerMappingDialog() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { data: salesUsers = [] } = useSalesUsers();
+  const { salesUsers } = useSalesUsers();
 
   const { data: owners = [], isLoading } = useQuery({
     queryKey: ['interakt-owner-mappings'],
