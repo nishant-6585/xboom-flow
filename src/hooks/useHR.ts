@@ -902,7 +902,7 @@ export function useHR() {
         const targetMonth = month || new Date();
         const { data, error } = await supabase.rpc('get_employee_kpi', {
           p_employee_id: employeeId,
-          p_month: targetMonth.toISOString().split('T')[0],
+          p_month: toLocalDateStr(targetMonth),
         });
 
         if (error) throw error;
