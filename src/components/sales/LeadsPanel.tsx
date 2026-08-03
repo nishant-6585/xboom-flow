@@ -29,6 +29,7 @@ import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
+import { InteraktOwnerMappingDialog } from '@/components/interakt/InteraktOwnerMappingDialog';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { ProspectButton } from './ProspectButton';
