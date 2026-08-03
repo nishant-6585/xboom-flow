@@ -285,6 +285,24 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
               <CheckCheck className="h-4 w-4 mr-2" />
               Mark all seen
             </Button>
+            <LeadsExportMenu
+              rows={rows}
+              filename="lead-inbox"
+              title="Lead Inbox"
+              columns={[
+                { label: "Date", value: (l: any) => l.created_at, date: true },
+                { label: "Source", value: (l: any) => l.source },
+                { label: "Name", value: (l: any) => l.name },
+                { label: "Phone", value: (l: any) => l.phone },
+                { label: "Email", value: (l: any) => l.email },
+                { label: "Company", value: (l: any) => l.company },
+                { label: "Product", value: (l: any) => l.product_name },
+                { label: "Subject / Message", value: (l: any) => l.subject_or_message },
+                { label: "Status", value: (l: any) => l.status },
+                { label: "Sales Person", value: (l: any) => l.sales_person_name },
+                { label: "Disposition", value: (l: any) => l.disposition },
+              ]}
+            />
             <div className="flex items-center gap-2 pl-2 border-l">
               <Switch
                 id="show-all-dispositions"
