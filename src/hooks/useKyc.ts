@@ -271,18 +271,29 @@ export function useKycQueue() {
       }
     }
 
-    // Fetch latest order_number per email
-    const emails = Array.from(new Set(contacts.map((c: any) => c.email).filter(Boolean)));
+    // Fetch latest order_number per email. Order emails are stored with mixed
+    // casing (e.g. "Gurusatish37@gmail.com"), so match case-insensitively.
+    const emails = Array.from(
+      new Set(
+        contacts
+          .map((c: any) => (c.email ? String(c.email).trim().toLowerCase() : null))
+          .filter(Boolean) as string[],
+      ),
+    );
     let ordersByEmail: Record<string, string> = {};
     if (emails.length) {
+      // PostgREST has no case-insensitive `in`, so OR together ilike filters.
+      const orFilter = emails
+        .map((e) => `customer_email.ilike.${e.replace(/[(),]/g, "")}`)
+        .join(",");
       const { data: orders } = await supabase
         .from("orders")
         .select("order_number, customer_email, created_at")
-        .in("customer_email", emails as string[])
+        .or(orFilter)
         .order("created_at", { ascending: false });
       for (const o of (orders as any[]) || []) {
-        const k = (o.customer_email || "").toLowerCase();
-        if (k && !ordersByEmail[k]) ordersByEmail[k] = o.order_number;
+        const k = (o.customer_email || "").trim().toLowerCase();
+        if (k && !ordersByEmail[k] && o.order_number) ordersByEmail[k] = o.order_number;
       }
     }
 
@@ -291,12 +302,13 @@ export function useKycQueue() {
         const doc = docs.find((d) => d.account_id === a.id) || null;
         const c = contacts.find((x: any) => x.account_id === a.id);
         const email = (c?.email as string) || null;
+        const emailKey = email ? email.trim().toLowerCase() : null;
         const rep = profiles.find((p) => p.user_id === a.assigned_rep_id);
         return {
           account: a,
           document: doc,
           customer_email: email,
-          latest_order_number: email ? ordersByEmail[email.toLowerCase()] || null : null,
+          latest_order_number: emailKey ? ordersByEmail[emailKey] || null : null,
           rep_name: rep?.name ?? null,
           reviewer_name: doc?.reviewed_by ? reviewerMap[doc.reviewed_by] ?? null : null,
           ai_review: doc ? aiReviewByDoc[doc.id] ?? null : null,
