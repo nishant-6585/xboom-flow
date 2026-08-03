@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { LeaveType, Employee } from "@/hooks/useHR";
 import { UserPlus, AlertCircle, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { addMonths, isAfter, differenceInMonths } from "date-fns";
 
 interface HRLeaveApplyDialogProps {
   open: boolean;
@@ -41,7 +42,11 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: "half_day_sick", label: "Half Day Sick Leave" },
   { value: "unpaid", label: "Unpaid Leave" },
   { value: "half_day_unpaid", label: "Half Day Unpaid Leave" },
+  { value: "maternity", label: "Maternity Leave" },
 ];
+
+// Leave types that carry no balance requirement and no deduction.
+const NO_BALANCE_TYPES = ["unpaid", "maternity"];
 
 export function HRLeaveApplyDialog({
   open,
@@ -62,8 +67,8 @@ export function HRLeaveApplyDialog({
   useEffect(() => {
     if (!employeeId || !open) { setLeaveBalance(null); return; }
     const baseType = leaveType.replace('half_day_', '');
-    // Unpaid leave has no balance requirement
-    if (baseType === 'unpaid') { setLeaveBalance(null); return; }
+    // Unpaid & maternity leave have no balance requirement
+    if (NO_BALANCE_TYPES.includes(baseType)) { setLeaveBalance(null); return; }
     const year = new Date().getFullYear();
     supabase
       .from('leave_balances')
@@ -128,6 +133,15 @@ export function HRLeaveApplyDialog({
   };
 
   const isHalfDay = leaveType.startsWith("half_day");
+  const isMaternity = leaveType === "maternity";
+
+  const maternityError = (() => {
+    if (!isMaternity || !startDate || !endDate) return "";
+    if (new Date(endDate) < new Date(startDate)) return "End date must be on or after the start date.";
+    if (isAfter(new Date(endDate), addMonths(new Date(startDate), 6)))
+      return "Maternity leave cannot exceed 6 months.";
+    return "";
+  })();
 
   return (
     <Dialog
@@ -195,7 +209,14 @@ export function HRLeaveApplyDialog({
               </SelectContent>
             </Select>
 
-            {employeeId && leaveBalance !== null && (
+            {isMaternity ? (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-300 text-sm text-rose-700">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span className="font-medium">
+                  Maternity Leave — paid, no balance deduction. Max 6 months.
+                </span>
+              </div>
+            ) : employeeId && leaveBalance !== null && (
               <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                 <Wallet className="h-4 w-4 text-primary" />
                 <span className="text-sm text-muted-foreground">Available Balance:</span>
@@ -221,7 +242,7 @@ export function HRLeaveApplyDialog({
                 value={startDate}
                 onChange={(e) => {
                   setStartDate(e.target.value);
-                  if (isHalfDay) setEndDate(e.target.value);
+                  if (isHalfDay && !isMaternity) setEndDate(e.target.value);
                 }}
               />
             </div>
@@ -232,7 +253,7 @@ export function HRLeaveApplyDialog({
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 min={startDate}
-                disabled={isHalfDay}
+                disabled={isHalfDay && !isMaternity}
               />
             </div>
           </div>
@@ -242,6 +263,17 @@ export function HRLeaveApplyDialog({
               <span className="text-lg font-bold text-primary">
                 {calculateDays()} day(s)
               </span>
+              {isMaternity && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  ≈ {differenceInMonths(new Date(endDate), new Date(startDate))} month(s)
+                </div>
+              )}
+            </div>
+          )}
+
+          {maternityError && (
+            <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive font-medium text-center">
+              {maternityError}
             </div>
           )}
 
@@ -290,7 +322,7 @@ export function HRLeaveApplyDialog({
               className="flex-1"
               onClick={handleSubmit}
               disabled={
-                submitting || !employeeId || !startDate || !endDate || !reason || (leaveBalance !== null && leaveBalance <= 0)
+                submitting || !employeeId || !startDate || !endDate || !reason || !!maternityError || (leaveBalance !== null && leaveBalance <= 0)
               }
             >
               {submitting ? "Applying..." : "Apply Leave"}

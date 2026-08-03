@@ -311,6 +311,10 @@ export async function calculateAttendanceData(
     const lt = (lr.leave_type || "").toLowerCase();
     const isHalfDay = lt.startsWith("half_day");
 
+    // Maternity leave is fully PAID and balance-exempt: it must never be counted
+    // as unpaid leave / LOP, so calculateDeduction() never docks salary for it.
+    if (lt === "maternity") continue;
+
     const leaveStart = new Date(lr.start_date);
     const leaveEnd = new Date(lr.end_date);
 
