@@ -61,6 +61,7 @@ import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
 import { Inbox } from 'lucide-react';
 import { groupDuplicates } from '@/lib/leadDeduplication';
 import { DuplicateCountBadge, DuplicateHistoryRow } from './DuplicateHistoryRow';
+import { LeadsExportMenu } from './LeadsExportMenu';
 
 function InboxNewBadge() {
   const { data } = useUnifiedLeadCounts();
@@ -964,6 +965,25 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
               <CardDescription>
                 Leads synced from Interakt WhatsApp platform
               </CardDescription>
+              <div className="pt-2">
+                <LeadsExportMenu
+                  rows={filteredInteraktLeads}
+                  filename="interakt-leads"
+                  title="Interakt Leads"
+                  columns={[
+                    { label: 'Date', value: (l: any) => l.interakt_created_at || l.created_at, date: true },
+                    { label: 'Customer', value: (l: any) => l.customer_name },
+                    { label: 'Phone', value: (l: any) => l.phone_number },
+                    { label: 'Email', value: (l: any) => l.email },
+                    { label: 'Company', value: (l: any) => l.company },
+                    { label: 'City', value: (l: any) => l.city },
+                    { label: 'Product', value: (l: any) => l.product_name },
+                    { label: 'Status', value: (l: any) => l.status },
+                    { label: 'Disposition', value: (l: any) => l.disposition },
+                    { label: 'Notes', value: (l: any) => l.notes },
+                  ]}
+                />
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Filters */}
