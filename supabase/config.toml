@@ -120,8 +120,6 @@ verify_jwt = false
     verify_jwt = false
   [functions.sync-interakt-contacts]
     verify_jwt = false
-  [functions.interakt-fetch-agents]
-    verify_jwt = false
   [functions.sync-myoperator-logs]
     verify_jwt = false
   [functions.update-order-status]
