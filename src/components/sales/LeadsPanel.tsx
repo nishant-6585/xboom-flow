@@ -985,7 +985,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
               <CardDescription>
                 Leads synced from Interakt WhatsApp platform
               </CardDescription>
-              <div className="pt-2">
+              <div className="pt-2 flex flex-wrap items-center gap-2">
                 <LeadsExportMenu
                   rows={filteredInteraktLeads}
                   filename="interakt-leads"
@@ -1003,6 +1003,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     { label: 'Notes', value: (l: any) => l.notes },
                   ]}
                 />
+                {role === 'admin' && <InteraktOwnerMappingDialog />}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
