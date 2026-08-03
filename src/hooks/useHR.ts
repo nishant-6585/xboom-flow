@@ -3,6 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+// Local (not UTC) yyyy-MM-dd. Using toISOString() shifts the date back a day
+// for positive-offset timezones like IST, which silently dropped month-end
+// attendance rows (e.g. 31 July) from range queries.
+const toLocalDateStr = (d: Date): string => {
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
 export type WorkLocation = 'Office' | 'Remote' | 'Field';
 export type ShiftType = 'Fixed' | 'Flexible';
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'weekend' | 'holiday';
@@ -133,7 +142,7 @@ export function useHR() {
   const fetchTodayAttendance = useCallback(async () => {
     if (!user || !myEmployee) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       const { data, error } = await supabase
         .from('attendance_logs')
         .select('*')
@@ -159,8 +168,8 @@ export function useHR() {
         .from('attendance_logs')
         .select('working_hours')
         .eq('employee_id', myEmployee.id)
-        .gte('date', weekStart.toISOString().split('T')[0])
-        .lte('date', today.toISOString().split('T')[0]);
+        .gte('date', toLocalDateStr(weekStart))
+        .lte('date', toLocalDateStr(today));
       
       if (error) throw error;
       const total = (data || []).reduce((sum, log) => sum + (log.working_hours || 0), 0);
@@ -180,8 +189,8 @@ export function useHR() {
       let query = supabase
         .from('attendance_logs')
         .select('*')
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', endDate.toISOString().split('T')[0])
+        .gte('date', toLocalDateStr(startDate))
+        .lte('date', toLocalDateStr(endDate))
         .order('date', { ascending: false });
       
       if (employeeId) {
@@ -221,7 +230,7 @@ export function useHR() {
   const fetchTeamAttendanceStatus = useCallback(async () => {
     if (!user) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       
       // Fetch all employees
       const { data: employeesData, error: empError } = await supabase
@@ -330,7 +339,7 @@ export function useHR() {
     }
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       const now = new Date();
       const nowIso = now.toISOString();
 
@@ -863,7 +872,7 @@ export function useHR() {
         if (dayOfWeek === 0 || dayOfWeek === 6) continue;
         attendanceRows.push({
           employee_id: data.employee_id,
-          date: d.toISOString().split('T')[0],
+          date: toLocalDateStr(d),
           status: 'on_leave',
           notes: `${data.leave_type} - Applied by HR (${profile.name})`,
           source: 'hr_leave_apply',
@@ -893,7 +902,7 @@ export function useHR() {
         const targetMonth = month || new Date();
         const { data, error } = await supabase.rpc('get_employee_kpi', {
           p_employee_id: employeeId,
-          p_month: targetMonth.toISOString().split('T')[0],
+          p_month: toLocalDateStr(targetMonth),
         });
 
         if (error) throw error;
