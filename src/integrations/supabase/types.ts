@@ -19364,6 +19364,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      upsert_interakt_owner_label_admin: {
+        Args: { _agent_name: string; _owner_id: string }
+        Returns: number
+      }
       upsert_interakt_owner_mapping:
         | {
             Args: { _label?: string; _owner_id: string; _user_id: string }
