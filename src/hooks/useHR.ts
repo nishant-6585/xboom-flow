@@ -142,7 +142,7 @@ export function useHR() {
   const fetchTodayAttendance = useCallback(async () => {
     if (!user || !myEmployee) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       const { data, error } = await supabase
         .from('attendance_logs')
         .select('*')
@@ -168,8 +168,8 @@ export function useHR() {
         .from('attendance_logs')
         .select('working_hours')
         .eq('employee_id', myEmployee.id)
-        .gte('date', weekStart.toISOString().split('T')[0])
-        .lte('date', today.toISOString().split('T')[0]);
+        .gte('date', toLocalDateStr(weekStart))
+        .lte('date', toLocalDateStr(today));
       
       if (error) throw error;
       const total = (data || []).reduce((sum, log) => sum + (log.working_hours || 0), 0);
@@ -189,8 +189,8 @@ export function useHR() {
       let query = supabase
         .from('attendance_logs')
         .select('*')
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', endDate.toISOString().split('T')[0])
+        .gte('date', toLocalDateStr(startDate))
+        .lte('date', toLocalDateStr(endDate))
         .order('date', { ascending: false });
       
       if (employeeId) {
@@ -230,7 +230,7 @@ export function useHR() {
   const fetchTeamAttendanceStatus = useCallback(async () => {
     if (!user) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       
       // Fetch all employees
       const { data: employeesData, error: empError } = await supabase
@@ -339,7 +339,7 @@ export function useHR() {
     }
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       const now = new Date();
       const nowIso = now.toISOString();
 
@@ -872,7 +872,7 @@ export function useHR() {
         if (dayOfWeek === 0 || dayOfWeek === 6) continue;
         attendanceRows.push({
           employee_id: data.employee_id,
-          date: d.toISOString().split('T')[0],
+          date: toLocalDateStr(d),
           status: 'on_leave',
           notes: `${data.leave_type} - Applied by HR (${profile.name})`,
           source: 'hr_leave_apply',
