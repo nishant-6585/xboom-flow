@@ -3,6 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+// Local (not UTC) yyyy-MM-dd. Using toISOString() shifts the date back a day
+// for positive-offset timezones like IST, which silently dropped month-end
+// attendance rows (e.g. 31 July) from range queries.
+const toLocalDateStr = (d: Date): string => {
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
 export type WorkLocation = 'Office' | 'Remote' | 'Field';
 export type ShiftType = 'Fixed' | 'Flexible';
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'weekend' | 'holiday';
