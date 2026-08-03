@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Users, Save, Check } from 'lucide-react';
+import { Users, Save, Check, RefreshCw } from 'lucide-react';
 import { useSalesUsers } from '@/hooks/useSalesUsers';
 
 interface OwnerRow {
@@ -85,6 +85,20 @@ export function InteraktOwnerMappingDialog() {
     onError: (e: Error) => toast.error(e.message || 'Could not save mapping'),
   });
 
+  const fetchAgents = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('interakt-fetch-agents', { body: {} });
+      if (error) throw new Error(error.message || 'Could not reach Interakt');
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      return data as { agents_found: number; labels_updated: number };
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['interakt-owner-mappings'] });
+      toast.success(`Fetched ${res.agents_found} agent(s) from Interakt — ${res.labels_updated} label(s) updated`);
+    },
+    onError: (e: Error) => toast.error(e.message, { duration: 10000 }),
+  });
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -102,6 +116,23 @@ export function InteraktOwnerMappingDialog() {
             internal owner identifier.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex items-center justify-between gap-3 flex-wrap rounded-md border bg-muted/40 p-2">
+          <p className="text-xs text-muted-foreground max-w-md">
+            Try pulling agent names straight from Interakt. This needs agent-read permission on the
+            Interakt API key; if it is not enabled, label the owners manually below.
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="gap-1.5"
+            disabled={fetchAgents.isPending}
+            onClick={() => fetchAgents.mutate()}
+          >
+            <RefreshCw className={`h-4 w-4 ${fetchAgents.isPending ? 'animate-spin' : ''}`} />
+            Fetch names from Interakt
+          </Button>
+        </div>
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6">Loading account owners…</p>
