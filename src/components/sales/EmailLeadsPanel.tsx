@@ -480,6 +480,29 @@ export function EmailLeadsPanel() {
               <Button variant="outline" size="sm" onClick={() => refetch()}>
                 <RefreshCw className="w-4 h-4" />
               </Button>
+              <LeadsExportMenu
+                rows={filteredLeads}
+                filename="email-leads"
+                title="Email Leads"
+                columns={[
+                  { label: 'Date', value: (l) => l.created_at, date: true },
+                  { label: 'Customer', value: (l) => l.customer_name },
+                  { label: 'Company', value: (l) => l.customer_company },
+                  { label: 'Phone', value: (l) => l.phone_number },
+                  { label: 'Email', value: (l) => l.email },
+                  { label: 'City', value: (l) => l.city },
+                  { label: 'Product', value: (l) => l.product_name },
+                  { label: 'Category', value: (l) => l.product_category },
+                  { label: 'Quantity', value: (l) => l.quantity },
+                  { label: 'Mail Source', value: (l) => l.mail_source },
+                  { label: 'Lead Source', value: (l) => l.lead_source },
+                  { label: 'Subject', value: (l) => l.subject },
+                  { label: 'Status', value: (l) => l.status },
+                  { label: 'Processing', value: (l) => l.processing_status },
+                  { label: 'Sales Person', value: (l) => l.sales_person_name },
+                  { label: 'Notes', value: (l) => l.notes },
+                ]}
+              />
               <Button
                 variant="outline"
                 size="sm"
