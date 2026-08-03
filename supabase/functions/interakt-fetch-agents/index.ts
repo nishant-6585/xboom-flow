@@ -39,7 +39,9 @@ Deno.serve(async (req) => {
       return json({ error: "Only admins can fetch Interakt agents" }, 403);
     }
 
-    const key = Deno.env.get("INTERAKT_API_KEY");
+    // Prefer a dedicated key that has agent/team read permission; fall back to
+    // the general Interakt key.
+    const key = Deno.env.get("INTERAKT_AGENTS_API_KEY") ?? Deno.env.get("INTERAKT_API_KEY");
     if (!key) return json({ error: "Interakt API key not configured" }, 500);
 
     const res = await fetch(AGENTS_URL, {
@@ -50,10 +52,10 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       let message = `Interakt agents API error (${res.status})`;
-      if (res.status === 403) {
+      if (res.status === 403 || res.status === 401) {
         message =
           "Interakt rejected the agent lookup: this API key does not have permission to read agents. " +
-          "Ask Interakt support (or your Interakt account owner) to enable agent/team read access for the API key, then retry.";
+          "Generate a new Interakt API key with agent/team read access and save it as INTERAKT_AGENTS_API_KEY, then retry.";
       }
       console.error("interakt_agents_error", res.status, text.slice(0, 300));
       return json({ error: message, status: res.status }, 502);
