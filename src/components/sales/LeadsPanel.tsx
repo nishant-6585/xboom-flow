@@ -639,6 +639,26 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                 <Upload className="h-4 w-4 mr-2" />
                 Import
               </Button>
+              <LeadsExportMenu
+                rows={leads}
+                filename="all-leads"
+                title="All Leads"
+                size="default"
+                columns={[
+                  { label: 'Date', value: (e: any) => e.created_at, date: true },
+                  { label: 'Customer', value: (e: any) => e.customer_name },
+                  { label: 'Company', value: (e: any) => e.customer_company },
+                  { label: 'Phone', value: (e: any) => e.customer_phone },
+                  { label: 'Email', value: (e: any) => e.customer_email },
+                  { label: 'Product', value: (e: any) => e.product_name },
+                  { label: 'Category', value: (e: any) => e.product_category },
+                  { label: 'Quantity', value: (e: any) => e.quantity },
+                  { label: 'Lead Source', value: (e: any) => e.lead_source },
+                  { label: 'Status', value: (e: any) => e.status },
+                  { label: 'Sales Person', value: (e: any) => resolveName(e.sales_person_id) },
+                  { label: 'Notes', value: (e: any) => e.notes },
+                ]}
+              />
               <Button onClick={() => { setEditingLead(null); setFormDialogOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Lead
