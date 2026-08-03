@@ -34,6 +34,7 @@ import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { LeadActionsCell } from "./LeadActionsCell";
 import { groupDuplicates } from "@/lib/leadDeduplication";
 import { DuplicateLeadsHistoryRow } from "./DuplicateLeadsHistoryRow";
+import { LeadsExportMenu } from "./LeadsExportMenu";
 
 /**
  * Abandoned Cart Leads
@@ -346,6 +347,26 @@ export function XboomWebsiteLeadsPanel() {
           <Button variant="outline" size="sm" onClick={refetch} className="gap-2">
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
+          <LeadsExportMenu
+            rows={filtered}
+            filename="xboom-website-leads"
+            title="XBoom Website Leads"
+            columns={[
+              { label: "Date", value: (l: any) => l.woo_created_at || l.created_at, date: true },
+              { label: "Order #", value: (l: any) => l.order_number },
+              { label: "Customer", value: (l: any) => l.customer_name },
+              { label: "Company", value: (l: any) => l.customer_company },
+              { label: "Phone", value: (l: any) => l.customer_phone },
+              { label: "Email", value: (l: any) => l.customer_email },
+              { label: "Product", value: (l: any) => l.product_name },
+              { label: "Quantity", value: (l: any) => l.quantity },
+              { label: "Order Status", value: (l: any) => l.order_status },
+              { label: "Payment Status", value: (l: any) => l.payment_status },
+              { label: "Total Amount", value: (l: any) => l.total_sales_amount },
+              { label: "Amount Paid", value: (l: any) => l.amount_paid },
+              { label: "Assigned To", value: (l: any) => l.assigned_to_name ?? l.assigned_to },
+            ]}
+          />
         </div>
       </div>
 
