@@ -29,6 +29,7 @@ import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
+import { InteraktOwnerMappingDialog } from '@/components/interakt/InteraktOwnerMappingDialog';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { ProspectButton } from './ProspectButton';
@@ -985,7 +986,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
               <CardDescription>
                 Leads synced from Interakt WhatsApp platform
               </CardDescription>
-              <div className="pt-2">
+              <div className="pt-2 flex flex-wrap items-center gap-2">
                 <LeadsExportMenu
                   rows={filteredInteraktLeads}
                   filename="interakt-leads"
@@ -1003,6 +1004,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     { label: 'Notes', value: (l: any) => l.notes },
                   ]}
                 />
+                {role === 'admin' && <InteraktOwnerMappingDialog />}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -18722,6 +18722,18 @@ export type Database = {
         Args: { p_invoice_id: string; p_order_id: string }
         Returns: undefined
       }
+      list_interakt_owner_mappings: {
+        Args: never
+        Returns: {
+          label: string
+          last_seen: string
+          lead_count: number
+          owner_id: string
+          unassigned_count: number
+          user_id: string
+          user_name: string
+        }[]
+      }
       list_pending_compoff_credits: {
         Args: {
           p_expiry_filter?: string
@@ -19347,6 +19359,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      upsert_interakt_owner_mapping: {
+        Args: { _label?: string; _owner_id: string; _user_id: string }
+        Returns: number
       }
       validate_admin_registration: {
         Args: { p_email: string }
