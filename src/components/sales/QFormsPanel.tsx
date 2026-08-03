@@ -588,6 +588,31 @@ export default function QFormsPanel() {
             className="pl-9"
           />
         </div>
+        <div className="mt-3 flex justify-end">
+          <LeadsExportMenu
+            rows={filtered}
+            filename="qform-leads"
+            title="QForm Leads"
+            columns={[
+              { label: "Submitted", value: (l: any) => l.submitted_at || l.created_at, date: true },
+              { label: "Form", value: (l: any) => l.form_type },
+              { label: "Name", value: (l: any) => l.name },
+              { label: "Email", value: (l: any) => l.email },
+              { label: "Phone", value: (l: any) => l.phone },
+              { label: "Company", value: (l: any) => l.company },
+              { label: "Location", value: (l: any) => l.location },
+              { label: "Sector", value: (l: any) => l.sector },
+              { label: "Urgency", value: (l: any) => l.urgency },
+              { label: "Subject", value: (l: any) => l.subject },
+              { label: "Message", value: (l: any) => l.message },
+              { label: "Status", value: (l: any) => l.status },
+              { label: "Temperature", value: (l: any) => l.lead_temperature },
+              { label: "Assigned To", value: (l: any) => l.assigned_to_name },
+              { label: "Converted", value: (l: any) => l.is_enquiry_converted },
+              { label: "Page URL", value: (l: any) => l.page_url },
+            ]}
+          />
+        </div>
       </Card>
 
       {viewMode === "table" && (
