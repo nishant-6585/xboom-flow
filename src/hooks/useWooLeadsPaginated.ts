@@ -228,12 +228,30 @@ export function useWooLeadsPaginated(opts: UseWooLeadsPaginatedOptions) {
     };
   }, [scheduleRefetch]);
 
+  /** Fetch every row matching the current filters (for exports), batched. */
+  const fetchAll = useCallback(async (): Promise<WooCommerceOrder[]> => {
+    const BATCH = 1000;
+    const HARD_CAP = 10000;
+    const out: WooCommerceOrder[] = [];
+    for (let from = 0; from < HARD_CAP; from += BATCH) {
+      const res = await buildBaseQuery(LIST_COLUMNS, false)
+        .order('woo_created_at', { ascending: false, nullsFirst: false })
+        .range(from, from + BATCH - 1);
+      if (res.error) throw res.error;
+      const batch = (res.data ?? []) as unknown as WooCommerceOrder[];
+      out.push(...batch);
+      if (batch.length < BATCH) break;
+    }
+    return out;
+  }, [buildBaseQuery]);
+
   return {
     rows,
     filteredCount,
     stats,
     loading,
     statsLoading,
+    fetchAll,
     refetch: () => {
       fetchPage();
       fetchStats();

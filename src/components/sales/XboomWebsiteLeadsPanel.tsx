@@ -104,6 +104,7 @@ export function XboomWebsiteLeadsPanel() {
     loading,
     statsLoading,
     refetch,
+    fetchAll,
   } = useWooLeadsPaginated({
     page,
     pageSize: PAGE_SIZE,
@@ -349,8 +350,10 @@ export function XboomWebsiteLeadsPanel() {
           </Button>
           <LeadsExportMenu
             rows={filtered}
+            fetchAllRows={fetchAll}
+            totalCount={filteredCount}
             filename="xboom-website-leads"
-            title="XBoom Website Leads"
+            title="Abandoned Cart Leads"
             columns={[
               { label: "Date", value: (l: any) => l.woo_created_at || l.created_at, date: true },
               { label: "Order #", value: (l: any) => l.order_number },
