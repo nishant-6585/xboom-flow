@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { LeadRowActions } from "./LeadRowActions";
 import { DispositionBadge } from "./DispositionBadge";
+import { LeadsExportMenu } from "./LeadsExportMenu";
 import { useNavigate } from "react-router-dom";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { TableSkeleton, EmptyState, DataErrorState } from "@/components/data-states";
