@@ -22,6 +22,7 @@ import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { LeadContactDrawer, LeadContactData } from "../LeadContactDrawer";
 import { CallButton } from "@/components/calls/CallButton";
 import { useAuth } from "@/hooks/useAuth";
+import { LeadsExportMenu } from "../LeadsExportMenu";
 
 interface GoogleAdsLead {
   id: string;
@@ -271,6 +272,26 @@ export function GoogleAdsLeadsTab() {
               </Button>
             </CardTitle>
             <div className="flex gap-2 text-xs">
+              <LeadsExportMenu
+                rows={sortedLeads}
+                filename="google-ads-leads"
+                title="Google Ads Leads"
+                columns={[
+                  { label: "Date", value: (l: any) => l.created_at, date: true },
+                  { label: "Customer", value: (l: any) => l.customer_name },
+                  { label: "Company", value: (l: any) => l.customer_company },
+                  { label: "Phone", value: (l: any) => l.phone ?? l.product_code },
+                  { label: "Email", value: (l: any) => l.email },
+                  { label: "Product", value: (l: any) => l.product_name },
+                  { label: "Campaign", value: (l: any) => l.campaign_name },
+                  { label: "Temperature", value: (l: any) => l.lead_temperature },
+                  { label: "Status", value: (l: any) => l.status },
+                  { label: "Converted", value: (l: any) => l.is_converted },
+                  { label: "Conversion Value", value: (l: any) => l.conversion_value },
+                  { label: "Outcome", value: (l: any) => l.order_outcome },
+                  { label: "Notes", value: (l: any) => l.notes },
+                ]}
+              />
               <div className="flex items-center gap-2 mr-2">
                 <Switch
                   id="googleads-show-all-dispositions"

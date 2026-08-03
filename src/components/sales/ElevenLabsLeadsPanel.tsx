@@ -37,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { ElevenLabsAnalytics } from "./ElevenLabsAnalytics";
 import { BarChart3 } from "lucide-react";
+import { LeadsExportMenu } from "./LeadsExportMenu";
 
 type ElevenLead = {
   id: string;
@@ -486,6 +487,28 @@ export function ElevenLabsLeadsPanel() {
           <Button variant="outline" size="sm" onClick={load} className="gap-2">
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
+          <LeadsExportMenu
+            rows={filtered}
+            filename="elevenlabs-leads"
+            title="ElevenLabs Leads"
+            columns={[
+              { label: "Date", value: (l) => l.created_at, date: true },
+              { label: "Customer", value: (l) => l.customer_name },
+              { label: "Caller Number", value: (l) => l.caller_number },
+              { label: "Requirement", value: (l) => l.requirement },
+              { label: "Budget", value: (l) => l.budget },
+              { label: "Priority", value: (l) => l.priority },
+              { label: "Lead Score", value: (l) => l.lead_score },
+              { label: "Status", value: (l) => l.lead_status },
+              { label: "Temperature", value: (l) => l.lead_temperature },
+              { label: "Call Duration (s)", value: (l) => l.call_duration },
+              { label: "Assigned To", value: (l) => l.assigned_to_name },
+              { label: "Last Contacted", value: (l) => l.last_contacted_at, date: true },
+              { label: "Converted", value: (l) => l.is_enquiry_converted },
+              { label: "Disposition", value: (l) => l.disposition },
+              { label: "Notes", value: (l) => l.notes },
+            ]}
+          />
         </div>
       </div>
 

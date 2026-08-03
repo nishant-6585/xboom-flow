@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
+import { LeadsExportMenu } from "@/components/sales/LeadsExportMenu";
 import { LeadRowActions } from "@/components/sales/LeadRowActions";
 import { DispositionBadge } from "@/components/sales/DispositionBadge";
 import { applyDispositionFilter } from "@/lib/dispositionFilter";
@@ -668,6 +669,25 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
+            <LeadsExportMenu
+              rows={displayLogs}
+              filename="myoperator-call-leads"
+              title="MyOperator Call Leads"
+              columns={[
+                { label: "Date", value: (l: any) => l.start_time || l.created_at, date: true },
+                { label: "Caller Number", value: (l: any) => l.full_number || l.caller_number },
+                { label: "Call Type", value: (l: any) => l.call_type },
+                { label: "Call Status", value: (l: any) => l.call_status },
+                { label: "Duration (s)", value: (l: any) => l.call_duration },
+                { label: "Department", value: (l: any) => l.department },
+                { label: "Agent", value: (l: any) => l.agent_name },
+                { label: "Assigned Agent", value: (l: any) => l.assigned_agent_name },
+                { label: "Sales Person", value: (l: any) => l.sales_person_name },
+                { label: "Lead Created", value: (l: any) => l.lead_created },
+                { label: "Disposition", value: (l: any) => l.disposition },
+                { label: "Disposition Note", value: (l: any) => l.disposition_reason_note },
+              ]}
+            />
           </div>
         </div>
       </CardHeader>
