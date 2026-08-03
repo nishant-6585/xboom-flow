@@ -143,6 +143,7 @@ export type Database = {
       agent_user_mapping: {
         Row: {
           agent_id: string | null
+          agent_name: string | null
           agent_phone: string | null
           created_at: string
           id: string
@@ -154,6 +155,7 @@ export type Database = {
         }
         Insert: {
           agent_id?: string | null
+          agent_name?: string | null
           agent_phone?: string | null
           created_at?: string
           id?: string
@@ -165,6 +167,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string | null
+          agent_name?: string | null
           agent_phone?: string | null
           created_at?: string
           id?: string
@@ -18729,6 +18732,7 @@ export type Database = {
           last_seen: string
           lead_count: number
           owner_id: string
+          owner_label: string
           unassigned_count: number
           user_id: string
           user_name: string
@@ -19360,10 +19364,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      upsert_interakt_owner_mapping: {
-        Args: { _label?: string; _owner_id: string; _user_id: string }
-        Returns: number
-      }
+      upsert_interakt_owner_mapping:
+        | {
+            Args: { _label?: string; _owner_id: string; _user_id: string }
+            Returns: number
+          }
+        | {
+            Args: {
+              _agent_name?: string
+              _label?: string
+              _owner_id: string
+              _user_id: string
+            }
+            Returns: number
+          }
       validate_admin_registration: {
         Args: { p_email: string }
         Returns: {
