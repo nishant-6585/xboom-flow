@@ -100,7 +100,8 @@ export function useLeaveBalances(employeeId?: string) {
     balanceData.forEach(b => leaveTypes.add(b.leave_type));
     yearTx.forEach(tx => leaveTypes.add(tx.leave_type));
 
-    const deprecated = new Set(['casual', 'half_day_casual', 'paid', 'half_day_paid', 'unpaid', 'half_day_unpaid', 'wfh']);
+    // 'maternity' is paid and not balance-tracked — never render a balance card for it.
+    const deprecated = new Set(['casual', 'half_day_casual', 'paid', 'half_day_paid', 'unpaid', 'half_day_unpaid', 'wfh', 'maternity']);
     const summaries: LeaveBalanceSummary[] = [];
 
     leaveTypes.forEach(lt => {

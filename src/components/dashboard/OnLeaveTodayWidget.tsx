@@ -30,6 +30,7 @@ const LEAVE_LABEL: Record<string, string> = {
   half_day_paid: "Half Day (Paid)",
   half_day_EL: "Half Day (Earned)",
   half_day_unpaid: "Half Day (Unpaid)",
+  maternity: "Maternity",
 };
 
 const initialsOf = (name: string) =>
