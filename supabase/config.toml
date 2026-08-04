@@ -2,6 +2,12 @@
 verify_jwt = false
 project_id = "mxsotxddcvmeluqonuuj"
 
+# Mikee reception robot (TimoDesk spine) — showroom Order/Enquiry capture.
+# Auth is the mandatory x-xbm-signature HMAC inside the function, so the
+# caller doesn't need to carry the anon key.
+[functions.robot-lead-incoming]
+verify_jwt = false
+
 [functions.jarvis-ads]
 verify_jwt = false
 
