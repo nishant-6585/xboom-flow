@@ -8,6 +8,11 @@ project_id = "mxsotxddcvmeluqonuuj"
 [functions.robot-lead-incoming]
 verify_jwt = false
 
+# Mikee reception robot — read-only kiosk product catalog (search + paging
+# over kiosk-safe pricelist columns). Same HMAC auth as robot-lead-incoming.
+[functions.robot-catalog]
+verify_jwt = false
+
 [functions.jarvis-ads]
 verify_jwt = false
 

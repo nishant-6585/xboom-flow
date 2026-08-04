@@ -119,6 +119,10 @@ Deno.serve(async (req) => {
       ? Math.max(1, Math.min(99, Math.round(body.quantity)))
       : 1;
 
+  // Real SKU when the visitor picked from the robot-catalog browser;
+  // 'WALK-IN' for free-text products with no catalog match.
+  const productCode = str(body.product_code, 64) || "WALK-IN";
+
   // Contact details go in notes — enquiries has no phone/email columns.
   const noteLines = [
     `Showroom robot (reception kiosk) ${kind === "order" ? "ORDER request" : "enquiry"}.`,
@@ -129,7 +133,7 @@ Deno.serve(async (req) => {
 
   const row = {
     product_name: product,
-    product_code: "WALK-IN",
+    product_code: productCode,
     quantity,
     customer_name: name,
     customer_company: str(body.company, 120) || "Walk-in visitor",
