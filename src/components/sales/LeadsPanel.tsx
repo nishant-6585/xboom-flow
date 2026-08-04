@@ -29,6 +29,7 @@ import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
+import { InteraktOwnerMappingDialog } from '@/components/interakt/InteraktOwnerMappingDialog';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { ProspectButton } from './ProspectButton';
@@ -61,6 +62,7 @@ import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
 import { Inbox } from 'lucide-react';
 import { groupDuplicates } from '@/lib/leadDeduplication';
 import { DuplicateCountBadge, DuplicateHistoryRow } from './DuplicateHistoryRow';
+import { LeadsExportMenu } from './LeadsExportMenu';
 
 function InboxNewBadge() {
   const { data } = useUnifiedLeadCounts();
@@ -638,6 +640,26 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                 <Upload className="h-4 w-4 mr-2" />
                 Import
               </Button>
+              <LeadsExportMenu
+                rows={leads}
+                filename="all-leads"
+                title="All Leads"
+                size="default"
+                columns={[
+                  { label: 'Date', value: (e: any) => e.created_at, date: true },
+                  { label: 'Customer', value: (e: any) => e.customer_name },
+                  { label: 'Company', value: (e: any) => e.customer_company },
+                  { label: 'Phone', value: (e: any) => e.customer_phone },
+                  { label: 'Email', value: (e: any) => e.customer_email },
+                  { label: 'Product', value: (e: any) => e.product_name },
+                  { label: 'Category', value: (e: any) => e.product_category },
+                  { label: 'Quantity', value: (e: any) => e.quantity },
+                  { label: 'Lead Source', value: (e: any) => e.lead_source },
+                  { label: 'Status', value: (e: any) => e.status },
+                  { label: 'Sales Person', value: (e: any) => resolveName(e.sales_person_id) },
+                  { label: 'Notes', value: (e: any) => e.notes },
+                ]}
+              />
               <Button onClick={() => { setEditingLead(null); setFormDialogOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Lead
@@ -964,6 +986,26 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
               <CardDescription>
                 Leads synced from Interakt WhatsApp platform
               </CardDescription>
+              <div className="pt-2 flex flex-wrap items-center gap-2">
+                <LeadsExportMenu
+                  rows={filteredInteraktLeads}
+                  filename="interakt-leads"
+                  title="Interakt Leads"
+                  columns={[
+                    { label: 'Date', value: (l: any) => l.interakt_created_at || l.created_at, date: true },
+                    { label: 'Customer', value: (l: any) => l.customer_name },
+                    { label: 'Phone', value: (l: any) => l.phone_number },
+                    { label: 'Email', value: (l: any) => l.email },
+                    { label: 'Company', value: (l: any) => l.company },
+                    { label: 'City', value: (l: any) => l.city },
+                    { label: 'Product', value: (l: any) => l.product_name },
+                    { label: 'Status', value: (l: any) => l.status },
+                    { label: 'Disposition', value: (l: any) => l.disposition },
+                    { label: 'Notes', value: (l: any) => l.notes },
+                  ]}
+                />
+                {role === 'admin' && <InteraktOwnerMappingDialog />}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Filters */}

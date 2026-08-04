@@ -7,7 +7,8 @@ export type LeaveHistoryTypeValue =
   | 'sick'
   | 'unpaid'
   | 'wfh'
-  | 'compoff';
+  | 'compoff'
+  | 'maternity';
 
 export interface LeaveTypeOption {
   value: LeaveHistoryTypeValue;
@@ -21,6 +22,7 @@ export const LEAVE_HISTORY_TYPE_OPTIONS: LeaveTypeOption[] = [
   { value: 'unpaid', label: 'Unpaid Leave' },
   { value: 'wfh', label: 'WFH' },
   { value: 'compoff', label: 'Comp-Off' },
+  { value: 'maternity', label: 'Maternity Leave' },
 ];
 
 // Full label map — covers historical variants stored in leave_requests
@@ -38,6 +40,7 @@ export const LEAVE_TYPE_LABELS: Record<string, string> = {
   half_day_paid: 'Half Day (Paid)',
   wfh: 'WFH',
   compoff: 'Comp-Off',
+  maternity: 'Maternity Leave',
 };
 
 export function getLeaveTypeLabel(value: string | null | undefined): string {

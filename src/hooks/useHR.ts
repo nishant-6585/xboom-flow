@@ -3,10 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+// Local (not UTC) yyyy-MM-dd. Using toISOString() shifts the date back a day
+// for positive-offset timezones like IST, which silently dropped month-end
+// attendance rows (e.g. 31 July) from range queries.
+const toLocalDateStr = (d: Date): string => {
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
 export type WorkLocation = 'Office' | 'Remote' | 'Field';
 export type ShiftType = 'Fixed' | 'Flexible';
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'weekend' | 'holiday';
-export type LeaveType = 'casual' | 'sick' | 'paid' | 'EL' | 'unpaid' | 'half_day' | 'half_day_casual' | 'half_day_sick' | 'half_day_paid' | 'half_day_EL' | 'half_day_unpaid' | 'wfh' | 'compoff';
+export type LeaveType = 'casual' | 'sick' | 'paid' | 'EL' | 'unpaid' | 'half_day' | 'half_day_casual' | 'half_day_sick' | 'half_day_paid' | 'half_day_EL' | 'half_day_unpaid' | 'wfh' | 'compoff' | 'maternity';
 // Note: 'casual', 'half_day_casual', 'paid', 'half_day_paid' kept in type for historical data but removed from UI selection
 export type LeaveStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | 'cancelled';
 
@@ -133,7 +142,7 @@ export function useHR() {
   const fetchTodayAttendance = useCallback(async () => {
     if (!user || !myEmployee) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       const { data, error } = await supabase
         .from('attendance_logs')
         .select('*')
@@ -159,8 +168,8 @@ export function useHR() {
         .from('attendance_logs')
         .select('working_hours')
         .eq('employee_id', myEmployee.id)
-        .gte('date', weekStart.toISOString().split('T')[0])
-        .lte('date', today.toISOString().split('T')[0]);
+        .gte('date', toLocalDateStr(weekStart))
+        .lte('date', toLocalDateStr(today));
       
       if (error) throw error;
       const total = (data || []).reduce((sum, log) => sum + (log.working_hours || 0), 0);
@@ -180,8 +189,8 @@ export function useHR() {
       let query = supabase
         .from('attendance_logs')
         .select('*')
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', endDate.toISOString().split('T')[0])
+        .gte('date', toLocalDateStr(startDate))
+        .lte('date', toLocalDateStr(endDate))
         .order('date', { ascending: false });
       
       if (employeeId) {
@@ -221,7 +230,7 @@ export function useHR() {
   const fetchTeamAttendanceStatus = useCallback(async () => {
     if (!user) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       
       // Fetch all employees
       const { data: employeesData, error: empError } = await supabase
@@ -330,7 +339,7 @@ export function useHR() {
     }
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr(new Date());
       const now = new Date();
       const nowIso = now.toISOString();
 
@@ -853,23 +862,28 @@ export function useHR() {
       // Deduct leave balance
       await deductLeaveBalance(data.employee_id, data.leave_type, totalDays);
 
-      // Update attendance logs for each leave day
+      // Update attendance logs for each working day — batched so long ranges
+      // (e.g. a 6-month maternity leave, ~130 days) don't fire one request per day.
+      const attendanceRows: any[] = [];
       const start2 = new Date(data.start_date);
       const end2 = new Date(data.end_date);
       for (let d = new Date(start2); d <= end2; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
         const dayOfWeek = d.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+        attendanceRows.push({
+          employee_id: data.employee_id,
+          date: toLocalDateStr(d),
+          status: 'on_leave',
+          notes: `${data.leave_type} - Applied by HR (${profile.name})`,
+          source: 'hr_leave_apply',
+        });
+      }
 
+      const CHUNK = 100;
+      for (let i = 0; i < attendanceRows.length; i += CHUNK) {
         await supabase
           .from('attendance_logs')
-          .upsert({
-            employee_id: data.employee_id,
-            date: dateStr,
-            status: 'on_leave',
-            notes: `${data.leave_type} - Applied by HR (${profile.name})`,
-            source: 'hr_leave_apply',
-          } as any, { onConflict: 'employee_id,date' });
+          .upsert(attendanceRows.slice(i, i + CHUNK) as any, { onConflict: 'employee_id,date' });
       }
 
       toast.success('Leave applied and approved successfully');
@@ -888,7 +902,7 @@ export function useHR() {
         const targetMonth = month || new Date();
         const { data, error } = await supabase.rpc('get_employee_kpi', {
           p_employee_id: employeeId,
-          p_month: targetMonth.toISOString().split('T')[0],
+          p_month: toLocalDateStr(targetMonth),
         });
 
         if (error) throw error;

@@ -24,6 +24,7 @@ const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   half_day_unpaid: 'Half Day Unpaid',
   wfh: 'Work from Home',
   compoff: 'Compensatory Off',
+  maternity: 'Maternity',
 };
 
 const STATUS_COLORS: Record<LeaveStatus, string> = {
@@ -54,7 +55,10 @@ export function LeaveRequestCard({ leave, showEmployee, onView }: LeaveRequestCa
             <Badge className={STATUS_COLORS[leave.status]}>
               {STATUS_LABELS[leave.status]}
             </Badge>
-            <Badge variant="outline">
+            <Badge
+              variant="outline"
+              className={leave.leave_type === 'maternity' ? 'bg-rose-500/10 text-rose-700 border-rose-300' : undefined}
+            >
               {LEAVE_TYPE_LABELS[leave.leave_type]}
             </Badge>
             {leave.is_hr_applied && (

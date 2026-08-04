@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Wallet, Gift, CalendarDays } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useCompOff } from "@/hooks/useCompOff";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addMonths, isAfter, differenceInMonths } from "date-fns";
 import { AlertTriangle, Info } from "lucide-react";
 
 interface LeaveApplyDialogProps {
@@ -52,7 +52,11 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: 'unpaid', label: 'Unpaid Leave' },
   { value: 'half_day_unpaid', label: 'Half Day Unpaid Leave' },
   { value: 'compoff', label: 'Compensatory Off (CompOff)' },
+  { value: 'maternity', label: 'Maternity Leave' },
 ];
+
+// Leave types with no balance requirement and no deduction.
+const NO_BALANCE_TYPES = ['unpaid', 'maternity'];
 
 export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps>(({ open, onOpenChange, onSubmit, prefillDate }, ref) => {
   const [step, setStep] = useState(1);
@@ -75,6 +79,14 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
   const [checkingAttendance, setCheckingAttendance] = useState(false);
 
   const isCompOff = leaveType === 'compoff';
+  const isMaternity = leaveType === 'maternity';
+
+  const maternityError = (() => {
+    if (!isMaternity || !startDate || !endDate) return '';
+    if (new Date(endDate) < new Date(startDate)) return 'End date must be on or after the start date.';
+    if (isAfter(new Date(endDate), addMonths(new Date(startDate), 6))) return 'Maternity leave cannot exceed 6 months.';
+    return '';
+  })();
   const holidayDateSet = new Set(holidays.map(h => h.holiday_date));
   const availableHolidays = holidays.filter(h => !claimedEarnedDates.has(h.holiday_date) && h.holiday_date <= new Date().toISOString().split('T')[0]);
   const selectedHoliday = holidays.find(h => h.id === selectedHolidayId);
@@ -138,9 +150,9 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
         .eq('user_id', user.id)
         .maybeSingle();
       if (!emp) { setLeaveBalance(null); return; }
-      // Unpaid leave has no balance requirement
       const baseType = leaveType.replace('half_day_', '');
-      if (baseType === 'unpaid') { setLeaveBalance(null); return; }
+      // Unpaid & maternity leave have no balance requirement
+      if (NO_BALANCE_TYPES.includes(baseType)) { setLeaveBalance(null); return; }
       const year = new Date().getFullYear();
       const { data } = await supabase
         .from('leave_balances')
@@ -256,7 +268,14 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                 </Select>
               </div>
 
-              {leaveBalance !== null && !isCompOff && (
+              {isMaternity && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-300 text-sm text-rose-700">
+                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span className="font-medium">Paid leave, no balance deduction. Max 6 months.</span>
+                </div>
+              )}
+
+              {leaveBalance !== null && !isCompOff && !isMaternity && (
                 <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                   <Wallet className="h-4 w-4 text-primary" />
                   <span className="text-sm text-muted-foreground">Available Balance:</span>
@@ -312,6 +331,17 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                   <span className="text-lg font-bold text-primary">
                     {calculateDays()} day(s)
                   </span>
+                  {isMaternity && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      ≈ {differenceInMonths(new Date(endDate), new Date(startDate))} month(s)
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {maternityError && (
+                <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive font-medium text-center">
+                  {maternityError}
                 </div>
               )}
               </>
@@ -411,7 +441,7 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                   disabled={
                     isCompOff
                       ? !earnedDate || !compoffLeaveDate || !!compoffError
-                      : !startDate || !endDate
+                      : !startDate || !endDate || !!maternityError
                   }
                 >
                   Next

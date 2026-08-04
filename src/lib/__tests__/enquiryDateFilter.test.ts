@@ -70,4 +70,23 @@ describe("enquiryDateFilter persistence", () => {
     expect(restored.end).toBeUndefined();
     expect(getActivePresetLabel(restored.start, restored.end)).toBe("All Time");
   });
+
+  it("resets a stale saved range so new enquiries are not hidden", () => {
+    const restored = parseRange(JSON.stringify({
+      start: "2026-07-27",
+      end: "2026-07-30",
+      savedOn: "2026-07-30",
+    }));
+    expect(restored.start).toBeUndefined();
+    expect(restored.end).toBeUndefined();
+  });
+
+  it("resets legacy ranges whose end date is in the past", () => {
+    const restored = parseRange(JSON.stringify({
+      start: "2026-07-27",
+      end: "2026-07-30",
+    }));
+    expect(restored.start).toBeUndefined();
+    expect(restored.end).toBeUndefined();
+  });
 });
