@@ -96,12 +96,14 @@ export function getActivePresetLabel(start: Date | undefined, end: Date | undefi
 export interface StoredRange {
   start: string | null; // YYYY-MM-DD in local calendar
   end: string | null;
+  savedOn?: string; // YYYY-MM-DD; prevents an old browser session hiding new enquiries
 }
 
 export function serializeRange(start: Date | undefined, end: Date | undefined): StoredRange {
   return {
     start: start ? format(start, "yyyy-MM-dd") : null,
     end: end ? format(end, "yyyy-MM-dd") : null,
+    savedOn: format(new Date(), "yyyy-MM-dd"),
   };
 }
 
@@ -109,6 +111,19 @@ export function parseRange(raw: string | null | undefined): DateRange {
   if (!raw) return { start: undefined, end: undefined };
   try {
     const parsed = JSON.parse(raw) as Partial<StoredRange>;
+    const today = format(new Date(), "yyyy-MM-dd");
+
+    // Date filters are useful across refreshes, but carrying yesterday's
+    // range into a new workday silently hides every new enquiry. New-format
+    // values reset daily. For legacy values, reset only when their upper
+    // bound is already in the past so existing stale filters self-heal.
+    if (
+      (parsed.savedOn && parsed.savedOn !== today) ||
+      (!parsed.savedOn && parsed.end && parsed.end < today)
+    ) {
+      return { start: undefined, end: undefined };
+    }
+
     const parseDay = (v: string | null | undefined, edge: "start" | "end") => {
       if (!v) return undefined;
       const d = parse(v, "yyyy-MM-dd", new Date());
