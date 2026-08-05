@@ -106,7 +106,7 @@ export function ProductSelect({
   };
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
+    <Popover open={open} onOpenChange={handleOpenChange} modal>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -124,17 +124,30 @@ export function ProductSelect({
       <PopoverContent
         className="w-[--radix-popover-trigger-width] min-w-[280px] max-w-[400px] p-0 z-50"
         align="start"
+        onPointerDownOutside={(e) => {
+          // Ignore taps that land on the popover itself (mobile can retarget
+          // pointer events while the virtual keyboard opens).
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[data-radix-popper-content-wrapper]')) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[data-radix-popper-content-wrapper]')) e.preventDefault();
+        }}
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           inputRef.current?.focus();
         }}
       >
-        <Command shouldFilter={false}>
+        <Command shouldFilter={false} onPointerDown={(e) => e.stopPropagation()}>
           <CommandInput
             ref={inputRef}
             placeholder="Search products..."
             value={searchQuery}
             onValueChange={handleInputChange}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onBlur={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && searchQuery.trim()) {
                 e.preventDefault();
