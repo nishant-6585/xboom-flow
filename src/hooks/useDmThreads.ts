@@ -51,7 +51,7 @@ export function useDmThreads() {
   useEffect(() => {
     if (!uid) return;
     const ch = supabase
-      .channel(`dm-threads-${uid}`)
+      .channel(`dm-threads-${uid}-${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "dm_messages" }, () => {
         qc.invalidateQueries({ queryKey: ["dm-threads", uid] });
       })
