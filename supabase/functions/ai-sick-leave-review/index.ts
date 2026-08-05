@@ -65,7 +65,8 @@ async function callAi(prompt: string): Promise<AiResult> {
             "Return ONLY strict JSON, no prose, no markdown fences. " +
             "Shape: {\"decision\":\"approve\"|\"reject\",\"reason\":string,\"confidence\":number(0..1)}. " +
             "Approve routine sick leave (fever, flu, viral, stomach upset, migraine, dental, minor illness, medical appointment, doctor visit, injury, recovery). " +
-            "Reject ONLY when: reason is blank / gibberish / non-medical (vacation, travel, personal errand, wedding, function), duration is unusually long (>3 days) without a specific medical explanation, or the recent history shows a clear abuse pattern (repeated Mon/Fri sick days, exceeding 6 sick days in the last 90). " +
+            "Reject ONLY when: reason is blank / gibberish / non-medical (vacation, travel, personal errand, wedding, function), or the request is MORE THAN 3 DAYS and lacks a specific medical explanation or its recent history shows a clear abuse pattern (repeated Mon/Fri sick days, exceeding 6 sick days in the last 90). " +
+            "For requests of 3 days or fewer, do not reject because of leave history, recurring patterns, or a missing medical certificate; approve when the submitted reason is medical. " +
             "Be lenient on genuine medical reasons. When rejecting, the reason must be a short, respectful, employee-facing explanation of what to fix and how to proceed (e.g. resubmit with a medical certificate, or apply as EL/Unpaid).",
         },
         { role: "user", content: prompt },
@@ -153,6 +154,7 @@ Deno.serve(async (req) => {
       .filter((r: any) => r.status === "approved")
       .reduce((s: number, r: any) => s + Number(r.total_days || 0), 0);
 
+    const patternReviewApplies = requested > 3;
     const prompt = [
       `Employee: ${employee?.name ?? "Unknown"} (${employee?.department ?? "n/a"})`,
       `Joining date: ${employee?.joining_date ?? "n/a"}`,
@@ -160,6 +162,7 @@ Deno.serve(async (req) => {
       `Reason submitted: "${leave.reason}"`,
       `Sick leave balance for this year: ${balance} day(s)`,
       `Approved sick leave in last 180 days: ${approvedSickInWindow} day(s)`,
+      `History/pattern and medical-certificate constraint applies: ${patternReviewApplies ? "YES — request exceeds 3 days" : "NO — request is 3 days or fewer"}`,
       `Recent sick history (last 180 days, most recent first):`,
       ...(history && history.length
         ? history.slice(0, 10).map((r: any) =>
