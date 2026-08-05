@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ export function ProductSelect({
 }: ProductSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
   const { items, loading } = usePricelist();
   const { rankMap, refetch } = usePopularProducts();
 
@@ -44,6 +45,15 @@ export function ProductSelect({
       refetch();
     }
   }, [open, refetch]);
+
+  // Keep focus in the search field when the list re-renders (mobile keyboards)
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+    setSearchQuery('');
+  }, [open]);
 
   const sortedItems = useMemo(() => {
     if (rankMap.size === 0) return items;
@@ -77,20 +87,26 @@ export function ProductSelect({
     setSearchQuery('');
   };
 
+  // Typing only updates local search state so the input never loses focus/caret
+  // due to parent re-renders. The typed value is committed on close/blur.
   const handleInputChange = (newValue: string) => {
     setSearchQuery(newValue);
-    if (!newValue) {
-      onChange('', undefined);
-      return;
-    }
+  };
 
-    // Always persist typed value (exact-match or custom), so dialogs don't lose user input.
-    const matchedProduct = items.find(p => p.product_name.toLowerCase() === newValue.toLowerCase());
-    onChange(newValue, matchedProduct);
+  const commitTypedValue = () => {
+    const typed = searchQuery.trim();
+    if (!typed || typed === value) return;
+    const matchedProduct = items.find(p => p.product_name.toLowerCase() === typed.toLowerCase());
+    onChange(matchedProduct?.product_name ?? typed, matchedProduct);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) commitTypedValue();
+    setOpen(next);
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -105,12 +121,26 @@ export function ProductSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0 z-50" align="start">
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] min-w-[280px] max-w-[400px] p-0 z-50"
+        align="start"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }}
+      >
         <Command shouldFilter={false}>
           <CommandInput
+            ref={inputRef}
             placeholder="Search products..."
             value={searchQuery}
             onValueChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchQuery.trim()) {
+                e.preventDefault();
+                handleSelect(searchQuery.trim());
+              }
+            }}
           />
           <CommandList>
             {loading ? (
