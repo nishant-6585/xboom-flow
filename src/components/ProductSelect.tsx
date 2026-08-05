@@ -36,6 +36,8 @@ export function ProductSelect({
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   const { items, loading } = usePricelist();
   const { rankMap, refetch } = usePopularProducts();
 
@@ -102,6 +104,9 @@ export function ProductSelect({
 
   const handleOpenChange = (next: boolean) => {
     if (!next) commitTypedValue();
+    if (next) {
+      setPortalContainer(triggerRef.current?.closest<HTMLElement>('[role="dialog"]') ?? null);
+    }
     setOpen(next);
   };
 
@@ -109,6 +114,7 @@ export function ProductSelect({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -122,6 +128,7 @@ export function ProductSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        portalContainer={portalContainer}
         className="w-[--radix-popover-trigger-width] min-w-[280px] max-w-[400px] p-0 z-50"
         align="start"
         onOpenAutoFocus={(e) => {
