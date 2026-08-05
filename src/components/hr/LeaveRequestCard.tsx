@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, User, UserPlus } from "lucide-react";
+import { AlertCircle, Calendar, User, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { LeaveRequest, LeaveStatus, LeaveType } from "@/hooks/useHR";
 
@@ -89,6 +89,16 @@ export function LeaveRequestCard({ leave, showEmployee, onView }: LeaveRequestCa
           <p className="text-sm text-muted-foreground line-clamp-2">
             {leave.reason}
           </p>
+        )}
+
+        {leave.status === 'rejected' && leave.comments && (
+          <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <span className="font-semibold">Rejection reason: </span>
+              <span>{leave.comments}</span>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
