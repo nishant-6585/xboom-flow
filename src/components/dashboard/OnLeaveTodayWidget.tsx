@@ -50,7 +50,10 @@ export function OnLeaveTodayWidget() {
     (async () => {
       const { data, error } = await supabase.rpc("get_employees_on_leave_today");
       if (!mounted) return;
-      if (!error && data) setRows(data as OnLeaveRow[]);
+      if (!error && data) {
+        // Maternity leave is not surfaced on the dashboard widget
+        setRows((data as OnLeaveRow[]).filter((r) => r.leave_type !== "maternity"));
+      }
       setLoading(false);
     })();
     return () => {
