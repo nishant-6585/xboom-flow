@@ -432,7 +432,7 @@ export function useOrders() {
     if (!user) return;
 
     const channel = supabase
-      .channel('orders-changes')
+      .channel(`orders-changes-${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
