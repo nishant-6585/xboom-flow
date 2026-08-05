@@ -2,11 +2,11 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
@@ -36,6 +36,8 @@ export function ProductSelect({
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   const { items, loading } = usePricelist();
   const { rankMap, refetch } = usePopularProducts();
 
@@ -102,19 +104,17 @@ export function ProductSelect({
 
   const handleOpenChange = (next: boolean) => {
     if (!next) commitTypedValue();
+    if (next) {
+      setPortalContainer(triggerRef.current?.closest<HTMLElement>('[role="dialog"]') ?? null);
+    }
     setOpen(next);
   };
 
-  const focusSearchInput = (input: HTMLInputElement) => {
-    // Mobile browsers only open the virtual keyboard when focus happens
-    // synchronously inside the user's tap/click gesture.
-    input.focus({ preventScroll: true });
-  };
-
   return (
-    <Popover open={open} onOpenChange={handleOpenChange} modal>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -128,50 +128,35 @@ export function ProductSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        portalContainer={portalContainer}
         className="w-[--radix-popover-trigger-width] min-w-[280px] max-w-[400px] p-0 z-50"
         align="start"
-        onPointerDownOutside={(e) => {
-          // Ignore taps that land on the popover itself (mobile can retarget
-          // pointer events while the virtual keyboard opens).
-          const target = e.target as HTMLElement | null;
-          if (target?.closest('[data-radix-popper-content-wrapper]')) e.preventDefault();
-        }}
-        onInteractOutside={(e) => {
-          const target = e.target as HTMLElement | null;
-          if (target?.closest('[data-radix-popper-content-wrapper]')) e.preventDefault();
-        }}
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           inputRef.current?.focus();
         }}
       >
-        <Command shouldFilter={false} onPointerDown={(e) => e.stopPropagation()}>
-          <CommandInput
-            ref={inputRef}
-            autoFocus
-            inputMode="search"
-            placeholder="Search products..."
-            value={searchQuery}
-            onValueChange={handleInputChange}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              focusSearchInput(e.currentTarget);
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              focusSearchInput(e.currentTarget);
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              focusSearchInput(e.currentTarget);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
-                e.preventDefault();
-                handleSelect(searchQuery.trim());
-              }
-            }}
-          />
+        <Command shouldFilter={false}>
+          <div className="flex items-center border-b px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <Input
+              ref={inputRef}
+              type="search"
+              inputMode="search"
+              autoComplete="off"
+              aria-label="Search products"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(event) => handleInputChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && searchQuery.trim()) {
+                  event.preventDefault();
+                  handleSelect(searchQuery.trim());
+                }
+              }}
+              className="h-11 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+          </div>
           <CommandList>
             {loading ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
