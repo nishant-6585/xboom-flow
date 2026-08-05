@@ -32,8 +32,10 @@ export function useMonthlyPulses() {
 
   // Realtime refresh
   useEffect(() => {
+    // Multiple consumers may mount useMonthlyPulses simultaneously. Keep each
+    // subscription isolated so callbacks are always registered before subscribe.
     const ch = supabase
-      .channel("monthly_pulses_changes")
+      .channel(`monthly-pulses-changes-${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "monthly_pulses" }, () => {
         qc.invalidateQueries({ queryKey: ["monthly_pulses"] });
       })

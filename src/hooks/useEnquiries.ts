@@ -177,8 +177,11 @@ export function useEnquiries() {
   useEffect(() => {
     if (!user) return;
 
+    // This hook can be mounted by more than one dashboard component at once.
+    // A unique topic prevents Supabase from returning an existing, already
+    // subscribed channel and rejecting the subsequent `.on(...)` callback.
     const channel = supabase
-      .channel("enquiries-changes")
+      .channel(`enquiries-changes-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
