@@ -265,6 +265,8 @@ export function useLeaveHistory() {
       created_at: r.created_at,
       approver_name: r.approver_name,
       approved_rejected_at: r.approved_rejected_at,
+      comments: r.comments,
+      ai_reviewed: Boolean(r.ai_reviewed),
     }));
   }, []);
 
