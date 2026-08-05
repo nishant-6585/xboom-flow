@@ -105,6 +105,12 @@ export function ProductSelect({
     setOpen(next);
   };
 
+  const focusSearchInput = (input: HTMLInputElement) => {
+    // Mobile browsers only open the virtual keyboard when focus happens
+    // synchronously inside the user's tap/click gesture.
+    input.focus({ preventScroll: true });
+  };
+
   return (
     <Popover open={open} onOpenChange={handleOpenChange} modal>
       <PopoverTrigger asChild>
@@ -142,12 +148,23 @@ export function ProductSelect({
         <Command shouldFilter={false} onPointerDown={(e) => e.stopPropagation()}>
           <CommandInput
             ref={inputRef}
+            autoFocus
+            inputMode="search"
             placeholder="Search products..."
             value={searchQuery}
             onValueChange={handleInputChange}
-            onPointerDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onBlur={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              focusSearchInput(e.currentTarget);
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              focusSearchInput(e.currentTarget);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              focusSearchInput(e.currentTarget);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && searchQuery.trim()) {
                 e.preventDefault();
