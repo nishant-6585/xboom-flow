@@ -126,7 +126,7 @@ export function usePipelineOrders() {
 
   useEffect(() => {
     const channel = supabase
-      .channel('pipeline_orders_changes')
+      .channel(`pipeline-orders-changes-${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pipeline_orders' },
