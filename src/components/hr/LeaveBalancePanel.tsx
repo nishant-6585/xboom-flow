@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { CompOffHistoryTable } from '@/components/hr/CompOffHistoryTable';
 
 interface LeaveBalancePanelProps {
   employeeId?: string;
+  actions?: ReactNode;
 }
 
 const LEAVE_TYPE_DISPLAY: Record<string, string> = {
@@ -24,7 +25,7 @@ const LEAVE_TYPE_DISPLAY: Record<string, string> = {
   half_day_casual: 'Half Day Earned',
 };
 
-export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
+export function LeaveBalancePanel({ employeeId, actions }: LeaveBalancePanelProps) {
   const { role } = useAuth();
   const { balanceSummaries, transactions, employeeRows, loading, fetchAllBalances, adjustBalances } = useLeaveBalances(employeeId);
   const { balance: compoffBalance } = useCompOff(employeeId);
@@ -80,6 +81,8 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
           </CardContent>
         </Card>
       </div>
+
+      {actions}
 
       <Tabs defaultValue="history">
         <TabsList>
