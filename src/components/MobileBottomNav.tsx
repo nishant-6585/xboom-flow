@@ -40,7 +40,8 @@ export function MobileBottomNav() {
     { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
-    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    // Forms hidden from mobile nav (route + page preserved).
+    // { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin", "finance"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ].filter(item => hasNavAccess(item.roles));
