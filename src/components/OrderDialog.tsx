@@ -146,6 +146,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [poUploading, setPoUploading] = useState(false);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const poInputRef = useRef<HTMLInputElement>(null);
+  const deleteReasonRef = useRef<HTMLTextAreaElement>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [refreshingPrices, setRefreshingPrices] = useState(false);
   const [escalationReason, setEscalationReason] = useState('');
@@ -1383,7 +1384,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={onOpenChange} modal={!deleteDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto !block">
           <DialogHeader>
             <div className="flex items-center justify-between gap-4">
@@ -3554,8 +3555,19 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             </div>
           </div>
 
-          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+          <AlertDialog
+            open={deleteDialogOpen}
+            onOpenChange={(nextOpen) => {
+              setDeleteDialogOpen(nextOpen);
+              if (!nextOpen) setDeleteReason('');
+            }}
+          >
+        <AlertDialogContent
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            deleteReasonRef.current?.focus();
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Order</AlertDialogTitle>
             <AlertDialogDescription>
@@ -3565,6 +3577,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
           <div className="space-y-2 py-2">
             <Label htmlFor="delete-reason">Reason for deletion <span className="text-destructive">*</span></Label>
             <Textarea
+              ref={deleteReasonRef}
               id="delete-reason"
               value={deleteReason}
               onChange={(e) => setDeleteReason(e.target.value)}
