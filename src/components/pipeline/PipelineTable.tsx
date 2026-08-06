@@ -764,12 +764,14 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                           {editClosureDate ? format(editClosureDate, 'PPP') : 'Select date'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0 z-[60]" align="start">
                         <Calendar
                           mode="single"
                           selected={editClosureDate}
-                          onSelect={setEditClosureDate}
+                          onSelect={(d) => setEditClosureDate(d ?? undefined)}
+                          defaultMonth={editClosureDate ?? new Date()}
                           initialFocus
+                          className="p-3 pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
