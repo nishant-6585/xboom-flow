@@ -273,7 +273,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
 
   const handleEditClick = (order: PipelineOrder) => {
     setEditOrder(order);
-    setEditClosureDate(order.expected_closure_date ? new Date(order.expected_closure_date) : undefined);
+    setEditClosureDate(parseDateOnly(order.expected_closure_date));
   };
 
   const handleEditSave = async () => {
@@ -586,7 +586,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     <TableCell>{formatCurrency(order.expected_price)}</TableCell>
                     <TableCell>
                       {order.expected_closure_date 
-                        ? format(new Date(order.expected_closure_date), 'dd MMM yyyy')
+                        ? format(parseDateOnly(order.expected_closure_date)!, 'dd MMM yyyy')
                         : '—'}
                     </TableCell>
                     <TableCell>
@@ -661,7 +661,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                                   className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
                                   onClick={() => {
                                     setEditOrder({ ...order, status: 'lost' as PipelineStatus });
-                                    setEditClosureDate(order.expected_closure_date ? new Date(order.expected_closure_date) : undefined);
+                                    setEditClosureDate(parseDateOnly(order.expected_closure_date));
                                   }}
                                 >
                                   <span className="text-xs font-bold">OL</span>
