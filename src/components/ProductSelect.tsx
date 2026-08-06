@@ -132,7 +132,6 @@ export function ProductSelect({
         className="w-[--radix-popover-trigger-width] min-w-[280px] max-w-[400px] max-h-[min(360px,50dvh)] overflow-hidden p-0 z-50"
         align="start"
         side="bottom"
-        avoidCollisions={false}
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           inputRef.current?.focus();
