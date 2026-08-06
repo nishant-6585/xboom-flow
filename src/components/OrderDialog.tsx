@@ -3553,10 +3553,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               )}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Order</AlertDialogTitle>
@@ -3587,7 +3585,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+          </AlertDialog>
+        </DialogContent>
+      </Dialog>
 
       <PaymentUploadDialog
         orderId={order.id}
