@@ -15,6 +15,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing, ShoppingCart } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays, subDays, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subYears } from 'date-fns';
+
+// Parse a 'yyyy-MM-dd' string as a LOCAL date (new Date('2026-01-19') parses as UTC,
+// which shifts the day backwards in negative-offset zones and can render the wrong
+// month/day in the calendar).
+const parseDateOnly = (value?: string | null): Date | undefined => {
+  if (!value) return undefined;
+  const [y, m, d] = value.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return undefined;
+  return new Date(y, m - 1, d);
+};
 import { CallButton } from '@/components/calls/CallButton';
 import { cn } from '@/lib/utils';
 import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus, LeadTemperature, PIPELINE_LOST_REASONS } from '@/hooks/usePipelineOrders';
@@ -144,7 +154,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
 
     lastAutoOpenedId.current = selectedLeadId;
     setEditOrder(targetOrder);
-    setEditClosureDate(targetOrder.expected_closure_date ? new Date(targetOrder.expected_closure_date) : undefined);
+    setEditClosureDate(parseDateOnly(targetOrder.expected_closure_date));
   }, [selectedLeadId, orders]);
 
   const hasClosureDateFilter = closureDateStart || closureDateEnd;
@@ -263,7 +273,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
 
   const handleEditClick = (order: PipelineOrder) => {
     setEditOrder(order);
-    setEditClosureDate(order.expected_closure_date ? new Date(order.expected_closure_date) : undefined);
+    setEditClosureDate(parseDateOnly(order.expected_closure_date));
   };
 
   const handleEditSave = async () => {
@@ -576,7 +586,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     <TableCell>{formatCurrency(order.expected_price)}</TableCell>
                     <TableCell>
                       {order.expected_closure_date 
-                        ? format(new Date(order.expected_closure_date), 'dd MMM yyyy')
+                        ? format(parseDateOnly(order.expected_closure_date)!, 'dd MMM yyyy')
                         : '—'}
                     </TableCell>
                     <TableCell>
@@ -651,7 +661,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                                   className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
                                   onClick={() => {
                                     setEditOrder({ ...order, status: 'lost' as PipelineStatus });
-                                    setEditClosureDate(order.expected_closure_date ? new Date(order.expected_closure_date) : undefined);
+                                    setEditClosureDate(parseDateOnly(order.expected_closure_date));
                                   }}
                                 >
                                   <span className="text-xs font-bold">OL</span>
@@ -754,12 +764,14 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                           {editClosureDate ? format(editClosureDate, 'PPP') : 'Select date'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0 z-[60]" align="start">
                         <Calendar
                           mode="single"
                           selected={editClosureDate}
-                          onSelect={setEditClosureDate}
+                          onSelect={(d) => setEditClosureDate(d ?? undefined)}
+                          defaultMonth={editClosureDate ?? new Date()}
                           initialFocus
+                          className="p-3 pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
