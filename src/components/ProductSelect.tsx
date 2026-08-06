@@ -129,15 +129,16 @@ export function ProductSelect({
       </PopoverTrigger>
       <PopoverContent
         portalContainer={portalContainer}
-        className="w-[--radix-popover-trigger-width] min-w-[280px] max-w-[400px] p-0 z-50"
+        className="w-[--radix-popover-trigger-width] min-w-[280px] max-w-[400px] max-h-[min(360px,50dvh)] overflow-hidden p-0 z-50"
         align="start"
+        side="bottom"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           inputRef.current?.focus();
         }}
       >
-        <Command shouldFilter={false}>
-          <div className="flex items-center border-b px-3">
+        <Command shouldFilter={false} className="max-h-[min(360px,50dvh)]">
+          <div className="sticky top-0 z-10 flex shrink-0 items-center border-b bg-popover px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
             <Input
               ref={inputRef}
@@ -157,7 +158,7 @@ export function ProductSelect({
               className="h-11 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </div>
-          <CommandList>
+          <CommandList className="min-h-0 flex-1 overflow-y-auto">
             {loading ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
                 Loading products...
