@@ -285,15 +285,15 @@ export function FloatingActionButton() {
 
       {/* Order Dialog */}
       <Dialog open={activeDialog === "order"} onOpenChange={(open) => !open && setActiveDialog(null)}>
-        <DialogContent className="max-w-[min(1200px,95vw)] w-[95vw] max-h-[90vh] overflow-hidden">
-          <DialogHeader>
+        <DialogContent className="flex h-[90dvh] max-h-[90dvh] w-[95vw] max-w-[min(1200px,95vw)] flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5 text-primary" />
               Create New Order
             </DialogTitle>
             <DialogDescription>Add a new customer order</DialogDescription>
           </DialogHeader>
-          <div className="max-h-[75vh] overflow-y-auto overflow-x-hidden pr-2 -mr-2">
+          <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden pr-2 -mr-2">
             <OrderForm
               onSubmit={handleOrderSubmit}
               suppliers={suppliers}
