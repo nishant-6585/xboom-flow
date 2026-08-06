@@ -91,6 +91,7 @@ const LEAD_SOURCE_OPTIONS: { label: string; matches: string[] }[] = [
   { label: 'ElevenLabs', matches: ['elevenlabs', 'eleven labs'] },
   { label: 'Email / Gmail', matches: ['gmail', 'email'] },
   { label: 'Referral', matches: ['referral'] },
+  { label: 'Walk-in', matches: ['walk_in', 'walk-in', 'walkin'] },
   { label: 'Exhibition', matches: ['exhibition', 'event'] },
   { label: 'Other', matches: ['other'] },
 ];
