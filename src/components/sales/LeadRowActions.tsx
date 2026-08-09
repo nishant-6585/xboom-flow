@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MoreVertical, CheckCircle2, XCircle, ArrowUpRight, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,24 @@ export function LeadRowActions({
   const [qualifyOpen, setQualifyOpen] = useState(false);
   const [notQualifyOpen, setNotQualifyOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Radix can leave `pointer-events: none` on <body> when a dropdown unmounts
+  // in the same tick a dialog mounts — that freezes the whole page.
+  useEffect(() => {
+    if (!menuOpen && !qualifyOpen && !notQualifyOpen) {
+      document.body.style.pointerEvents = "";
+    }
+  }, [menuOpen, qualifyOpen, notQualifyOpen]);
+  useEffect(() => () => {
+    document.body.style.pointerEvents = "";
+  }, []);
+
+  // Open dialogs only after the dropdown has fully closed.
+  const openAfterMenuClose = (fn: () => void) => {
+    setMenuOpen(false);
+    setTimeout(fn, 0);
+  };
 
   const disposition = (currentDisposition ?? "untouched") as LeadDisposition;
   const isTerminal = disposition === "qualified" || disposition === "not_qualified";
@@ -76,7 +94,7 @@ export function LeadRowActions({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -108,11 +126,21 @@ export function LeadRowActions({
 
           {!isTerminal && (
             <>
-              <DropdownMenuItem onClick={() => setQualifyOpen(true)}>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  openAfterMenuClose(() => setQualifyOpen(true));
+                }}
+              >
                 <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />
                 Qualify…
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setNotQualifyOpen(true)}>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  openAfterMenuClose(() => setNotQualifyOpen(true));
+                }}
+              >
                 <XCircle className="h-4 w-4 mr-2 text-destructive" />
                 Not Qualify…
               </DropdownMenuItem>
