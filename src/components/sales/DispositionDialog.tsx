@@ -71,8 +71,16 @@ export function DispositionDialog({
       setReasonCode("");
       setNote("");
       setSubmitting(false);
+    } else {
+      // Guard against a stuck focus/pointer lock left behind by a
+      // dropdown that closed while this dialog was opening.
+      document.body.style.pointerEvents = "";
     }
   }, [open]);
+
+  useEffect(() => () => {
+    document.body.style.pointerEvents = "";
+  }, []);
 
   const isCustom = reasonCode === "custom";
   const noteTrimmed = note.trim();
