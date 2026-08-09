@@ -294,7 +294,7 @@ export default function Orders() {
                   shopifyOrders={filteredShopifyOrders}
                   wooOrders={filteredWooOrders}
                 />
-                <DataExportDialog triggerLabel="Download data" />
+                {role === 'admin' && <DataExportDialog triggerLabel="Download data" />}
               </div>
               <OrdersTabsList
                 sourceFilter={sourceFilter}
