@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
+import { DataExportDialog } from "@/components/exports/DataExportDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
