@@ -8,6 +8,7 @@ import { startOfMonth } from 'date-fns';
 import { OrderDialog } from '@/components/OrderDialog';
 import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
 import { OrdersExportButton } from '@/components/orders/OrdersExportButton';
+import { DataExportDialog } from '@/components/exports/DataExportDialog';
 import { OrderPipelineAnalytics } from '@/components/orders/OrderPipelineAnalytics';
 import { OrdersTabsList } from '@/components/orders/OrdersTabsList';
 
@@ -286,12 +287,15 @@ export default function Orders() {
                   </Link>
                 )}
               </div>
-              <OrdersExportButton
-                activeTab={activeTab}
-                manualOrders={filteredOrders}
-                shopifyOrders={filteredShopifyOrders}
-                wooOrders={filteredWooOrders}
-              />
+              <div className="flex items-center gap-2 self-start flex-wrap">
+                <OrdersExportButton
+                  activeTab={activeTab}
+                  manualOrders={filteredOrders}
+                  shopifyOrders={filteredShopifyOrders}
+                  wooOrders={filteredWooOrders}
+                />
+                <DataExportDialog triggerLabel="Download data" />
+              </div>
               <OrdersTabsList
                 sourceFilter={sourceFilter}
                 filteredOrdersCount={filteredOrders.length}

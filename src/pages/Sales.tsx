@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
+import { DataExportDialog } from "@/components/exports/DataExportDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,8 @@ export default function Sales() {
               <p className="text-muted-foreground text-sm">Track, compete, and conquer your sales goals</p>
             </div>
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+          <DataExportDialog triggerLabel="Download data" />
           <Button
             onClick={() => navigate('/sales/tv')}
             size="lg"
@@ -115,6 +118,7 @@ export default function Sales() {
             <Tv className="w-5 h-5" />
             TV View
           </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
