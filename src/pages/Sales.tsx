@@ -106,6 +106,8 @@ export default function Sales() {
               <p className="text-muted-foreground text-sm">Track, compete, and conquer your sales goals</p>
             </div>
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+          <DataExportDialog triggerLabel="Download data" />
           <Button
             onClick={() => navigate('/sales/tv')}
             size="lg"
@@ -115,6 +117,7 @@ export default function Sales() {
             <Tv className="w-5 h-5" />
             TV View
           </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
