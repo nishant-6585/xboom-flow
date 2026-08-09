@@ -108,7 +108,7 @@ export default function Sales() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-          <DataExportDialog triggerLabel="Download data" />
+          {role === "admin" && <DataExportDialog triggerLabel="Download data" />}
           <Button
             onClick={() => navigate('/sales/tv')}
             size="lg"
