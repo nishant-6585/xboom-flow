@@ -27,6 +27,7 @@ import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { SourceCoverageCard } from '@/components/crm/SourceCoverageCard';
 import { LeadSourceBadge, normalizeSource } from '@/components/LeadSourceBadge';
 import { Target as TargetIcon } from 'lucide-react';
+import { LeadsExportMenu } from './LeadsExportMenu';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
 
@@ -448,10 +449,33 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
       {/* Prospects Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            Prospects ({filtered.length})
-          </CardTitle>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Prospects ({filtered.length})
+            </CardTitle>
+            {role === 'admin' && (
+              <LeadsExportMenu
+                rows={filtered}
+                filename="prospect-contacts"
+                title="Prospect Contacts"
+                columns={[
+                  { label: 'Name', value: (p: Prospect) => p.customer_name },
+                  { label: 'Phone', value: (p: Prospect) => p.phone_number },
+                  { label: 'Email', value: (p: Prospect) => p.email },
+                  { label: 'Company', value: (p: Prospect) => p.company },
+                  { label: 'City', value: (p: Prospect) => p.city },
+                  { label: 'Product', value: (p: Prospect) => p.product_name },
+                  { label: 'Source', value: (p: Prospect) => p.lead_source || p.source_type },
+                  { label: 'Status', value: (p: Prospect) => p.status },
+                  { label: 'A-Category', value: (p: Prospect) => p.is_a_category },
+                  { label: 'Notes', value: (p: Prospect) => p.notes },
+                  { label: 'Added By', value: (p: Prospect) => p.created_by_name },
+                  { label: 'Added On', value: (p: Prospect) => p.created_at, date: true },
+                ]}
+              />
+            )}
+          </div>
           <CardDescription>Qualified contacts from Leads, Interakt & MyOperator</CardDescription>
         </CardHeader>
         <CardContent>
