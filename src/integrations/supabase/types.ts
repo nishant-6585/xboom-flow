@@ -14745,6 +14745,7 @@ export type Database = {
           channel_orders: string | null
           channel_pipeline: string | null
           channel_procurements: string | null
+          channel_prospect_pipeline: string | null
           channel_sales_report: string | null
           channel_suppliers: string | null
           channel_tickets: string | null
@@ -14752,6 +14753,7 @@ export type Database = {
           enable_ai_insights: boolean | null
           enable_daily_report: boolean | null
           enable_interactive_actions: boolean | null
+          enable_prospect_pipeline_report: boolean
           enable_weekly_report: boolean | null
           id: string
           is_enabled: boolean
@@ -14773,6 +14775,7 @@ export type Database = {
           channel_orders?: string | null
           channel_pipeline?: string | null
           channel_procurements?: string | null
+          channel_prospect_pipeline?: string | null
           channel_sales_report?: string | null
           channel_suppliers?: string | null
           channel_tickets?: string | null
@@ -14780,6 +14783,7 @@ export type Database = {
           enable_ai_insights?: boolean | null
           enable_daily_report?: boolean | null
           enable_interactive_actions?: boolean | null
+          enable_prospect_pipeline_report?: boolean
           enable_weekly_report?: boolean | null
           id?: string
           is_enabled?: boolean
@@ -14801,6 +14805,7 @@ export type Database = {
           channel_orders?: string | null
           channel_pipeline?: string | null
           channel_procurements?: string | null
+          channel_prospect_pipeline?: string | null
           channel_sales_report?: string | null
           channel_suppliers?: string | null
           channel_tickets?: string | null
@@ -14808,6 +14813,7 @@ export type Database = {
           enable_ai_insights?: boolean | null
           enable_daily_report?: boolean | null
           enable_interactive_actions?: boolean | null
+          enable_prospect_pipeline_report?: boolean
           enable_weekly_report?: boolean | null
           id?: string
           is_enabled?: boolean
