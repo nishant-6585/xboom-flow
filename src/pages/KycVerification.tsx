@@ -277,6 +277,32 @@ export default function KycVerification() {
   const [busy, setBusy] = useState(false);
   const [rerunning, setRerunning] = useState<string | null>(null); // document id being re-reviewed
   const [aadhaarMap, setAadhaarMap] = useState<Record<string, string>>({});
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [orderLoading, setOrderLoading] = useState(false);
+
+  const openOrderDialog = async (orderId: string) => {
+    setOrderLoading(true);
+    const { data, error } = await supabase.from("orders").select("*").eq("id", orderId).single();
+    setOrderLoading(false);
+    if (error || !data) {
+      toast.error("Failed to load order details");
+      return;
+    }
+    setSelectedOrder(data);
+    setOrderDialogOpen(true);
+  };
+
+  const handleOrderUpdate = async (orderId: string, updates: Record<string, unknown>) => {
+    const { error } = await supabase.from("orders").update(updates as never).eq("id", orderId);
+    if (error) {
+      toast.error("Failed to update order");
+      return false;
+    }
+    setSelectedOrder((prev: any) => (prev ? { ...prev, ...updates } : prev));
+    toast.success("Order updated");
+    return true;
+  };
 
   // A document's badge reflects the document's own status. Cross-doc
   // supersession (approved doc hides older rejected docs of a different
@@ -565,7 +591,7 @@ export default function KycVerification() {
                             r.latest_order_id ? (
                               <button
                                 type="button"
-                                onClick={() => navigate(`/orders?order_id=${r.latest_order_id}`)}
+                                onClick={() => openOrderDialog(r.latest_order_id!)}
                                 className="text-primary underline-offset-2 hover:underline"
                                 title="Open order details"
                               >
