@@ -116,13 +116,7 @@ export function useTableExport() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, opts.sheetName ?? "Sheet1");
         const finalName = appendTimestamp(filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
-        const out = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
-        downloadBlob(
-          new Blob([out], {
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          }),
-          finalName,
-        );
+        XLSX.writeFile(wb, finalName, { compression: true });
         toast.success(`Exported ${rows.length} rows`, { description: finalName });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Export failed";
