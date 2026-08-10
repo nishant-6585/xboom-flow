@@ -259,6 +259,7 @@ function StatCard({ label, value, tone, onClick, active }: {
 export default function KycVerification() {
   const { rows, loading, review, rerunAiReview, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const focusAccount = params.get("account");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
