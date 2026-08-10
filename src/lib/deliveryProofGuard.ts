@@ -19,6 +19,18 @@ export type DeliveryProofCheck =
 const OFFICE_COURIER_RE =
   /(office\s*deliver|office\s*pickup|self\s*deliver|hand\s*deliver|walk[-\s]?in|showroom|^\s*bus\s*$)/i;
 
+/**
+ * Delivery mode implied by a courier name. Office/self/hand delivery and
+ * showroom pickup map to office_pickup; anything else is a courier shipment.
+ */
+export function deliveryModeFromCourier(
+  courierName: string | null | undefined,
+): 'courier' | 'office_pickup' | null {
+  const name = (courierName ?? '').trim();
+  if (!name) return null;
+  return OFFICE_COURIER_RE.test(name) ? 'office_pickup' : 'courier';
+}
+
 export function requiresDeliveryProof(order: DeliveryProofOrderLike): boolean {
   if (order.delivery_mode === 'office_pickup') return true;
   if (order.courier_name && OFFICE_COURIER_RE.test(order.courier_name)) return true;
