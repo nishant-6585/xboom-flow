@@ -556,7 +556,24 @@ export default function KycVerification() {
                         id={`kyc-row-${r.account.id}`}
                         className={focusAccount === r.account.id ? "bg-primary/5" : ""}
                       >
-                        <TableCell className="font-mono text-xs">{r.latest_order_number || "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {r.latest_order_number ? (
+                            r.latest_order_id ? (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/orders?order_id=${r.latest_order_id}`)}
+                                className="text-primary underline-offset-2 hover:underline"
+                                title="Open order details"
+                              >
+                                {r.latest_order_number}
+                              </button>
+                            ) : (
+                              r.latest_order_number
+                            )
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
                         <TableCell>
                           <div className="font-medium">{r.account.primary_contact_name || r.account.company_name}</div>
                           <div className="text-xs text-muted-foreground">{r.customer_email || r.account.company_name}</div>
