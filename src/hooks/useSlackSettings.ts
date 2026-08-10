@@ -164,14 +164,23 @@ export const useSlackSettings = () => {
       const result = await response.json();
       
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Channel test failed');
+        throw new Error(result.error || result.details || 'Channel test failed');
       }
 
       toast.success(`Test message sent to #${channel}!`);
       return true;
     } catch (error) {
       console.error('Channel test failed:', error);
-      toast.error('Failed to send test message. Please check your channel ID and bot token secret.');
+      const raw = error instanceof Error ? error.message : 'Unknown error';
+      const friendly =
+        raw === 'channel_not_found'
+          ? 'Slack says that channel ID does not exist for this workspace. Copy the ID from the channel (About → bottom of the panel), it looks like C0123ABCDEF.'
+          : raw === 'not_in_channel'
+            ? 'The Slack bot is not in that channel. Invite it with /invite @Lovable App in the channel, then test again.'
+            : raw === 'invalid_auth' || raw === 'token_revoked'
+              ? 'The Slack bot token is invalid or revoked. Update the SLACK_BOT_TOKEN secret.'
+              : `Slack error: ${raw}`;
+      toast.error(friendly);
       return false;
     }
   };
