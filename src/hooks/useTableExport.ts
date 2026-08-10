@@ -70,7 +70,7 @@ function appendTimestamp(filename: string): string {
  * anchor click can be silently blocked, so we retry from the top-level window
  * and finally fall back to opening the blob in a new tab.
  */
-function downloadBlob(blob: Blob, filename: string) {
+export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const doc =
     (() => {
