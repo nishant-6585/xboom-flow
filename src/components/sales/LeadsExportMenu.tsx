@@ -41,21 +41,32 @@ interface Props<T> {
   className?: string;
 }
 
+// Excel hard limit for a single cell's text length.
+const EXCEL_CELL_LIMIT = 32767;
+
+function clampCell(text: string): string {
+  // Strip control characters Excel rejects, then clamp to the cell limit.
+  const clean = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ");
+  return clean.length > EXCEL_CELL_LIMIT
+    ? `${clean.slice(0, EXCEL_CELL_LIMIT - 3)}...`
+    : clean;
+}
+
 function cell(value: unknown, isDate?: boolean): string {
   if (value === null || value === undefined || value === "") return "";
   if (isDate) {
     const d = value instanceof Date ? value : new Date(String(value));
-    return isValid(d) ? formatDate(d, "dd MMM yyyy HH:mm") : String(value);
+    return isValid(d) ? formatDate(d, "dd MMM yyyy HH:mm") : clampCell(String(value));
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "object") {
     try {
-      return JSON.stringify(value);
+      return clampCell(JSON.stringify(value));
     } catch {
-      return String(value);
+      return clampCell(String(value));
     }
   }
-  return String(value);
+  return clampCell(String(value));
 }
 
 /**
@@ -76,12 +87,26 @@ export function LeadsExportMenu<T>({
   const disabled = !rows || rows.length === 0;
 
   const handleExcel = (data: T[] = rows) => {
-    const shaped = data.map((row) => {
-      const out: Record<string, string> = {};
-      for (const col of columns) out[col.label] = cell(col.value(row), col.date);
-      return out;
-    });
-    exportToExcel(shaped, filename, { sheetName: title.slice(0, 28) });
+    try {
+      const shaped = data.map((row) => {
+        const out: Record<string, string> = {};
+        for (const col of columns) {
+          let v: unknown = null;
+          try {
+            v = col.value(row);
+          } catch {
+            v = null;
+          }
+          out[col.label] = cell(v, col.date);
+        }
+        return out;
+      });
+      exportToExcel(shaped, filename, { sheetName: title.slice(0, 28) });
+    } catch (err) {
+      toast.error("Excel export failed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
   };
 
   const handlePdf = (data: T[] = rows) => {
