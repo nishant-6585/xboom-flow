@@ -659,6 +659,72 @@ export const SlackSettingsPanel = () => {
             </div>
           </div>
 
+          {/* Prospect & Pipeline Report Section */}
+          <Separator />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <Label className="text-base font-medium">Prospect &amp; Pipeline Report (2 PM &amp; 7 PM)</Label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Posts a per-salesperson count of prospects added and pipeline added today, twice a day at 2:00 PM and 7:00 PM IST
+            </p>
+
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-muted-foreground" />
+                <Label className="font-medium">Prospect &amp; Pipeline Channel</Label>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="prospect-pipeline or C04XXXXXX"
+                  value={channelProspectPipeline}
+                  onChange={(e) => setChannelProspectPipeline(e.target.value)}
+                  disabled={!isEnabled}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTestChannel('prospect-pipeline', channelProspectPipeline)}
+                  disabled={!channelProspectPipeline || testingChannel === 'prospect-pipeline'}
+                >
+                  {testingChannel === 'prospect-pipeline' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Falls back to the sales report channel when left empty</p>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label className="font-medium">Enable twice-daily report</Label>
+                <p className="text-xs text-muted-foreground">Runs automatically at 2:00 PM and 7:00 PM IST</p>
+              </div>
+              <Switch
+                checked={enableProspectPipelineReport}
+                onCheckedChange={setEnableProspectPipelineReport}
+                disabled={!isEnabled}
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                setTriggeringReport('prospect-pipeline');
+                await triggerProspectPipelineReport();
+                setTriggeringReport(null);
+              }}
+              disabled={!isEnabled || triggeringReport !== null}
+            >
+              {triggeringReport === 'prospect-pipeline' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+              Send Prospect &amp; Pipeline Report Now
+            </Button>
+          </div>
+
 
           <div className="flex justify-end pt-4">
             <Button
