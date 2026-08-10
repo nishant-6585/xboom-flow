@@ -281,7 +281,7 @@ export function useKycQueue() {
           .filter(Boolean) as string[],
       ),
     );
-    let ordersByEmail: Record<string, string> = {};
+    let ordersByEmail: Record<string, { number: string; id: string }> = {};
     if (emails.length) {
       // PostgREST has no case-insensitive `in`, so OR together ilike filters.
       const orFilter = emails
@@ -289,12 +289,12 @@ export function useKycQueue() {
         .join(",");
       const { data: orders } = await supabase
         .from("orders")
-        .select("order_number, customer_email, created_at")
+        .select("id, order_number, customer_email, created_at")
         .or(orFilter)
         .order("created_at", { ascending: false });
       for (const o of (orders as any[]) || []) {
         const k = (o.customer_email || "").trim().toLowerCase();
-        if (k && !ordersByEmail[k] && o.order_number) ordersByEmail[k] = o.order_number;
+        if (k && !ordersByEmail[k] && o.order_number) ordersByEmail[k] = { number: o.order_number, id: o.id };
       }
     }
 
@@ -309,7 +309,8 @@ export function useKycQueue() {
           account: a,
           document: doc,
           customer_email: email,
-          latest_order_number: emailKey ? ordersByEmail[emailKey] || null : null,
+          latest_order_number: emailKey ? ordersByEmail[emailKey]?.number ?? null : null,
+          latest_order_id: emailKey ? ordersByEmail[emailKey]?.id ?? null : null,
           rep_name: rep?.name ?? null,
           reviewer_name: doc?.reviewed_by ? reviewerMap[doc.reviewed_by] ?? null : null,
           ai_review: doc ? aiReviewByDoc[doc.id] ?? null : null,
