@@ -66,6 +66,39 @@ function appendTimestamp(filename: string): string {
 }
 
 /**
+ * Triggers a real browser download. Inside sandboxed preview iframes a plain
+ * anchor click can be silently blocked, so we retry from the top-level window
+ * and finally fall back to opening the blob in a new tab.
+ */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const doc =
+    (() => {
+      try {
+        return window.top?.document ?? document;
+      } catch {
+        return document;
+      }
+    })() || document;
+  try {
+    const a = doc.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.rel = "noopener";
+    a.style.display = "none";
+    doc.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 60_000);
+  } catch {
+    window.open(url, "_blank", "noopener");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+}
+
+/**
  * Hook returning memoized helpers to export an array of plain rows to
  * Excel or CSV. Both functions handle empty input gracefully and surface
  * a toast on success/failure.
@@ -83,7 +116,13 @@ export function useTableExport() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, opts.sheetName ?? "Sheet1");
         const finalName = appendTimestamp(filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
-        XLSX.writeFile(wb, finalName);
+        const out = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+        downloadBlob(
+          new Blob([out], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+          finalName,
+        );
         toast.success(`Exported ${rows.length} rows`, { description: finalName });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Export failed";
@@ -103,16 +142,8 @@ export function useTableExport() {
         const shaped = shapeRows(rows, opts);
         const ws = XLSX.utils.json_to_sheet(shaped);
         const csv = XLSX.utils.sheet_to_csv(ws);
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
         const finalName = appendTimestamp(filename.endsWith(".csv") ? filename : `${filename}.csv`);
-        a.href = url;
-        a.download = finalName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        downloadBlob(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }), finalName);
         toast.success(`Exported ${rows.length} rows`, { description: finalName });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Export failed";

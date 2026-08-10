@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useTableExport } from "@/hooks/useTableExport";
+import { useTableExport, downloadBlob } from "@/hooks/useTableExport";
 
 export interface LeadsExportColumn<T> {
   /** Column header shown in Excel/PDF. */
@@ -130,7 +130,7 @@ export function LeadsExportMenu<T>({
         margin: { left: 30, right: 30 },
       });
       const finalName = `${filename}-${formatDate(new Date(), "yyyyMMdd-HHmm")}.pdf`;
-      doc.save(finalName);
+      downloadBlob(doc.output("blob"), finalName);
       toast.success(`Exported ${data.length} rows`, { description: finalName });
     } catch (err) {
       toast.error("PDF export failed", {
