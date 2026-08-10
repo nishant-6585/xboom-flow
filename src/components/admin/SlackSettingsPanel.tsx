@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
 export const SlackSettingsPanel = () => {
-  const { settings, loading, updateSettings, testWebhook, testChannel, triggerSalesReport } = useSlackSettings();
+  const { settings, loading, updateSettings, testWebhook, testChannel, triggerSalesReport, triggerProspectPipelineReport } = useSlackSettings();
   
   const [isEnabled, setIsEnabled] = useState(false);
   const [notifyNewOrders, setNotifyNewOrders] = useState(true);
@@ -39,6 +39,10 @@ export const SlackSettingsPanel = () => {
   const [enableWeeklyReport, setEnableWeeklyReport] = useState(false);
   const [enableAIInsights, setEnableAIInsights] = useState(true);
   const [enableInteractiveActions, setEnableInteractiveActions] = useState(true);
+
+  // Prospect & pipeline report (2 PM & 7 PM IST)
+  const [channelProspectPipeline, setChannelProspectPipeline] = useState('');
+  const [enableProspectPipelineReport, setEnableProspectPipelineReport] = useState(false);
   
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -71,6 +75,8 @@ export const SlackSettingsPanel = () => {
       setEnableWeeklyReport((settings as any).enable_weekly_report ?? false);
       setEnableAIInsights((settings as any).enable_ai_insights ?? true);
       setEnableInteractiveActions((settings as any).enable_interactive_actions ?? true);
+      setChannelProspectPipeline((settings as any).channel_prospect_pipeline || '');
+      setEnableProspectPipelineReport((settings as any).enable_prospect_pipeline_report ?? false);
     }
   }, [settings]);
 
@@ -99,7 +105,9 @@ export const SlackSettingsPanel = () => {
         enableDailyReport !== ((settings as any).enable_daily_report ?? false) ||
         enableWeeklyReport !== ((settings as any).enable_weekly_report ?? false) ||
         enableAIInsights !== ((settings as any).enable_ai_insights ?? true) ||
-        enableInteractiveActions !== ((settings as any).enable_interactive_actions ?? true);
+        enableInteractiveActions !== ((settings as any).enable_interactive_actions ?? true) ||
+        channelProspectPipeline !== ((settings as any).channel_prospect_pipeline || '') ||
+        enableProspectPipelineReport !== ((settings as any).enable_prospect_pipeline_report ?? false);
       setHasChanges(changed);
     }
   }, [
@@ -108,6 +116,7 @@ export const SlackSettingsPanel = () => {
     channelTickets, notifyNewEnquiries, notifyNewProcurements, notifyNewSuppliers, notifyNewPipeline,
     notifyTicketAssigned, notifyTicketStatusChange,
     channelSalesReport, enableDailyReport, enableWeeklyReport, enableAIInsights, enableInteractiveActions,
+    channelProspectPipeline, enableProspectPipelineReport,
     settings
   ]);
 
@@ -138,6 +147,8 @@ export const SlackSettingsPanel = () => {
         enable_weekly_report: enableWeeklyReport,
         enable_ai_insights: enableAIInsights,
         enable_interactive_actions: enableInteractiveActions,
+        channel_prospect_pipeline: channelProspectPipeline || null,
+        enable_prospect_pipeline_report: enableProspectPipelineReport,
       } as any);
       setHasChanges(false);
     } finally {
@@ -646,6 +657,72 @@ export const SlackSettingsPanel = () => {
                 Send MTD Report Now
               </Button>
             </div>
+          </div>
+
+          {/* Prospect & Pipeline Report Section */}
+          <Separator />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <Label className="text-base font-medium">Prospect &amp; Pipeline Report (2 PM &amp; 7 PM)</Label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Posts a per-salesperson count of prospects added and pipeline added today, twice a day at 2:00 PM and 7:00 PM IST
+            </p>
+
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-muted-foreground" />
+                <Label className="font-medium">Prospect &amp; Pipeline Channel</Label>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="prospect-pipeline or C04XXXXXX"
+                  value={channelProspectPipeline}
+                  onChange={(e) => setChannelProspectPipeline(e.target.value)}
+                  disabled={!isEnabled}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTestChannel('prospect-pipeline', channelProspectPipeline)}
+                  disabled={!channelProspectPipeline || testingChannel === 'prospect-pipeline'}
+                >
+                  {testingChannel === 'prospect-pipeline' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Falls back to the sales report channel when left empty</p>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label className="font-medium">Enable twice-daily report</Label>
+                <p className="text-xs text-muted-foreground">Runs automatically at 2:00 PM and 7:00 PM IST</p>
+              </div>
+              <Switch
+                checked={enableProspectPipelineReport}
+                onCheckedChange={setEnableProspectPipelineReport}
+                disabled={!isEnabled}
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                setTriggeringReport('prospect-pipeline');
+                await triggerProspectPipelineReport();
+                setTriggeringReport(null);
+              }}
+              disabled={!isEnabled || triggeringReport !== null}
+            >
+              {triggeringReport === 'prospect-pipeline' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+              Send Prospect &amp; Pipeline Report Now
+            </Button>
           </div>
 
 
