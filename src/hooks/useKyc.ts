@@ -176,6 +176,7 @@ export interface KycQueueRow {
   document: KycDocumentRow | null;
   customer_email: string | null;
   latest_order_number: string | null;
+  latest_order_id: string | null;
   rep_name: string | null;
   reviewer_name: string | null;
   ai_review: AiKycReview | null;
