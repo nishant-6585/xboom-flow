@@ -1064,6 +1064,20 @@ export default function KycVerification() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {orderLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="animate-pulse text-muted-foreground text-sm">Loading order…</div>
+        </div>
+      )}
+
+      <OrderDialog
+        order={selectedOrder}
+        open={orderDialogOpen}
+        onOpenChange={(open) => { setOrderDialogOpen(open); if (!open) setSelectedOrder(null); }}
+        onUpdate={handleOrderUpdate as any}
+        onDelete={async () => false}
+      />
       </main>
     </div>
   );
