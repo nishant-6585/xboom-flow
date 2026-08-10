@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
 export const SlackSettingsPanel = () => {
-  const { settings, loading, updateSettings, testWebhook, testChannel, triggerSalesReport } = useSlackSettings();
+  const { settings, loading, updateSettings, testWebhook, testChannel, triggerSalesReport, triggerProspectPipelineReport } = useSlackSettings();
   
   const [isEnabled, setIsEnabled] = useState(false);
   const [notifyNewOrders, setNotifyNewOrders] = useState(true);
@@ -39,6 +39,10 @@ export const SlackSettingsPanel = () => {
   const [enableWeeklyReport, setEnableWeeklyReport] = useState(false);
   const [enableAIInsights, setEnableAIInsights] = useState(true);
   const [enableInteractiveActions, setEnableInteractiveActions] = useState(true);
+
+  // Prospect & pipeline report (2 PM & 7 PM IST)
+  const [channelProspectPipeline, setChannelProspectPipeline] = useState('');
+  const [enableProspectPipelineReport, setEnableProspectPipelineReport] = useState(false);
   
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -71,6 +75,8 @@ export const SlackSettingsPanel = () => {
       setEnableWeeklyReport((settings as any).enable_weekly_report ?? false);
       setEnableAIInsights((settings as any).enable_ai_insights ?? true);
       setEnableInteractiveActions((settings as any).enable_interactive_actions ?? true);
+      setChannelProspectPipeline((settings as any).channel_prospect_pipeline || '');
+      setEnableProspectPipelineReport((settings as any).enable_prospect_pipeline_report ?? false);
     }
   }, [settings]);
 
@@ -99,7 +105,9 @@ export const SlackSettingsPanel = () => {
         enableDailyReport !== ((settings as any).enable_daily_report ?? false) ||
         enableWeeklyReport !== ((settings as any).enable_weekly_report ?? false) ||
         enableAIInsights !== ((settings as any).enable_ai_insights ?? true) ||
-        enableInteractiveActions !== ((settings as any).enable_interactive_actions ?? true);
+        enableInteractiveActions !== ((settings as any).enable_interactive_actions ?? true) ||
+        channelProspectPipeline !== ((settings as any).channel_prospect_pipeline || '') ||
+        enableProspectPipelineReport !== ((settings as any).enable_prospect_pipeline_report ?? false);
       setHasChanges(changed);
     }
   }, [
@@ -108,6 +116,7 @@ export const SlackSettingsPanel = () => {
     channelTickets, notifyNewEnquiries, notifyNewProcurements, notifyNewSuppliers, notifyNewPipeline,
     notifyTicketAssigned, notifyTicketStatusChange,
     channelSalesReport, enableDailyReport, enableWeeklyReport, enableAIInsights, enableInteractiveActions,
+    channelProspectPipeline, enableProspectPipelineReport,
     settings
   ]);
 
@@ -138,6 +147,8 @@ export const SlackSettingsPanel = () => {
         enable_weekly_report: enableWeeklyReport,
         enable_ai_insights: enableAIInsights,
         enable_interactive_actions: enableInteractiveActions,
+        channel_prospect_pipeline: channelProspectPipeline || null,
+        enable_prospect_pipeline_report: enableProspectPipelineReport,
       } as any);
       setHasChanges(false);
     } finally {
