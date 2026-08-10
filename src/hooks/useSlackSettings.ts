@@ -213,6 +213,30 @@ export const useSlackSettings = () => {
     }
   };
 
+  const triggerProspectPipelineReport = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('You must be logged in to trigger a report');
+        return false;
+      }
+      const { data, error } = await supabase.functions.invoke('prospect-pipeline-report', {
+        body: { force: true },
+      });
+      if (error) throw error;
+      if ((data as { skipped?: boolean })?.skipped) {
+        toast.info('Report skipped — enable Slack notifications first');
+        return false;
+      }
+      toast.success('Prospect & pipeline report sent to Slack!');
+      return true;
+    } catch (error) {
+      console.error('Prospect/pipeline report failed:', error);
+      toast.error('Failed to send prospect & pipeline report');
+      return false;
+    }
+  };
+
   return {
     settings,
     loading,
@@ -220,6 +244,7 @@ export const useSlackSettings = () => {
     testWebhook,
     testChannel,
     triggerSalesReport,
+    triggerProspectPipelineReport,
     refetch: fetchSettings
   };
 };
