@@ -355,6 +355,15 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierName, trackingNumber]);
 
+  // Keep the Delivery mode section in sync with the Tracking Information
+  // courier: office/self/hand delivery & showroom pickup imply "Office /
+  // Showroom pickup", any real carrier implies "Courier".
+  useEffect(() => {
+    const implied = deliveryModeFromCourier(courierName);
+    if (!implied) return;
+    setDeliveryMode((prev) => (prev === implied ? prev : implied));
+  }, [courierName]);
+
   // Snapshot of the last order-derived values we pushed into each form field.
   // Used to detect "untouched" fields when the `order` prop refreshes (e.g.
   // after a payment record is approved and the server recomputes totals):
