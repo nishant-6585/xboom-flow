@@ -15,6 +15,9 @@ import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw } from
 import { Header } from "@/components/Header";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { OrderDialog } from "@/components/OrderDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const REJECT_CATEGORIES: { value: string; label: string }[] = [
   { value: "document_unclear", label: "Document unclear" },
