@@ -129,12 +129,33 @@ Deno.serve(async (req) => {
     if (logErr) console.error("Failed to write invitation_email_log:", logErr.message);
     logId = logRow?.id ?? null;
 
-    // Generate a recovery link (Supabase does NOT send an email for this method)
-    const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
-      type: "recovery",
-      email: recipientEmail,
-      options: { redirectTo: `${SITE_URL}/auth` },
-    });
+    // Generate a recovery link (Supabase does NOT send an email for this method).
+    // A recovery link requires an existing auth user. When the invitation is
+    // still pending (not yet approved) no auth user exists, so create one
+    // on the fly with a random password + confirmed email, then retry.
+    const genLink = () =>
+      adminClient.auth.admin.generateLink({
+        type: "recovery",
+        email: recipientEmail,
+        options: { redirectTo: `${SITE_URL}/auth` },
+      });
+
+    let { data: linkData, error: linkErr } = await genLink();
+
+    if (linkErr && /not found|user_not_found/i.test(linkErr.message || "")) {
+      const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
+      const { error: createErr } = await adminClient.auth.admin.createUser({
+        email: recipientEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { name: displayName },
+      });
+      if (createErr && !/already.*registered|already exists/i.test(createErr.message || "")) {
+        throw new Error(`Could not create account for ${recipientEmail}: ${createErr.message}`);
+      }
+      ({ data: linkData, error: linkErr } = await genLink());
+    }
+
     if (linkErr || !linkData?.properties?.action_link) {
       throw new Error(linkErr?.message || "Failed to generate recovery link");
     }
