@@ -18691,6 +18691,15 @@ export type Database = {
         Args: { _employee_id: string; _manager_id: string }
         Returns: boolean
       }
+      is_restricted_lead: {
+        Args: {
+          _form_type: string
+          _message: string
+          _page_url: string
+          _subject: string
+        }
+        Returns: boolean
+      }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
       is_user_available_on: {
         Args: { _on?: string; _user_id: string }
