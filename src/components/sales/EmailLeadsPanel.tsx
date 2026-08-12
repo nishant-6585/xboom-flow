@@ -14,7 +14,7 @@ import { LeadsExportMenu } from './LeadsExportMenu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useEmailLeads, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
+import { useEmailLeads, useEmailLeadBody, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
 import { useProspects } from '@/hooks/useProspects';
 import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
@@ -67,6 +67,9 @@ export function EmailLeadsPanel() {
   const [mergeDuplicates, setMergeDuplicates] = useState(true);
   const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
   const { updateLead } = useEmailLeads();
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
+  const { data: detailBody } = useEmailLeadBody(detailLead?.id);
 
   useEffect(() => {
     supabase
@@ -299,6 +302,43 @@ export function EmailLeadsPanel() {
   const mergedHiddenCount = useMemo(
     () => dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0),
     [dedupGroups],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(dedupGroups.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedGroups = useMemo(
+    () => dedupGroups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [dedupGroups, currentPage],
+  );
+
+  // Reset to first page whenever the result set changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, mailSourceFilter, statusFilter, processingFilter, startDate, endDate, includeDispositioned, mergeDuplicates, sortField, sortDir]);
+
+  const PaginationBar = ({ position }: { position: 'top' | 'bottom' }) => (
+    <div className={`flex flex-wrap items-center justify-between gap-2 ${position === 'top' ? 'pb-3' : 'pt-3'}`}>
+      <p className="text-xs text-muted-foreground">
+        Showing {dedupGroups.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–
+        {Math.min(currentPage * PAGE_SIZE, dedupGroups.length)} of {dedupGroups.length}
+        {mergeDuplicates ? ' unique leads' : ' leads'}
+      </p>
+      <div className="flex items-center gap-1">
+        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPage(1)} disabled={currentPage === 1}>
+          First
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
+          Prev
+        </Button>
+        <span className="text-xs px-2 tabular-nums">Page {currentPage} / {totalPages}</span>
+        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
+          Next
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPage(totalPages)} disabled={currentPage >= totalPages}>
+          Last
+        </Button>
+      </div>
+    </div>
   );
 
   const toggleDupeGroup = (key: string) => {
@@ -595,6 +635,8 @@ export function EmailLeadsPanel() {
               <p>No email leads found</p>
             </div>
           ) : (
+            <>
+            <PaginationBar position="top" />
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -643,7 +685,7 @@ export function EmailLeadsPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dedupGroups.map((group) => {
+                  {pagedGroups.map((group) => {
                     const lead = group.primary;
                     const dupCount = group.count;
                     const isMerged = dupCount > 1;
@@ -908,6 +950,8 @@ export function EmailLeadsPanel() {
                 </TableBody>
               </Table>
             </div>
+            <PaginationBar position="bottom" />
+            </>
           )}
         </CardContent>
       </Card>
@@ -951,15 +995,15 @@ export function EmailLeadsPanel() {
                 <p className="text-sm text-muted-foreground">{(detailLead as any).subject}</p>
               </div>
             )}
-            {(detailLead as any).body_html ? (
+            {detailBody?.body_html ? (
               <div>
                 <h4 className="text-sm font-semibold mb-1">Email Body</h4>
-              <div className="text-sm border rounded p-3 max-h-[200px] overflow-auto bg-muted/30" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((detailLead as any).body_html) }} />
+              <div className="text-sm border rounded p-3 max-h-[200px] overflow-auto bg-muted/30" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detailBody.body_html) }} />
               </div>
-            ) : (detailLead as any).body_text ? (
+            ) : detailBody?.body_text ? (
               <div>
                 <h4 className="text-sm font-semibold mb-1">Email Body</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-[200px] overflow-auto">{(detailLead as any).body_text}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-[200px] overflow-auto">{detailBody.body_text}</p>
               </div>
             ) : null}
           </div>
