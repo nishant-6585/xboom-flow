@@ -607,6 +607,14 @@ export function EmailLeadsPanel() {
                     </TableHead>
                     <TableHead className="w-8" />
                     <TableHead className="w-[210px]">Actions</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>
+                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
+                        Date
+                        <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </TableHead>
+                    <TableHead>Admin</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('customer_name')}>
                         Customer
@@ -632,14 +640,6 @@ export function EmailLeadsPanel() {
                       </button>
                     </TableHead>
                     <TableHead>Cust. Type</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
-                        Date
-                        <ArrowUpDown className="w-3 h-3" />
-                      </button>
-                    </TableHead>
-                    <TableHead>Admin</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -700,6 +700,66 @@ export function EmailLeadsPanel() {
                                 onDispositionChanged={() => refetch()}
                               />
                               <ACategoryButton sourceType="email" sourceId={lead.id} isACategory={lead.is_a_category} />
+                            </div>
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              value={lead.sales_person_id || 'unassigned'}
+                              onValueChange={async (val) => {
+                                const sp = salespeople.find(s => s.id === val);
+                                await updateLead({
+                                  id: lead.id,
+                                  sales_person_id: val === 'unassigned' ? null : val,
+                                  sales_person_name: val === 'unassigned' ? null : sp?.name || null,
+                                } as any);
+                                refetch();
+                              }}
+                            >
+                              <SelectTrigger className="h-7 w-[130px] text-xs">
+                                <SelectValue placeholder="Assign..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                                {salespeople.map(sp => (
+                                  <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(lead.created_at), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {lead.processing_status === 'needs_review' && canManage && (
+                                <>
+                                  <Button variant="outline" size="sm" className="text-green-600 border-green-500/30 h-7 px-2 text-xs" onClick={() => approveLead(lead.id)} disabled={approving}>
+                                    {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                                    Approve
+                                  </Button>
+                                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30 h-7 px-2 text-xs" onClick={() => rejectLead(lead.id)} disabled={rejecting}>
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
+                              {lead.processing_status === 'failed' && lead.error_message && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-[10px] text-destructive max-w-[80px] truncate cursor-help">
+                                        {lead.error_message}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-sm">
+                                      <p className="text-xs">{lead.error_message}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
+                                Edit
+                              </Button>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -766,66 +826,6 @@ export function EmailLeadsPanel() {
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Select
-                              value={lead.sales_person_id || 'unassigned'}
-                              onValueChange={async (val) => {
-                                const sp = salespeople.find(s => s.id === val);
-                                await updateLead({
-                                  id: lead.id,
-                                  sales_person_id: val === 'unassigned' ? null : val,
-                                  sales_person_name: val === 'unassigned' ? null : sp?.name || null,
-                                } as any);
-                                refetch();
-                              }}
-                            >
-                              <SelectTrigger className="h-7 w-[130px] text-xs">
-                                <SelectValue placeholder="Assign..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="unassigned">Unassigned</SelectItem>
-                                {salespeople.map(sp => (
-                                  <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {format(new Date(lead.created_at), 'dd MMM yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {lead.processing_status === 'needs_review' && canManage && (
-                                <>
-                                  <Button variant="outline" size="sm" className="text-green-600 border-green-500/30 h-7 px-2 text-xs" onClick={() => approveLead(lead.id)} disabled={approving}>
-                                    {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
-                                    Approve
-                                  </Button>
-                                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30 h-7 px-2 text-xs" onClick={() => rejectLead(lead.id)} disabled={rejecting}>
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                              {lead.processing_status === 'failed' && lead.error_message && (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="text-[10px] text-destructive max-w-[80px] truncate cursor-help">
-                                        {lead.error_message}
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-sm">
-                                      <p className="text-xs">{lead.error_message}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              )}
-                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
-                                Edit
-                              </Button>
-                            </div>
                           </TableCell>
                         </TableRow>
 
