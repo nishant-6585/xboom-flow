@@ -48,6 +48,7 @@ import {
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { WooCommerceSyncPanel } from "@/components/admin/WooCommerceSyncPanel";
+import { ManychatSettingsPanel } from "@/components/admin/ManychatSettingsPanel";
 import { LeadSyncHealthPanel } from "@/components/admin/LeadSyncHealthPanel";
 import { MyOperatorSettingsPanel } from "@/components/admin/MyOperatorSettingsPanel";
 import { ZohoBooksSettingsPanel } from "@/components/admin/ZohoBooksSettingsPanel";
@@ -1422,6 +1423,7 @@ const Admin = () => {
               <MyOperatorSettingsPanel />
               <ExotelSettingsPanel />
               <WooCommerceSyncPanel />
+              <ManychatSettingsPanel />
               <ZohoBooksSettingsPanel />
             </div>
           </TabsContent>

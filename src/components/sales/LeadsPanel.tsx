@@ -47,6 +47,7 @@ import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
 import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
 import { InteraktAnalytics } from './InteraktAnalytics';
+import { ManychatLeadsPanel } from '@/components/manychat/ManychatLeadsPanel';
 import QFormsPanel from './QFormsPanel';
 import { LogCallDialog } from './LogCallDialog';
 import { OutboundCallTracker } from './OutboundCallTracker';
@@ -471,6 +472,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="myoperator" className="gap-1.5">
           <Phone className="h-3.5 w-3.5" />
           MyOperator
+        </TabsTrigger>
+        <TabsTrigger value="manychat" className="gap-1.5">
+          <MessageCircle className="h-3.5 w-3.5" />
+          ManyChat
         </TabsTrigger>
         <TabsTrigger value="elevenlabs" className="gap-1.5">
           <Bot className="h-3.5 w-3.5" />
@@ -935,6 +940,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
       </TabsContent>
 
       {/* Interakt Tab */}
+      <TabsContent value="manychat" className="space-y-6">
+        <ManychatLeadsPanel />
+      </TabsContent>
+
       <TabsContent value="interakt" className="space-y-6">
         <div className="space-y-6">
           {/* Prospect Analytics for Interakt */}
