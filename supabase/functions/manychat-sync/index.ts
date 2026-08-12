@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // Auth: either an approved admin JWT, or the shared cron/webhook secret.
+  // Auth: an approved admin JWT, the service role key (cron), or the shared secret.
   const cronSecret = Deno.env.get("MANYCHAT_WEBHOOK_SECRET");
   const providedSecret = req.headers.get("x-manychat-secret") ?? "";
   let authorized = Boolean(cronSecret && providedSecret && providedSecret === cronSecret);
