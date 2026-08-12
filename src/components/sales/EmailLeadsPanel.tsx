@@ -607,6 +607,14 @@ export function EmailLeadsPanel() {
                     </TableHead>
                     <TableHead className="w-8" />
                     <TableHead className="w-[210px]">Actions</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>
+                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
+                        Date
+                        <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </TableHead>
+                    <TableHead>Admin</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('customer_name')}>
                         Customer
@@ -632,14 +640,6 @@ export function EmailLeadsPanel() {
                       </button>
                     </TableHead>
                     <TableHead>Cust. Type</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
-                        Date
-                        <ArrowUpDown className="w-3 h-3" />
-                      </button>
-                    </TableHead>
-                    <TableHead>Admin</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
