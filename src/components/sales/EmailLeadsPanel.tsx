@@ -14,7 +14,7 @@ import { LeadsExportMenu } from './LeadsExportMenu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useEmailLeads, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
+import { useEmailLeads, useEmailLeadBody, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
 import { useProspects } from '@/hooks/useProspects';
 import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
@@ -67,6 +67,9 @@ export function EmailLeadsPanel() {
   const [mergeDuplicates, setMergeDuplicates] = useState(true);
   const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
   const { updateLead } = useEmailLeads();
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
+  const { data: detailBody } = useEmailLeadBody(detailLead?.id);
 
   useEffect(() => {
     supabase
