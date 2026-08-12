@@ -506,6 +506,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                       <TableHead className="w-[130px]">Product Category</TableHead>
                       <TableHead className="w-[80px]">Type</TableHead>
                       <TableHead className="w-[90px]">Status</TableHead>
+                    </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((p) => (
