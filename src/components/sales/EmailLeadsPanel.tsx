@@ -635,6 +635,8 @@ export function EmailLeadsPanel() {
               <p>No email leads found</p>
             </div>
           ) : (
+            <>
+            <PaginationBar position="top" />
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -683,7 +685,7 @@ export function EmailLeadsPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dedupGroups.map((group) => {
+                  {pagedGroups.map((group) => {
                     const lead = group.primary;
                     const dupCount = group.count;
                     const isMerged = dupCount > 1;
@@ -948,6 +950,8 @@ export function EmailLeadsPanel() {
                 </TableBody>
               </Table>
             </div>
+            <PaginationBar position="bottom" />
+            </>
           )}
         </CardContent>
       </Card>
