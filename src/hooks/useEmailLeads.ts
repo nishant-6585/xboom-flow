@@ -58,15 +58,56 @@ export interface EmailLead {
   disposition_by_name?: string | null;
 }
 
+/**
+ * Columns fetched for the list view. `body_html` / `body_text` are deliberately
+ * excluded — they account for ~95% of the table payload and are only needed when
+ * a single lead is opened (see useEmailLeadBody).
+ */
+const LIST_COLUMNS = [
+  'id', 'customer_name', 'customer_company', 'phone_number', 'email', 'city',
+  'product_name', 'product_code', 'product_category', 'quantity', 'lead_source',
+  'mail_source', 'urgency', 'requested_timeline', 'purpose_of_purchase', 'notes',
+  'subject', 'status', 'sales_person_id', 'sales_person_name', 'is_prospect',
+  'is_a_category', 'created_by', 'created_by_name', 'updated_by',
+  'processing_status', 'ai_processed', 'error_message', 'ai_confidence',
+  'ai_extracted_json', 'retry_count', 'email_lead_id', 'thread_id',
+  'ingested_at', 'processed_at', 'last_error', 'created_at', 'updated_at',
+  'disposition', 'disposition_reason_code', 'disposition_reason_note',
+  'disposition_at', 'disposition_by_name', 'customer_type',
+  'is_enquiry_converted',
+].join(', ');
+
+const sel = (s: string): string => s;
+
+/** Lazily loads the heavy email body for a single lead. */
+export function useEmailLeadBody(leadId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['email-lead-body', leadId],
+    enabled: !!leadId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('email_leads')
+        .select(sel('id, body_text, body_html'))
+        .eq('id', leadId!)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as { id: string; body_text: string | null; body_html: string | null } | null;
+    },
+  });
+}
+
 export function useEmailLeads() {
   const queryClient = useQueryClient();
 
   const { data: leads = [], isLoading: loading, refetch } = useQuery({
     queryKey: ['email-leads'],
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('email_leads')
-        .select('*')
+        .select(sel(LIST_COLUMNS))
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -98,13 +139,26 @@ export function useEmailLeads() {
         .update(updates as Record<string, unknown>)
         .eq('id', id);
       if (error) throw error;
+      return { id, updates };
+    },
+    // Optimistically patch the cached row so the table reflects the edit instantly.
+    onMutate: async (lead) => {
+      const key = ['email-leads'];
+      const previous = queryClient.getQueryData<EmailLead[]>(key);
+      queryClient.setQueryData<EmailLead[]>(key, (old) =>
+        (old || []).map((l) => (l.id === lead.id ? { ...l, ...lead } : l)),
+      );
+      return { previous };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-leads'] });
       toast.success('Email lead updated successfully');
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _vars, ctx: any) => {
+      if (ctx?.previous) queryClient.setQueryData(['email-leads'], ctx.previous);
       toast.error(`Update failed: ${error.message}`);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['email-leads'] });
     },
   });
 
@@ -161,10 +215,11 @@ export function useEmailLeads() {
   // Pipeline metrics
   const { data: metrics } = useQuery({
     queryKey: ['email-lead-metrics'],
+    staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('email_leads')
-        .select('processing_status, ai_confidence');
+        .select(sel('processing_status, ai_confidence'));
       if (error) throw error;
 
       const total = data.length;
