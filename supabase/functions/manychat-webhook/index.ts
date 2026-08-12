@@ -3,6 +3,7 @@
 // upserts it into public.manychat_leads (round-robin assignment happens
 // in a DB trigger).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { normaliseManychatContact, upsertManychatLead } from "../_shared/manychat-lead.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,62 +25,6 @@ function timingSafeEqual(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
   return diff === 0;
-}
-
-const str = (v: unknown): string | null => {
-  if (v === null || v === undefined) return null;
-  const s = String(v).trim();
-  return s.length ? s : null;
-};
-
-function normalise(raw: Record<string, any>) {
-  // ManyChat can send either a flat body (mapped in the flow builder) or
-  // the full subscriber object under `subscriber` / `contact` / `data`.
-  const c = raw.subscriber ?? raw.contact ?? raw.data ?? raw;
-  const custom: Record<string, unknown> = {};
-  const cfArray = Array.isArray(c.custom_fields) ? c.custom_fields : [];
-  for (const f of cfArray) {
-    if (f && typeof f === "object" && "name" in f) custom[String(f.name)] = f.value ?? null;
-  }
-  if (raw.custom_fields && !Array.isArray(raw.custom_fields) && typeof raw.custom_fields === "object") {
-    Object.assign(custom, raw.custom_fields);
-  }
-
-  const first = str(c.first_name) ?? str(raw.first_name);
-  const last = str(c.last_name) ?? str(raw.last_name);
-  const name = str(c.name) ?? str(raw.name) ?? (str([first, last].filter(Boolean).join(" ")) || null);
-
-  const tags = Array.isArray(c.tags)
-    ? c.tags.map((t: any) => (typeof t === "string" ? t : t?.name)).filter(Boolean)
-    : Array.isArray(raw.tags)
-      ? raw.tags.filter(Boolean)
-      : [];
-
-  return {
-    manychat_contact_id: str(c.id) ?? str(c.subscriber_id) ?? str(raw.subscriber_id) ?? str(raw.contact_id),
-    customer_name: name,
-    first_name: first,
-    last_name: last,
-    phone_number: str(c.phone) ?? str(raw.phone) ?? str(raw.phone_number) ?? str(custom["phone"]),
-    country_code: str(raw.country_code) ?? null,
-    email: str(c.email) ?? str(raw.email) ?? str(custom["email"]),
-    city: str(raw.city) ?? str(custom["city"]) ?? null,
-    channel: str(raw.channel) ?? str(c.channel) ?? null,
-    page_id: str(raw.page_id) ?? str(c.page_id),
-    flow_name: str(raw.flow_name) ?? str(raw.flow) ?? null,
-    product_name: str(raw.product_name) ?? str(custom["product"]) ?? str(custom["product_name"]),
-    quantity: Number.isFinite(Number(raw.quantity ?? custom["quantity"]))
-      ? Number(raw.quantity ?? custom["quantity"])
-      : null,
-    notes: str(raw.notes) ?? str(raw.message) ?? str(custom["message"]),
-    company: str(raw.company) ?? str(custom["company"]),
-    tags,
-    custom_fields: custom,
-    raw_payload: raw,
-    manychat_created_at: str(c.subscribed) ?? str(raw.created_at) ?? null,
-    last_interaction_at: str(c.last_interaction) ?? null,
-    synced_at: new Date().toISOString(),
-  };
 }
 
 Deno.serve(async (req) => {
@@ -121,33 +66,12 @@ Deno.serve(async (req) => {
   const errors: string[] = [];
 
   for (const item of items) {
-    const row = normalise(item);
-    if (!row.phone_number && !row.email && !row.manychat_contact_id) {
-      skipped++;
-      continue;
-    }
-
-    let existingId: string | null = null;
-    if (row.manychat_contact_id) {
-      const { data } = await supabase
-        .from("manychat_leads").select("id")
-        .eq("manychat_contact_id", row.manychat_contact_id).maybeSingle();
-      existingId = data?.id ?? null;
-    }
-    if (!existingId && row.phone_number) {
-      const { data } = await supabase
-        .from("manychat_leads").select("id")
-        .eq("phone_number", row.phone_number).limit(1).maybeSingle();
-      existingId = data?.id ?? null;
-    }
-
-    if (existingId) {
-      const { error } = await supabase.from("manychat_leads").update(row).eq("id", existingId);
-      if (error) errors.push(error.message); else updated++;
-    } else {
-      const { error } = await supabase.from("manychat_leads").insert(row);
-      if (error) errors.push(error.message); else created++;
-    }
+    const row = normaliseManychatContact(item);
+    const outcome = await upsertManychatLead(supabase, row);
+    if (outcome.result === "created") created++;
+    else if (outcome.result === "updated") updated++;
+    else if (outcome.result === "skipped") skipped++;
+    else errors.push(outcome.error);
   }
 
   await supabase.from("manychat_sync_log").insert({

@@ -106,3 +106,80 @@ export function useManychatSync() {
     onError: (e: Error) => toast.error(`ManyChat sync failed: ${e.message}`),
   });
 }
+
+export interface ManychatTestResult {
+  ok: boolean;
+  status: number;
+  response: string;
+  payload?: Record<string, unknown>;
+}
+
+export function useManychatTestWebhook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<ManychatTestResult> => {
+      const { data, error } = await supabase.functions.invoke("manychat-admin", {
+        body: { action: "test_webhook" },
+      });
+      if (error) throw error;
+      return data as ManychatTestResult;
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["manychat-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["manychat-sync-log"] });
+      const msg = `HTTP ${res.status} — ${res.response?.slice(0, 180) || "(empty body)"}`;
+      if (res.ok) toast.success(`Test webhook delivered · ${msg}`);
+      else toast.error(`Test webhook failed · ${msg}`);
+    },
+    onError: (e: Error) => toast.error(`Test webhook failed: ${e.message}`),
+  });
+}
+
+export function useRemoveManychatTestLeads() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("manychat-admin", {
+        body: { action: "remove_test_leads" },
+      });
+      if (error) throw error;
+      return data as { ok: boolean; deleted: number };
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["manychat-leads"] });
+      toast.success(`Removed ${res?.deleted ?? 0} test lead(s)`);
+    },
+    onError: (e: Error) => toast.error(`Could not remove test leads: ${e.message}`),
+  });
+}
+
+export interface ManychatImportSummary {
+  ok: boolean;
+  received: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errored: number;
+  errors?: string[];
+}
+
+export function useManychatCsvImport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: Record<string, unknown>[]): Promise<ManychatImportSummary> => {
+      const { data, error } = await supabase.functions.invoke("manychat-admin", {
+        body: { action: "csv_import", rows },
+      });
+      if (error) throw error;
+      return data as ManychatImportSummary;
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["manychat-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["manychat-sync-log"] });
+      toast.success(
+        `Import done — ${res.created} created, ${res.updated} updated, ${res.skipped} skipped, ${res.errored} errored`,
+      );
+    },
+    onError: (e: Error) => toast.error(`CSV import failed: ${e.message}`),
+  });
+}
