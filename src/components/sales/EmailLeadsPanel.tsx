@@ -995,15 +995,15 @@ export function EmailLeadsPanel() {
                 <p className="text-sm text-muted-foreground">{(detailLead as any).subject}</p>
               </div>
             )}
-            {(detailLead as any).body_html ? (
+            {detailBody?.body_html ? (
               <div>
                 <h4 className="text-sm font-semibold mb-1">Email Body</h4>
-              <div className="text-sm border rounded p-3 max-h-[200px] overflow-auto bg-muted/30" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((detailLead as any).body_html) }} />
+              <div className="text-sm border rounded p-3 max-h-[200px] overflow-auto bg-muted/30" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detailBody.body_html) }} />
               </div>
-            ) : (detailLead as any).body_text ? (
+            ) : detailBody?.body_text ? (
               <div>
                 <h4 className="text-sm font-semibold mb-1">Email Body</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-[200px] overflow-auto">{(detailLead as any).body_text}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-[200px] overflow-auto">{detailBody.body_text}</p>
               </div>
             ) : null}
           </div>
