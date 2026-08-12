@@ -8713,6 +8713,159 @@ export type Database = {
         }
         Relationships: []
       }
+      manychat_leads: {
+        Row: {
+          assigned_to: string | null
+          assigned_to_name: string | null
+          channel: string | null
+          city: string | null
+          company: string | null
+          country_code: string | null
+          created_at: string
+          custom_fields: Json
+          customer_name: string | null
+          disposition: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at: string | null
+          disposition_by: string | null
+          disposition_by_name: string | null
+          disposition_reason_code: string | null
+          disposition_reason_note: string | null
+          email: string | null
+          first_name: string | null
+          flow_name: string | null
+          id: string
+          is_enquiry_converted: boolean
+          is_prospect: boolean
+          last_interaction_at: string | null
+          last_name: string | null
+          manychat_contact_id: string | null
+          manychat_created_at: string | null
+          notes: string | null
+          page_id: string | null
+          phone_number: string | null
+          product_name: string | null
+          quantity: number | null
+          raw_payload: Json | null
+          source: string
+          status: string
+          synced_at: string
+          tags: Json
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          channel?: string | null
+          city?: string | null
+          company?: string | null
+          country_code?: string | null
+          created_at?: string
+          custom_fields?: Json
+          customer_name?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
+          email?: string | null
+          first_name?: string | null
+          flow_name?: string | null
+          id?: string
+          is_enquiry_converted?: boolean
+          is_prospect?: boolean
+          last_interaction_at?: string | null
+          last_name?: string | null
+          manychat_contact_id?: string | null
+          manychat_created_at?: string | null
+          notes?: string | null
+          page_id?: string | null
+          phone_number?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          raw_payload?: Json | null
+          source?: string
+          status?: string
+          synced_at?: string
+          tags?: Json
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          channel?: string | null
+          city?: string | null
+          company?: string | null
+          country_code?: string | null
+          created_at?: string
+          custom_fields?: Json
+          customer_name?: string | null
+          disposition?: Database["public"]["Enums"]["lead_disposition"]
+          disposition_at?: string | null
+          disposition_by?: string | null
+          disposition_by_name?: string | null
+          disposition_reason_code?: string | null
+          disposition_reason_note?: string | null
+          email?: string | null
+          first_name?: string | null
+          flow_name?: string | null
+          id?: string
+          is_enquiry_converted?: boolean
+          is_prospect?: boolean
+          last_interaction_at?: string | null
+          last_name?: string | null
+          manychat_contact_id?: string | null
+          manychat_created_at?: string | null
+          notes?: string | null
+          page_id?: string | null
+          phone_number?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          raw_payload?: Json | null
+          source?: string
+          status?: string
+          synced_at?: string
+          tags?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      manychat_sync_log: {
+        Row: {
+          created: number
+          created_at: string
+          details: Json | null
+          error: string | null
+          id: string
+          received: number
+          skipped: number
+          trigger_source: string
+          updated: number
+        }
+        Insert: {
+          created?: number
+          created_at?: string
+          details?: Json | null
+          error?: string | null
+          id?: string
+          received?: number
+          skipped?: number
+          trigger_source?: string
+          updated?: number
+        }
+        Update: {
+          created?: number
+          created_at?: string
+          details?: Json | null
+          error?: string | null
+          id?: string
+          received?: number
+          skipped?: number
+          trigger_source?: string
+          updated?: number
+        }
+        Relationships: []
+      }
       margin_thresholds: {
         Row: {
           category: string
