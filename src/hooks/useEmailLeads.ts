@@ -92,7 +92,7 @@ export function useEmailLeadBody(leadId: string | null | undefined) {
         .eq('id', leadId!)
         .maybeSingle();
       if (error) throw error;
-      return (data ?? null) as { id: string; body_text: string | null; body_html: string | null } | null;
+      return (data ?? null) as unknown as { id: string; body_text: string | null; body_html: string | null } | null;
     },
   });
 }
