@@ -94,7 +94,7 @@ export function mapCsvRows(headers: string[], dataRows: string[][]) {
 
     return {
       manychat_contact_id: val(cells, mapping.manychat_contact_id),
-      customer_name: val(cells, mapping.customer_name) ?? [first, last].filter(Boolean).join(" ") || null,
+      customer_name: val(cells, mapping.customer_name) ?? ([first, last].filter(Boolean).join(" ") || null),
       first_name: first,
       last_name: last,
       phone_number: val(cells, mapping.phone_number),
