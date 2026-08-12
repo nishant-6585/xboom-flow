@@ -48,7 +48,11 @@ Deno.serve(async (req) => {
   // Auth: an approved admin JWT, the service role key (cron), or the shared secret.
   const cronSecret = Deno.env.get("MANYCHAT_WEBHOOK_SECRET");
   const providedSecret = req.headers.get("x-manychat-secret") ?? "";
-  let authorized = Boolean(cronSecret && providedSecret && providedSecret === cronSecret);
+  const globalCronSecret = Deno.env.get("CRON_SECRET");
+  const providedCron = req.headers.get("x-cron-secret") ?? "";
+  let authorized =
+    Boolean(cronSecret && providedSecret && providedSecret === cronSecret) ||
+    Boolean(globalCronSecret && providedCron && providedCron === globalCronSecret);
   let triggerSource = authorized ? "cron" : "manual";
 
   if (!authorized) {
