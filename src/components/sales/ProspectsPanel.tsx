@@ -493,6 +493,9 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
+                      <TableHead className="w-[120px]">Actions</TableHead>
+                      <TableHead className="w-[90px]">Date</TableHead>
+                      <TableHead className="w-[140px]">Assigned To</TableHead>
                       <TableHead className="w-[40px]">A</TableHead>
                       <TableHead className="w-[80px]">Source</TableHead>
                       <TableHead className="w-[160px]">Customer</TableHead>
@@ -503,70 +506,10 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                       <TableHead className="w-[130px]">Product Category</TableHead>
                       <TableHead className="w-[80px]">Type</TableHead>
                       <TableHead className="w-[90px]">Status</TableHead>
-                      <TableHead className="w-[90px]">Date</TableHead>
-                      <TableHead className="w-[140px]">Assigned To</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((p) => (
                       <TableRow key={p.id} className={`hover:bg-muted/50 cursor-pointer ${p.is_a_category ? 'bg-destructive/5' : ''}`} onClick={() => setEditingProspect(p)}>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <ACategoryButton
-                            sourceType={p.source_type}
-                            sourceId={p.source_id}
-                            isACategory={p.is_a_category}
-                            onToggle={() => user && toggleACategory({ id: p.id, isACategory: !p.is_a_category, userId: user.id })}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`text-[10px] gap-1 ${SOURCE_COLORS[p.source_type]}`}>
-                            {SOURCE_ICONS[p.source_type]}
-                            {p.source_type === 'myoperator' ? 'MyOp' : p.source_type.charAt(0).toUpperCase() + p.source_type.slice(1)}
-                          </Badge>
-                          {p.lead_source && normalizeSource(p.lead_source) !== p.source_type && (
-                            <div className="mt-1">
-                              <LeadSourceBadge source={p.lead_source} size="xs" />
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell><p className="font-medium text-sm">{p.customer_name}</p></TableCell>
-                        <TableCell><span className="text-sm font-mono">{p.phone_number || '—'}</span></TableCell>
-                        <TableCell><span className="text-sm">{p.company || '—'}</span></TableCell>
-                        <TableCell><span className="text-sm">{p.city || '—'}</span></TableCell>
-                        <TableCell><span className="text-sm">{p.product_name || '—'}</span></TableCell>
-                        <TableCell><span className="text-sm">{(p as any).product_category || '—'}</span></TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Select value={(p as any).prospect_type || 'none'} onValueChange={(v) => updateProspectType({ id: p.id, prospectType: v === 'none' ? null : v })}>
-                            <SelectTrigger className="h-7 text-xs w-[90px]">
-                              <SelectValue placeholder="—" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">—</SelectItem>
-                              <SelectItem value="B2C">B2C</SelectItem>
-                              <SelectItem value="B2B">B2B</SelectItem>
-                              <SelectItem value="B2G">B2G</SelectItem>
-                              <SelectItem value="Reseller">Reseller</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Select value={p.status} onValueChange={(v) => updateStatus({ id: p.id, status: v })}>
-                            <SelectTrigger className="h-7 text-xs w-[100px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <AssigneeCell userId={p.created_by} name={p.created_by_name} />
-                            <LinkToCompanyButton lead={{ customer_name: p.customer_name, company: (p as any).company || (p as any).customer_company, phone: (p as any).phone || (p as any).customer_phone, email: (p as any).email || (p as any).customer_email, city: (p as any).city, source_label: 'Prospect' }} />
-                          </div>
-                        </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
                             <Button
@@ -633,6 +576,62 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
+                        </TableCell>
+                        <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <AssigneeCell userId={p.created_by} name={p.created_by_name} />
+                            <LinkToCompanyButton lead={{ customer_name: p.customer_name, company: (p as any).company || (p as any).customer_company, phone: (p as any).phone || (p as any).customer_phone, email: (p as any).email || (p as any).customer_email, city: (p as any).city, source_label: 'Prospect' }} />
+                          </div>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <ACategoryButton
+                            sourceType={p.source_type}
+                            sourceId={p.source_id}
+                            isACategory={p.is_a_category}
+                            onToggle={() => user && toggleACategory({ id: p.id, isACategory: !p.is_a_category, userId: user.id })}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-[10px] gap-1 ${SOURCE_COLORS[p.source_type]}`}>
+                            {SOURCE_ICONS[p.source_type]}
+                            {p.source_type === 'myoperator' ? 'MyOp' : p.source_type.charAt(0).toUpperCase() + p.source_type.slice(1)}
+                          </Badge>
+                          {p.lead_source && normalizeSource(p.lead_source) !== p.source_type && (
+                            <div className="mt-1">
+                              <LeadSourceBadge source={p.lead_source} size="xs" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell><p className="font-medium text-sm">{p.customer_name}</p></TableCell>
+                        <TableCell><span className="text-sm font-mono">{p.phone_number || '—'}</span></TableCell>
+                        <TableCell><span className="text-sm">{p.company || '—'}</span></TableCell>
+                        <TableCell><span className="text-sm">{p.city || '—'}</span></TableCell>
+                        <TableCell><span className="text-sm">{p.product_name || '—'}</span></TableCell>
+                        <TableCell><span className="text-sm">{(p as any).product_category || '—'}</span></TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Select value={(p as any).prospect_type || 'none'} onValueChange={(v) => updateProspectType({ id: p.id, prospectType: v === 'none' ? null : v })}>
+                            <SelectTrigger className="h-7 text-xs w-[90px]">
+                              <SelectValue placeholder="—" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">—</SelectItem>
+                              <SelectItem value="B2C">B2C</SelectItem>
+                              <SelectItem value="B2B">B2B</SelectItem>
+                              <SelectItem value="B2G">B2G</SelectItem>
+                              <SelectItem value="Reseller">Reseller</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Select value={p.status} onValueChange={(v) => updateStatus({ id: p.id, status: v })}>
+                            <SelectTrigger className="h-7 text-xs w-[100px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                       </TableRow>
                     ))}
