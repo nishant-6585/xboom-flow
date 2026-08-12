@@ -304,6 +304,43 @@ export function EmailLeadsPanel() {
     [dedupGroups],
   );
 
+  const totalPages = Math.max(1, Math.ceil(dedupGroups.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedGroups = useMemo(
+    () => dedupGroups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [dedupGroups, currentPage],
+  );
+
+  // Reset to first page whenever the result set changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, mailSourceFilter, statusFilter, processingFilter, startDate, endDate, includeDispositioned, mergeDuplicates, sortField, sortDir]);
+
+  const PaginationBar = ({ position }: { position: 'top' | 'bottom' }) => (
+    <div className={`flex flex-wrap items-center justify-between gap-2 ${position === 'top' ? 'pb-3' : 'pt-3'}`}>
+      <p className="text-xs text-muted-foreground">
+        Showing {dedupGroups.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–
+        {Math.min(currentPage * PAGE_SIZE, dedupGroups.length)} of {dedupGroups.length}
+        {mergeDuplicates ? ' unique leads' : ' leads'}
+      </p>
+      <div className="flex items-center gap-1">
+        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPage(1)} disabled={currentPage === 1}>
+          First
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
+          Prev
+        </Button>
+        <span className="text-xs px-2 tabular-nums">Page {currentPage} / {totalPages}</span>
+        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
+          Next
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPage(totalPages)} disabled={currentPage >= totalPages}>
+          Last
+        </Button>
+      </div>
+    </div>
+  );
+
   const toggleDupeGroup = (key: string) => {
     setExpandedDupes((prev) => {
       const n = new Set(prev);
