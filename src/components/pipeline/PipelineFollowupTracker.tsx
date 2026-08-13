@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -204,9 +204,8 @@ export function PipelineFollowupTracker() {
               {filtered.map(r => {
                 const isOpen = expanded === r.pipeline_id;
                 return (
-                  <>
+                  <Fragment key={r.pipeline_id}>
                     <TableRow
-                      key={r.pipeline_id}
                       className="cursor-pointer"
                       onClick={() => setExpanded(isOpen ? null : r.pipeline_id)}
                     >
@@ -262,7 +261,7 @@ export function PipelineFollowupTracker() {
                       </TableCell>
                     </TableRow>
                     {isOpen && (
-                      <TableRow key={`${r.pipeline_id}-detail`}>
+                      <TableRow>
                         <TableCell colSpan={9} className="bg-muted/30">
                           <PipelineFollowupTimeline
                             pipelineId={r.pipeline_id}
@@ -271,7 +270,7 @@ export function PipelineFollowupTracker() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
