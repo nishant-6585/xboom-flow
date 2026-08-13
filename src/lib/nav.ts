@@ -2,6 +2,8 @@ import {
   Home, Zap, Package, FileSpreadsheet, ShoppingCart, Warehouse, Puzzle, Building2,
   IndianRupee, BookCheck, Shield, ListTodo, Ticket, MessageSquare, Users, CalendarDays,
   Receipt, Wrench, RotateCcw, Plane, Cpu,
+  Contact, BarChart3, Target, TrendingUp, FileText, AlertTriangle, CalendarCheck, Star,
+  Phone, CalendarOff,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -78,3 +80,32 @@ export const getRoleLabel = (role: string | null) => {
     default: return "User";
   }
 };
+
+/** Sales page in-app tabs surfaced as sidebar children (deep-linked via ?tab=). */
+export interface SalesTabItem {
+  tab: string;
+  label: string;
+  icon: LucideIcon;
+  roles: string[];
+}
+
+const SALES_BASE = ["sales", "sales_manager", "supply_chain", "admin"];
+const MANAGERS = ["admin", "sales_manager"];
+
+export const salesTabItems: SalesTabItem[] = [
+  { tab: "my_leads", label: "My Leads", icon: Contact, roles: SALES_BASE },
+  { tab: "manager", label: "Dashboard", icon: BarChart3, roles: MANAGERS },
+  { tab: "leads", label: "Leads", icon: Users, roles: SALES_BASE },
+  { tab: "prospects", label: "Prospects", icon: Target, roles: SALES_BASE },
+  { tab: "pipeline", label: "Pipeline", icon: TrendingUp, roles: SALES_BASE },
+  { tab: "quotes", label: "Quotes", icon: FileText, roles: SALES_BASE },
+  { tab: "untouched", label: "Untouched", icon: AlertTriangle, roles: SALES_BASE },
+  { tab: "followups", label: "Follow-ups", icon: CalendarCheck, roles: SALES_BASE },
+  { tab: "mega_deals", label: "Mega Deals", icon: Star, roles: SALES_BASE },
+  { tab: "companies", label: "Companies", icon: Building2, roles: SALES_BASE },
+  { tab: "outbound", label: "Outbound Sales", icon: Phone, roles: SALES_BASE },
+  { tab: "enquiries", label: "Enquiries", icon: Package, roles: MANAGERS },
+  { tab: "tasks", label: "Tasks", icon: ListTodo, roles: SALES_BASE },
+  { tab: "source_performance", label: "Source Tracker", icon: BarChart3, roles: MANAGERS },
+  { tab: "availability", label: "Availability", icon: CalendarOff, roles: MANAGERS },
+];
