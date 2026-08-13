@@ -25,7 +25,8 @@ export interface LeadRowActionsProps {
     | "interakt_leads"
     | "email_leads"
     | "google_ads_leads"
-    | "call_logs";
+    | "call_logs"
+    | "manychat_leads";
   sourceRowId: string;
   contactName?: string;
   contactPhone?: string | null;

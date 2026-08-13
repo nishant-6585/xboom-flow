@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const SOURCE_LABEL_MAP: Record<string, string> = {
   myoperator: 'MyOperator',
+  manychat: 'ManyChat',
   interakt: 'Interakt',
   form_lead: 'Website Form',
   email: 'Email',
@@ -19,7 +20,7 @@ const SOURCE_LABEL_MAP: Record<string, string> = {
 };
 
 interface ProspectButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead' | 'manychat';
   sourceId: string;
   customerName: string;
   phoneNumber?: string | null;
@@ -184,7 +185,7 @@ export function ProspectButton({
 }
 
 interface ACategoryButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead' | 'manychat';
   sourceId: string;
   isACategory: boolean;
   onToggle?: () => void;

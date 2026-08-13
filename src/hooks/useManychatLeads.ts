@@ -27,6 +27,11 @@ export interface ManychatLead {
   assigned_to: string | null;
   assigned_to_name: string | null;
   disposition: string | null;
+  disposition_reason_code: string | null;
+  disposition_reason_note: string | null;
+  disposition_at: string | null;
+  disposition_by_name: string | null;
+  is_prospect: boolean;
   synced_at: string;
   created_at: string;
   updated_at: string;
