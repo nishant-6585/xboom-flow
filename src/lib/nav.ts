@@ -109,18 +109,3 @@ export const salesTabItems: SalesTabItem[] = [
   { tab: "source_performance", label: "Source Tracker", icon: BarChart3, roles: MANAGERS },
   { tab: "availability", label: "Availability", icon: CalendarOff, roles: MANAGERS },
 ];
-
-const _legacyGetRoleLabel = (role: string | null) => {
-  switch (role) {
-    case "sales": return "Sales";
-    case "sales_manager": return "Sales Manager";
-    case "supply_chain": return "Supply Chain";
-    case "finance": return "Finance";
-    case "admin": return "Admin";
-    case "it": return "IT";
-    case "marketing": return "Marketing";
-    case "hr": return "HR";
-    case "support": return "Support";
-    default: return "User";
-  }
-};
