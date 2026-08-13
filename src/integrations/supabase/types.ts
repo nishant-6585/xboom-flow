@@ -18923,6 +18923,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_indiamart_leads: { Args: { p_rows: Json }; Returns: Json }
       import_meta_leads: { Args: { p_rows: Json }; Returns: Json }
       increment_session_version: {
         Args: { p_user_id: string }
