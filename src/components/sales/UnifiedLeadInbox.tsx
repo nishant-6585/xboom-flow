@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck, Eye,
-  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook,
+  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +53,7 @@ const SOURCE_TO_TAB: Record<LeadSource, string> = {
   elevenlabs: "elevenlabs",
   email: "emails",
   facebook: "facebook-leads",
+  indiamart: "indiamart",
 };
 
 const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }>> = {
@@ -64,6 +65,7 @@ const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }
   elevenlabs: Headphones,
   email: Mail,
   facebook: Facebook,
+  indiamart: Store,
 };
 
 function lastSeenKey(userId: string | undefined) {

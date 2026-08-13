@@ -61,7 +61,7 @@ import { TouchedDashboard } from './TouchedDashboard';
 import { MetaLeadsUpload } from './MetaLeadsUpload';
 import { UnifiedLeadInbox } from './UnifiedLeadInbox';
 import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
-import { Inbox } from 'lucide-react';
+import { Inbox, Store } from 'lucide-react';
 import { groupDuplicates } from '@/lib/leadDeduplication';
 import { DuplicateCountBadge, DuplicateHistoryRow } from './DuplicateHistoryRow';
 import { LeadsExportMenu } from './LeadsExportMenu';
@@ -126,6 +126,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   }, [attentionItems]);
   const [searchQuery, setSearchQuery] = useState(initialSearch || '');
   const [fbImportOpen, setFbImportOpen] = useState(false);
+  const [imImportOpen, setImImportOpen] = useState(false);
   useEffect(() => {
     if (initialSearch) setSearchQuery(initialSearch);
   }, [initialSearch]);
@@ -502,6 +503,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="facebook-leads" className="gap-1.5">
           <Facebook className="h-3.5 w-3.5" />
           Facebook Leads
+        </TabsTrigger>
+        <TabsTrigger value="indiamart" className="gap-1.5">
+          <Store className="h-3.5 w-3.5" />
+          Indiamart
         </TabsTrigger>
       </TabsList>
 
@@ -1424,6 +1429,39 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           </Collapsible>
         )}
         <UnifiedLeadInbox sources={["facebook"]} />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="indiamart">
+        <div className="space-y-6">
+        {role === 'admin' && (
+          <Collapsible open={imImportOpen} onOpenChange={setImImportOpen}>
+            <div className="rounded-lg border bg-card">
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium"
+                >
+                  <span className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import IndiaMART leads (Excel / CSV)
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${imImportOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="border-t p-4">
+                  <MetaLeadsUpload
+                    rpc="import_indiamart_leads"
+                    title="Upload IndiaMART Leads"
+                    sourceLabel="IndiaMART"
+                  />
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        )}
+        <UnifiedLeadInbox sources={["indiamart"]} />
         </div>
       </TabsContent>
     </Tabs>

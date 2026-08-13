@@ -70,7 +70,22 @@ const REPS = ["Manoj Kumar", "Srishti Suman", "Mohammed Musthak", "Narasimha", "
 
 type ImportSummary = { total: number; inserted: number; duplicates: number; skipped: number };
 
-export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
+export interface MetaLeadsUploadProps {
+  onImported?: () => void;
+  /** RPC used to import the parsed rows. */
+  rpc?: "import_meta_leads" | "import_indiamart_leads";
+  /** Card title, e.g. "Upload IndiaMART Leads". */
+  title?: string;
+  /** Label used in copy + toasts (e.g. "IndiaMART"). */
+  sourceLabel?: string;
+}
+
+export function MetaLeadsUpload({
+  onImported,
+  rpc = "import_meta_leads",
+  title = "Upload Meta Leads",
+  sourceLabel = "Meta",
+}: MetaLeadsUploadProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<MetaLeadRow[]>([]);
@@ -119,7 +134,7 @@ export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
       const CHUNK = 500;
       const totals: ImportSummary = { total: 0, inserted: 0, duplicates: 0, skipped: 0 };
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const { data, error } = await supabase.rpc("import_meta_leads", {
+        const { data, error } = await supabase.rpc(rpc, {
           p_rows: rows.slice(i, i + CHUNK) as any,
         });
         if (error) throw error;
@@ -130,7 +145,7 @@ export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
         totals.skipped += r.skipped ?? 0;
       }
       setSummary(totals);
-      toast.success(`Imported ${totals.inserted} Meta leads`);
+      toast.success(`Imported ${totals.inserted} ${sourceLabel} leads`);
       // Refresh the lead feed + counts so imported rows appear without a manual refresh
       await queryClient.invalidateQueries({ queryKey: ["unified-lead-feed"] });
       await queryClient.invalidateQueries({ queryKey: ["unified-lead-counts"] });
@@ -150,7 +165,7 @@ export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Upload className="w-5 h-5 text-primary" />
-            Upload Meta Leads
+            {title}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -159,7 +174,7 @@ export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
             onClick={() => fileRef.current?.click()}
           >
             <FileSpreadsheet className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-            <p className="font-medium">{fileName || "Click to select the Meta leads sheet"}</p>
+            <p className="font-medium">{fileName || `Click to select the ${sourceLabel} leads sheet`}</p>
             <p className="text-sm text-muted-foreground mt-1">
               .xlsx, .xls or .csv — columns like Created, Name, Email address, Phone, Form, Channel
             </p>
