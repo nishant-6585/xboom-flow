@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const VERIFY_TOKEN = Deno.env.get("FB_VERIFY_TOKEN")!;
-const PAGE_ACCESS_TOKEN = Deno.env.get("FB_PAGE_ACCESS_TOKEN")!;
+const PAGE_ACCESS_TOKEN =
+  Deno.env.get("FACEBOOK_PAGE_ACCESS_TOKEN") ?? Deno.env.get("FB_PAGE_ACCESS_TOKEN")!;
 const APP_SECRET = Deno.env.get("FB_APP_SECRET")!;
 const LEADS_INCOMING_URL = "https://mxsotxddcvmeluqonuuj.supabase.co/functions/v1/leads-incoming";
 const LEADS_WEBHOOK_SECRET = Deno.env.get("LEADS_WEBHOOK_SECRET")!;
@@ -57,16 +58,28 @@ serve(async (req) => {
       const { leadgen_id, ad_id, campaign_id, adgroup_id, form_id, page_id } = change.value;
       console.log("New FB lead:", leadgen_id);
 
-      const graphRes = await fetch(
-        `https://graph.facebook.com/v19.0/${leadgen_id}?fields=id,created_time,field_data,ad_id,campaign_id,form_id&access_token=${PAGE_ACCESS_TOKEN}`
-      );
+      // Case 1: Facebook already sent the full field_data inline in the webhook.
+      // Case 2: only a leadgen_id was sent — fetch the lead from the Graph API.
+      let lead: any;
+      if (Array.isArray(change.value.field_data) && change.value.field_data.length > 0) {
+        lead = change.value;
+        console.log("Using inline field_data for lead", leadgen_id);
+      } else {
+        if (!leadgen_id) {
+          console.error("Lead has neither field_data nor leadgen_id, skipping");
+          continue;
+        }
+        const graphRes = await fetch(
+          `https://graph.facebook.com/v19.0/${leadgen_id}?fields=id,created_time,field_data,ad_id,campaign_id,form_id&access_token=${PAGE_ACCESS_TOKEN}`
+        );
 
-      if (!graphRes.ok) {
-        console.error("Graph API error for lead", leadgen_id, await graphRes.text());
-        continue;
+        if (!graphRes.ok) {
+          console.error("Graph API error for lead", leadgen_id, await graphRes.text());
+          continue;
+        }
+
+        lead = await graphRes.json();
       }
-
-      const lead = await graphRes.json();
 
       const fields: Record<string, string> = {};
       for (const f of lead.field_data ?? []) {
