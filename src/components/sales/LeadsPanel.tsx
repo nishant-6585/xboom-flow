@@ -501,12 +501,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           <Facebook className="h-3.5 w-3.5" />
           Facebook Leads
         </TabsTrigger>
-        {role === 'admin' && (
-          <TabsTrigger value="meta-leads" className="gap-1.5">
-            <Facebook className="h-3.5 w-3.5" />
-            Meta Leads
-          </TabsTrigger>
-        )}
       </TabsList>
 
       <TabsContent value="all-inbox" className="space-y-6">
@@ -1404,18 +1398,32 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
       <TabsContent value="facebook-leads">
         <div className="space-y-6">
         <TouchedDashboard source="facebook-leads" />
+        {role === 'admin' && (
+          <Collapsible open={fbImportOpen} onOpenChange={setFbImportOpen}>
+            <div className="rounded-lg border bg-card">
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium"
+                >
+                  <span className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import historical leads
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${fbImportOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="border-t p-4">
+                  <MetaLeadsUpload />
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        )}
         <UnifiedLeadInbox sources={["facebook"]} />
         </div>
       </TabsContent>
-
-      {role === 'admin' && (
-        <TabsContent value="meta-leads">
-          <div className="space-y-6">
-            <MetaLeadsUpload />
-            <UnifiedLeadInbox sources={["facebook"]} />
-          </div>
-        </TabsContent>
-      )}
     </Tabs>
   );
 }
