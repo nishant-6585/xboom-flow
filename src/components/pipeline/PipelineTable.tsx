@@ -594,6 +594,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <TableHeader>
               <TableRow>
                 <TableHead>Lead</TableHead>
+                <TableHead>Created</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Product</TableHead>
@@ -622,7 +623,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <TableBody>
               {sortedOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                     No pipeline orders found
                   </TableCell>
                 </TableRow>
@@ -635,6 +636,9 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                         isMegaDeal={order.is_mega_deal || false}
                         size="sm"
                       />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                      {order.created_at ? format(new Date(order.created_at), 'dd MMM yyyy') : '—'}
                     </TableCell>
                     <TableCell>
                       <LeadSourceBadge source={order.lead_source} size="sm" />
