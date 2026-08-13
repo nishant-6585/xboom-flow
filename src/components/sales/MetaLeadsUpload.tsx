@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { Upload, FileSpreadsheet, Loader2, CheckCircle2, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,6 +77,7 @@ export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
+  const queryClient = useQueryClient();
 
   const reset = () => {
     setRows([]);
@@ -129,6 +131,10 @@ export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
       }
       setSummary(totals);
       toast.success(`Imported ${totals.inserted} Meta leads`);
+      // Refresh the lead feed + counts so imported rows appear without a manual refresh
+      await queryClient.invalidateQueries({ queryKey: ["unified-lead-feed"] });
+      await queryClient.invalidateQueries({ queryKey: ["unified-lead-counts"] });
+      await queryClient.invalidateQueries({ queryKey: ["leads"] });
       onImported?.();
     } catch (err: any) {
       console.error("Meta leads import error", err);
