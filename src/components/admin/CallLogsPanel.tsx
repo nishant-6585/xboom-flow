@@ -24,6 +24,7 @@ import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import type { LeadDisposition } from "@/lib/leadDispositions";
 import type { Prospect } from "@/hooks/useProspects";
 import { useSalesUsers } from "@/hooks/useSalesUsers";
+import { isAssignableRepName } from "@/lib/assignableReps";
 import { touchedRowCn, isRowTouched } from "@/lib/touchedRow";
 import { useEngagedLeadIds } from "@/hooks/useEngagedLeadIds";
 import { useAuth } from "@/hooks/useAuth";
@@ -312,23 +313,9 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
 
-  // Fixed assignment pool — only these 6 reps can be assigned to call logs.
-  // Match is case-insensitive and uses substring matching to handle minor
-  // name variations (e.g. "mohammed musthak" vs "Musthak").
-  const ASSIGNABLE_REP_KEYWORDS = [
-    "suman das",
-    "narasimha",
-    "musthak",
-    "srishti",
-    "manoj kumar",
-  ];
   const { salesUsers } = useSalesUsers();
   const allowedSalesUsers = React.useMemo(
-    () =>
-      salesUsers.filter(u => {
-        const n = (u.name || "").trim().toLowerCase();
-        return ASSIGNABLE_REP_KEYWORDS.some(k => n.includes(k));
-      }),
+    () => salesUsers.filter(u => isAssignableRepName(u.name)),
     [salesUsers]
   );
   const SALES_PERSONS_LIST = React.useMemo(

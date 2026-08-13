@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useManychatLeads, useManychatSync, type ManychatLead } from "@/hooks/useManychatLeads";
 import { useSalesUsers } from "@/hooks/useSalesUsers";
+import { isAssignableRepName } from "@/lib/assignableReps";
 import { useAuth } from "@/hooks/useAuth";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { LeadsExportMenu } from "@/components/sales/LeadsExportMenu";
@@ -29,10 +30,6 @@ import { ProspectButton } from "@/components/sales/ProspectButton";
 import { DispositionBadge } from "@/components/sales/DispositionBadge";
 
 const PAGE_SIZE = 25;
-
-// Same pool the round-robin trigger draws from: approved sales / sales_manager
-// users minus the excluded reps.
-const EXCLUDED_ASSIGNEES = ["charles", "fahad", "umar", "vishal"];
 
 const digitsOf = (v: string | null | undefined) => (v ?? "").replace(/\D/g, "");
 
@@ -68,13 +65,9 @@ export function ManychatLeadsPanel() {
   const canManage = role === "admin" || role === "sales_manager";
 
   const { salesUsers } = useSalesUsers();
+  // Same fixed rep pool as the MyOperator call-log table.
   const assignableUsers = useMemo(
-    () =>
-      salesUsers.filter((u) => {
-        if (u.role !== "sales" && u.role !== "sales_manager") return false;
-        const n = (u.name || "").trim().toLowerCase();
-        return n.length > 0 && !EXCLUDED_ASSIGNEES.some((k) => n.includes(k));
-      }),
+    () => salesUsers.filter((u) => isAssignableRepName(u.name)),
     [salesUsers],
   );
 
