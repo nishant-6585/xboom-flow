@@ -543,6 +543,52 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
           </Popover>
         </div>
 
+        {/* Filter-aware summary + visual breakdown */}
+        <div className="mb-4 space-y-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Total Pipeline Value</div>
+              <div className="text-lg font-semibold">{formatCurrency(filteredValue)}</div>
+              <div className="text-xs text-muted-foreground">{filteredOrders.length} deal{filteredOrders.length !== 1 ? 's' : ''} (filtered)</div>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Open Pipeline Value</div>
+              <div className="text-lg font-semibold">{formatCurrency(openValue)}</div>
+              <div className="text-xs text-muted-foreground">{openOrders.length} active deal{openOrders.length !== 1 ? 's' : ''}</div>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Won Value</div>
+              <div className="text-lg font-semibold">{formatCurrency(wonValueFiltered)}</div>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Avg Deal Size</div>
+              <div className="text-lg font-semibold">
+                {formatCurrency(filteredOrders.length ? Math.round(filteredValue / filteredOrders.length) : 0)}
+              </div>
+            </div>
+          </div>
+
+          {statusBreakdown.length > 0 && (
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">Value by Status (filtered)</div>
+              {statusBreakdown.map(s => (
+                <div key={s.value} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{s.label} · {s.count}</span>
+                    <span className="font-medium">{formatCurrency(s.total)}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${Math.max(2, (s.total / maxStatusTotal) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
