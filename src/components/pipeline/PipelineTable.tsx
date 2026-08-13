@@ -67,6 +67,7 @@ const getStatusColor = (status: string) => {
     case 'lost': return 'bg-red-500/10 text-red-500 border-red-500/20';
     case 'negotiation': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
     case 'follow_up': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+    case 'po_payment_awaited': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
     default: return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
   }
 };
@@ -305,6 +306,30 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const isAdminOrSupplyChain = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
   const canDelete = role === 'admin' || role === 'sales';
 
+  // ---- Filter-aware pipeline summary (reflects every active filter above) ----
+  const filteredValue = filteredOrders.reduce(
+    (sum, o) => sum + (o.expected_price || 0) * (o.quantity || 1),
+    0,
+  );
+  const openOrders = filteredOrders.filter(o => o.status !== 'won' && o.status !== 'lost');
+  const openValue = openOrders.reduce(
+    (sum, o) => sum + (o.expected_price || 0) * (o.quantity || 1),
+    0,
+  );
+  const wonValueFiltered = filteredOrders
+    .filter(o => o.status === 'won')
+    .reduce((sum, o) => sum + (o.expected_price || 0) * (o.quantity || 1), 0);
+  const statusBreakdown = PIPELINE_STATUSES.map(s => {
+    const list = filteredOrders.filter(o => o.status === s.value);
+    return {
+      value: s.value,
+      label: s.label,
+      count: list.length,
+      total: list.reduce((sum, o) => sum + (o.expected_price || 0) * (o.quantity || 1), 0),
+    };
+  }).filter(s => s.count > 0);
+  const maxStatusTotal = Math.max(1, ...statusBreakdown.map(s => s.total));
+
   return (
     <Card>
       <CardHeader>
@@ -516,6 +541,52 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               </div>
             </PopoverContent>
           </Popover>
+        </div>
+
+        {/* Filter-aware summary + visual breakdown */}
+        <div className="mb-4 space-y-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Total Pipeline Value</div>
+              <div className="text-lg font-semibold">{formatCurrency(filteredValue)}</div>
+              <div className="text-xs text-muted-foreground">{filteredOrders.length} deal{filteredOrders.length !== 1 ? 's' : ''} (filtered)</div>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Open Pipeline Value</div>
+              <div className="text-lg font-semibold">{formatCurrency(openValue)}</div>
+              <div className="text-xs text-muted-foreground">{openOrders.length} active deal{openOrders.length !== 1 ? 's' : ''}</div>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Won Value</div>
+              <div className="text-lg font-semibold">{formatCurrency(wonValueFiltered)}</div>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Avg Deal Size</div>
+              <div className="text-lg font-semibold">
+                {formatCurrency(filteredOrders.length ? Math.round(filteredValue / filteredOrders.length) : 0)}
+              </div>
+            </div>
+          </div>
+
+          {statusBreakdown.length > 0 && (
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">Value by Status (filtered)</div>
+              {statusBreakdown.map(s => (
+                <div key={s.value} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{s.label} · {s.count}</span>
+                    <span className="font-medium">{formatCurrency(s.total)}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${Math.max(2, (s.total / maxStatusTotal) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-md border overflow-x-auto">
