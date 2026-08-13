@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Search,
   Eye,
+  ExternalLink,
   Layers,
   ChevronDown,
   ChevronRight,
@@ -46,6 +47,13 @@ const handleOf = (l: ManychatLead): string =>
 /** Most recent activity we know about for the contact. */
 const lastActiveOf = (l: ManychatLead): string | null =>
   l.last_interaction_at || customStr(l, "subscribed") || l.manychat_created_at;
+
+/** Deep link to this contact's full conversation in ManyChat Live Chat. */
+const MANYCHAT_ACCOUNT = "fb1337316";
+const chatUrlOf = (l: ManychatLead): string | null =>
+  l.manychat_contact_id && /^\d+$/.test(l.manychat_contact_id)
+    ? `https://app.manychat.com/${MANYCHAT_ACCOUNT}/chat/${l.manychat_contact_id}`
+    : null;
 /** Duplicate-merge key: last 10 phone digits, else the row itself (unique). */
 const dupKey = (l: ManychatLead) => {
   const d = digitsOf(l.phone_number);
@@ -301,6 +309,17 @@ export function ManychatLeadsPanel() {
                 onClick={() => window.open(`https://wa.me/${waDigits}`, "_blank", "noopener")}
               >
                 <MessageCircle className="h-4 w-4" />
+              </Button>
+            )}
+            {chatUrlOf(l) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-primary"
+                title="Open chat history in ManyChat"
+                onClick={() => window.open(chatUrlOf(l)!, "_blank", "noopener")}
+              >
+                <ExternalLink className="h-4 w-4" />
               </Button>
             )}
             <Button
