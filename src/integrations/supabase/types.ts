@@ -5965,6 +5965,7 @@ export type Database = {
           form_name: string
           id: string
           is_enquiry_converted: boolean
+          lead_source: string | null
           notes: string | null
           phone: string | null
           product_name: string | null
@@ -5993,6 +5994,7 @@ export type Database = {
           form_name: string
           id?: string
           is_enquiry_converted?: boolean
+          lead_source?: string | null
           notes?: string | null
           phone?: string | null
           product_name?: string | null
@@ -6021,6 +6023,7 @@ export type Database = {
           form_name?: string
           id?: string
           is_enquiry_converted?: boolean
+          lead_source?: string | null
           notes?: string | null
           phone?: string | null
           product_name?: string | null
