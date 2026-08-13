@@ -8839,6 +8839,44 @@ export type Database = {
         }
         Relationships: []
       }
+      manychat_messages: {
+        Row: {
+          channel: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          manychat_contact_id: string | null
+          message: string
+          received_at: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          manychat_contact_id?: string | null
+          message: string
+          received_at?: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          manychat_contact_id?: string | null
+          message?: string
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manychat_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "manychat_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manychat_sync_log: {
         Row: {
           created: number
