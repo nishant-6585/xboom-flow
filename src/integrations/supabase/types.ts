@@ -19688,6 +19688,7 @@ export type Database = {
         | "cancelled"
         | "to_ship"
         | "in_transit"
+        | "refund"
       quote_status:
         | "draft"
         | "sent"
@@ -20054,6 +20055,7 @@ export const Constants = {
         "cancelled",
         "to_ship",
         "in_transit",
+        "refund",
       ],
       quote_status: [
         "draft",

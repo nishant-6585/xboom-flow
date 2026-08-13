@@ -8,7 +8,8 @@ import {
   Settings, 
   Package, 
   XCircle,
-  Truck
+  Truck,
+  RotateCcw
 } from 'lucide-react';
 
 interface OrderStatusBadgeProps {
@@ -81,10 +82,16 @@ const statusConfig: Record<OrderStatus, {
     className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     icon: XCircle
   },
+  refund: {
+    label: 'Refund',
+    variant: 'secondary',
+    className: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',
+    icon: RotateCcw
+  },
 };
 
 export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? statusConfig.po_received;
   const Icon = config.icon;
 
   return (

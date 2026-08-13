@@ -669,7 +669,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       internal_notes: internalNotes || null,
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
-      is_refund_requested: isRefundRequested || finalStatus === 'cancelled',
+      is_refund_requested: isRefundRequested || finalStatus === 'cancelled' || finalStatus === 'refund',
       priority,
       order_outcome: orderOutcome,
       supplier_payment_terms: supplierPaymentTerms || null,
@@ -688,15 +688,16 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // outcome) would look "changed" against the derived null and get
     // included in the payload, tripping the sales guard trigger with a
     // spurious 42501.
+    const refundLikeStatus = (s?: string) => s === 'cancelled' || s === 'refund';
     const refundDriverChanged =
       (isRefundRequested !== !!order.is_refund_requested) ||
-      ((finalStatus === 'cancelled') !== (order.status === 'cancelled'));
+      (refundLikeStatus(finalStatus) !== refundLikeStatus(order.status));
     if (refundDriverChanged) {
-      candidate.refund_reason = isRefundRequested
+      candidate.refund_reason = (isRefundRequested || finalStatus === 'refund')
         ? (refundReason || null)
         : (finalStatus === 'cancelled' ? cancellationReason : null);
       candidate.refund_status =
-        (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null;
+        (isRefundRequested || refundLikeStatus(finalStatus)) ? refundStatus : null;
     }
     const outcomeChanged = orderOutcome !== (order as any).order_outcome;
     if (outcomeChanged) {
@@ -793,6 +794,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // Validate cancellation reason when status is cancelled
     if (status === 'cancelled' && !cancellationReason.trim()) {
       toast.error('Cancellation reason is required when marking order as cancelled');
+      return;
+    }
+
+    if (status === 'refund' && !refundReason.trim()) {
+      toast.error('Refund reason is required when marking order as Refund');
       return;
     }
 
@@ -1683,7 +1689,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     Order Status
                   </Label>
                   {canEditSalesFields ? (
-                    <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)}>
+                    <Select
+                      value={status}
+                      onValueChange={(v) => {
+                        const next = v as OrderStatus;
+                        setStatus(next);
+                        if (next === 'refund') {
+                          setIsRefundRequested(true);
+                          setRefundStatus(prev => prev || 'pending');
+                        }
+                      }}
+                    >
                       <SelectTrigger className="bg-background">
                         <SelectValue />
                       </SelectTrigger>
@@ -1714,6 +1730,25 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     placeholder="Please provide a reason for cancellation..."
                     className="bg-background"
                   />
+                </div>
+              )}
+              {status === 'refund' && canEditSalesFields && (
+                <div className="mt-4 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-lg border border-rose-200 dark:border-rose-800 space-y-3">
+                  <h5 className="font-medium text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Refund Reason (Required)
+                  </h5>
+                  <Textarea
+                    value={refundReason}
+                    onChange={e => setRefundReason(e.target.value)}
+                    disabled={loading}
+                    rows={2}
+                    placeholder="Why is this order being refunded?"
+                    className="bg-background"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Marking the order as Refund flags it as a refund request; track progress in the Refund section below.
+                  </p>
                 </div>
               )}
             </div>
