@@ -246,9 +246,9 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               {(() => {
-                const Icon = isLockedSource && sources?.length === 1
+                const Icon = (isLockedSource && sources?.length === 1
                   ? SOURCE_ICON[sources[0]!]
-                  : Inbox;
+                  : Inbox) ?? Inbox;
                 return <Icon className="h-5 w-5 text-primary" />;
               })()}
             </div>
