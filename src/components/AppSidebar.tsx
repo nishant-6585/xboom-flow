@@ -1,5 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
-import { LogOut, Search } from "lucide-react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { LogOut, Search, ChevronDown } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,9 +13,15 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+} from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { navGroups, getRoleLabel, type NavItem } from "@/lib/nav";
+import { navGroups, getRoleLabel, salesTabItems, type NavItem } from "@/lib/nav";
 import logoIcon from "@/assets/xboom-logo-icon.jpeg";
 
 const getInitials = (name: string) =>
@@ -51,6 +57,7 @@ interface AppSidebarProps {
 export function AppSidebar({ counts }: AppSidebarProps) {
   const { profile, role, roles, signOut } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const hasNavAccess = (itemRoles: string[]) =>
@@ -65,6 +72,58 @@ export function AppSidebar({ counts }: AppSidebarProps) {
   const renderItem = (item: NavItem) => {
     const active = isActive(item.path);
     const count = counts?.[item.path];
+
+    if (item.path === "/sales") {
+      const tabs = salesTabItems.filter((t) => hasNavAccess(t.roles));
+      const currentTab = active ? searchParams.get("tab") : null;
+      return (
+        <Collapsible key={item.path} defaultOpen={active} className="group/collapsible">
+          <SidebarMenuItem>
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton
+                className={cn(
+                  "relative rounded-md h-9 gap-2.5",
+                  active
+                    ? "bg-sidebar-accent text-foreground font-semibold"
+                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                )}
+              >
+                {active && (
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary" aria-hidden />
+                )}
+                <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
+                <span className="text-sm truncate">{item.label}</span>
+                <ChevronDown className="ml-auto w-3.5 h-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+              </SidebarMenuButton>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarMenuSub className="mr-0 pr-0">
+                {tabs.map((t) => (
+                  <SidebarMenuSubItem key={t.tab}>
+                    <SidebarMenuSubButton
+                      asChild
+                      isActive={currentTab === t.tab}
+                      className={cn(
+                        "h-8 gap-2",
+                        currentTab === t.tab
+                          ? "bg-sidebar-accent text-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Link to={`/sales?tab=${t.tab}`} onClick={closeOnMobile}>
+                        <t.icon className="w-[15px] h-[15px] flex-shrink-0" />
+                        <span className="text-[13px] truncate">{t.label}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                ))}
+              </SidebarMenuSub>
+            </CollapsibleContent>
+          </SidebarMenuItem>
+        </Collapsible>
+      );
+    }
+
     return (
       <SidebarMenuItem key={item.path}>
         <SidebarMenuButton
