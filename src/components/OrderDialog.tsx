@@ -3516,9 +3516,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       <input
                         type="checkbox"
                         id="is_refund_requested"
-                        checked={isRefundRequested}
+                        checked={isRefundRequested || status === 'refund'}
                         onChange={(e) => setIsRefundRequested(e.target.checked)}
-                        disabled={loading}
+                        disabled={loading || status === 'refund'}
                         className="h-4 w-4"
                       />
                       <Label htmlFor="is_refund_requested" className="cursor-pointer">
@@ -3526,7 +3526,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       </Label>
                     </div>
 
-                    {isRefundRequested && (
+                    {(isRefundRequested || status === 'refund') && (
                       <>
                         <div className="space-y-2">
                           <Label htmlFor="refund_reason">Refund Reason</Label>
