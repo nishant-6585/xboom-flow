@@ -60,7 +60,7 @@ serve(async (req) => {
 
       // Case 1: Facebook already sent the full field_data inline in the webhook.
       // Case 2: only a leadgen_id was sent — fetch the lead from the Graph API.
-      let lead: Record<string, unknown>;
+      let lead: any;
       if (Array.isArray(change.value.field_data) && change.value.field_data.length > 0) {
         lead = change.value;
         console.log("Using inline field_data for lead", leadgen_id);
