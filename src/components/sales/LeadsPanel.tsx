@@ -17,8 +17,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
   Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil,
-  RefreshCw, Phone, MessageCircle, MapPin, ClipboardList, Facebook
+  RefreshCw, Phone, MessageCircle, MapPin, ClipboardList, Facebook, ChevronDown
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
@@ -124,6 +125,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     return set;
   }, [attentionItems]);
   const [searchQuery, setSearchQuery] = useState(initialSearch || '');
+  const [fbImportOpen, setFbImportOpen] = useState(false);
   useEffect(() => {
     if (initialSearch) setSearchQuery(initialSearch);
   }, [initialSearch]);
