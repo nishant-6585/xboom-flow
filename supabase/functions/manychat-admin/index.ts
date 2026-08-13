@@ -97,18 +97,30 @@ Deno.serve(async (req) => {
   if (action === "csv_import") {
     const rows: Record<string, unknown>[] = Array.isArray(body?.rows) ? body.rows : [];
     if (!rows.length) return json({ ok: false, error: "no rows supplied" }, 400);
-    if (rows.length > 5000) return json({ ok: false, error: "too many rows (max 5000 per import)" }, 400);
+    // Keep each invocation well inside the 150s edge idle timeout — the client
+    // splits large files into sequential batches of this size.
+    if (rows.length > 500) return json({ ok: false, error: "too many rows (max 500 per request)" }, 400);
 
     let created = 0, updated = 0, skipped = 0;
     const errors: string[] = [];
 
-    for (const raw of rows) {
-      const row = normaliseManychatContact(raw as Record<string, any>);
-      const outcome = await upsertManychatLead(admin, row, { requireIdentifier: "contact_or_phone" });
-      if (outcome.result === "created") created++;
-      else if (outcome.result === "updated") updated++;
-      else if (outcome.result === "skipped") skipped++;
-      else errors.push(outcome.error);
+    // Process with bounded concurrency instead of strictly sequentially.
+    const CONCURRENCY = 10;
+    for (let i = 0; i < rows.length; i += CONCURRENCY) {
+      const slice = rows.slice(i, i + CONCURRENCY);
+      const outcomes = await Promise.all(
+        slice.map((raw) =>
+          upsertManychatLead(admin, normaliseManychatContact(raw as Record<string, any>), {
+            requireIdentifier: "contact_or_phone",
+          }).catch((e) => ({ result: "error" as const, error: (e as Error).message })),
+        ),
+      );
+      for (const outcome of outcomes) {
+        if (outcome.result === "created") created++;
+        else if (outcome.result === "updated") updated++;
+        else if (outcome.result === "skipped") skipped++;
+        else errors.push(outcome.error);
+      }
     }
 
     await admin.from("manychat_sync_log").insert({
