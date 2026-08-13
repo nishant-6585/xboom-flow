@@ -18700,6 +18700,35 @@ export type Database = {
         }[]
       }
       get_pricelist_sync_status: { Args: never; Returns: Json }
+      get_prospect_followup_tracker: {
+        Args: never
+        Returns: {
+          city: string
+          created_at: string
+          customer_company: string
+          customer_name: string
+          email: string
+          followup_count: number
+          is_a_category: boolean
+          last_followup_at: string
+          last_followup_by: string
+          last_followup_mode: string
+          last_followup_outcome: string
+          last_followup_remark: string
+          last_sequence_no: number
+          lead_source: string
+          next_followup_at: string
+          next_followup_id: string
+          owner_id: string
+          owner_name: string
+          phone: string
+          product_name: string
+          prospect_id: string
+          prospect_status: string
+          quantity: number
+          quoted_price: number
+        }[]
+      }
       get_sales_leaderboard:
         | {
             Args: { end_date?: string; start_date?: string }
