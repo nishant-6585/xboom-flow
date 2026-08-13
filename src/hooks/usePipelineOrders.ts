@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { sendSlackNotification } from '@/hooks/useSlackSettings';
 
-export type PipelineStatus = 'pending_confirmation' | 'won' | 'lost' | 'negotiation' | 'follow_up';
+export type PipelineStatus = 'pending_confirmation' | 'won' | 'lost' | 'negotiation' | 'follow_up' | 'po_payment_awaited';
 export type LeadTemperature = 'hot' | 'warm' | 'cold';
 
 export const PIPELINE_LOST_REASONS = [
@@ -78,6 +78,7 @@ export const PIPELINE_STATUSES = [
   { value: 'pending_confirmation', label: 'Pending Confirmation' },
   { value: 'negotiation', label: 'In Negotiation' },
   { value: 'follow_up', label: 'Follow Up Required' },
+  { value: 'po_payment_awaited', label: 'PO/Payment Awaited' },
   { value: 'won', label: 'Order Won' },
   { value: 'lost', label: 'Order Lost' },
 ] as const;
