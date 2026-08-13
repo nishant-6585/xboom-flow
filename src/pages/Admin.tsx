@@ -50,6 +50,7 @@ import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { WooCommerceSyncPanel } from "@/components/admin/WooCommerceSyncPanel";
 import { ManychatSettingsPanel } from "@/components/admin/ManychatSettingsPanel";
 import { LeadSyncHealthPanel } from "@/components/admin/LeadSyncHealthPanel";
+import { FacebookLeadsSettingsPanel } from "@/components/admin/FacebookLeadsSettingsPanel";
 import { MyOperatorSettingsPanel } from "@/components/admin/MyOperatorSettingsPanel";
 import { ZohoBooksSettingsPanel } from "@/components/admin/ZohoBooksSettingsPanel";
 import { ExotelSettingsPanel } from "@/components/admin/ExotelSettingsPanel";
@@ -1423,6 +1424,7 @@ const Admin = () => {
               <MyOperatorSettingsPanel />
               <ExotelSettingsPanel />
               <WooCommerceSyncPanel />
+              <FacebookLeadsSettingsPanel />
               <ManychatSettingsPanel />
               <ZohoBooksSettingsPanel />
             </div>

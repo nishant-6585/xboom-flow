@@ -32,6 +32,7 @@ const SOURCES: SourceCheck[] = [
   // ElevenLabs webhook we receive — the honest "is it alive" signal.
   { key: "elevenlabs", label: "ElevenLabs (Voice AI)", table: "call_webhook_logs", dateColumn: "created_at", staleHours: 48, filterColumn: "source", filterValue: "elevenlabs" },
   { key: "myoperator", label: "MyOperator (Call Logs)", table: "call_logs", dateColumn: "created_at", staleHours: 6, filterColumn: "raw_payload", filterValue: "__not_null__" },
+  { key: "facebook_leads", label: "Facebook Leads", table: "leads", dateColumn: "submitted_at", staleHours: 24, filterColumn: "form_type", filterValue: "Facebook Leads" },
   { key: "qforms", label: "QForms (Website Forms)", table: "leads", dateColumn: "created_at", staleHours: 24, filterColumn: "form_type", filterValue: "__not_null__" },
 ];
 
