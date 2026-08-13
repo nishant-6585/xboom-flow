@@ -306,6 +306,30 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const isAdminOrSupplyChain = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
   const canDelete = role === 'admin' || role === 'sales';
 
+  // ---- Filter-aware pipeline summary (reflects every active filter above) ----
+  const filteredValue = filteredOrders.reduce(
+    (sum, o) => sum + (o.expected_price || 0) * (o.quantity || 1),
+    0,
+  );
+  const openOrders = filteredOrders.filter(o => o.status !== 'won' && o.status !== 'lost');
+  const openValue = openOrders.reduce(
+    (sum, o) => sum + (o.expected_price || 0) * (o.quantity || 1),
+    0,
+  );
+  const wonValueFiltered = filteredOrders
+    .filter(o => o.status === 'won')
+    .reduce((sum, o) => sum + (o.expected_price || 0) * (o.quantity || 1), 0);
+  const statusBreakdown = PIPELINE_STATUSES.map(s => {
+    const list = filteredOrders.filter(o => o.status === s.value);
+    return {
+      value: s.value,
+      label: s.label,
+      count: list.length,
+      total: list.reduce((sum, o) => sum + (o.expected_price || 0) * (o.quantity || 1), 0),
+    };
+  }).filter(s => s.count > 0);
+  const maxStatusTotal = Math.max(1, ...statusBreakdown.map(s => s.total));
+
   return (
     <Card>
       <CardHeader>
