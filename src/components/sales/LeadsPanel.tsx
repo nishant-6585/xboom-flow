@@ -17,8 +17,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
   Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil,
-  RefreshCw, Phone, MessageCircle, MapPin, ClipboardList, Facebook
+  RefreshCw, Phone, MessageCircle, MapPin, ClipboardList, Facebook, ChevronDown
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
@@ -124,6 +125,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     return set;
   }, [attentionItems]);
   const [searchQuery, setSearchQuery] = useState(initialSearch || '');
+  const [fbImportOpen, setFbImportOpen] = useState(false);
   useEffect(() => {
     if (initialSearch) setSearchQuery(initialSearch);
   }, [initialSearch]);
@@ -501,12 +503,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           <Facebook className="h-3.5 w-3.5" />
           Facebook Leads
         </TabsTrigger>
-        {role === 'admin' && (
-          <TabsTrigger value="meta-leads" className="gap-1.5">
-            <Facebook className="h-3.5 w-3.5" />
-            Meta Leads
-          </TabsTrigger>
-        )}
       </TabsList>
 
       <TabsContent value="all-inbox" className="space-y-6">
@@ -1404,18 +1400,32 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
       <TabsContent value="facebook-leads">
         <div className="space-y-6">
         <TouchedDashboard source="facebook-leads" />
+        {role === 'admin' && (
+          <Collapsible open={fbImportOpen} onOpenChange={setFbImportOpen}>
+            <div className="rounded-lg border bg-card">
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium"
+                >
+                  <span className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import historical leads
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${fbImportOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="border-t p-4">
+                  <MetaLeadsUpload />
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        )}
         <UnifiedLeadInbox sources={["facebook"]} />
         </div>
       </TabsContent>
-
-      {role === 'admin' && (
-        <TabsContent value="meta-leads">
-          <div className="space-y-6">
-            <MetaLeadsUpload />
-            <UnifiedLeadInbox sources={["facebook"]} />
-          </div>
-        </TabsContent>
-      )}
     </Tabs>
   );
 }
