@@ -669,7 +669,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       internal_notes: internalNotes || null,
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
-      is_refund_requested: isRefundRequested || finalStatus === 'cancelled',
+      is_refund_requested: isRefundRequested || finalStatus === 'cancelled' || finalStatus === 'refund',
       priority,
       order_outcome: orderOutcome,
       supplier_payment_terms: supplierPaymentTerms || null,
@@ -688,15 +688,16 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     // outcome) would look "changed" against the derived null and get
     // included in the payload, tripping the sales guard trigger with a
     // spurious 42501.
+    const refundLikeStatus = (s?: string) => s === 'cancelled' || s === 'refund';
     const refundDriverChanged =
       (isRefundRequested !== !!order.is_refund_requested) ||
-      ((finalStatus === 'cancelled') !== (order.status === 'cancelled'));
+      (refundLikeStatus(finalStatus) !== refundLikeStatus(order.status));
     if (refundDriverChanged) {
-      candidate.refund_reason = isRefundRequested
+      candidate.refund_reason = (isRefundRequested || finalStatus === 'refund')
         ? (refundReason || null)
         : (finalStatus === 'cancelled' ? cancellationReason : null);
       candidate.refund_status =
-        (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null;
+        (isRefundRequested || refundLikeStatus(finalStatus)) ? refundStatus : null;
     }
     const outcomeChanged = orderOutcome !== (order as any).order_outcome;
     if (outcomeChanged) {
