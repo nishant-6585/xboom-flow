@@ -5758,10 +5758,13 @@ export type Database = {
           followup_at: string
           id: string
           is_a_category: boolean | null
+          mode: string | null
+          outcome: string | null
           phone: string | null
           product_name: string | null
           remark: string | null
           reminder_sent: boolean | null
+          sequence_no: number | null
           source_id: string
           source_type: string
           status: string
@@ -5781,10 +5784,13 @@ export type Database = {
           followup_at: string
           id?: string
           is_a_category?: boolean | null
+          mode?: string | null
+          outcome?: string | null
           phone?: string | null
           product_name?: string | null
           remark?: string | null
           reminder_sent?: boolean | null
+          sequence_no?: number | null
           source_id: string
           source_type: string
           status?: string
@@ -5804,10 +5810,13 @@ export type Database = {
           followup_at?: string
           id?: string
           is_a_category?: boolean | null
+          mode?: string | null
+          outcome?: string | null
           phone?: string | null
           product_name?: string | null
           remark?: string | null
           reminder_sent?: boolean | null
+          sequence_no?: number | null
           source_id?: string
           source_type?: string
           status?: string
@@ -18441,10 +18450,13 @@ export type Database = {
           followup_at: string
           id: string
           is_a_category: boolean | null
+          mode: string | null
+          outcome: string | null
           phone: string | null
           product_name: string | null
           remark: string | null
           reminder_sent: boolean | null
+          sequence_no: number | null
           source_id: string
           source_type: string
           status: string
@@ -18641,6 +18653,33 @@ export type Database = {
           name: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
+        }[]
+      }
+      get_pipeline_followup_tracker: {
+        Args: never
+        Returns: {
+          customer_company: string
+          customer_name: string
+          email: string
+          expected_closure_date: string
+          expected_price: number
+          followup_count: number
+          last_followup_at: string
+          last_followup_by: string
+          last_followup_mode: string
+          last_followup_outcome: string
+          last_followup_remark: string
+          last_sequence_no: number
+          lead_source: string
+          next_followup_at: string
+          next_followup_id: string
+          phone: string
+          pipeline_id: string
+          pipeline_status: string
+          product_name: string
+          quantity: number
+          sales_person_id: string
+          sales_person_name: string
         }[]
       }
       get_portal_contacts_with_auth_login: {
