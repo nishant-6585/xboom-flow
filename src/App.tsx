@@ -44,6 +44,7 @@ import Tally from "./pages/Tally";
 import Buyback from "./pages/Buyback";
 import Rent from "./pages/Rent";
 import PublicDroneRepairEnquiry from "./pages/PublicDroneRepairEnquiry";
+import PublicLeadCapture from "./pages/PublicLeadCapture";
 import Candidates from "./pages/Candidates";
 
 import SecuritySettings from "./pages/SecuritySettings";
@@ -151,6 +152,7 @@ function AppInner() {
         <Route path="/hr/monthly-pulse" element={<ProtectedRoute><Navigate to="/hr?tab=monthly_pulse" replace /></ProtectedRoute>} />
         <Route path="/form-embed/:formId" element={<FormEmbed />} />
         <Route path="/public/drone-repair-enquiry" element={<PublicDroneRepairEnquiry />} />
+        <Route path="/public/lead-capture" element={<PublicLeadCapture />} />
         <Route path="/sample-payslip" element={<SamplePayslip />} />
         <Route path="/billing" element={<Navigate to="/sales?tab=quotes" replace />} />
         <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
