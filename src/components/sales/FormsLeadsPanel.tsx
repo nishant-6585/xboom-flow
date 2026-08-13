@@ -31,6 +31,7 @@ import { applyDispositionFilter } from "@/lib/dispositionFilter";
 import { groupDuplicates } from "@/lib/leadDeduplication";
 import { DuplicateLeadsHistoryRow } from "./DuplicateLeadsHistoryRow";
 import type { LeadDisposition } from "@/lib/leadDispositions";
+import { CaptureFormLinkButton } from "./CaptureFormLinkButton";
 
 interface FormLead {
   id: string;
@@ -257,6 +258,7 @@ export function FormsLeadsPanel() {
               </Button>
             </CardTitle>
             <div className="flex items-center gap-2">
+              <CaptureFormLinkButton />
               <Button
                 variant={showAnalytics ? "default" : "outline"}
                 size="sm"
