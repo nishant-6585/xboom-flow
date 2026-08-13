@@ -167,11 +167,27 @@ export function useManychatCsvImport() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (rows: Record<string, unknown>[]): Promise<ManychatImportSummary> => {
-      const { data, error } = await supabase.functions.invoke("manychat-admin", {
-        body: { action: "csv_import", rows },
-      });
-      if (error) throw error;
-      return data as ManychatImportSummary;
+      // The edge function has a 150s idle timeout; send the file in small
+      // sequential batches and aggregate the results.
+      const BATCH = 250;
+      const total: ManychatImportSummary = {
+        ok: true, received: 0, created: 0, updated: 0, skipped: 0, errored: 0, errors: [],
+      };
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const { data, error } = await supabase.functions.invoke("manychat-admin", {
+          body: { action: "csv_import", rows: rows.slice(i, i + BATCH) },
+        });
+        if (error) throw error;
+        const res = data as ManychatImportSummary;
+        total.received += res.received ?? 0;
+        total.created += res.created ?? 0;
+        total.updated += res.updated ?? 0;
+        total.skipped += res.skipped ?? 0;
+        total.errored += res.errored ?? 0;
+        if (res.errors?.length) total.errors = [...(total.errors ?? []), ...res.errors].slice(0, 5);
+        if (!res.ok) total.ok = false;
+      }
+      return total;
     },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["manychat-leads"] });
