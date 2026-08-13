@@ -20,7 +20,12 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { useManychatLeads, useManychatSync, type ManychatLead } from "@/hooks/useManychatLeads";
+import {
+  useManychatLeads,
+  useManychatMessages,
+  useManychatSync,
+  type ManychatLead,
+} from "@/hooks/useManychatLeads";
 import { useSalesUsers } from "@/hooks/useSalesUsers";
 import { isAssignableRepName } from "@/lib/assignableReps";
 import { useAuth } from "@/hooks/useAuth";
@@ -89,6 +94,9 @@ export function ManychatLeadsPanel() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [detailsLead, setDetailsLead] = useState<ManychatLead | null>(null);
+  const { data: leadMessages = [], isLoading: messagesLoading } = useManychatMessages(
+    detailsLead?.id ?? null,
+  );
 
   const channels = useMemo(() => {
     const set = new Set<string>();
@@ -539,6 +547,39 @@ export function ManychatLeadsPanel() {
                     </span>
                   </div>
                 )}
+                <div className="pt-2 border-t">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-muted-foreground text-xs uppercase">Messages (logged)</span>
+                    {chatUrlOf(detailsLead) && (
+                      <a
+                        href={chatUrlOf(detailsLead)!}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Full history in ManyChat ↗
+                      </a>
+                    )}
+                  </div>
+                  {messagesLoading ? (
+                    <p className="text-xs text-muted-foreground">Loading messages…</p>
+                  ) : leadMessages.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      No messages logged yet — logging starts from the lead's next incoming message.
+                    </p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                      {leadMessages.map((m) => (
+                        <div key={m.id} className="rounded-md bg-muted/40 px-2.5 py-1.5">
+                          <p className="text-sm break-words">{m.message}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {format(new Date(m.received_at), "dd MMM yyyy, HH:mm")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {detailsLead.custom_fields && Object.keys(detailsLead.custom_fields).length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-muted-foreground">Custom fields</span>

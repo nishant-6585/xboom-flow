@@ -90,7 +90,7 @@ export function normaliseManychatContact(raw: Record<string, any>): ManychatLead
     flow_name: mcStr(raw.flow_name) ?? mcStr(raw.flow) ?? null,
     product_name: mcStr(raw.product_name) ?? mcStr(custom["product"]) ?? mcStr(custom["product_name"]),
     quantity: Number.isFinite(Number(qtyRaw)) && mcStr(qtyRaw) ? Number(qtyRaw) : null,
-    notes: mcStr(raw.notes) ?? mcStr(raw.message) ?? mcStr(custom["message"]),
+    notes: mcStr(raw.notes) ?? mcStr(raw.message) ?? mcStr(custom["message"]) ?? mcStr(c.last_input_text),
     company: mcStr(raw.company) ?? mcStr(custom["company"]),
     tags,
     custom_fields: custom,
@@ -102,10 +102,49 @@ export function normaliseManychatContact(raw: Record<string, any>): ManychatLead
 }
 
 export type UpsertOutcome =
-  | { result: "created" }
-  | { result: "updated" }
+  | { result: "created"; leadId: string | null }
+  | { result: "updated"; leadId: string }
   | { result: "skipped"; reason: string }
   | { result: "error"; error: string };
+
+/** Latest incoming message text from a ManyChat payload, if any. */
+export function extractLatestMessage(raw: Record<string, any>): string | null {
+  const c = raw.subscriber ?? raw.contact ?? raw.data ?? raw;
+  return mcStr(c.last_input_text) ?? mcStr(raw.last_input_text) ?? mcStr(raw.message) ?? null;
+}
+
+/**
+ * Appends an incoming message to the lead's timeline. Skips exact repeats
+ * of the most recent logged message within 5 minutes (the default-reply flow
+ * can re-fire for a single message).
+ */
+export async function logManychatMessage(
+  admin: { from: (t: string) => any },
+  leadId: string,
+  row: ManychatLeadRow,
+  message: string,
+): Promise<void> {
+  const { data: last } = await admin
+    .from("manychat_messages")
+    .select("message, received_at")
+    .eq("lead_id", leadId)
+    .order("received_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (
+    last &&
+    last.message === message &&
+    Date.now() - new Date(last.received_at).getTime() < 5 * 60 * 1000
+  ) {
+    return;
+  }
+  await admin.from("manychat_messages").insert({
+    lead_id: leadId,
+    manychat_contact_id: row.manychat_contact_id,
+    channel: row.channel,
+    message,
+  });
+}
 
 /**
  * De-duplicated insert/update. Matches on manychat_contact_id first, then
@@ -140,8 +179,11 @@ export async function upsertManychatLead(
 
   if (existingId) {
     const { error } = await admin.from("manychat_leads").update(row).eq("id", existingId);
-    return error ? { result: "error", error: error.message } : { result: "updated" };
+    return error ? { result: "error", error: error.message } : { result: "updated", leadId: existingId };
   }
-  const { error } = await admin.from("manychat_leads").insert(row);
-  return error ? { result: "error", error: error.message } : { result: "created" };
+  const { data: inserted, error } = await admin
+    .from("manychat_leads").insert(row).select("id").maybeSingle();
+  return error
+    ? { result: "error", error: error.message }
+    : { result: "created", leadId: inserted?.id ?? null };
 }

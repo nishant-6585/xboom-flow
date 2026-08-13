@@ -37,6 +37,33 @@ export interface ManychatLead {
   updated_at: string;
 }
 
+export interface ManychatMessage {
+  id: string;
+  lead_id: string;
+  channel: string | null;
+  message: string;
+  received_at: string;
+}
+
+/** Logged incoming messages for one lead, oldest first. */
+export function useManychatMessages(leadId: string | null) {
+  return useQuery({
+    queryKey: ["manychat-messages", leadId],
+    enabled: Boolean(leadId),
+    queryFn: async (): Promise<ManychatMessage[]> => {
+      const { data, error } = await (supabase as any)
+        .from("manychat_messages")
+        .select("id, lead_id, channel, message, received_at")
+        .eq("lead_id", leadId)
+        .order("received_at", { ascending: true })
+        .limit(500);
+      if (error) throw error;
+      return (data || []) as ManychatMessage[];
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
 export interface ManychatSyncLogRow {
   id: string;
   trigger_source: string;

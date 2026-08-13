@@ -3,7 +3,12 @@
 // upserts it into public.manychat_leads (round-robin assignment happens
 // in a DB trigger).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { normaliseManychatContact, upsertManychatLead } from "../_shared/manychat-lead.ts";
+import {
+  normaliseManychatContact,
+  upsertManychatLead,
+  extractLatestMessage,
+  logManychatMessage,
+} from "../_shared/manychat-lead.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,6 +77,18 @@ Deno.serve(async (req) => {
     else if (outcome.result === "updated") updated++;
     else if (outcome.result === "skipped") skipped++;
     else errors.push(outcome.error);
+
+    // Append the incoming message to the lead's timeline (best effort).
+    if (outcome.result === "created" || outcome.result === "updated") {
+      const message = extractLatestMessage(item);
+      if (message && outcome.leadId) {
+        try {
+          await logManychatMessage(supabase, outcome.leadId, row, message);
+        } catch (e) {
+          console.error("[manychat-webhook] message log failed:", (e as Error).message);
+        }
+      }
+    }
   }
 
   await supabase.from("manychat_sync_log").insert({
