@@ -35,6 +35,20 @@ const PAGE_SIZE = 25;
 const EXCLUDED_ASSIGNEES = ["charles", "fahad", "umar", "vishal"];
 
 const digitsOf = (v: string | null | undefined) => (v ?? "").replace(/\D/g, "");
+
+const customStr = (l: ManychatLead, key: string): string => {
+  const v = l.custom_fields?.[key];
+  return v === null || v === undefined ? "" : String(v).trim();
+};
+/** Channel with fallback to the CSV-imported custom field. */
+const channelOf = (l: ManychatLead): string =>
+  (l.channel || customStr(l, "channel")).toLowerCase() || "manychat";
+/** ManyChat handle (IG/WA username) when the lead has one. */
+const handleOf = (l: ManychatLead): string =>
+  customStr(l, "ig_username") || customStr(l, "wa_username");
+/** Most recent activity we know about for the contact. */
+const lastActiveOf = (l: ManychatLead): string | null =>
+  l.last_interaction_at || customStr(l, "subscribed") || l.manychat_created_at;
 /** Duplicate-merge key: last 10 phone digits, else the row itself (unique). */
 const dupKey = (l: ManychatLead) => {
   const d = digitsOf(l.phone_number);
@@ -77,7 +91,7 @@ export function ManychatLeadsPanel() {
 
   const channels = useMemo(() => {
     const set = new Set<string>();
-    leads.forEach((l) => l.channel && set.add(l.channel.toLowerCase()));
+    leads.forEach((l) => set.add(channelOf(l)));
     return Array.from(set).sort();
   }, [leads]);
 
@@ -96,7 +110,7 @@ export function ManychatLeadsPanel() {
           .some((v) => String(v).toLowerCase().includes(q));
         if (!hit) return false;
       }
-      if (channelFilter !== "all" && (l.channel || "").toLowerCase() !== channelFilter) return false;
+      if (channelFilter !== "all" && channelOf(l) !== channelFilter) return false;
       if (assignedFilter === "unassigned" && l.assigned_to_name) return false;
       if (assignedFilter !== "all" && assignedFilter !== "unassigned" && (l.assigned_to_name || "").trim() !== assignedFilter)
         return false;
@@ -168,11 +182,14 @@ export function ManychatLeadsPanel() {
     { label: "Name", value: (g: LeadGroup) => g.primary.customer_name },
     { label: "Phone", value: (g: LeadGroup) => g.primary.phone_number },
     { label: "Email", value: (g: LeadGroup) => g.primary.email },
-    { label: "Channel", value: (g: LeadGroup) => g.primary.channel },
+    { label: "Channel", value: (g: LeadGroup) => channelOf(g.primary) },
+    { label: "Handle", value: (g: LeadGroup) => handleOf(g.primary) },
     { label: "Interest", value: (g: LeadGroup) => g.primary.product_name || g.primary.notes },
     { label: "City", value: (g: LeadGroup) => g.primary.city },
+    { label: "Tags", value: (g: LeadGroup) => (g.primary.tags || []).join(", ") },
     { label: "Assigned To", value: (g: LeadGroup) => g.primary.assigned_to_name },
     { label: "Disposition", value: (g: LeadGroup) => g.primary.disposition },
+    { label: "Last Active", value: (g: LeadGroup) => lastActiveOf(g.primary), date: true },
     { label: "Duplicates", value: (g: LeadGroup) => (g.history.length ? g.history.length + 1 : 1) },
     { label: "Received", value: (g: LeadGroup) => g.primary.created_at, date: true },
   ];
@@ -186,7 +203,12 @@ export function ManychatLeadsPanel() {
         <td className="py-2 px-2 font-medium">
           <div className="flex items-center gap-2">
             {!isPrimary && <span className="w-4" />}
-            <span>{l.customer_name || "—"}</span>
+            <div>
+              <div>{l.customer_name || "—"}</div>
+              {handleOf(l) && (
+                <div className="text-[11px] font-normal text-muted-foreground">@{handleOf(l)}</div>
+              )}
+            </div>
             {isPrimary && dupCount > 0 && (
               <button
                 type="button"
@@ -204,7 +226,26 @@ export function ManychatLeadsPanel() {
         <td className="py-2 px-2 max-w-[220px] truncate" title={l.product_name || l.notes || undefined}>
           {l.product_name || l.notes || "—"}
         </td>
-        <td className="py-2 px-2 capitalize">{l.channel || "manychat"}</td>
+        <td className="py-2 px-2">{l.city || "—"}</td>
+        <td className="py-2 px-2 capitalize">{channelOf(l)}</td>
+        <td className="py-2 px-2">
+          {Array.isArray(l.tags) && l.tags.length > 0 ? (
+            <div className="flex flex-wrap gap-1 max-w-[160px]">
+              {l.tags.slice(0, 2).map((t) => (
+                <Badge key={t} variant="outline" className="text-[10px] px-1.5">
+                  {t}
+                </Badge>
+              ))}
+              {l.tags.length > 2 && (
+                <Badge variant="secondary" className="text-[10px] px-1.5" title={l.tags.slice(2).join(", ")}>
+                  +{l.tags.length - 2}
+                </Badge>
+              )}
+            </div>
+          ) : (
+            "—"
+          )}
+        </td>
         <td className="py-2 px-2">
           <DispositionBadge
             disposition={l.disposition}
@@ -234,6 +275,13 @@ export function ManychatLeadsPanel() {
           ) : (
             <span>{l.assigned_to_name || "Unassigned"}</span>
           )}
+        </td>
+        <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">
+          {(() => {
+            const la = lastActiveOf(l);
+            const d = la ? new Date(la) : null;
+            return d && !isNaN(d.getTime()) ? format(d, "dd MMM yyyy, HH:mm") : "—";
+          })()}
         </td>
         <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">
           {format(new Date(l.created_at), "dd MMM yyyy, HH:mm")}
@@ -390,9 +438,12 @@ export function ManychatLeadsPanel() {
                     <th className="text-left py-2 px-2">Phone</th>
                     <th className="text-left py-2 px-2">Email</th>
                     <th className="text-left py-2 px-2">Interest</th>
+                    <th className="text-left py-2 px-2">City</th>
                     <th className="text-left py-2 px-2">Channel</th>
+                    <th className="text-left py-2 px-2">Tags</th>
                     <th className="text-left py-2 px-2">Disposition</th>
                     <th className="text-left py-2 px-2">Assigned To</th>
+                    <th className="text-left py-2 px-2">Last Active</th>
                     <th className="text-left py-2 px-2">Received</th>
                     <th className="text-left py-2 px-2">Actions</th>
                   </tr>
