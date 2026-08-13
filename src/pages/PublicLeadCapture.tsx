@@ -61,9 +61,9 @@ export default function PublicLeadCapture() {
   const validationError = useMemo(() => {
     if (form.customer_name.trim().length < 2) return "Please enter the customer name";
     const p = validatePhone(form.phone, { required: true });
-    if (!p.valid) return p.error || "Enter a valid phone number";
+    if (p.valid === false) return p.error || "Enter a valid phone number";
     const em = validateEmail(form.email);
-    if (!em.valid) return em.error || "Enter a valid email address";
+    if (em.valid === false) return em.error || "Enter a valid email address";
     if (!form.lead_source) return "Please select the lead source";
     return null;
   }, [form]);
