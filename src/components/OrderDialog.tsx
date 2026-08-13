@@ -419,7 +419,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     sync('customerNotes', setCustomerNotes, order.customer_notes || '');
     sync('salesNotes', setSalesNotes, order.sales_notes || '');
     sync('paymentDueDate', setPaymentDueDate, order.payment_due_date || '');
-    sync('isRefundRequested', setIsRefundRequested, order.is_refund_requested || false);
+    sync('isRefundRequested', setIsRefundRequested, order.is_refund_requested || order.status === 'refund' || false);
     sync('refundReason', setRefundReason, order.refund_reason || '');
     sync('refundStatus', setRefundStatus, (order.refund_status as RefundStatus) || 'pending');
     sync('priority', setPriority, order.priority || 3);
