@@ -208,7 +208,11 @@ export function ManychatLeadsPanel() {
     const dupCount = group ? group.history.length : 0;
     const waDigits = digitsOf(l.phone_number);
     return (
-      <tr key={l.id} className={`border-b hover:bg-muted/30 ${isPrimary ? "" : "bg-muted/20"}`}>
+      <tr
+        key={l.id}
+        className={`border-b hover:bg-muted/30 cursor-pointer ${isPrimary ? "" : "bg-muted/20"}`}
+        onClick={() => setDetailsLead(l)}
+      >
         <td className="py-2 px-2 font-medium">
           <div className="flex items-center gap-2">
             {!isPrimary && <span className="w-4" />}
@@ -221,7 +225,10 @@ export function ManychatLeadsPanel() {
             {isPrimary && dupCount > 0 && (
               <button
                 type="button"
-                onClick={() => toggleGroup(l.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleGroup(l.id);
+                }}
                 className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/20"
               >
                 {expandedGroups.has(l.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
