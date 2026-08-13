@@ -67,6 +67,7 @@ const getStatusColor = (status: string) => {
     case 'lost': return 'bg-red-500/10 text-red-500 border-red-500/20';
     case 'negotiation': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
     case 'follow_up': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+    case 'po_payment_awaited': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
     default: return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
   }
 };
