@@ -91,8 +91,10 @@ export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
     setSummary(null);
     setParsing(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: "array" });
+      const isCsv = /\.csv$/i.test(file.name) || file.type === "text/csv";
+      const wb = isCsv
+        ? XLSX.read(await file.text(), { type: "string", raw: true })
+        : XLSX.read(await file.arrayBuffer(), { type: "array" });
       const all: MetaLeadRow[] = [];
       for (const sheetName of wb.SheetNames) {
         const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[sheetName], { defval: "" });
