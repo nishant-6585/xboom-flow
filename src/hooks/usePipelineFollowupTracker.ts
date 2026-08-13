@@ -123,7 +123,12 @@ export interface LogFollowupInput {
 
 export function useLogPipelineFollowup() {
   const { user, profile } = useAuth();
-  const { invalidate } = usePipelineFollowupTracker();
+  const queryClient = useQueryClient();
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['pipeline-followup-tracker'] });
+    queryClient.invalidateQueries({ queryKey: ['pipeline-followup-timeline'] });
+    queryClient.invalidateQueries({ queryKey: ['followups'] });
+  };
 
   const logFollowup = async (input: LogFollowupInput): Promise<boolean> => {
     if (!user || !profile) {
