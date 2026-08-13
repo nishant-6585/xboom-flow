@@ -797,6 +797,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       return;
     }
 
+    if (status === 'refund' && !refundReason.trim()) {
+      toast.error('Refund reason is required when marking order as Refund');
+      return;
+    }
+
     // Office-pickup delivery requires an approved proof photo before the
     // order can be marked delivered. Mirror the server-side trigger locally
     // so the user gets a clear, immediate message.
@@ -1684,7 +1689,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     Order Status
                   </Label>
                   {canEditSalesFields ? (
-                    <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)}>
+                    <Select
+                      value={status}
+                      onValueChange={(v) => {
+                        const next = v as OrderStatus;
+                        setStatus(next);
+                        if (next === 'refund') {
+                          setIsRefundRequested(true);
+                          setRefundStatus(prev => prev || 'pending');
+                        }
+                      }}
+                    >
                       <SelectTrigger className="bg-background">
                         <SelectValue />
                       </SelectTrigger>
@@ -1715,6 +1730,25 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     placeholder="Please provide a reason for cancellation..."
                     className="bg-background"
                   />
+                </div>
+              )}
+              {status === 'refund' && canEditSalesFields && (
+                <div className="mt-4 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-lg border border-rose-200 dark:border-rose-800 space-y-3">
+                  <h5 className="font-medium text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Refund Reason (Required)
+                  </h5>
+                  <Textarea
+                    value={refundReason}
+                    onChange={e => setRefundReason(e.target.value)}
+                    disabled={loading}
+                    rows={2}
+                    placeholder="Why is this order being refunded?"
+                    className="bg-background"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Marking the order as Refund flags it as a refund request; track progress in the Refund section below.
+                  </p>
                 </div>
               )}
             </div>
