@@ -89,6 +89,8 @@ export default function Sales() {
   const triggerPrimary = `${triggerBase} data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`;
   const triggerSecondary = `${triggerBase} text-xs px-3 py-2`;
   const triggerSecondaryPrimary = `${triggerSecondary} data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`;
+  const neutralTrigger =
+    "gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/60 data-[state=active]:bg-muted data-[state=active]:text-foreground";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -96,80 +98,81 @@ export default function Sales() {
       
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/20">
-              <Zap className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Sales Arena
-              </h1>
-              <p className="text-muted-foreground text-sm">Track, compete, and conquer your sales goals</p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-display font-semibold tracking-tight text-foreground">Sales Arena</h1>
+            <p className="text-muted-foreground text-sm">Track, compete, and conquer your sales goals</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
           {role === "admin" && <DataExportDialog triggerLabel="Download data" />}
           <Button
             onClick={() => navigate('/sales/tv')}
-            size="lg"
-            className="gap-2 bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500 hover:opacity-90 text-white shadow-lg shadow-orange-500/30"
+            variant="outline"
+            className="gap-2"
             title="Open full-screen auto-rotating sales scoreboard"
           >
-            <Tv className="w-5 h-5" />
+            <Tv className="w-4 h-4" />
             TV View
           </Button>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="space-y-2.5">
-            {/* Primary Navigation - Row 1 */}
-            <div className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm rounded-2xl p-1.5">
-              <TabsList className="bg-transparent flex flex-wrap justify-center gap-1 h-auto p-0">
-                <TabsTrigger value="my_leads" className={`${triggerBase} data-[state=active]:bg-emerald-600 data-[state=active]:text-white font-semibold`}>
-                  <Contact className="w-4 h-4" />
-                  My Leads
+          <div className="rounded-lg border border-border bg-card/60 p-1">
+            <TabsList className="bg-transparent flex flex-wrap gap-0.5 h-auto p-0">
+              <TabsTrigger value="orders_won" className={neutralTrigger}>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Orders Won
+              </TabsTrigger>
+              <TabsTrigger value="orders_lost" className={neutralTrigger}>
+                <XCircle className="w-3.5 h-3.5" />
+                Orders Lost
+              </TabsTrigger>
+              <TabsTrigger value="attention" className={neutralTrigger}>
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Attention
+              </TabsTrigger>
+              <TabsTrigger value="disp_qualified" className={neutralTrigger}>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Qualified
+              </TabsTrigger>
+              <TabsTrigger value="disp_not_qualified" className={neutralTrigger}>
+                <XCircle className="w-3.5 h-3.5" />
+                Not Qualified
+              </TabsTrigger>
+              <TabsTrigger value="testimonials" className={neutralTrigger}>
+                <Quote className="w-3.5 h-3.5" />
+                Testimonials
+              </TabsTrigger>
+              <TabsTrigger value="targets" className={neutralTrigger}>
+                <Target className="w-3.5 h-3.5" />
+                Targets
+              </TabsTrigger>
+              {canSeeAnalytics && (
+                <TabsTrigger value="analytics" className={neutralTrigger}>
+                  <PieChart className="w-3.5 h-3.5" />
+                  Analytics
                 </TabsTrigger>
-                {canSeeAnalytics && (
-                  <TabsTrigger value="manager" className={triggerPrimary}>
-                    <BarChart3 className="w-4 h-4" />
-                    Dashboard
-                  </TabsTrigger>
-                )}
-                <TabsTrigger value="leads" className={triggerPrimary}>
-                  <Users className="w-4 h-4" />
-                  Leads
+              )}
+              {canSeeAnalytics && (
+                <TabsTrigger value="category_funnel" className={neutralTrigger}>
+                  <GitBranch className="w-3.5 h-3.5" />
+                  Category Funnel
                 </TabsTrigger>
-                <TabsTrigger value="prospects" className={`${triggerBase} data-[state=active]:bg-warning data-[state=active]:text-warning-foreground`}>
-                  <Target className="w-4 h-4" />
-                  Prospects
-                </TabsTrigger>
-                <TabsTrigger value="pipeline" className={triggerPrimary}>
-                  <TrendingUp className="w-4 h-4" />
-                  Pipeline
-                </TabsTrigger>
-                <TabsTrigger value="quotes" className={`${triggerBase} data-[state=active]:bg-sky-600 data-[state=active]:text-white`}>
-                  <FileText className="w-4 h-4" />
-                  Quotes
-                </TabsTrigger>
-                <TabsTrigger value="untouched" className={`${triggerBase} data-[state=active]:bg-red-600 data-[state=active]:text-white`}>
-                  <AlertTriangle className="w-4 h-4" />
-                  Untouched
-                </TabsTrigger>
-                <TabsTrigger value="followups" className={`${triggerBase} data-[state=active]:bg-amber-600 data-[state=active]:text-white`}>
-                  <CalendarCheck className="w-4 h-4" />
-                  Follow-ups
-                </TabsTrigger>
-                <TabsTrigger value="mega_deals" className={`${triggerBase} data-[state=active]:bg-amber-500 data-[state=active]:text-white text-base font-bold px-5 py-3`}>
-                  <Star className="w-5 h-5" />
-                  Mega Deals
-                </TabsTrigger>
-                <TabsTrigger value="companies" className={triggerPrimary}>
-                  <Building2 className="w-4 h-4" />
-                  Companies
-                </TabsTrigger>
-              </TabsList>
-            </div>
+              )}
+              <TabsTrigger value="faq" className={neutralTrigger}>
+                <HelpCircle className="w-3.5 h-3.5" />
+                FAQ
+              </TabsTrigger>
+              <TabsTrigger value="rules" className={neutralTrigger}>
+                <ScrollText className="w-3.5 h-3.5" />
+                Rules
+              </TabsTrigger>
+              <TabsTrigger value="suggestions" className={neutralTrigger}>
+                <Lightbulb className="w-3.5 h-3.5" />
+                Ideas
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
             {/* Row 2 */}
             <div className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm rounded-2xl p-1.5">
