@@ -13,7 +13,7 @@ import {
   parseDuplicateTriggerError,
 } from '@/lib/duplicateOrderGuard';
 
-export type OrderStatus = 'po_received' | 'payment_received' | 'partial_payment_received' | 'procurement_to_plan' | 'procurement_in_process' | 'procurement_done' | 'to_ship' | 'in_transit' | 'delivery_done' | 'cancelled';
+export type OrderStatus = 'po_received' | 'payment_received' | 'partial_payment_received' | 'procurement_to_plan' | 'procurement_in_process' | 'procurement_done' | 'to_ship' | 'in_transit' | 'delivery_done' | 'cancelled' | 'refund';
 export type PaymentStatus = 'pending' | 'partial' | 'full';
 export type OrderType = 'prepaid' | 'postpaid';
 export type CustomerType = 'b2b' | 'b2c';
@@ -161,6 +161,7 @@ export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: 'in_transit', label: 'In Transit' },
   { value: 'delivery_done', label: 'Delivery Done' },
   { value: 'cancelled', label: 'Cancelled' },
+  { value: 'refund', label: 'Refund' },
 ];
 
 export const PAYMENT_STATUSES: { value: PaymentStatus; label: string }[] = [
