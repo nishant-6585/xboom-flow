@@ -7,10 +7,11 @@ import { PipelineAnalytics } from './PipelineAnalytics';
 import { PipelineStatusDashboard } from './PipelineStatusDashboard';
 import { PipelineCalendarView } from './PipelineCalendarView';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Plus, List, BarChart3, ArrowLeft, CalendarDays } from 'lucide-react';
+import { Loader2, Plus, List, BarChart3, ArrowLeft, CalendarDays, CalendarCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SourceCoverageCard } from '@/components/crm/SourceCoverageCard';
 import { BarChart3 as PipelineIcon } from 'lucide-react';
+import { PipelineFollowupTracker } from './PipelineFollowupTracker';
 
 interface PipelineOrdersProps {
   enquiryIdFilter?: string | null;
@@ -104,6 +105,10 @@ export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilte
             <CalendarDays className="h-4 w-4" />
             Calendar View
           </TabsTrigger>
+          <TabsTrigger value="followups" className="gap-1">
+            <CalendarCheck className="h-4 w-4" />
+            Follow-up Tracker
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">
@@ -134,6 +139,10 @@ export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilte
 
         <TabsContent value="calendar">
           <PipelineCalendarView orders={filteredByEnquiry} />
+        </TabsContent>
+
+        <TabsContent value="followups">
+          <PipelineFollowupTracker />
         </TabsContent>
       </Tabs>
     </div>
