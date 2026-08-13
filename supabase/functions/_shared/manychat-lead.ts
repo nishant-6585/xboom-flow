@@ -65,6 +65,13 @@ export function normaliseManychatContact(raw: Record<string, any>): ManychatLead
 
   const qtyRaw = raw.quantity ?? custom["quantity"];
 
+  // ManyChat "Full Contact Data" leaves `phone` null for WhatsApp-only
+  // contacts — the number lives in `whatsapp_phone`. Same idea for channel:
+  // infer it from channel-specific identifiers when not sent explicitly.
+  const whatsappPhone = mcStr(c.whatsapp_phone) ?? mcStr(raw.whatsapp_phone);
+  const igHandle = mcStr(c.ig_username) ?? mcStr(c.ig_id) ?? mcStr(raw.ig_username);
+  const inferredChannel = whatsappPhone ? "whatsapp" : igHandle ? "instagram" : null;
+
   return {
     manychat_contact_id:
       mcStr(c.id) ?? mcStr(c.subscriber_id) ?? mcStr(raw.subscriber_id) ?? mcStr(raw.contact_id) ??
@@ -72,11 +79,12 @@ export function normaliseManychatContact(raw: Record<string, any>): ManychatLead
     customer_name: name,
     first_name: first,
     last_name: last,
-    phone_number: mcStr(c.phone) ?? mcStr(raw.phone) ?? mcStr(raw.phone_number) ?? mcStr(custom["phone"]),
+    phone_number:
+      mcStr(c.phone) ?? mcStr(raw.phone) ?? mcStr(raw.phone_number) ?? whatsappPhone ?? mcStr(custom["phone"]),
     country_code: mcStr(raw.country_code) ?? null,
     email: mcStr(c.email) ?? mcStr(raw.email) ?? mcStr(custom["email"]),
     city: mcStr(raw.city) ?? mcStr(custom["city"]) ?? null,
-    channel: mcStr(raw.channel) ?? mcStr(c.channel) ?? null,
+    channel: mcStr(raw.channel) ?? mcStr(c.channel) ?? inferredChannel,
     source: mcStr(raw.source) ?? "ManyChat",
     page_id: mcStr(raw.page_id) ?? mcStr(c.page_id),
     flow_name: mcStr(raw.flow_name) ?? mcStr(raw.flow) ?? null,

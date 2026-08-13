@@ -13,6 +13,11 @@ verify_jwt = false
 [functions.robot-catalog]
 verify_jwt = false
 
+# ManyChat "External Request" actions can't carry a Supabase JWT — auth is
+# the mandatory x-manychat-secret header checked inside the function.
+[functions.manychat-webhook]
+verify_jwt = false
+
 [functions.jarvis-ads]
 verify_jwt = false
 
