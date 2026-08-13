@@ -322,3 +322,10 @@
     transform: rotate(var(--rotate, 0deg)) translateY(-24px) scale(0.3);
   }
 }
+
+/* Full-width layout: containers span the entire screen (CRM-style) */
+@layer components {
+  .container {
+    max-width: 100%;
+  }
+}
