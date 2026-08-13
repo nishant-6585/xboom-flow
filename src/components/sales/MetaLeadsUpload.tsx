@@ -77,6 +77,7 @@ export function MetaLeadsUpload({ onImported }: { onImported?: () => void }) {
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
+  const queryClient = useQueryClient();
 
   const reset = () => {
     setRows([]);
