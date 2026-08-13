@@ -1,6 +1,11 @@
 -- ManyChat contact refresh: hourly → every 30 minutes, batch 200 → 500
 -- (500 is the manychat-sync function's cap per run).
-SELECT cron.unschedule('manychat-sync-hourly');
+DO $do$
+BEGIN
+  PERFORM cron.unschedule('manychat-sync-hourly');
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'manychat-sync-hourly not scheduled — nothing to unschedule';
+END $do$;
 SELECT cron.schedule(
   'manychat-sync-every-30-min',
   '*/30 * * * *',
