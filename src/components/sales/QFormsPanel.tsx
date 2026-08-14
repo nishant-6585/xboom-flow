@@ -111,9 +111,18 @@ function truncate(s: string | null, n = 80) {
 function relativeTime(iso?: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
   if (isToday(d)) return `Today, ${format(d, "HH:mm")}`;
   if (isYesterday(d)) return `Yesterday, ${format(d, "HH:mm")}`;
   return format(d, "dd MMM, HH:mm");
+}
+
+/** Formats a date-ish value, returning a dash for missing/unparseable values. */
+function safeFormat(value: string | Date | null | undefined, pattern: string, fallback = "—") {
+  if (!value) return fallback;
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return fallback;
+  return format(d, pattern);
 }
 
 export default function QFormsPanel() {
