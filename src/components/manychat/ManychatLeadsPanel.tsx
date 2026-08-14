@@ -12,6 +12,7 @@ import {
   Eye,
   ExternalLink,
   Layers,
+  Upload,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
@@ -34,6 +35,7 @@ import { LeadsExportMenu } from "@/components/sales/LeadsExportMenu";
 import { LeadRowActions } from "@/components/sales/LeadRowActions";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { DispositionBadge } from "@/components/sales/DispositionBadge";
+import { ManychatCsvImport } from "@/components/manychat/ManychatCsvImport";
 
 const PAGE_SIZE = 25;
 
@@ -94,6 +96,7 @@ export function ManychatLeadsPanel() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [detailsLead, setDetailsLead] = useState<ManychatLead | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const { data: leadMessages = [], isLoading: messagesLoading } = useManychatMessages(
     detailsLead?.id ?? null,
   );
@@ -388,6 +391,11 @@ export function ManychatLeadsPanel() {
               title="ManyChat Leads"
               size="sm"
             />
+            {role === "admin" && (
+              <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="w-3.5 h-3.5 mr-1" /> Import CSV
+              </Button>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -509,6 +517,15 @@ export function ManychatLeadsPanel() {
             </div>
           </>
         )}
+
+        <Dialog open={importOpen} onOpenChange={setImportOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Import ManyChat CSV</DialogTitle>
+            </DialogHeader>
+            <ManychatCsvImport onImported={invalidate} />
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={detailsLead !== null} onOpenChange={(o) => !o && setDetailsLead(null)}>
           <DialogContent className="max-w-lg">
