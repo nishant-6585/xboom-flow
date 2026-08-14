@@ -18860,6 +18860,13 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_unified_lead_source_totals: {
+        Args: never
+        Returns: {
+          source: string
+          total: number
+        }[]
+      }
       get_user_activity_summary: {
         Args: { p_end_date?: string; p_start_date?: string }
         Returns: {
