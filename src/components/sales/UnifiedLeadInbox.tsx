@@ -625,6 +625,14 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
         )}
       </Card>
 
+      {selectedLeads.length > 0 && (
+        <LeadBulkActionBar
+          selected={selectedLeads}
+          onClear={() => setSelectedKeys([])}
+          onDone={() => { refetch(); counts.refetch(); }}
+        />
+      )}
+
       {/* Pagination */}
       {!isLoading && rows.length > 0 && (
         <div className="flex items-center justify-between gap-2 flex-wrap">
