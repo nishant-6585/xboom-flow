@@ -83,37 +83,37 @@ export function AppSidebar({ counts }: AppSidebarProps) {
             <CollapsibleTrigger asChild>
               <SidebarMenuButton
                 className={cn(
-                  "relative rounded-md h-9 gap-2.5",
+                  "relative rounded-lg h-[34px] px-[9px] gap-[9px] text-[13px] leading-none",
                   active
-                    ? "bg-sidebar-accent text-foreground font-semibold"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                    ? "bg-sidebar-accent text-foreground font-semibold [&>svg]:text-foreground"
+                    : "text-muted-foreground font-normal hover:bg-sidebar-accent hover:text-foreground"
                 )}
               >
                 {active && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary" aria-hidden />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[14px] w-[2px] rounded-full bg-primary" aria-hidden />
                 )}
-                <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
-                <span className="text-sm truncate">{item.label}</span>
+                <item.icon className="w-4 h-4 shrink-0 stroke-[1.75] text-muted-foreground" />
+                <span className="truncate">{item.label}</span>
                 <ChevronDown className="ml-auto w-3.5 h-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
               </SidebarMenuButton>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <SidebarMenuSub className="mr-0 pr-0">
+              <SidebarMenuSub className="mx-0 ml-[17px] gap-px border-l border-border px-0 py-0.5 pl-2">
                 {tabs.map((t) => (
                   <SidebarMenuSubItem key={t.tab}>
                     <SidebarMenuSubButton
                       asChild
                       isActive={currentTab === t.tab}
                       className={cn(
-                        "h-8 gap-2",
+                        "h-[30px] gap-2 rounded-md px-2 text-[12.5px] leading-none",
                         currentTab === t.tab
-                          ? "bg-sidebar-accent text-foreground font-medium"
-                          : "text-muted-foreground hover:text-foreground"
+                          ? "bg-sidebar-accent text-foreground font-medium [&>svg]:text-foreground"
+                          : "text-muted-foreground font-normal hover:text-foreground"
                       )}
                     >
                       <Link to={`/sales?tab=${t.tab}`} onClick={closeOnMobile}>
-                        <t.icon className="w-[15px] h-[15px] flex-shrink-0" />
-                        <span className="text-[13px] truncate">{t.label}</span>
+                        <t.icon className="w-[14px] h-[14px] shrink-0 stroke-[1.75] text-muted-foreground" />
+                        <span className="truncate">{t.label}</span>
                       </Link>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
@@ -131,18 +131,18 @@ export function AppSidebar({ counts }: AppSidebarProps) {
           asChild
           isActive={active}
           className={cn(
-            "relative rounded-md h-9 gap-2.5",
+            "relative rounded-lg h-[34px] px-[9px] gap-[9px] text-[13px] leading-none",
             active
-              ? "bg-sidebar-accent text-foreground font-semibold"
-              : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+              ? "bg-sidebar-accent text-foreground font-semibold [&>svg]:text-foreground"
+              : "text-muted-foreground font-normal hover:bg-sidebar-accent hover:text-foreground"
           )}
         >
           <Link to={item.path} onClick={closeOnMobile}>
             {active && (
-              <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary" aria-hidden />
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[14px] w-[2px] rounded-full bg-primary" aria-hidden />
             )}
-            <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
-            <span className="text-sm truncate">{item.label}</span>
+            <item.icon className="w-4 h-4 shrink-0 stroke-[1.75] text-muted-foreground" />
+            <span className="truncate">{item.label}</span>
             {typeof count === "number" && count > 0 && (
               <span className="ml-auto font-mono text-[10px] text-muted-foreground">{count}</span>
             )}
@@ -153,8 +153,8 @@ export function AppSidebar({ counts }: AppSidebarProps) {
   };
 
   return (
-    <Sidebar collapsible="offcanvas">
-      <SidebarHeader className="gap-3 p-3">
+    <Sidebar collapsible="offcanvas" style={{ "--sidebar-width": "244px" } as React.CSSProperties}>
+      <SidebarHeader className="gap-3 px-[18px] pt-5 pb-4">
         <Link to="/" onClick={closeOnMobile} className="flex items-center gap-2.5">
           <img src={logoIcon} alt="Xboom" className="w-[30px] h-[30px] rounded-md object-cover" />
           <span className="font-display font-semibold text-[17px] tracking-tight text-foreground">
@@ -175,23 +175,23 @@ export function AppSidebar({ counts }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent className="px-1.5">
-        {navGroups.map((group) => {
+        {navGroups.map((group, gi) => {
           const items = group.items.filter((item) => hasNavAccess(item.roles));
           if (items.length === 0) return null;
           return (
-            <SidebarGroup key={group.label} className="py-1">
-              <SidebarGroupLabel className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground h-6">
+            <SidebarGroup key={group.label} className={cn("py-0", gi > 0 && "mt-4")}>
+              <SidebarGroupLabel className="h-auto px-[10px] pb-[7px] font-mono text-[9.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
                 {group.label}
               </SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu>{items.map(renderItem)}</SidebarMenu>
+                <SidebarMenu className="gap-px">{items.map(renderItem)}</SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
           );
         })}
       </SidebarContent>
 
-      <SidebarFooter className="p-3 gap-2 border-t border-sidebar-border">
+      <SidebarFooter className="p-3 pb-16 gap-2 border-t border-sidebar-border">
         <Link
           to="/profile"
           onClick={closeOnMobile}
@@ -207,10 +207,10 @@ export function AppSidebar({ counts }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={signOut}
-              className="h-9 gap-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="h-[34px] px-[9px] gap-[9px] rounded-lg text-[13px] leading-none text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
-              <LogOut className="w-[18px] h-[18px]" />
-              <span className="text-sm">Sign Out</span>
+              <LogOut className="w-4 h-4 shrink-0 stroke-[1.75]" />
+              <span>Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
