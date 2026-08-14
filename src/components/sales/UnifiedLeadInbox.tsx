@@ -543,7 +543,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                   </TableRow>
                   <DuplicateHistoryRow
                     count={group.count}
-                    colSpan={8}
+                    colSpan={10}
                     entries={group.duplicates.map((d) => ({
                       id: `${d.source}:${d.source_row_id}`,
                       source: SOURCE_META[d.source]?.label ?? d.source,
