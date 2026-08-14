@@ -428,6 +428,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     };
   }, [filteredLogs, uniqueOnly]);
 
+  // Hide the Recording column when no visible row has a recording.
+  const showRecording = React.useMemo(
+    () =>
+      displayLogs.some((l) => {
+        const i = deriveCallInfo(l);
+        return Boolean(i.recordingFile || i.recordingUrl);
+      }),
+    [displayLogs],
+  );
+  const callLogColCount = showRecording ? 9 : 8;
+
   const togglePhoneExpanded = (key: string) => {
     setExpandedPhones(prev => {
       const next = new Set(prev);
