@@ -93,14 +93,18 @@ export function LeadSyncHealthPanel() {
                   <tr key={r.source} className="border-b hover:bg-muted/30">
                     <td className="py-2 px-2 font-medium">{r.label}</td>
                     <td className="py-2 px-2 text-muted-foreground">
-                      {r.last_record_at ? (
-                        <div>
-                          <div>{formatDistanceToNow(new Date(r.last_record_at), { addSuffix: true })}</div>
-                          <div className="text-xs opacity-60">{new Date(r.last_record_at).toLocaleString()}</div>
-                        </div>
-                      ) : (
-                        <span className="text-destructive">Never</span>
-                      )}
+                      {(() => {
+                        const d = r.last_record_at ? new Date(r.last_record_at) : null;
+                        if (!d || Number.isNaN(d.getTime())) {
+                          return <span className="text-destructive">Never</span>;
+                        }
+                        return (
+                          <div>
+                            <div>{formatDistanceToNow(d, { addSuffix: true })}</div>
+                            <div className="text-xs opacity-60">{d.toLocaleString()}</div>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="py-2 px-2">{r.hours_since === null ? "—" : `${r.hours_since.toFixed(1)} h`}</td>
                     <td className="py-2 px-2 text-muted-foreground">{r.threshold_hours} h</td>
