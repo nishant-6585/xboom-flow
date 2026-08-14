@@ -224,12 +224,6 @@ export default function OrdersListTab(props: OrdersListTabProps) {
 
   return (
     <TabsContent value="list" className="space-y-6 mt-0">
-      {canViewProcurementWidget && (
-        <div className="mb-6">
-          <UnlinkedOrdersWidget maxItems={3} showViewAll={true} />
-        </div>
-      )}
-
       <OrdersDashboardStats
         orders={(() => {
           const wooMapped = unifiedRows
