@@ -288,45 +288,78 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
   const [showAnalytics, setShowAnalytics] = useState(true);
   const [prospectIds, setProspectIds] = useState<Set<string>>(new Set());
 
+  const cacheKey = `${assigneeFilter}|${user?.id ?? "anon"}|${canManage ? "mgr" : "rep"}`;
+
   const load = async () => {
-    setLoading(true);
-    let q = supabase
-      .from("call_logs")
-      .select(
-        "id,caller_number,customer_name,call_duration,requirement,budget,priority,lead_score,lead_status,raw_transcript,notes,created_at,assigned_to,assigned_to_name,last_contacted_at,lead_temperature,is_enquiry_converted,disposition,disposition_reason_code,disposition_reason_note,disposition_at,disposition_by_name",
-      )
-      .eq("lead_source", "ElevenLabs")
-      .order("created_at", { ascending: false })
-      .limit(500);
+    const cached = elevenCache.get(cacheKey);
+    if (cached) {
+      // Paint from cache immediately, then refresh silently.
+      setLeads(cached.leads);
+      setSummaries(cached.summaries);
+      setProspectIds(cached.prospectIds);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
-    if (assigneeFilter === "unassigned") q = q.is("assigned_to", null);
-    else if (assigneeFilter === "mine" && user) q = q.eq("assigned_to", user.id);
-    else if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
+    const scope = <T extends ReturnType<typeof supabase.from>["select"] extends never ? never : any>(q: T): T => q;
+    const buildQuery = (columns: string) => {
+      let q = supabase
+        .from("call_logs")
+        .select(columns)
+        .eq("lead_source", "ElevenLabs")
+        .order("created_at", { ascending: false })
+        .limit(500);
 
-    // Server-side scoping: sales reps can only see leads assigned to them.
-    if (!canManage && user) q = q.eq("assigned_to", user.id);
+      if (assigneeFilter === "unassigned") q = q.is("assigned_to", null);
+      else if (assigneeFilter === "mine" && user) q = q.eq("assigned_to", user.id);
+      else if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
 
-    const { data, error } = await q;
-    if (!error && data) setLeads(data as any as ElevenLead[]);
-    const ids = (data ?? []).map((d: any) => d.id);
-    if (ids.length) {
-      const { data: ana } = await supabase
-        .from("call_ai_analysis")
-        .select("call_log_id,summary")
-        .in("call_log_id", ids);
-      const sumDict: Record<string, string> = {};
-      (ana ?? []).forEach((a: any) => { if (a.summary) sumDict[a.call_log_id] = a.summary; });
-      setSummaries(sumDict);
+      // Server-side scoping: sales reps can only see leads assigned to them.
+      if (!canManage && user) q = q.eq("assigned_to", user.id);
+      return q;
+    };
 
-      // Fetch prospects converted from these call logs
-      const { data: pros } = await supabase
-        .from("prospects")
-        .select("source_id")
-        .eq("source_type", "lead")
-        .in("source_id", ids);
-      setProspectIds(new Set((pros ?? []).map((p: any) => p.source_id)));
-    } else { setSummaries({}); setProspectIds(new Set()); }
+    // Phase 1: light row data (no raw_transcript — that column alone is ~15MB
+    // across the table and was the main reason the table took seconds to show).
+    const { data, error } = await buildQuery(
+      "id,caller_number,customer_name,call_duration,requirement,budget,priority,lead_score,lead_status,notes,created_at,assigned_to,assigned_to_name,last_contacted_at,lead_temperature,is_enquiry_converted,disposition,disposition_reason_code,disposition_reason_note,disposition_at,disposition_by_name",
+    );
+
+    let rows: ElevenLead[] = [];
+    if (!error && data) {
+      rows = (data as any[]).map((d) => ({ ...d, raw_transcript: null })) as ElevenLead[];
+      setLeads(rows);
+    }
     setLoading(false);
+
+    const ids = rows.map((d) => d.id);
+    let sumDict: Record<string, string> = {};
+    let prosSet = new Set<string>();
+    if (ids.length) {
+      const [{ data: ana }, { data: pros }] = await Promise.all([
+        supabase.from("call_ai_analysis").select("call_log_id,summary").in("call_log_id", ids),
+        supabase.from("prospects").select("source_id").eq("source_type", "lead").in("source_id", ids),
+      ]);
+      (ana ?? []).forEach((a: any) => { if (a.summary) sumDict[a.call_log_id] = a.summary; });
+      prosSet = new Set((pros ?? []).map((p: any) => p.source_id));
+    }
+    setSummaries(sumDict);
+    setProspectIds(prosSet);
+
+    elevenCache.set(cacheKey, { leads: rows, summaries: sumDict, prospectIds: prosSet });
+
+    // Phase 2: hydrate transcripts in the background so phone/name extraction
+    // and the transcript drawer keep working without blocking first paint.
+    if (ids.length) {
+      const { data: tx } = await buildQuery("id,raw_transcript");
+      if (tx) {
+        const byId = new Map((tx as any[]).map((t) => [t.id, t.raw_transcript]));
+        const hydrated = rows.map((r) => ({ ...r, raw_transcript: byId.get(r.id) ?? null }));
+        setLeads(hydrated);
+        elevenCache.set(cacheKey, { leads: hydrated, summaries: sumDict, prospectIds: prosSet });
+      }
+    }
   };
 
   const loadPool = async () => {
