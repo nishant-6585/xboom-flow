@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import type { InteraktLead } from '@/hooks/useInteraktLeads';
+import { supabase } from '@/integrations/supabase/client';
 
 interface InteraktLeadEditDialogProps {
   open: boolean;
