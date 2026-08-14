@@ -1494,8 +1494,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <div className="space-y-6">
         <ChannelTabs
           listLabel="ElevenLabs Leads"
-          list={<ElevenLabsLeadsPanel />}
-          analytics={<TouchedDashboard source="elevenlabs" />}
+          list={<ElevenLabsLeadsPanel mode="list" />}
+          analytics={<div className="space-y-6"><TouchedDashboard source="elevenlabs" /><ElevenLabsLeadsPanel mode="analytics" /></div>}
         />
         </div>
       </TabsContent>
