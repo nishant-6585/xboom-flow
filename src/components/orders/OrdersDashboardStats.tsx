@@ -122,8 +122,8 @@ export function OrdersDashboardStats({
     const nonCancelled = filteredOrders.filter((o) => o.status !== "cancelled");
     const totalOrderValue = nonCancelled.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
     const totalReceived = nonCancelled.reduce((s, o) => s + (o.amount_paid || 0), 0);
-    const totalPending = totalOrderValue - totalReceived;
-    
+    const totalPending = Math.max(0, totalOrderValue - totalReceived);
+
     // Calculate profit from order_items data
     let totalProfit = 0;
     let totalRevenue = 0;
@@ -132,7 +132,31 @@ export function OrdersDashboardStats({
       totalRevenue += total_sales;
     });
     const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-    return { totalOrders, totalOrderValue, totalReceived, totalPending, totalProfit, avgMargin };
+
+    // A zero profit is only a fact when the RPC actually returned priced rows.
+    const rows = Object.values(profitData);
+    const missingCostOrders = filteredOrders.filter(
+      (o) => !profitData[o.id] || profitData[o.id].total_sales === 0,
+    ).length;
+    const profitKnown = rows.length > 0 && rows.some((r) => r.total_sales !== 0);
+
+    const todayCount = filteredOrders.filter((o) =>
+      isSameDay(new Date(o.order_date || o.created_at), new Date()),
+    ).length;
+
+    const unlinkedCount = filteredOrders.filter(
+      (o) => o.status === "procurement_to_plan" || o.status === "procurement_in_process",
+    ).length;
+    const unlinkedPct = totalOrders > 0 ? Math.round((unlinkedCount / totalOrders) * 100) : 0;
+
+    const receivedPct = totalOrderValue > 0 ? (totalReceived / totalOrderValue) * 100 : 0;
+    const pendingPct = totalOrderValue > 0 ? 100 - receivedPct : 0;
+
+    return {
+      totalOrders, totalOrderValue, totalReceived, totalPending, totalProfit, avgMargin,
+      profitKnown, missingCostOrders, todayCount, unlinkedCount, unlinkedPct,
+      receivedPct, pendingPct,
+    };
   }, [filteredOrders, profitData]);
 
   // Comparison chart data
@@ -175,7 +199,7 @@ export function OrdersDashboardStats({
 
   const currentMonthLabel = format(new Date(), "MMM yyyy");
   const prevMonthLabel = format(subMonths(new Date(), 1), "MMM yyyy");
-  const periodLabel = "Filtered";
+  const periodLabel = PERIOD_LABELS[timePeriod];
 
   const formatChartValue = (value: number) => {
     if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
@@ -183,34 +207,94 @@ export function OrdersDashboardStats({
     return `₹${value}`;
   };
 
-  const statCards = [
-    { label: "Total Orders", value: String(totals.totalOrders), icon: Package, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { label: "Order Value", value: fmt(totals.totalOrderValue), icon: IndianRupee, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Received", value: fmt(totals.totalReceived), icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { label: "Pending", value: fmt(totals.totalPending), icon: Clock, color: "text-amber-500", bg: "bg-amber-500/10" },
-    { label: "Profit", value: fmt(totals.totalProfit), icon: TrendingUp, color: totals.totalProfit >= 0 ? "text-emerald-500" : "text-rose-500", bg: totals.totalProfit >= 0 ? "bg-emerald-500/10" : "bg-rose-500/10" },
-    { label: "Avg Margin", value: `${totals.avgMargin.toFixed(1)}%`, icon: TrendingDown, color: totals.avgMargin >= 0 ? "text-primary" : "text-rose-500", bg: totals.avgMargin >= 0 ? "bg-primary/10" : "bg-rose-500/10" },
-  ];
-
   return (
     <div className="space-y-5 mb-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {statCards.map((s) => (
-          <Card key={s.label} className="border border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <div className={`p-1.5 rounded-md ${s.bg}`}>
-                  <s.icon className={`w-3.5 h-3.5 ${s.color}`} />
-                </div>
-              </div>
-              <p className="text-lg sm:text-xl font-bold">{s.value}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{periodLabel}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Stat cards — four, neutral, each sub-line saying something specific */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="border border-border/50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Orders</p>
+            <p className="text-[30px] font-semibold tabular-nums tracking-tight leading-tight mt-1">
+              {totals.totalOrders.toLocaleString("en-IN")}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {periodLabel} · {totals.todayCount} today
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-border/50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Order Value</p>
+            <p className="text-[30px] font-semibold tabular-nums tracking-tight leading-tight mt-1">
+              {fmt(totals.totalOrderValue)}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Excludes cancelled</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-border/50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Profit</p>
+            {totals.profitKnown ? (
+              <>
+                <p className="text-[30px] font-semibold tabular-nums tracking-tight leading-tight mt-1">
+                  {fmt(totals.totalProfit)}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {totals.avgMargin.toFixed(1)}% average margin
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-[19px] text-muted-foreground leading-tight mt-2">Not available</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Cost price missing on {totals.missingCostOrders.toLocaleString("en-IN")} orders
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border border-border/50">
+          <CardContent className="p-4">
+            <Link to="/procurement" className="block group">
+              <p className="text-xs text-muted-foreground">Unlinked</p>
+              <p className="text-[30px] font-semibold tabular-nums tracking-tight leading-tight mt-1 text-primary group-hover:underline">
+                {totals.unlinkedCount.toLocaleString("en-IN")}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {totals.unlinkedPct}% of orders unmatched
+              </p>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Collection — one number split into its parts, shown as parts */}
+      <Card className="border border-border/50">
+        <CardContent className="p-4">
+          <p className="text-xs text-muted-foreground">Collection</p>
+          <p className="text-[13px] mt-1">
+            {fmt(totals.totalReceived)} received of {fmt(totals.totalOrderValue)} ·{" "}
+            <span className="text-primary">{fmt(totals.totalPending)} outstanding</span>
+          </p>
+          <div className="mt-3 flex h-[10px] w-full overflow-hidden rounded-full bg-muted">
+            <div className="bg-success h-full" style={{ width: `${totals.receivedPct}%` }} />
+            <div className="bg-primary/55 h-full" style={{ width: `${totals.pendingPct}%` }} />
+          </div>
+          <div className="mt-2 flex items-center gap-4 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm bg-success" />
+              Received {totals.receivedPct.toFixed(1)}%
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm bg-primary/55" />
+              Outstanding {totals.pendingPct.toFixed(1)}%
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Comparison Chart */}
       <Card className="border border-border/50">
