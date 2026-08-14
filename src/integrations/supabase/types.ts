@@ -18770,6 +18770,15 @@ export type Database = {
           quoted_price: number
         }[]
       }
+      get_sales_dashboard_metrics: {
+        Args: {
+          p_end?: string
+          p_include_website?: boolean
+          p_sales_person_id?: string
+          p_start?: string
+        }
+        Returns: Json
+      }
       get_sales_leaderboard:
         | {
             Args: { end_date?: string; start_date?: string }
