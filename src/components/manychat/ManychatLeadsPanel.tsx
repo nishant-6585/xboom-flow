@@ -35,6 +35,7 @@ import { LeadRowActions } from "@/components/sales/LeadRowActions";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { DispositionBadge } from "@/components/sales/DispositionBadge";
 import { ManychatAnalytics } from "@/components/manychat/ManychatAnalytics";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const PAGE_SIZE = 25;
 
