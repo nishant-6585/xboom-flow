@@ -210,114 +210,107 @@ export function useKycQueue() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const { data: accts } = await supabase
-      .from("portal_accounts")
-      .select(
-        "id, company_name, primary_contact_name, kyc_status, aadhaar_last4, kyc_submitted_at, kyc_reviewed_at, kyc_rejection_reason, assigned_rep_id",
-      )
-      .neq("kyc_status", "not_submitted")
-      .order("kyc_submitted_at", { ascending: false, nullsFirst: false });
+    try {
+      const { data: accts, error: accountsError } = await supabase
+        .from("portal_accounts")
+        .select(
+          "id, company_name, primary_contact_name, kyc_status, aadhaar_last4, kyc_submitted_at, kyc_reviewed_at, kyc_rejection_reason, assigned_rep_id",
+        )
+        .neq("kyc_status", "not_submitted")
+        .order("kyc_submitted_at", { ascending: false, nullsFirst: false });
+      if (accountsError) throw accountsError;
 
-    const accounts = (accts as any as KycAccountSummary[]) || [];
-    if (accounts.length === 0) { setRows([]); setLoading(false); return; }
+      const accounts = (accts as any as KycAccountSummary[]) || [];
+      if (accounts.length === 0) { setRows([]); return; }
 
-    const ids = accounts.map((a) => a.id);
-    const repIds = Array.from(new Set(accounts.map((a) => a.assigned_rep_id).filter(Boolean) as string[]));
+      const ids = accounts.map((a) => a.id);
+      const repIds = Array.from(new Set(accounts.map((a) => a.assigned_rep_id).filter(Boolean) as string[]));
+      const [docsRes, contactsRes, profilesRes] = await Promise.all([
+        supabase
+          .from("kyc_documents")
+          .select("id, account_id, doc_type, file_path, file_name, file_size_bytes, mime_type, status, rejection_reason, uploaded_at, reviewed_at, reviewed_by, method, version, is_current, metadata, superseded_by, superseded_at")
+          .in("account_id", ids)
+          .eq("is_current", true),
+        supabase
+          .from("portal_contacts")
+          .select("account_id, email")
+          .in("account_id", ids)
+          .eq("is_active", true),
+        repIds.length
+          ? supabase.from("profiles").select("user_id, name").in("user_id", repIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const docs = (docsRes.data as any as KycDocumentRow[]) || [];
+      const contacts = (contactsRes.data as any[]) || [];
+      const profiles = ((profilesRes as any).data as any[]) || [];
+      const docIds = docs.map((d) => d.id);
+      const reviewerIds = Array.from(new Set(docs.map((d) => d.reviewed_by).filter(Boolean) as string[]));
+      const emails = Array.from(new Set(contacts
+        .map((c: any) => (c.email ? String(c.email).trim().toLowerCase() : null))
+        .filter(Boolean) as string[]));
+      const orFilter = emails.map((e) => `customer_email.ilike.${e.replace(/[(),]/g, "")}`).join(",");
 
-    const [docsRes, contactsRes, profilesRes] = await Promise.all([
-      supabase
-        .from("kyc_documents")
-        .select("*")
-        .in("account_id", ids)
-        .eq("is_current", true),
-      supabase
-        .from("portal_contacts")
-        .select("account_id, email")
-        .in("account_id", ids)
-        .eq("is_active", true),
-      repIds.length
-        ? supabase.from("profiles").select("user_id, name").in("user_id", repIds)
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
-    const docs = (docsRes.data as any as KycDocumentRow[]) || [];
-    const contacts = (contactsRes.data as any[]) || [];
-    const profiles = ((profilesRes as any).data as any[]) || [];
+      // These enrichments are independent. Running them together avoids the
+      // previous three-request waterfall that kept the whole table spinning.
+      const [aiRes, reviewersRes, ordersRes] = await Promise.all([
+        docIds.length
+          ? (supabase as any)
+            .from("ai_kyc_reviews")
+            .select("id, document_id, extracted_doc_type, extracted_holder_name, extracted_number_masked, declared_doc_type, declared_number_masked, expected_name, name_match_score, number_match, type_match, legibility, ai_confidence, recommendation, decision, flags, model, error, created_at")
+            .in("document_id", docIds)
+            .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [] as any[] }),
+        reviewerIds.length
+          ? supabase.from("profiles").select("user_id, name").in("user_id", reviewerIds)
+          : Promise.resolve({ data: [] as any[] }),
+        emails.length
+          ? supabase
+            .from("orders")
+            .select("id, order_number, customer_email, created_at")
+            .or(orFilter)
+            .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
 
-    // Latest AI review per document (most recent row wins).
-    const docIds = docs.map((d) => d.id);
-    let aiReviewByDoc: Record<string, AiKycReview> = {};
-    if (docIds.length) {
-      const { data: aiRows } = await (supabase as any)
-        .from("ai_kyc_reviews")
-        .select("*")
-        .in("document_id", docIds)
-        .order("created_at", { ascending: false });
-      for (const r of (aiRows as any[]) || []) {
+      const aiReviewByDoc: Record<string, AiKycReview> = {};
+      for (const r of ((aiRes as any).data as any[]) || []) {
         if (!aiReviewByDoc[r.document_id]) aiReviewByDoc[r.document_id] = r as AiKycReview;
       }
-    }
-
-    // Resolve reviewer names for docs that were manually reviewed by staff.
-    const reviewerIds = Array.from(
-      new Set(docs.map((d) => d.reviewed_by).filter(Boolean) as string[]),
-    );
-    let reviewerMap: Record<string, string> = {};
-    if (reviewerIds.length) {
-      const { data: reviewers } = await supabase
-        .from("profiles")
-        .select("user_id, name")
-        .in("user_id", reviewerIds);
-      for (const p of (reviewers as any[]) || []) {
+      const reviewerMap: Record<string, string> = {};
+      for (const p of ((reviewersRes as any).data as any[]) || []) {
         if (p?.user_id) reviewerMap[p.user_id] = p.name ?? null;
       }
-    }
-
-    // Fetch latest order_number per email. Order emails are stored with mixed
-    // casing (e.g. "Gurusatish37@gmail.com"), so match case-insensitively.
-    const emails = Array.from(
-      new Set(
-        contacts
-          .map((c: any) => (c.email ? String(c.email).trim().toLowerCase() : null))
-          .filter(Boolean) as string[],
-      ),
-    );
-    let ordersByEmail: Record<string, { number: string; id: string }> = {};
-    if (emails.length) {
-      // PostgREST has no case-insensitive `in`, so OR together ilike filters.
-      const orFilter = emails
-        .map((e) => `customer_email.ilike.${e.replace(/[(),]/g, "")}`)
-        .join(",");
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id, order_number, customer_email, created_at")
-        .or(orFilter)
-        .order("created_at", { ascending: false });
-      for (const o of (orders as any[]) || []) {
-        const k = (o.customer_email || "").trim().toLowerCase();
-        if (k && !ordersByEmail[k] && o.order_number) ordersByEmail[k] = { number: o.order_number, id: o.id };
+      const ordersByEmail: Record<string, { number: string; id: string }> = {};
+      for (const o of ((ordersRes as any).data as any[]) || []) {
+        const key = (o.customer_email || "").trim().toLowerCase();
+        if (key && !ordersByEmail[key] && o.order_number) ordersByEmail[key] = { number: o.order_number, id: o.id };
       }
-    }
+      const docsByAccount = new Map(docs.map((d) => [d.account_id, d]));
+      const contactsByAccount = new Map(contacts.map((c: any) => [c.account_id, c]));
+      const repsById = new Map(profiles.map((p: any) => [p.user_id, p.name]));
 
-    setRows(
-      accounts.map((a) => {
-        const doc = docs.find((d) => d.account_id === a.id) || null;
-        const c = contacts.find((x: any) => x.account_id === a.id);
-        const email = (c?.email as string) || null;
-        const emailKey = email ? email.trim().toLowerCase() : null;
-        const rep = profiles.find((p) => p.user_id === a.assigned_rep_id);
+      setRows(accounts.map((account) => {
+        const document = docsByAccount.get(account.id) || null;
+        const contact = contactsByAccount.get(account.id);
+        const email = (contact?.email as string) || null;
+        const order = email ? ordersByEmail[email.trim().toLowerCase()] : null;
         return {
-          account: a,
-          document: doc,
+          account,
+          document,
           customer_email: email,
-          latest_order_number: emailKey ? ordersByEmail[emailKey]?.number ?? null : null,
-          latest_order_id: emailKey ? ordersByEmail[emailKey]?.id ?? null : null,
-          rep_name: rep?.name ?? null,
-          reviewer_name: doc?.reviewed_by ? reviewerMap[doc.reviewed_by] ?? null : null,
-          ai_review: doc ? aiReviewByDoc[doc.id] ?? null : null,
+          latest_order_number: order?.number ?? null,
+          latest_order_id: order?.id ?? null,
+          rep_name: account.assigned_rep_id ? repsById.get(account.assigned_rep_id) ?? null : null,
+          reviewer_name: document?.reviewed_by ? reviewerMap[document.reviewed_by] ?? null : null,
+          ai_review: document ? aiReviewByDoc[document.id] ?? null : null,
         };
-      }),
-    );
-    setLoading(false);
+      }));
+    } catch (error) {
+      console.error("Failed to load KYC queue", error);
+      toast.error("Could not load the KYC queue");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);

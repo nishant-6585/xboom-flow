@@ -1120,13 +1120,15 @@ export default function KycVerification() {
         </div>
       )}
 
-      <OrderDialog
-        order={selectedOrder}
-        open={orderDialogOpen}
-        onOpenChange={(open) => { setOrderDialogOpen(open); if (!open) setSelectedOrder(null); }}
-        onUpdate={handleOrderUpdate as any}
-        onDelete={async () => false}
-      />
+      {selectedOrder && orderDialogOpen && (
+        <OrderDialog
+          order={selectedOrder}
+          open={orderDialogOpen}
+          onOpenChange={(open) => { setOrderDialogOpen(open); if (!open) setSelectedOrder(null); }}
+          onUpdate={handleOrderUpdate as any}
+          onDelete={async () => false}
+        />
+      )}
       </main>
     </div>
   );
