@@ -469,6 +469,7 @@ export function ManychatLeadsPanel() {
           </div>
         ) : (
           <>
+            {pagerNode("top")}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-background">
@@ -497,28 +498,7 @@ export function ManychatLeadsPanel() {
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between pt-3">
-              <span className="text-xs text-muted-foreground">
-                Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, groups.length)} of {groups.length}
-                {mergeDuplicates && mergedAway > 0 ? ` (${mergedAway} duplicates merged)` : ""}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-                  <ChevronLeft className="h-4 w-4" /> Prev
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Page {page + 1} / {pageCount}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={page >= pageCount - 1}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            {pagerNode("bottom")}
           </>
         )}
           </TabsContent>
