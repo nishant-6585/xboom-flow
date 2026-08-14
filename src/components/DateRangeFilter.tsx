@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface DateRangeFilterProps {
   startDate: Date | undefined;
@@ -73,8 +74,6 @@ export function DateRangeFilter({
     return -1;
   })();
 
-  const isPresetActive = (_preset: Preset, index: number) => index === activePresetIndex;
-
   const applyPreset = (preset: Preset) => {
     const { start, end } = preset.getRange();
     setLastClickedPreset(preset.label);
@@ -82,23 +81,37 @@ export function DateRangeFilter({
     onEndDateChange(end);
   };
 
+  const CUSTOM = 'Custom range…';
+  const [showCustom, setShowCustom] = useState(false);
+  const selectValue = showCustom || activePresetIndex < 0 ? CUSTOM : PRESETS[activePresetIndex].label;
+
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {PRESETS.map((p, i) => (
-        <Button
-          key={p.label}
-          variant={isPresetActive(p, i) ? 'default' : 'outline'}
-          size="sm"
-          className={cn(
-            "text-xs h-8",
-            isPresetActive(p, i) && "bg-primary text-primary-foreground hover:bg-primary/90",
-          )}
-          onClick={() => applyPreset(p)}
-        >
-          {p.label}
-        </Button>
-      ))}
+      <Select
+        value={selectValue}
+        onValueChange={(v) => {
+          if (v === CUSTOM) {
+            setShowCustom(true);
+            return;
+          }
+          setShowCustom(false);
+          const preset = PRESETS.find((p) => p.label === v);
+          if (preset) applyPreset(preset);
+        }}
+      >
+        <SelectTrigger className="h-8 w-[168px] text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {PRESETS.map((p) => (
+            <SelectItem key={p.label} value={p.label} className="text-xs">{p.label}</SelectItem>
+          ))}
+          <SelectItem value={CUSTOM} className="text-xs">{CUSTOM}</SelectItem>
+        </SelectContent>
+      </Select>
 
+      {selectValue === CUSTOM && (
+      <>
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -151,12 +164,14 @@ export function DateRangeFilter({
           />
         </PopoverContent>
       </Popover>
+      </>
+      )}
 
       {hasDateFilter && (
         <Button
           variant="ghost"
           size="sm"
-          onClick={onClear}
+          onClick={() => { setShowCustom(false); onClear(); }}
           className="h-8 px-2"
         >
           <X className="h-4 w-4" />

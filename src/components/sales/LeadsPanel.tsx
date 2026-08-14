@@ -70,9 +70,13 @@ function InboxNewBadge() {
   const { data } = useUnifiedLeadCounts();
   if (!data || data.totalNew === 0) return null;
   return (
-    <Badge variant="default" className="ml-1 text-xs px-1.5 py-0">{data.totalNew}</Badge>
+    <span className="ml-1 font-mono text-[10px] text-primary">{data.totalNew}</span>
   );
 }
+
+/** Single-line channel row trigger: neutral when inactive, raised card when active. */
+const CHANNEL_TRIGGER =
+  "h-8 px-3 text-[13px] rounded-md whitespace-nowrap gap-1.5 shrink-0 text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-medium data-[state=active]:shadow-sm";
 
 /**
  * Source filter options for the All Leads tab.
@@ -454,58 +458,58 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
   return (
     <Tabs defaultValue="all-inbox" className="space-y-6">
-      <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start">
-        <TabsTrigger value="all-inbox" className="gap-1.5">
-          <Inbox className="h-3.5 w-3.5" />
+      <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto scrollbar-hide bg-muted/40 rounded-lg p-1">
+        <TabsTrigger value="all-inbox" className={CHANNEL_TRIGGER}>
+          <Inbox className="w-4 h-4" />
           All Inbox
           <InboxNewBadge />
         </TabsTrigger>
-        <TabsTrigger value="leads">All Leads</TabsTrigger>
-        <TabsTrigger value="qforms" className="gap-1.5">
-          <FileText className="h-3.5 w-3.5" />
+        <TabsTrigger value="leads" className={CHANNEL_TRIGGER}>All Leads</TabsTrigger>
+        <TabsTrigger value="qforms" className={CHANNEL_TRIGGER}>
+          <FileText className="w-4 h-4" />
           QForms
         </TabsTrigger>
-        <TabsTrigger value="interakt" className="gap-1.5">
-          <MessageCircle className="h-3.5 w-3.5" />
+        <TabsTrigger value="interakt" className={CHANNEL_TRIGGER}>
+          <MessageCircle className="w-4 h-4" />
           Interakt
           {interaktLeads.length > 0 && (
-            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{interaktLeads.length}</Badge>
+            <span className="ml-1 font-mono text-[10px] text-muted-foreground">{interaktLeads.length}</span>
           )}
         </TabsTrigger>
-        <TabsTrigger value="myoperator" className="gap-1.5">
-          <Phone className="h-3.5 w-3.5" />
+        <TabsTrigger value="myoperator" className={CHANNEL_TRIGGER}>
+          <Phone className="w-4 h-4" />
           MyOperator
         </TabsTrigger>
-        <TabsTrigger value="manychat" className="gap-1.5">
-          <MessageCircle className="h-3.5 w-3.5" />
+        <TabsTrigger value="manychat" className={CHANNEL_TRIGGER}>
+          <MessageCircle className="w-4 h-4" />
           ManyChat
         </TabsTrigger>
-        <TabsTrigger value="elevenlabs" className="gap-1.5">
-          <Bot className="h-3.5 w-3.5" />
+        <TabsTrigger value="elevenlabs" className={CHANNEL_TRIGGER}>
+          <Bot className="w-4 h-4" />
           ElevenLabs Leads
         </TabsTrigger>
-        <TabsTrigger value="xboom-website" className="gap-1.5">
-          <Globe className="h-3.5 w-3.5" />
+        <TabsTrigger value="xboom-website" className={CHANNEL_TRIGGER}>
+          <Globe className="w-4 h-4" />
           Abandoned Cart
         </TabsTrigger>
-        <TabsTrigger value="call-tracker" className="gap-1.5">
-          <PhoneOutgoing className="h-3.5 w-3.5" />
+        <TabsTrigger value="call-tracker" className={CHANNEL_TRIGGER}>
+          <PhoneOutgoing className="w-4 h-4" />
           Call Tracker
         </TabsTrigger>
-        <TabsTrigger value="emails" className="gap-1.5">
-          <Mail className="h-3.5 w-3.5" />
+        <TabsTrigger value="emails" className={CHANNEL_TRIGGER}>
+          <Mail className="w-4 h-4" />
           Emails
         </TabsTrigger>
-        <TabsTrigger value="google-ads" className="gap-1.5">
-          <Megaphone className="h-3.5 w-3.5" />
+        <TabsTrigger value="google-ads" className={CHANNEL_TRIGGER}>
+          <Megaphone className="w-4 h-4" />
           Google Ads
         </TabsTrigger>
-        <TabsTrigger value="facebook-leads" className="gap-1.5">
-          <Facebook className="h-3.5 w-3.5" />
+        <TabsTrigger value="facebook-leads" className={CHANNEL_TRIGGER}>
+          <Facebook className="w-4 h-4" />
           Facebook Leads
         </TabsTrigger>
-        <TabsTrigger value="indiamart" className="gap-1.5">
-          <Store className="h-3.5 w-3.5" />
+        <TabsTrigger value="indiamart" className={CHANNEL_TRIGGER}>
+          <Store className="w-4 h-4" />
           Indiamart
         </TabsTrigger>
       </TabsList>
