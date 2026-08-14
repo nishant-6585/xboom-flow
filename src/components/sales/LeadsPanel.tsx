@@ -70,9 +70,13 @@ function InboxNewBadge() {
   const { data } = useUnifiedLeadCounts();
   if (!data || data.totalNew === 0) return null;
   return (
-    <Badge variant="default" className="ml-1 text-xs px-1.5 py-0">{data.totalNew}</Badge>
+    <span className="ml-1 font-mono text-[10px] text-primary">{data.totalNew}</span>
   );
 }
+
+/** Single-line channel row trigger: neutral when inactive, raised card when active. */
+const CHANNEL_TRIGGER =
+  "h-8 px-3 text-[13px] rounded-md whitespace-nowrap gap-1.5 shrink-0 text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-medium data-[state=active]:shadow-sm";
 
 /**
  * Source filter options for the All Leads tab.
