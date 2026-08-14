@@ -302,7 +302,6 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
       setLoading(true);
     }
 
-    const scope = <T extends ReturnType<typeof supabase.from>["select"] extends never ? never : any>(q: T): T => q;
     const buildQuery = (columns: string) => {
       let q = supabase
         .from("call_logs")
