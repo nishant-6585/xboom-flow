@@ -1,15 +1,12 @@
 import { useMemo, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  IndianRupee, TrendingUp, TrendingDown, Package, CheckCircle2, Calendar, User, Clock,
-} from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format, isWithinInterval, startOfDay,
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format, isSameDay,
 } from "date-fns";
 import { Order } from "@/hooks/useOrders";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +28,12 @@ const fmt = (v: number) => {
   if (v >= 100000) return `₹${(v / 100000).toFixed(2)}L`;
   if (v >= 1000) return `₹${(v / 1000).toFixed(1)}K`;
   return `₹${v.toLocaleString("en-IN")}`;
+};
+
+const PERIOD_LABELS: Record<TimePeriod, string> = {
+  this_week: "This week",
+  this_month: "This month",
+  prev_month: "Previous month",
 };
 
 type ProfitRow = { order_id: string; profit: number | string | null; total_sales: number | string | null };
