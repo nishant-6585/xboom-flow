@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type ReactNode } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
@@ -13,9 +14,11 @@ interface Props {
   prospects: Prospect[];
   prospectSourceIds: Set<string>;
   attentionSourceIds: Set<string>;
+  /** Extra analytics content rendered at the top of the Analytics tab. */
+  analytics?: ReactNode;
 }
 
-export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSourceIds }: Props) {
+export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSourceIds, analytics }: Props) {
   const { role } = useAuth();
   const canManage = role === 'admin' || role === 'sales_manager';
   const [rawLogs, setRawLogs] = useState<any[]>([]);
@@ -37,6 +40,20 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSo
 
   return (
     <div className="space-y-6">
+      <Tabs defaultValue="list" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="list">MyOperator Leads</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analytics" className="space-y-6">
+          {analytics}
+          {canManage && (
+            <MyOperatorAnalytics logs={rawLogs} prospects={prospects} dateRange={dateRange} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="list" forceMount className="space-y-6 data-[state=inactive]:hidden">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <ProspectAnalyticsCards prospects={prospects} sourceType="myoperator" />
       </div>
@@ -64,9 +81,6 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSo
           </div>
         )}
       </div>
-      {canManage && (
-        <MyOperatorAnalytics logs={rawLogs} prospects={prospects} dateRange={dateRange} />
-      )}
       <CallLogsPanel
         prospects={prospects}
         prospectSourceIds={prospectSourceIds}
@@ -74,6 +88,8 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSo
         onLogsLoaded={handleLogsLoaded}
         dateRange={dateRange}
       />
+        </TabsContent>
+      </Tabs>
       {canManage && (
         <>
           <SalespersonCallStats
