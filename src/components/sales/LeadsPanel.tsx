@@ -487,36 +487,45 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const mergedLeadCount = totalLeads - uniqueLeadCount;
 
   return (
-    <Tabs defaultValue="all-inbox" className="space-y-6">
+    <Tabs value={channelTab} onValueChange={setChannelTab} className="space-y-6">
+      <ChannelVolumeGrid items={channelCards} activeTab={channelTab} onSelect={setChannelTab} />
       <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto scrollbar-hide bg-muted/40 rounded-lg p-1">
         <TabsTrigger value="all-inbox" className={CHANNEL_TRIGGER}>
+          {(newBySource ? Object.values(newBySource).some((n) => n > 0) : false) && <UnseenDot />}
           <Inbox className="w-4 h-4" />
           All Inbox
-          <InboxNewBadge />
+          <TabTotal total={totalsBySource ? Object.values(totalsBySource).reduce((a, b) => a + b, 0) : undefined} />
         </TabsTrigger>
         <TabsTrigger value="leads" className={CHANNEL_TRIGGER}>All Leads</TabsTrigger>
         <TabsTrigger value="qforms" className={CHANNEL_TRIGGER}>
+          {hasNew('qforms') && <UnseenDot />}
           <FileText className="w-4 h-4" />
           QForms
+          <TabTotal total={totalFor('qforms')} />
         </TabsTrigger>
         <TabsTrigger value="interakt" className={CHANNEL_TRIGGER}>
+          {hasNew('interakt') && <UnseenDot />}
           <MessageCircle className="w-4 h-4" />
           Interakt
-          {interaktLeads.length > 0 && (
-            <span className="ml-1 font-mono text-[10px] text-muted-foreground">{interaktLeads.length}</span>
-          )}
+          <TabTotal total={totalFor('interakt')} />
         </TabsTrigger>
         <TabsTrigger value="myoperator" className={CHANNEL_TRIGGER}>
+          {hasNew('myoperator') && <UnseenDot />}
           <Phone className="w-4 h-4" />
           MyOperator
+          <TabTotal total={totalFor('myoperator')} />
         </TabsTrigger>
         <TabsTrigger value="manychat" className={CHANNEL_TRIGGER}>
+          {hasNew('manychat') && <UnseenDot />}
           <MessageCircle className="w-4 h-4" />
           ManyChat
+          <TabTotal total={totalFor('manychat')} />
         </TabsTrigger>
         <TabsTrigger value="elevenlabs" className={CHANNEL_TRIGGER}>
+          {hasNew('elevenlabs') && <UnseenDot />}
           <Bot className="w-4 h-4" />
           ElevenLabs Leads
+          <TabTotal total={totalFor('elevenlabs')} />
         </TabsTrigger>
         <TabsTrigger value="xboom-website" className={CHANNEL_TRIGGER}>
           <Globe className="w-4 h-4" />
@@ -527,20 +536,28 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           Call Tracker
         </TabsTrigger>
         <TabsTrigger value="emails" className={CHANNEL_TRIGGER}>
+          {hasNew('emails') && <UnseenDot />}
           <Mail className="w-4 h-4" />
           Emails
+          <TabTotal total={totalFor('emails')} />
         </TabsTrigger>
         <TabsTrigger value="google-ads" className={CHANNEL_TRIGGER}>
+          {hasNew('google-ads') && <UnseenDot />}
           <Megaphone className="w-4 h-4" />
           Google Ads
+          <TabTotal total={totalFor('google-ads')} />
         </TabsTrigger>
         <TabsTrigger value="facebook-leads" className={CHANNEL_TRIGGER}>
+          {hasNew('facebook-leads') && <UnseenDot />}
           <Facebook className="w-4 h-4" />
           Facebook Leads
+          <TabTotal total={totalFor('facebook-leads')} />
         </TabsTrigger>
         <TabsTrigger value="indiamart" className={CHANNEL_TRIGGER}>
+          {hasNew('indiamart') && <UnseenDot />}
           <Store className="w-4 h-4" />
           Indiamart
+          <TabTotal total={totalFor('indiamart')} />
         </TabsTrigger>
       </TabsList>
 
