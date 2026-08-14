@@ -22,6 +22,13 @@ import { cn } from '@/lib/utils';
 import { resolveProductName } from '@/lib/leadEnquiry';
 import { toast } from 'sonner';
 import { CallButton } from '@/components/calls/CallButton';
+import { LeadRowActions, type LeadRowActionsProps } from './LeadRowActions';
+import { DispositionDialog } from './DispositionDialog';
+import { useSalesUsers } from '@/hooks/useSalesUsers';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { LeadSourceBadge, normalizeSource } from '@/components/LeadSourceBadge';
 import { usePushToCompany, pushLeadToCompanyToast } from '@/hooks/usePushToCompany';
 import { isValidCompanyName } from '@/lib/companyNormalize';
@@ -81,6 +88,17 @@ export interface LeadContactData {
   extras?: Record<string, string | number | boolean | null>;
   /** Raw form payload (e.g. Facebook Lead Ads answers). */
   payload?: Record<string, unknown> | null;
+  /** How the lead reached its current owner (e.g. "Round-robin", "Manual"). */
+  assignment_method?: string | null;
+}
+
+/** Wiring for disposition / reassign / source navigation. Optional — omit to hide those controls. */
+export interface LeadDrawerActions {
+  sourceTable: LeadRowActionsProps['sourceTable'];
+  sourceRowId: string;
+  disposition?: string | null;
+  onChanged?: () => void;
+  onViewInSource?: () => void;
 }
 
 interface LeadContactDrawerProps {
@@ -91,20 +109,31 @@ interface LeadContactDrawerProps {
   saving?: boolean;
   /** Extra content rendered below contact details (e.g. email body, call recording) */
   extraContent?: React.ReactNode;
+  /** Enables the Qualified / Not qualified / Junk / Reassign row and the ⋯ menu. */
+  actions?: LeadDrawerActions;
 }
 
 const FOLLOWUP_TYPES = [
-  { value: 'Call', icon: PhoneCall, color: 'text-blue-500' },
-  { value: 'Email', icon: Send, color: 'text-amber-500' },
-  { value: 'WhatsApp', icon: MessageCircle, color: 'text-green-500' },
-  { value: 'Meeting', icon: Video, color: 'text-purple-500' },
+  { value: 'Call', icon: PhoneCall },
+  { value: 'Email', icon: Send },
+  { value: 'WhatsApp', icon: MessageCircle },
+  { value: 'Meeting', icon: Video },
 ];
 
-export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, extraContent }: LeadContactDrawerProps) {
+function openWhatsApp(phone: string | null | undefined) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return;
+  window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
+}
+
+export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, extraContent, actions }: LeadContactDrawerProps) {
   const { user, profile } = useAuth();
   const { followups, createFollowup, completeFollowup, rescheduleFollowup } = useFollowups();
   const { pushLeadToCompany } = usePushToCompany();
+  const { salesUsers } = useSalesUsers();
   const [pushing, setPushing] = useState(false);
+  const [dispositionTarget, setDispositionTarget] = useState<'qualified' | 'not_qualified' | 'junk' | null>(null);
+  const [reassigning, setReassigning] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ customer_name: '', phone: '', email: '', company: '', city: '', product_name: '', notes: '' });
@@ -200,13 +229,11 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
 
   if (!lead) return null;
 
-  const getFollowupStatusColor = (f: Followup) => {
-    if (f.status === 'completed') return 'border-l-emerald-500 bg-emerald-500/5';
-    if (f.status === 'cancelled') return 'border-l-muted bg-muted/30';
-    if (isBefore(new Date(f.followup_at), new Date()) && f.status === 'pending') return 'border-l-red-500 bg-red-500/5';
-    if (isToday(new Date(f.followup_at))) return 'border-l-amber-500 bg-amber-500/5';
-    return 'border-l-primary bg-primary/5';
-  };
+  // Neutral cards; colour is reserved for genuinely overdue items.
+  const getFollowupStatusColor = (f: Followup) =>
+    f.status === 'pending' && isBefore(new Date(f.followup_at), new Date())
+      ? 'border-l-destructive'
+      : 'border-l-border';
 
   const getFollowupTypeFromProduct = (productName: string | null) => {
     if (!productName) return null;
@@ -218,14 +245,14 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
     const found = FOLLOWUP_TYPES.find(t => t.value === type);
     if (found) {
       const Icon = found.icon;
-      return <Icon className={cn('w-3.5 h-3.5', found.color)} />;
+      return <Icon className="w-3.5 h-3.5 text-muted-foreground" />;
     }
     return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[700px] p-0 flex flex-col" side="right">
+      <SheetContent className="w-full sm:max-w-[560px] p-0 flex flex-col" side="right">
         {/* Header */}
         <SheetHeader className="px-6 pt-6 pb-4 border-b bg-muted/30">
           <div className="flex items-start justify-between">
@@ -253,17 +280,9 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
           {/* Quick contact actions */}
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             {lead.phone && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background border rounded-md px-2.5 py-1 pr-1">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background border rounded-md px-2.5 py-1.5">
                 <Phone className="w-3.5 h-3.5" /> {lead.phone}
-                <CallButton
-                  phoneNumber={lead.phone}
-                  entityType={lead.source_type as any}
-                  entityId={lead.id}
-                  iconOnly
-                  variant="ghost"
-                  className="h-6 w-6 ml-1"
-                />
-              </div>
+              </span>
             )}
             {lead.email && (
               <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-background border rounded-md px-2.5 py-1.5">
@@ -281,6 +300,91 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
               </span>
             )}
           </div>
+
+          {/* Primary actions — calling is the job for message-less channels. */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <CallButton
+              phoneNumber={lead.phone}
+              entityType={lead.source_type as any}
+              entityId={lead.id}
+              variant="default"
+              size="sm"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!lead.phone}
+              className="hover:text-success"
+              title={lead.phone ? 'WhatsApp' : 'No phone number'}
+              onClick={() => openWhatsApp(lead.phone)}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setActiveTab('followups'); setShowNewFollowup(true); }}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Log follow-up
+            </Button>
+            {actions && (
+              <LeadRowActions
+                sourceTable={actions.sourceTable}
+                sourceRowId={actions.sourceRowId}
+                contactName={lead.customer_name}
+                contactPhone={lead.phone}
+                currentDisposition={actions.disposition as any}
+                onViewInSource={actions.onViewInSource}
+                onDispositionChanged={actions.onChanged}
+              />
+            )}
+          </div>
+
+          {/* Disposition — close the lead out without returning to the table. */}
+          {actions && (
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDispositionTarget('qualified')}>
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Qualified
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDispositionTarget('not_qualified')}>
+                <X className="w-3.5 h-3.5 mr-1" /> Not qualified
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDispositionTarget('junk')}>
+                Junk
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-xs" disabled={reassigning}>
+                    {reassigning ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <User className="w-3.5 h-3.5 mr-1" />}
+                    Reassign
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                  {salesUsers.map((u) => (
+                    <DropdownMenuItem
+                      key={u.user_id}
+                      onClick={async () => {
+                        setReassigning(true);
+                        const { error } = await supabase.rpc('set_lead_assignee' as any, {
+                          _source_table: actions.sourceTable,
+                          _source_row_id: actions.sourceRowId,
+                          _user_id: u.user_id,
+                        });
+                        setReassigning(false);
+                        if (error) toast.error(error.message || 'Could not reassign lead.');
+                        else {
+                          toast.success(`Assigned to ${u.name}`);
+                          actions.onChanged?.();
+                        }
+                      }}
+                    >
+                      {u.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </SheetHeader>
 
         {/* Tabs */}
@@ -367,22 +471,46 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                       <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
                     </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                    <InfoRow icon={User} label="Name" value={lead.customer_name} />
-                    <InfoRow icon={Phone} label="Phone" value={lead.phone} />
-                    <InfoRow icon={Mail} label="Email" value={lead.email} />
-                    <InfoRow icon={Building2} label="Company" value={lead.company} />
-                    <InfoRow icon={MapPin} label="City" value={lead.city} />
-                    <InfoRow
-                      icon={Package}
-                      label="Enquiry"
-                      value={resolveProductName(lead.product_name, [lead.lead_source, lead.source_type])}
-                    />
-                    {lead.assigned_to_name && <InfoRow icon={User} label="Assigned To" value={lead.assigned_to_name} />}
-                    {lead.created_at && <InfoRow icon={Calendar} label="Created" value={format(new Date(lead.created_at), 'dd MMM yyyy, hh:mm a')} />}
-                  </div>
-                )}
+                ) : (() => {
+                  // Only render fields that carry a value; state the gaps once
+                  // instead of printing a column of em-dashes.
+                  const fields = [
+                    { icon: User, label: 'Name', value: lead.customer_name },
+                    { icon: Phone, label: 'Phone', value: lead.phone },
+                    { icon: Mail, label: 'Email', value: lead.email },
+                    { icon: Building2, label: 'Company', value: lead.company },
+                    { icon: MapPin, label: 'City', value: lead.city },
+                    {
+                      icon: Package,
+                      label: 'Enquiry',
+                      value: resolveProductName(lead.product_name, [lead.lead_source, lead.source_type]),
+                    },
+                    { icon: User, label: 'Assigned To', value: lead.assigned_to_name },
+                    {
+                      icon: Calendar,
+                      label: 'Created',
+                      value: lead.created_at ? format(new Date(lead.created_at), 'dd MMM yyyy, hh:mm a') : null,
+                    },
+                  ];
+                  const present = fields.filter((f) => !!(f.value && String(f.value).trim()));
+                  const missing = fields
+                    .filter((f) => !(f.value && String(f.value).trim()))
+                    .map((f) => f.label);
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                        {present.map((f) => (
+                          <InfoRow key={f.label} icon={f.icon} label={f.label} value={String(f.value)} />
+                        ))}
+                      </div>
+                      {missing.length > 0 && (
+                        <p className="text-xs italic text-muted-foreground">
+                          Not provided by this channel: {missing.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Extra fields */}
                 {lead.extras && Object.keys(lead.extras).length > 0 && (
@@ -445,28 +573,23 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                   </>
                 )}
 
-                {/* Quick follow-up inline */}
+                {/* Activity — how this lead arrived and who owns it. */}
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Recent Follow-ups</h3>
-                  <Button variant="outline" size="sm" className="text-xs" onClick={() => { setActiveTab('followups'); setShowNewFollowup(true); }}>
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Log Follow-up
-                  </Button>
-                </div>
-                {leadFollowups.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-3">No follow-ups logged yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {leadFollowups.slice(0, 3).map(f => (
-                      <FollowupMiniCard key={f.id} followup={f} statusColor={getFollowupStatusColor(f)} typeIcon={getFollowupTypeIcon(getFollowupTypeFromProduct(f.product_name))} />
-                    ))}
-                    {leadFollowups.length > 3 && (
-                      <Button variant="ghost" size="sm" className="text-xs w-full" onClick={() => setActiveTab('followups')}>
-                        View all {leadFollowups.length} follow-ups →
-                      </Button>
-                    )}
-                  </div>
-                )}
+                <h3 className="text-sm font-semibold">Activity</h3>
+                <ul className="space-y-1.5 text-xs text-muted-foreground">
+                  {lead.created_at && (
+                    <li>
+                      Captured {format(new Date(lead.created_at), 'dd MMM yyyy, hh:mm a')}
+                    </li>
+                  )}
+                  <li>Channel: {lead.lead_source || lead.source_type}</li>
+                  <li>
+                    {lead.assigned_to_name
+                      ? `Assigned to ${lead.assigned_to_name}`
+                      : 'Not assigned yet'}
+                    {lead.assignment_method ? ` · ${lead.assignment_method}` : ''}
+                  </li>
+                </ul>
               </div>
             </TabsContent>
 
@@ -545,11 +668,11 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
-                              {f.status === 'completed' && <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-0 text-[10px]">✅ Done</Badge>}
+                              {f.status === 'completed' && <Badge variant="secondary" className="text-[10px]">Done</Badge>}
                               {f.status === 'cancelled' && <Badge variant="secondary" className="text-[10px]">Cancelled</Badge>}
-                              {isOverdue && <Badge className="bg-red-500/20 text-red-700 dark:text-red-400 border-0 text-[10px]">⚠ Overdue</Badge>}
-                              {isDueToday && !isOverdue && <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-0 text-[10px]">Due Today</Badge>}
-                              {f.status === 'pending' && !isOverdue && !isDueToday && <Badge className="bg-primary/20 text-primary border-0 text-[10px]">Upcoming</Badge>}
+                              {isOverdue && <Badge variant="destructive" className="text-[10px]">Overdue</Badge>}
+                              {isDueToday && !isOverdue && <Badge variant="outline" className="text-[10px]">Due today</Badge>}
+                              {f.status === 'pending' && !isOverdue && !isDueToday && <Badge variant="outline" className="text-[10px]">Upcoming</Badge>}
                             </div>
                           </div>
                           {f.remark && <p className="text-xs text-muted-foreground">{f.remark}</p>}
@@ -593,6 +716,19 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
             </TabsContent>
           </ScrollArea>
         </Tabs>
+
+        {actions && dispositionTarget && (
+          <DispositionDialog
+            open={!!dispositionTarget}
+            onOpenChange={(o) => { if (!o) setDispositionTarget(null); }}
+            sourceTable={actions.sourceTable}
+            sourceRowId={actions.sourceRowId}
+            contactName={lead.customer_name}
+            contactPhone={lead.phone}
+            target={dispositionTarget}
+            onSuccess={actions.onChanged}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );

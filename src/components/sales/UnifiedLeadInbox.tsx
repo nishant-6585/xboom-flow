@@ -723,6 +723,13 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
         open={!!detailLead}
         onOpenChange={(open) => { if (!open) closeDetail(); }}
         lead={drawerData}
+        actions={detailLead ? {
+          sourceTable: detailLead.source_table as any,
+          sourceRowId: detailLead.source_row_id,
+          disposition: detailLead.disposition,
+          onChanged: () => { refetch(); counts.refetch(); },
+          onViewInSource: () => openInSource(detailLead),
+        } : undefined}
       />
     </div>
   );
