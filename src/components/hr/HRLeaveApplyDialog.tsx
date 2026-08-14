@@ -71,11 +71,42 @@ export function HRLeaveApplyDialog({
   const [searchTerm, setSearchTerm] = useState("");
   const [leaveBalance, setLeaveBalance] = useState<number | null>(null);
 
+  // Comp-off specific state (HR raising it on someone's behalf).
+  const { holidays } = useCompOff();
+  const [earnedTab, setEarnedTab] = useState<"holiday" | "weekend">("holiday");
+  const [selectedHolidayId, setSelectedHolidayId] = useState("");
+  const [weekendDate, setWeekendDate] = useState("");
+  const [compoffLeaveDate, setCompoffLeaveDate] = useState("");
+  const isCompOff = leaveType === "compoff";
+  const selectedHoliday = holidays.find((h) => h.id === selectedHolidayId);
+  const earnedDate = earnedTab === "holiday" ? selectedHoliday?.holiday_date ?? "" : weekendDate;
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
+
+  // Only past holidays within the 90-day claim window can be compensated.
+  const availableHolidays = holidays.filter(
+    (h) => h.holiday_date <= todayStr && h.holiday_date >= ninetyDaysAgo,
+  );
+
+  const compoffError = (() => {
+    if (!isCompOff) return "";
+    if (earnedTab === "weekend" && weekendDate) {
+      const dow = new Date(`${weekendDate}T00:00:00`).getDay();
+      if (dow !== 0 && dow !== 6) return "The worked date must be a Saturday or Sunday.";
+      if (weekendDate > todayStr) return "The worked date cannot be in the future.";
+      if (weekendDate < ninetyDaysAgo) return "The worked date is more than 90 days old.";
+    }
+    if (compoffLeaveDate && earnedDate && compoffLeaveDate < earnedDate)
+      return "The comp-off date must be on or after the day worked.";
+    return "";
+  })();
+
   // Fetch balance when employee or leave type changes
   useEffect(() => {
     if (!employeeId || !open) { setLeaveBalance(null); return; }
     const baseType = leaveType.replace('half_day_', '');
-    // Unpaid & maternity leave have no balance requirement
+    // Unpaid, maternity & comp-off carry no leave_balances requirement
     if (NO_BALANCE_TYPES.includes(baseType)) { setLeaveBalance(null); return; }
     const year = new Date().getFullYear();
     supabase
@@ -106,6 +137,10 @@ export function HRLeaveApplyDialog({
     setEndDate("");
     setReason("");
     setSearchTerm("");
+    setEarnedTab("holiday");
+    setSelectedHolidayId("");
+    setWeekendDate("");
+    setCompoffLeaveDate("");
   };
 
   const calculateDays = () => {
@@ -122,16 +157,34 @@ export function HRLeaveApplyDialog({
   };
 
   const handleSubmit = async () => {
-    if (!employeeId || !startDate || !endDate) return;
+    if (!employeeId) return;
+    if (isCompOff) {
+      if (!earnedDate || !compoffLeaveDate || compoffError) return;
+    } else if (!startDate || !endDate) return;
 
     setSubmitting(true);
-    const success = await onSubmit({
-      employee_id: employeeId,
-      leave_type: leaveType,
-      start_date: startDate,
-      end_date: endDate,
-      reason: reason || undefined,
-    });
+    const success = await onSubmit(
+      isCompOff
+        ? {
+            employee_id: employeeId,
+            leave_type: "compoff",
+            start_date: compoffLeaveDate,
+            end_date: compoffLeaveDate,
+            reason: reason || undefined,
+            compoff: {
+              earned_date: earnedDate,
+              earned_type: earnedTab,
+              holiday_id: earnedTab === "holiday" ? selectedHolidayId : null,
+            },
+          }
+        : {
+            employee_id: employeeId,
+            leave_type: leaveType,
+            start_date: startDate,
+            end_date: endDate,
+            reason: reason || undefined,
+          },
+    );
 
     setSubmitting(false);
     if (success) {
