@@ -75,7 +75,8 @@ export function AppSidebar({ counts }: AppSidebarProps) {
 
     if (item.path === "/sales") {
       const tabs = salesTabItems.filter((t) => hasNavAccess(t.roles));
-      const currentTab = active ? searchParams.get("tab") : null;
+      const defaultTab = role === "sales" ? "my_leads" : "manager";
+      const currentTab = active ? searchParams.get("tab") ?? defaultTab : null;
       return (
         <Collapsible key={item.path} defaultOpen={active} className="group/collapsible">
           <SidebarMenuItem>

@@ -103,7 +103,7 @@ export const salesTabItems: SalesTabItem[] = [
   { tab: "followups", label: "Follow-ups", icon: CalendarCheck, roles: SALES_BASE },
   { tab: "mega_deals", label: "Mega Deals", icon: Star, roles: SALES_BASE },
   { tab: "companies", label: "Companies", icon: Building2, roles: SALES_BASE },
-  { tab: "outbound", label: "Outbound Sales", icon: Phone, roles: SALES_BASE },
+  { tab: "outbound", label: "Outbound", icon: Phone, roles: SALES_BASE },
   { tab: "enquiries", label: "Enquiries", icon: Package, roles: MANAGERS },
   { tab: "tasks", label: "Tasks", icon: ListTodo, roles: SALES_BASE },
   { tab: "source_performance", label: "Source Tracker", icon: BarChart3, roles: MANAGERS },
