@@ -18958,6 +18958,10 @@ export type Database = {
         Returns: boolean
       }
       is_internal_staff: { Args: { p_user_id: string }; Returns: boolean }
+      is_junk_lead: {
+        Args: { _enquiry: string; _name: string; _product: string }
+        Returns: boolean
+      }
       is_kyc_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_reporting_manager: {
         Args: { _employee_id: string; _manager_id: string }
@@ -19497,6 +19501,14 @@ export type Database = {
           total_orders_count: number
         }[]
       }
+      set_lead_assignee: {
+        Args: {
+          _source_row_id: string
+          _source_table: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       set_lead_disposition: {
         Args: {
           _new_disposition: Database["public"]["Enums"]["lead_disposition"]
@@ -19785,7 +19797,12 @@ export type Database = {
         | "approved"
         | "rejected"
         | "resubmission_required"
-      lead_disposition: "untouched" | "prospect" | "qualified" | "not_qualified"
+      lead_disposition:
+        | "untouched"
+        | "prospect"
+        | "qualified"
+        | "not_qualified"
+        | "junk"
       notice_visibility:
         | "all"
         | "sales"
@@ -20151,7 +20168,13 @@ export const Constants = {
         "rejected",
         "resubmission_required",
       ],
-      lead_disposition: ["untouched", "prospect", "qualified", "not_qualified"],
+      lead_disposition: [
+        "untouched",
+        "prospect",
+        "qualified",
+        "not_qualified",
+        "junk",
+      ],
       notice_visibility: [
         "all",
         "sales",
