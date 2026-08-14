@@ -92,6 +92,7 @@ export function ManychatLeadsPanel() {
   const [channelFilter, setChannelFilter] = useState("all");
   const [assignedFilter, setAssignedFilter] = useState("all");
   const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [tab, setTab] = useState("leads");
   const [page, setPage] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
