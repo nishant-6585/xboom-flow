@@ -566,11 +566,12 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
       </div>
 
       {/* Analytics dashboard - managers only */}
-      {canManage && showAnalytics && (
+      {showAnalyticsSection && canManage && showAnalytics && (
         <ElevenLabsAnalytics leads={leads} prospectIds={prospectIds} />
       )}
 
       {/* Filters */}
+      {showList && (
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[220px]">
@@ -655,10 +656,12 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
           </div>
         </div>
       </Card>
+      )}
 
       {/* Table */}
-      {viewMode === "table" && (
+      {showList && viewMode === "table" && (
       <Card>
+        {renderPager("top")}
         <Table>
           <TableHeader>
             <TableRow>
@@ -685,7 +688,7 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
                 No leads match your filters yet — calls will appear here automatically.
               </TableCell></TableRow>
             )}
-            {!loading && filtered.map(r => {
+            {!loading && paged.map(r => {
               const isOpen = expanded.has(r.id);
               const { name, isUnidentified } = resolveName(r);
               const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
