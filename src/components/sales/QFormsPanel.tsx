@@ -239,6 +239,12 @@ export default function QFormsPanel() {
     );
   }, [filtered, mergeDuplicates]);
 
+  // Hide columns that carry no information for the currently visible rows.
+  const visibleQRows = dedupGroups.map((g) => g.primary);
+  const showCompany = anyValue(visibleQRows, (r) => r.company ?? r.location);
+  const showLastContact = anyValue(visibleQRows, (r) => r.last_contacted_at);
+  const qColCount = 9 + (showCompany ? 1 : 0) + (showLastContact ? 1 : 0);
+
   const toggleDupeGroup = (key: string) => {
     setExpandedDupes((prev) => {
       const n = new Set(prev);
