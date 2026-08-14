@@ -116,8 +116,8 @@ export default function Sales() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="rounded-lg border border-border bg-card/60 p-1">
-            <TabsList className="bg-transparent flex flex-wrap gap-0.5 h-auto p-0">
+          <div className="rounded-lg bg-muted/40 p-1 overflow-x-auto scrollbar-hide">
+            <TabsList className="bg-transparent flex flex-nowrap gap-0.5 h-auto p-0 w-max">
               <TabsTrigger value="orders_won" className={neutralTrigger}>
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Orders Won
