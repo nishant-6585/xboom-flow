@@ -486,6 +486,27 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const uniqueLeadCount = leadGroups.length;
   const mergedLeadCount = totalLeads - uniqueLeadCount;
 
+  // ---- Channel volume: all-time totals + new-since-last-seen per channel ----
+  const [channelTab, setChannelTab] = useState('all-inbox');
+  const { data: totalsData } = useUnifiedLeadTotals();
+  const { data: newCountsData } = useUnifiedLeadCounts();
+  const totalsBySource = totalsData?.bySource as Record<string, number> | undefined;
+  const newBySource = newCountsData?.bySource as Record<string, number> | undefined;
+  const totalFor = (tab: string) => {
+    const key = CHANNEL_BY_TAB[tab];
+    return key ? totalsBySource?.[key] : undefined;
+  };
+  const hasNew = (tab: string) => {
+    const key = CHANNEL_BY_TAB[tab];
+    return !!key && (newBySource?.[key] ?? 0) > 0;
+  };
+  const channelCards: ChannelVolumeItem[] = CHANNEL_CARDS.map((c) => ({
+    tab: c.tab,
+    label: c.label,
+    total: totalsBySource?.[c.channel] ?? 0,
+    newCount: newBySource?.[c.channel] ?? 0,
+  }));
+
   return (
     <Tabs value={channelTab} onValueChange={setChannelTab} className="space-y-6">
       <ChannelVolumeGrid items={channelCards} activeTab={channelTab} onSelect={setChannelTab} />
