@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  JUNK_REASONS,
   NOT_QUALIFIED_REASONS,
   QUALIFIED_REASONS,
   type LeadDisposition,
@@ -35,7 +36,7 @@ export interface DispositionDialogProps {
   sourceRowId: string;
   contactName?: string;
   contactPhone?: string | null;
-  target: "qualified" | "not_qualified";
+  target: "qualified" | "not_qualified" | "junk";
   onSuccess?: () => void;
 }
 
@@ -61,7 +62,12 @@ export function DispositionDialog({
   target,
   onSuccess,
 }: DispositionDialogProps) {
-  const reasons = target === "qualified" ? QUALIFIED_REASONS : NOT_QUALIFIED_REASONS;
+  const reasons =
+    target === "qualified"
+      ? QUALIFIED_REASONS
+      : target === "junk"
+      ? JUNK_REASONS.filter((r) => r.code !== "auto_no_enquiry")
+      : NOT_QUALIFIED_REASONS;
   const [reasonCode, setReasonCode] = useState<string>("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -104,13 +110,22 @@ export function DispositionDialog({
       return;
     }
     toast.success(
-      target === "qualified" ? "Lead marked as Qualified" : "Lead marked as Not Qualified",
+      target === "qualified"
+        ? "Lead marked as Qualified"
+        : target === "junk"
+        ? "Lead marked as Junk"
+        : "Lead marked as Not Qualified",
     );
     onOpenChange(false);
     onSuccess?.();
   };
 
-  const titleText = target === "qualified" ? "Mark as Qualified" : "Mark as Not Qualified";
+  const titleText =
+    target === "qualified"
+      ? "Mark as Qualified"
+      : target === "junk"
+      ? "Mark as Junk"
+      : "Mark as Not Qualified";
   const subtitle = [contactName, contactPhone].filter(Boolean).join(" · ");
 
   return (

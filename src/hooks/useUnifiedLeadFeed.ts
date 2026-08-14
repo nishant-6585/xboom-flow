@@ -157,6 +157,8 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
       const { data, error } = await supabase
         .from("unified_lead_feed" as any)
         .select("source")
+        // Junk never inflates the new-lead counts.
+        .neq("disposition", "junk")
         .gte("created_at", since);
       if (error) throw error;
       const bySource: Record<LeadSource, number> = {
