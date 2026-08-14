@@ -1254,6 +1254,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                   )}
                 </div>
               ) : (
+                <>
+                {filteredInteraktLeads.length > 0 && renderInteraktPager('top')}
                 <div className="border rounded-lg overflow-hidden">
                   <div className="overflow-x-auto">
                     <Table>
@@ -1409,35 +1411,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     </Table>
                   </div>
                 </div>
+                </>
               )}
               {!interaktLoading && filteredInteraktLeads.length > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {interaktPageStart + 1}–{Math.min(interaktPageStart + interaktPageSize, filteredInteraktLeads.length)} of {filteredInteraktLeads.length}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Select value={String(interaktPageSize)} onValueChange={(v) => setInteraktPageSize(Number(v))}>
-                      <SelectTrigger className="w-[110px] h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="25">25 / page</SelectItem>
-                        <SelectItem value="50">50 / page</SelectItem>
-                        <SelectItem value="100">100 / page</SelectItem>
-                        <SelectItem value="200">200 / page</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button variant="outline" size="sm" disabled={interaktPageSafe <= 1} onClick={() => setInteraktPage(interaktPageSafe - 1)}>
-                      Previous
-                    </Button>
-                    <span className="text-sm whitespace-nowrap">
-                      Page {interaktPageSafe} of {interaktTotalPages}
-                    </span>
-                    <Button variant="outline" size="sm" disabled={interaktPageSafe >= interaktTotalPages} onClick={() => setInteraktPage(interaktPageSafe + 1)}>
-                      Next
-                    </Button>
-                  </div>
-                </div>
+                renderInteraktPager('bottom')
               )}
             </CardContent>
           </Card>
