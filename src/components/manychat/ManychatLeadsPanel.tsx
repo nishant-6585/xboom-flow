@@ -35,6 +35,7 @@ import { LeadRowActions } from "@/components/sales/LeadRowActions";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { DispositionBadge } from "@/components/sales/DispositionBadge";
 import { ManychatAnalytics } from "@/components/manychat/ManychatAnalytics";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const PAGE_SIZE = 25;
 
@@ -91,6 +92,7 @@ export function ManychatLeadsPanel() {
   const [channelFilter, setChannelFilter] = useState("all");
   const [assignedFilter, setAssignedFilter] = useState("all");
   const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [tab, setTab] = useState("leads");
   const [page, setPage] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
@@ -450,9 +452,15 @@ export function ManychatLeadsPanel() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 border-b pb-4">
-          <ManychatAnalytics leads={filtered} />
-        </div>
+        <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="leads">ManyChat Leads</TabsTrigger>
+            <TabsTrigger value="analytics">ManyChat Analytics</TabsTrigger>
+          </TabsList>
+          <TabsContent value="analytics" className="mt-0">
+            <ManychatAnalytics leads={filtered} />
+          </TabsContent>
+          <TabsContent value="leads" className="mt-0">
         {isLoading ? (
           <div className="py-10 text-center text-sm text-muted-foreground">Loading ManyChat leads…</div>
         ) : groups.length === 0 ? (
@@ -513,6 +521,8 @@ export function ManychatLeadsPanel() {
             </div>
           </>
         )}
+          </TabsContent>
+        </Tabs>
 
         <Dialog open={detailsLead !== null} onOpenChange={(o) => !o && setDetailsLead(null)}>
           <DialogContent className="max-w-lg">
