@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MoreVertical, CheckCircle2, XCircle, ArrowUpRight, RotateCcw, Trash } from "lucide-react";
+import { MoreHorizontal, CheckCircle2, XCircle, ArrowUpRight, RotateCcw, Trash, Eye, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +33,10 @@ export interface LeadRowActionsProps {
   currentDisposition?: LeadDisposition | string | null;
   onMoveToProspect?: () => void;
   onDispositionChanged?: () => void;
+  /** Optional "View details" entry rendered at the top of the menu. */
+  onViewDetails?: () => void;
+  /** Optional "View in source" entry rendered at the top of the menu. */
+  onViewInSource?: () => void;
   /** Render as a compact icon button (default true). When false, used inline. */
   compact?: boolean;
 }
@@ -45,6 +49,8 @@ export function LeadRowActions({
   currentDisposition,
   onMoveToProspect,
   onDispositionChanged,
+  onViewDetails,
+  onViewInSource,
   compact = true,
 }: LeadRowActionsProps) {
   const { role } = useAuth();
@@ -109,7 +115,7 @@ export function LeadRowActions({
             aria-label="Lead actions"
             disabled={submitting}
           >
-            <MoreVertical className="h-4 w-4" />
+            <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
@@ -119,6 +125,20 @@ export function LeadRowActions({
               : "Set lead disposition"}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+
+          {onViewDetails && (
+            <DropdownMenuItem onClick={onViewDetails}>
+              <Eye className="h-4 w-4 mr-2" />
+              View details
+            </DropdownMenuItem>
+          )}
+          {onViewInSource && (
+            <DropdownMenuItem onClick={onViewInSource}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View in source
+            </DropdownMenuItem>
+          )}
+          {(onViewDetails || onViewInSource) && <DropdownMenuSeparator />}
 
           {onMoveToProspect && (
             <DropdownMenuItem
