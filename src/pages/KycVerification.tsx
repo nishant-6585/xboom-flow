@@ -280,6 +280,8 @@ export default function KycVerification() {
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   const openOrderDialog = async (orderId: string) => {
     setOrderLoading(true);
