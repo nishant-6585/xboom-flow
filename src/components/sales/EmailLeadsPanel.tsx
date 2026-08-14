@@ -42,7 +42,12 @@ import { DuplicateLeadsHistoryRow } from './DuplicateLeadsHistoryRow';
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
 type SortDir = 'asc' | 'desc';
 
-export function EmailLeadsPanel() {
+interface EmailLeadsPanelProps {
+  /** 'list' renders the table + Gmail card, 'analytics' renders the pipeline dashboard. */
+  mode?: 'list' | 'analytics';
+}
+
+export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
   const { leads, loading, refetch, approveLead, approving, rejectLead, rejecting, metrics } = useEmailLeads();
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
