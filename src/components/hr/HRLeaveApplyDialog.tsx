@@ -17,10 +17,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LeaveType, Employee } from "@/hooks/useHR";
-import { UserPlus, AlertCircle, Wallet } from "lucide-react";
+import { useCompOff } from "@/hooks/useCompOff";
+import { UserPlus, AlertCircle, Wallet, CalendarDays, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { addMonths, isAfter, differenceInMonths } from "date-fns";
+import { addMonths, isAfter, differenceInMonths, format, parseISO } from "date-fns";
 
 interface HRLeaveApplyDialogProps {
   open: boolean;
@@ -32,6 +34,11 @@ interface HRLeaveApplyDialogProps {
     start_date: string;
     end_date: string;
     reason?: string;
+    compoff?: {
+      earned_date: string;
+      earned_type: 'holiday' | 'weekend';
+      holiday_id?: string | null;
+    };
   }) => Promise<boolean>;
 }
 
@@ -42,11 +49,12 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: "half_day_sick", label: "Half Day Sick Leave" },
   { value: "unpaid", label: "Unpaid Leave" },
   { value: "half_day_unpaid", label: "Half Day Unpaid Leave" },
+  { value: "compoff", label: "Compensatory Off (CompOff)" },
   { value: "maternity", label: "Maternity Leave" },
 ];
 
 // Leave types that carry no balance requirement and no deduction.
-const NO_BALANCE_TYPES = ["unpaid", "maternity"];
+const NO_BALANCE_TYPES = ["unpaid", "maternity", "compoff"];
 
 export function HRLeaveApplyDialog({
   open,
