@@ -12,6 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { anyValue } from "@/lib/emptyColumns";
+import { resolveProductName, sameText } from "@/lib/leadEnquiry";
 import { CallButton } from "@/components/calls/CallButton";
 import {
   Inbox, RefreshCw, Search, CheckCheck,
@@ -178,6 +179,8 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
 
   const drawerData = useMemo<LeadContactData | null>(() => {
     if (!detailLead) return null;
+    const sourceLabel = SOURCE_META[detailLead.source]?.label ?? detailLead.source;
+    const product = resolveProductName(detailLead.product_name, [sourceLabel, detailLead.source]);
     return {
       id: detailLead.source_row_id,
       source_type: "lead",
@@ -185,11 +188,11 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
       phone: detailLead.phone,
       email: detailLead.email,
       company: detailLead.company,
-      product_name: detailLead.subject_or_message,
+      product_name: product ?? detailLead.subject_or_message,
       status: detailLead.status,
       assigned_to_name: detailLead.sales_person_name,
       created_at: detailLead.created_at,
-      lead_source: SOURCE_META[detailLead.source]?.label ?? detailLead.source,
+      lead_source: sourceLabel,
       payload: detailPayload,
     };
   }, [detailLead, detailPayload]);
@@ -230,12 +233,22 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const uniqueTotal = grouped.length;
   const mergedAway = rows.length - uniqueTotal;
 
+  // Product / Preview are merged into one honest "Enquiry" column: the view
+  // duplicates the same text across both fields for several sources.
+  const enquiryOf = (r: UnifiedLead) => {
+    const label = SOURCE_META[r.source]?.label ?? r.source;
+    const product = resolveProductName(r.product_name, [label, r.source]);
+    const message = r.subject_or_message?.trim() || null;
+    if (product && message && !sameText(product, message)) {
+      return { primary: product, secondary: message };
+    }
+    return { primary: product ?? message, secondary: null as string | null };
+  };
+
   // Drop columns that carry no information in the current view.
   const showSource = !(isLockedSource && sources?.length === 1);
-  const showProduct = anyValue(rows, (r) => r.product_name);
-  const showEnquiry = anyValue(rows, (r) => r.subject_or_message);
-  const colCount =
-    7 + (showSource ? 1 : 0) + (showProduct ? 1 : 0) + (showEnquiry ? 1 : 0);
+  const showEnquiry = anyValue(rows, (r) => enquiryOf(r).primary);
+  const colCount = 7 + (showSource ? 1 : 0) + (showEnquiry ? 1 : 0);
 
   // Selection — keyed by `source:source_row_id` so it survives regrouping.
   const rowByKey = useMemo(() => {
