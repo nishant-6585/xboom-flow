@@ -365,14 +365,14 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                     "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5",
                     selected
                       ? "bg-primary text-primary-foreground border-primary"
-                      : cn("hover:bg-muted border-border", meta.chipClass),
+                      : "bg-background border-border text-muted-foreground hover:bg-muted",
                   )}
                 >
                   {meta.label}
                   {newCount > 0 && (
                     <span className={cn(
-                      "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold",
-                      selected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary text-primary-foreground",
+                      "font-mono text-[10px]",
+                      selected ? "text-primary-foreground" : "text-primary",
                     )}>
                       {newCount}
                     </span>
