@@ -259,6 +259,28 @@ function StatCard({ label, value, tone, onClick, active }: {
   );
 }
 
+function Pager({
+  page, totalPages, from, to, total, onChange,
+}: {
+  page: number; totalPages: number; from: number; to: number; total: number;
+  onChange: (p: number) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+      <div className="text-xs text-muted-foreground tabular-nums">
+        Showing {from}–{to} of {total}
+      </div>
+      <div className="flex items-center gap-1">
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onChange(1)}>First</Button>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>Previous</Button>
+        <span className="px-2 text-xs text-muted-foreground tabular-nums">Page {page} of {totalPages}</span>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>Next</Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onChange(totalPages)}>Last</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function KycVerification() {
   const { rows, loading, review, rerunAiReview, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
