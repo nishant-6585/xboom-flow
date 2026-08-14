@@ -252,7 +252,7 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[700px] p-0 flex flex-col" side="right">
+      <SheetContent className="w-full sm:max-w-[560px] p-0 flex flex-col" side="right">
         {/* Header */}
         <SheetHeader className="px-6 pt-6 pb-4 border-b bg-muted/30">
           <div className="flex items-start justify-between">
@@ -280,17 +280,9 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
           {/* Quick contact actions */}
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             {lead.phone && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background border rounded-md px-2.5 py-1 pr-1">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background border rounded-md px-2.5 py-1.5">
                 <Phone className="w-3.5 h-3.5" /> {lead.phone}
-                <CallButton
-                  phoneNumber={lead.phone}
-                  entityType={lead.source_type as any}
-                  entityId={lead.id}
-                  iconOnly
-                  variant="ghost"
-                  className="h-6 w-6 ml-1"
-                />
-              </div>
+              </span>
             )}
             {lead.email && (
               <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-background border rounded-md px-2.5 py-1.5">
@@ -308,6 +300,91 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
               </span>
             )}
           </div>
+
+          {/* Primary actions — calling is the job for message-less channels. */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <CallButton
+              phoneNumber={lead.phone}
+              entityType={lead.source_type as any}
+              entityId={lead.id}
+              variant="default"
+              size="sm"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!lead.phone}
+              className="hover:text-success"
+              title={lead.phone ? 'WhatsApp' : 'No phone number'}
+              onClick={() => openWhatsApp(lead.phone)}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setActiveTab('followups'); setShowNewFollowup(true); }}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Log follow-up
+            </Button>
+            {actions && (
+              <LeadRowActions
+                sourceTable={actions.sourceTable}
+                sourceRowId={actions.sourceRowId}
+                contactName={lead.customer_name}
+                contactPhone={lead.phone}
+                currentDisposition={actions.disposition as any}
+                onViewInSource={actions.onViewInSource}
+                onDispositionChanged={actions.onChanged}
+              />
+            )}
+          </div>
+
+          {/* Disposition — close the lead out without returning to the table. */}
+          {actions && (
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDispositionTarget('qualified')}>
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Qualified
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDispositionTarget('not_qualified')}>
+                <X className="w-3.5 h-3.5 mr-1" /> Not qualified
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDispositionTarget('junk')}>
+                Junk
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-xs" disabled={reassigning}>
+                    {reassigning ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <User className="w-3.5 h-3.5 mr-1" />}
+                    Reassign
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                  {salesUsers.map((u) => (
+                    <DropdownMenuItem
+                      key={u.user_id}
+                      onClick={async () => {
+                        setReassigning(true);
+                        const { error } = await supabase.rpc('set_lead_assignee' as any, {
+                          _source_table: actions.sourceTable,
+                          _source_row_id: actions.sourceRowId,
+                          _user_id: u.user_id,
+                        });
+                        setReassigning(false);
+                        if (error) toast.error(error.message || 'Could not reassign lead.');
+                        else {
+                          toast.success(`Assigned to ${u.name}`);
+                          actions.onChanged?.();
+                        }
+                      }}
+                    >
+                      {u.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </SheetHeader>
 
         {/* Tabs */}
