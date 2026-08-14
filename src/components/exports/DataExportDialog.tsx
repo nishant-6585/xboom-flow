@@ -201,7 +201,14 @@ async function fetchAll(ds: Dataset): Promise<Row[]> {
  * to Excel or CSV. Rows come straight from the backend, so exports are not limited
  * to what is loaded on screen — RLS still applies per user.
  */
-export function DataExportDialog({ triggerLabel = "Download" }: { triggerLabel?: string }) {
+export function DataExportDialog({
+  triggerLabel = "Download",
+  trigger,
+}: {
+  triggerLabel?: string;
+  /** Optional custom trigger (e.g. a dropdown item) instead of the default button. */
+  trigger?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const { exportToExcel, exportToCsv } = useTableExport();
@@ -235,10 +242,12 @@ export function DataExportDialog({ triggerLabel = "Download" }: { triggerLabel?:
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 self-start">
-          <Download className="h-4 w-4" />
-          {triggerLabel}
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" size="sm" className="gap-2 self-start">
+            <Download className="h-4 w-4" />
+            {triggerLabel}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col">
         <DialogHeader>
