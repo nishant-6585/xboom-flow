@@ -588,6 +588,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="leads" className="space-y-6">
     <div className="space-y-6">
+      <Tabs defaultValue="list" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="list">Leads</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+        <TabsContent value="analytics" className="space-y-6">
       {/* Prospect Analytics */}
       <ProspectAnalyticsCards prospects={prospects} sourceType="enquiry" />
       {/* Touched vs Untouched */}
@@ -654,7 +660,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
 
+        <TabsContent value="list" className="space-y-6">
       {/* Actions & Filters */}
       <Card>
         <CardContent className="p-4">
@@ -940,6 +948,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Import Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
