@@ -1064,9 +1064,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           </TabsList>
           <TabsContent value="analytics" className="space-y-6">
             <TouchedDashboard source="qforms" />
+            <QFormsPanel mode="analytics" />
           </TabsContent>
           <TabsContent value="list" className="space-y-6">
-            <QFormsPanel />
+            <QFormsPanel mode="list" />
           </TabsContent>
         </Tabs>
       </TabsContent>
