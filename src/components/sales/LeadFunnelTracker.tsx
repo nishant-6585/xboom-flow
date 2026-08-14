@@ -48,10 +48,15 @@ function inRange(dateStr: string | null | undefined, range: { start: Date; end: 
 
 interface LeadFunnelTrackerProps {
   compact?: boolean;
+  /** When provided, the funnel follows the page-level date filter and hides
+   *  its own period Select (no duplicate timeline controls). */
+  range?: { start: Date; end: Date } | null;
+  rangeLabel?: string;
 }
 
-export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
+export function LeadFunnelTracker({ compact, range: externalRange, rangeLabel }: LeadFunnelTrackerProps) {
   const [period, setPeriod] = useState<Period>('today');
+  const usesExternalRange = Boolean(externalRange);
 
   const { enquiries } = useEnquiries();
   const { leads: interaktLeads } = useInteraktLeads();
@@ -100,7 +105,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
   });
 
   const stats = useMemo(() => {
-    const range = getRange(period);
+    const range = externalRange ?? getRange(period);
 
     // Count leads by source in period
     const interaktCount = (interaktLeads as any[]).filter(l => !l.is_enquiry_converted && inRange(l.created_at, range)).length;
@@ -154,7 +159,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
       prospectToPipelineRate,
       pipelineToWonRate,
     };
-  }, [period, enquiries, interaktLeads, emailLeads, callLogs, formLeads, googleAdsLeads, wooLeads, prospects, pipelineOrders]);
+  }, [period, externalRange, enquiries, interaktLeads, emailLeads, callLogs, formLeads, googleAdsLeads, wooLeads, prospects, pipelineOrders]);
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
@@ -171,17 +176,24 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
             <TrendingUp className="w-5 h-5 text-primary" />
             Lead → Prospect → Pipeline Funnel
           </CardTitle>
-          <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-            <SelectTrigger className="w-[140px]">
-              <CalendarDays className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="this_week">This Week</SelectItem>
-              <SelectItem value="this_month">This Month</SelectItem>
-            </SelectContent>
-          </Select>
+          {usesExternalRange ? (
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {rangeLabel ?? 'Filtered'}
+            </span>
+          ) : (
+            <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+              <SelectTrigger className="w-[140px]">
+                <CalendarDays className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="this_week">This Week</SelectItem>
+                <SelectItem value="this_month">This Month</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -276,7 +288,9 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
         {/* Source Breakdown */}
         {!compact && (
           <div>
-            <div className="text-sm font-medium mb-2 text-muted-foreground">{PERIOD_LABELS[period]} — Leads by Source</div>
+            <div className="text-sm font-medium mb-2 text-muted-foreground">
+              {(usesExternalRange ? rangeLabel : PERIOD_LABELS[period]) ?? PERIOD_LABELS[period]} — Leads by Source
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
               {stats.sources.map(src => (
                 <div key={src.name} className="flex items-center gap-2 rounded-lg border px-3 py-2">

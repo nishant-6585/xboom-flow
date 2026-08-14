@@ -1115,7 +1115,7 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
       </div>
 
       {/* ============ LEAD FUNNEL TRACKER ============ */}
-      <LeadFunnelTracker compact />
+      <LeadFunnelTracker compact range={dateRange} rangeLabel={TIME_LABELS[timeFilter]} />
 
 
       {(() => {
