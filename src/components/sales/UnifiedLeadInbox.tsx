@@ -12,6 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { anyValue } from "@/lib/emptyColumns";
+import { resolveProductName, sameText } from "@/lib/leadEnquiry";
 import { CallButton } from "@/components/calls/CallButton";
 import {
   Inbox, RefreshCw, Search, CheckCheck,
@@ -178,6 +179,8 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
 
   const drawerData = useMemo<LeadContactData | null>(() => {
     if (!detailLead) return null;
+    const sourceLabel = SOURCE_META[detailLead.source]?.label ?? detailLead.source;
+    const product = resolveProductName(detailLead.product_name, [sourceLabel, detailLead.source]);
     return {
       id: detailLead.source_row_id,
       source_type: "lead",
@@ -185,11 +188,11 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
       phone: detailLead.phone,
       email: detailLead.email,
       company: detailLead.company,
-      product_name: detailLead.subject_or_message,
+      product_name: product ?? detailLead.subject_or_message,
       status: detailLead.status,
       assigned_to_name: detailLead.sales_person_name,
       created_at: detailLead.created_at,
-      lead_source: SOURCE_META[detailLead.source]?.label ?? detailLead.source,
+      lead_source: sourceLabel,
       payload: detailPayload,
     };
   }, [detailLead, detailPayload]);
@@ -230,12 +233,22 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const uniqueTotal = grouped.length;
   const mergedAway = rows.length - uniqueTotal;
 
+  // Product / Preview are merged into one honest "Enquiry" column: the view
+  // duplicates the same text across both fields for several sources.
+  const enquiryOf = (r: UnifiedLead) => {
+    const label = SOURCE_META[r.source]?.label ?? r.source;
+    const product = resolveProductName(r.product_name, [label, r.source]);
+    const message = r.subject_or_message?.trim() || null;
+    if (product && message && !sameText(product, message)) {
+      return { primary: product, secondary: message };
+    }
+    return { primary: product ?? message, secondary: null as string | null };
+  };
+
   // Drop columns that carry no information in the current view.
   const showSource = !(isLockedSource && sources?.length === 1);
-  const showProduct = anyValue(rows, (r) => r.product_name);
-  const showEnquiry = anyValue(rows, (r) => r.subject_or_message);
-  const colCount =
-    7 + (showSource ? 1 : 0) + (showProduct ? 1 : 0) + (showEnquiry ? 1 : 0);
+  const showEnquiry = anyValue(rows, (r) => enquiryOf(r).primary);
+  const colCount = 7 + (showSource ? 1 : 0) + (showEnquiry ? 1 : 0);
 
   // Selection — keyed by `source:source_row_id` so it survives regrouping.
   const rowByKey = useMemo(() => {
@@ -491,7 +504,6 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                 {showSource && <TableHead className="w-[110px]">Source</TableHead>}
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
-                {showProduct && <TableHead className="hidden xl:table-cell">Product</TableHead>}
                 {showEnquiry && <TableHead>Enquiry</TableHead>}
                 <TableHead className="w-[110px]">Status</TableHead>
                 <TableHead className="w-[160px] hidden xl:table-cell">Assigned</TableHead>
@@ -503,6 +515,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
               {grouped.map((group) => {
                 const lead = group.primary;
                 const meta = SOURCE_META[lead.source];
+                const enquiry = enquiryOf(lead);
                 const isUnseen = !lastSeen || lead.created_at > lastSeen;
                 const hasDisposition = !!lead.disposition && lead.disposition !== "untouched";
                 return (
@@ -514,14 +527,14 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                     )}
                     onClick={() => openDetail(lead)}
                   >
-                    <TableCell className="py-2 px-2" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-2.5 px-2" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedKeys.includes(group.key)}
                         onCheckedChange={() => toggleRow(group.key)}
                         aria-label={`Select ${lead.name ?? "lead"}`}
                       />
                     </TableCell>
-                    <TableCell className="py-2 px-2">
+                    <TableCell className="py-2.5 px-2">
                       <span
                         aria-label={isUnseen ? "New lead" : undefined}
                         className={cn(
@@ -533,13 +546,13 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                       </span>
                     </TableCell>
                     {showSource && (
-                      <TableCell className="py-2">
+                      <TableCell className="py-2.5">
                         <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
                           {meta.label}
                         </Badge>
                       </TableCell>
                     )}
-                    <TableCell className="py-2">
+                    <TableCell className="py-2.5">
                       <div className={cn("text-[13px] flex items-center", isUnseen ? "font-bold text-foreground" : "font-normal")}>
                         <span>{lead.name || "—"}</span>
                         <DuplicateCountBadge count={group.count} />
@@ -548,7 +561,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         <div className="text-xs text-muted-foreground">{lead.company}</div>
                       )}
                     </TableCell>
-                    <TableCell className="py-2 max-w-[260px]">
+                    <TableCell className="py-2.5 max-w-[260px]">
                       <div className="flex items-center gap-1.5 min-w-0">
                         {lead.phone && (
                           <span className="font-mono text-[11.5px] whitespace-nowrap">{lead.phone}</span>
@@ -562,21 +575,25 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         {!lead.phone && !lead.email && <span>—</span>}
                       </div>
                     </TableCell>
-                    {showProduct && (
-                      <TableCell className="max-w-[280px] py-2 hidden xl:table-cell">
-                        <span className="text-[13px] line-clamp-2">
-                          {lead.product_name || "—"}
-                        </span>
-                      </TableCell>
-                    )}
                     {showEnquiry && (
-                      <TableCell className="max-w-[280px] py-2">
-                        <span className="text-[13px] text-muted-foreground line-clamp-2">
-                          {lead.subject_or_message || "—"}
-                        </span>
+                      <TableCell className="max-w-[320px] py-2.5">
+                        {enquiry.primary ? (
+                          <>
+                            <div className="text-[13px] text-foreground truncate">
+                              {enquiry.primary}
+                            </div>
+                            {enquiry.secondary && (
+                              <div className="text-xs text-muted-foreground truncate">
+                                {enquiry.secondary}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-[13px] text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     )}
-                    <TableCell className="py-2">
+                    <TableCell className="py-2.5">
                       {hasDisposition ? (
                         <DispositionBadge
                           disposition={lead.disposition}
@@ -591,7 +608,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="py-2 hidden xl:table-cell">
+                    <TableCell className="py-2.5 hidden xl:table-cell">
                       <span className="text-xs">
                         {lead.sales_person_name || (lead.is_assigned ? "Assigned" : "—")}
                         {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
@@ -601,12 +618,12 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2 text-right hidden xl:table-cell">
+                    <TableCell className="py-2.5 text-right hidden xl:table-cell">
                       <span className="font-mono text-[11.5px] text-muted-foreground">
                         {compactAge(lead.created_at)}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-0.5">
                         <CallButton
                           phoneNumber={lead.phone}

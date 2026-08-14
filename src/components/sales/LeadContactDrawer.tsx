@@ -19,6 +19,7 @@ import {
   Video, PhoneCall, Send, FileText, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { resolveProductName } from '@/lib/leadEnquiry';
 import { toast } from 'sonner';
 import { CallButton } from '@/components/calls/CallButton';
 import { LeadSourceBadge, normalizeSource } from '@/components/LeadSourceBadge';
@@ -373,7 +374,11 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                     <InfoRow icon={Mail} label="Email" value={lead.email} />
                     <InfoRow icon={Building2} label="Company" value={lead.company} />
                     <InfoRow icon={MapPin} label="City" value={lead.city} />
-                    <InfoRow icon={Package} label="Product" value={lead.product_name} />
+                    <InfoRow
+                      icon={Package}
+                      label="Enquiry"
+                      value={resolveProductName(lead.product_name, [lead.lead_source, lead.source_type])}
+                    />
                     {lead.assigned_to_name && <InfoRow icon={User} label="Assigned To" value={lead.assigned_to_name} />}
                     {lead.created_at && <InfoRow icon={Calendar} label="Created" value={format(new Date(lead.created_at), 'dd MMM yyyy, hh:mm a')} />}
                   </div>

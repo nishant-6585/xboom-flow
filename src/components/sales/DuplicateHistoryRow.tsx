@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -40,30 +39,24 @@ export function DuplicateHistoryRow({ count, colSpan, entries, defaultOpen = fal
   if (count <= 1 || entries.length === 0) return null;
 
   return (
-    <TableRow className="bg-muted/30 hover:bg-muted/40">
-      <TableCell colSpan={colSpan} className="py-1.5">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs gap-1"
-            onClick={() => setOpen((o) => !o)}
-          >
-            {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            <Layers className="h-3.5 w-3.5" />
-            <span className="font-medium">
-              {entries.length} duplicate {entries.length === 1 ? "entry" : "entries"}
-            </span>
-          </Button>
-          {!open && (
-            <span className="text-[11px] text-muted-foreground">
-              Same contact across {Array.from(new Set(entries.map((e) => e.source).filter(Boolean))).join(", ") || "sources"}
-            </span>
-          )}
-        </div>
+    <TableRow className="border-0 hover:bg-transparent">
+      <TableCell colSpan={colSpan} className="border-0 pl-[52px] py-1.5">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          <span>
+            {entries.length} duplicate {entries.length === 1 ? "entry" : "entries"}
+            {!open && (
+              <> · Same contact across {Array.from(new Set(entries.map((e) => e.source).filter(Boolean))).join(", ") || "sources"}</>
+            )}
+          </span>
+        </button>
 
         {open && (
-          <div className="mt-2 ml-7 border-l-2 border-border pl-3 space-y-1.5">
+          <div className="mt-1.5 pl-4 space-y-1.5">
             {entries.map((e) => (
               <div
                 key={e.id}
