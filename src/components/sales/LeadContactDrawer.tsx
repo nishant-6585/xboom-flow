@@ -229,13 +229,11 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
 
   if (!lead) return null;
 
-  const getFollowupStatusColor = (f: Followup) => {
-    if (f.status === 'completed') return 'border-l-emerald-500 bg-emerald-500/5';
-    if (f.status === 'cancelled') return 'border-l-muted bg-muted/30';
-    if (isBefore(new Date(f.followup_at), new Date()) && f.status === 'pending') return 'border-l-red-500 bg-red-500/5';
-    if (isToday(new Date(f.followup_at))) return 'border-l-amber-500 bg-amber-500/5';
-    return 'border-l-primary bg-primary/5';
-  };
+  // Neutral cards; colour is reserved for genuinely overdue items.
+  const getFollowupStatusColor = (f: Followup) =>
+    f.status === 'pending' && isBefore(new Date(f.followup_at), new Date())
+      ? 'border-l-destructive'
+      : 'border-l-border';
 
   const getFollowupTypeFromProduct = (productName: string | null) => {
     if (!productName) return null;
@@ -247,7 +245,7 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
     const found = FOLLOWUP_TYPES.find(t => t.value === type);
     if (found) {
       const Icon = found.icon;
-      return <Icon className={cn('w-3.5 h-3.5', found.color)} />;
+      return <Icon className="w-3.5 h-3.5 text-muted-foreground" />;
     }
     return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
   };
