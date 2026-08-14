@@ -284,11 +284,11 @@ export default function QFormsPanel() {
       buckets.set(format(d, "yyyy-MM-dd"), 0);
     }
     rows.forEach(r => {
-      const key = format(new Date(r.created_at), "yyyy-MM-dd");
+      const key = safeFormat(r.created_at, "yyyy-MM-dd", "");
       if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
     });
     return Array.from(buckets.entries()).map(([date, count]) => ({
-      date: format(new Date(date), "dd MMM"),
+      date: safeFormat(date, "dd MMM", date),
       count,
     }));
   }, [rows]);
@@ -657,7 +657,7 @@ export default function QFormsPanel() {
               const dupeOpen = expandedDupes.has(group.key);
               const isOpen = expanded.has(r.id);
               const submitted = r.submitted_at || r.created_at;
-              const submittedFmt = submitted ? format(new Date(submitted), "dd MMM, HH:mm") : "—";
+              const submittedFmt = safeFormat(submitted, "dd MMM, HH:mm");
               const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
               return (
                 <React.Fragment key={`g-${group.key}`}>
@@ -834,7 +834,7 @@ export default function QFormsPanel() {
           )}
           {!loading && filtered.map(r => {
             const submitted = r.submitted_at || r.created_at;
-            const submittedFmt = submitted ? format(new Date(submitted), "dd MMM, HH:mm") : "—";
+            const submittedFmt = safeFormat(submitted, "dd MMM, HH:mm");
             const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
             return (
               <Card
@@ -978,7 +978,7 @@ function LeadDetail({ lead }: { lead: Lead }) {
     ["Message", lead.message], ["Location", lead.location], ["Role", lead.role],
     ["Urgency", lead.urgency], ["Sector", lead.sector],
     ["Assigned to", lead.assigned_to_name],
-    ["Last contacted", lead.last_contacted_at ? format(new Date(lead.last_contacted_at), "dd MMM yyyy, HH:mm") : null],
+    ["Last contacted", lead.last_contacted_at ? safeFormat(lead.last_contacted_at, "dd MMM yyyy, HH:mm", "") || null : null],
   ];
   const payloadEntries = lead.payload ? Object.entries(lead.payload) : [];
 
