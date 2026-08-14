@@ -676,6 +676,7 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
 
       {viewMode === "table" && (
       <Card>
+        {totalItems > 0 && renderPager("top")}
         <Table>
           <TableHeader>
             <TableRow>
@@ -699,7 +700,7 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
             {!loading && filtered.length === 0 && (
               <TableRow><TableCell colSpan={qColCount} className="text-center text-muted-foreground py-8">No leads match the current filters.</TableCell></TableRow>
             )}
-            {!loading && dedupGroups.map(group => {
+            {!loading && pagedGroups.map(group => {
               const r = group.primary;
               const dupCount = group.count;
               const isMerged = dupCount > 1;
