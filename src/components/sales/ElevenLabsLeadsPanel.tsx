@@ -846,7 +846,7 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
               No leads match your filters yet — calls will appear here automatically.
             </div>
           )}
-          {!loading && filtered.map(r => {
+          {!loading && paged.map(r => {
             const { name, isUnidentified } = resolveName(r);
             const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
             const phone = phoneAvailable ? formatPhone(resolvedPhone) : "Not available";
@@ -944,6 +944,8 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
               </Card>
             );
           })}
+        </div>
+        {renderPager("bottom")}
         </div>
       )}
 
