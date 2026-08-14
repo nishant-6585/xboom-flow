@@ -34,6 +34,7 @@ import { LeadsExportMenu } from "@/components/sales/LeadsExportMenu";
 import { LeadRowActions } from "@/components/sales/LeadRowActions";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { DispositionBadge } from "@/components/sales/DispositionBadge";
+import { ManychatAnalytics } from "@/components/manychat/ManychatAnalytics";
 
 const PAGE_SIZE = 25;
 
@@ -449,6 +450,9 @@ export function ManychatLeadsPanel() {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 border-b pb-4">
+          <ManychatAnalytics leads={filtered} />
+        </div>
         {isLoading ? (
           <div className="py-10 text-center text-sm text-muted-foreground">Loading ManyChat leads…</div>
         ) : groups.length === 0 ? (
