@@ -12,7 +12,8 @@ export type TouchedSource =
   | "emails"
   | "form-leads"
   | "google-ads"
-  | "facebook-leads";
+  | "facebook-leads"
+  | "indiamart";
 
 export interface NormalizedLead {
   id: string;
@@ -205,6 +206,8 @@ async function fetchSource(source: TouchedSource): Promise<NormalizedLead[]> {
         }));
     }
     case "xboom-website": {
+      const _unused = 0;
+      void _unused;
       const rows = await pull<any>("woocommerce_orders", "id, customer_name, order_status, internal_notes, sales_notes, created_at, updated_at");
       return rows.map((r) => ({
         id: r.id,
