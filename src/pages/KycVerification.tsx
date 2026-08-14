@@ -367,6 +367,13 @@ export default function KycVerification() {
     return list;
   }, [rows, search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange, focusAccount]);
 
+  // Pagination — 50 rows per page, reset whenever the result set changes.
+  useEffect(() => { setPage(1); }, [search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const paged = useMemo(() => filtered.slice(pageStart, pageStart + PAGE_SIZE), [filtered, pageStart]);
+
   const stats = useMemo(() => {
     let total = 0, pending = 0, approved = 0, rejected = 0;
     let digilocker = 0, manual = 0;
