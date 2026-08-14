@@ -250,7 +250,9 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
   return turns;
 };
 
-export function ElevenLabsLeadsPanel() {
+export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" | "analytics" } = {}) {
+  const showAnalyticsSection = mode !== "list";
+  const showList = mode !== "analytics";
   const { data: engagedIds } = useEngagedLeadIds('myoperator');
   const { user, role } = useAuth();
   const canManage = role === "admin" || role === "sales_manager";
