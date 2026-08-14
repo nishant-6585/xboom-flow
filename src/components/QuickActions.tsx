@@ -146,22 +146,19 @@ export function QuickActions() {
     <>
       <Card className="glass">
         <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Zap className="w-5 h-5 text-warning" />
-            <h3 className="font-semibold">Quick Actions</h3>
-          </div>
+          <h3 className="text-sm font-semibold mb-4">Quick Actions</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {filteredActions.map((action) => (
               <Button
                 key={action.id}
                 variant="ghost"
                 onClick={() => setActiveDialog(action.id)}
-                className={`w-full h-auto flex-col items-center gap-2 p-4 ${action.bg} border border-transparent hover:border-border transition-all`}
+                className="w-full h-auto flex-col items-start gap-2 p-4 rounded-xl bg-muted/40 border border-border hover:bg-muted/60 hover:border-border/80 transition-all"
               >
-                <action.icon className={`w-6 h-6 ${action.color}`} />
-                <div className="text-center">
-                  <p className="text-sm font-medium">{action.label}</p>
-                  <p className="text-[10px] text-muted-foreground hidden sm:block">
+                <action.icon className="w-4 h-4 text-muted-foreground" />
+                <div className="text-left">
+                  <p className="text-[13.5px] font-medium text-foreground">{action.label}</p>
+                  <p className="text-xs text-muted-foreground hidden sm:block">
                     {action.description}
                   </p>
                 </div>
