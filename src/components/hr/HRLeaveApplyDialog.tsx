@@ -465,7 +465,10 @@ export function HRLeaveApplyDialog({
               className="flex-1"
               onClick={handleSubmit}
               disabled={
-                submitting || !employeeId || !startDate || !endDate || !reason || !!maternityError || (leaveBalance !== null && leaveBalance <= 0)
+                submitting || !employeeId || !reason ||
+                (isCompOff
+                  ? !earnedDate || !compoffLeaveDate || !!compoffError
+                  : !startDate || !endDate || !!maternityError || (leaveBalance !== null && leaveBalance <= 0))
               }
             >
               {submitting ? "Applying..." : "Apply Leave"}
