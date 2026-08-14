@@ -19,6 +19,7 @@ import {
   Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { LeadRowActions } from "./LeadRowActions";
@@ -40,6 +41,7 @@ import { useTeamAvailability } from "@/hooks/useTeamAvailability";
 import { groupDuplicates } from "@/lib/leadDeduplication";
 import { DuplicateCountBadge, DuplicateHistoryRow } from "./DuplicateHistoryRow";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
+import { LeadBulkActionBar, type BulkLead } from "./LeadBulkActionBar";
 
 const PAGE_SIZES = [50, 100, 250] as const;
 
@@ -101,6 +103,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const [pageSize, setPageSize] = useState<number>(50);
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [groupDupes, setGroupDupes] = useState(true);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
   // Detail drawer state
   const [detailLead, setDetailLead] = useState<UnifiedLead | null>(null);
@@ -221,6 +224,44 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   }, [rows, groupDupes]);
   const uniqueTotal = grouped.length;
   const mergedAway = rows.length - uniqueTotal;
+
+  // Selection — keyed by `source:source_row_id` so it survives regrouping.
+  const rowByKey = useMemo(() => {
+    const m = new Map<string, UnifiedLead>();
+    for (const r of rows) m.set(`${r.source}:${r.source_row_id}`, r);
+    return m;
+  }, [rows]);
+
+  const selectedLeads = useMemo<BulkLead[]>(
+    () =>
+      selectedKeys
+        .map((k) => rowByKey.get(k))
+        .filter((r): r is UnifiedLead => !!r)
+        .map((r) => ({
+          source_table: r.source_table,
+          source_row_id: r.source_row_id,
+          name: r.name,
+          phone: r.phone,
+          email: r.email,
+          company: r.company,
+          created_at: r.created_at,
+          key: `${r.source}:${r.source_row_id}`,
+        })),
+    [selectedKeys, rowByKey],
+  );
+
+  const toggleRow = (key: string) =>
+    setSelectedKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+
+  const allPageKeys = grouped.map((g) => g.key);
+  const allSelected = allPageKeys.length > 0 && allPageKeys.every((k) => selectedKeys.includes(k));
+
+  // Selection is page-scoped; drop it whenever the visible set changes.
+  useEffect(() => {
+    setSelectedKeys([]);
+  }, [page, selectedSources, debouncedSearch, startDate, endDate, pageSize, includeDispositioned]);
 
   const resetFilters = () => {
     setSelectedSources([]);
@@ -422,6 +463,15 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[36px] px-2">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={(v) =>
+                      setSelectedKeys(v ? allPageKeys : [])
+                    }
+                    aria-label="Select all leads on this page"
+                  />
+                </TableHead>
                 <TableHead className="w-[24px] px-2" />
                 <TableHead className="w-[110px]">Source</TableHead>
                 <TableHead>Name</TableHead>
@@ -442,7 +492,20 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                 const hasDisposition = !!lead.disposition && lead.disposition !== "untouched";
                 return (
                   <Fragment key={group.key}>
-                  <TableRow className="cursor-pointer hover:bg-muted/50 text-[13px]" onClick={() => openDetail(lead)}>
+                  <TableRow
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/50 text-[13px]",
+                      selectedKeys.includes(group.key) && "bg-muted/60",
+                    )}
+                    onClick={() => openDetail(lead)}
+                  >
+                    <TableCell className="py-2.5 px-2" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedKeys.includes(group.key)}
+                        onCheckedChange={() => toggleRow(group.key)}
+                        aria-label={`Select ${lead.name ?? "lead"}`}
+                      />
+                    </TableCell>
                     <TableCell className="py-2.5 px-2">
                       {isUnseen && (
                         <span className="block h-1.5 w-1.5 rounded-full bg-primary" aria-label="New" />
@@ -543,7 +606,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                   </TableRow>
                   <DuplicateHistoryRow
                     count={group.count}
-                    colSpan={10}
+                    colSpan={11}
                     entries={group.duplicates.map((d) => ({
                       id: `${d.source}:${d.source_row_id}`,
                       source: SOURCE_META[d.source]?.label ?? d.source,
