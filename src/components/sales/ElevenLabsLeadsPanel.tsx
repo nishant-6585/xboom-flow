@@ -250,7 +250,9 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
   return turns;
 };
 
-export function ElevenLabsLeadsPanel() {
+export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" | "analytics" } = {}) {
+  const showAnalyticsSection = mode !== "list";
+  const showList = mode !== "analytics";
   const { data: engagedIds } = useEngagedLeadIds('myoperator');
   const { user, role } = useAuth();
   const canManage = role === "admin" || role === "sales_manager";
@@ -402,6 +404,34 @@ export function ElevenLabsLeadsPanel() {
     return applyDispositionFilter(base, includeDispositioned);
   }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter, includeDispositioned]);
 
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => { setPage(1); }, [search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter, assigneeFilter, includeDispositioned]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  );
+
+  const renderPager = (position: "top" | "bottom") => {
+    if (filtered.length === 0) return null;
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, filtered.length);
+    return (
+      <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs text-muted-foreground ${position === "top" ? "border-b" : "border-t"} border-border/50`}>
+        <span>Showing {start}–{end} of {filtered.length}</span>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</Button>
+          <span className="px-2">Page {page} of {totalPages}</span>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</Button>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+        </div>
+      </div>
+    );
+  };
+
   const stats = useMemo(() => {
     const total = leads.length;
     const high = leads.filter((l) => (l.priority ?? "").toLowerCase() === "high").length;
@@ -536,11 +566,12 @@ export function ElevenLabsLeadsPanel() {
       </div>
 
       {/* Analytics dashboard - managers only */}
-      {canManage && showAnalytics && (
+      {showAnalyticsSection && canManage && showAnalytics && (
         <ElevenLabsAnalytics leads={leads} prospectIds={prospectIds} />
       )}
 
       {/* Filters */}
+      {showList && (
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[220px]">
@@ -625,10 +656,12 @@ export function ElevenLabsLeadsPanel() {
           </div>
         </div>
       </Card>
+      )}
 
       {/* Table */}
-      {viewMode === "table" && (
+      {showList && viewMode === "table" && (
       <Card>
+        {renderPager("top")}
         <Table>
           <TableHeader>
             <TableRow>
@@ -655,7 +688,7 @@ export function ElevenLabsLeadsPanel() {
                 No leads match your filters yet — calls will appear here automatically.
               </TableCell></TableRow>
             )}
-            {!loading && filtered.map(r => {
+            {!loading && paged.map(r => {
               const isOpen = expanded.has(r.id);
               const { name, isUnidentified } = resolveName(r);
               const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
@@ -797,10 +830,13 @@ export function ElevenLabsLeadsPanel() {
             })}
           </TableBody>
         </Table>
+        {renderPager("bottom")}
       </Card>
       )}
 
-      {viewMode === "cards" && (
+      {showList && viewMode === "cards" && (
+        <div className="space-y-3">
+        {renderPager("top")}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {loading && (
             <div className="col-span-full text-center text-muted-foreground py-8">Loading…</div>
@@ -810,7 +846,7 @@ export function ElevenLabsLeadsPanel() {
               No leads match your filters yet — calls will appear here automatically.
             </div>
           )}
-          {!loading && filtered.map(r => {
+          {!loading && paged.map(r => {
             const { name, isUnidentified } = resolveName(r);
             const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
             const phone = phoneAvailable ? formatPhone(resolvedPhone) : "Not available";
@@ -908,6 +944,8 @@ export function ElevenLabsLeadsPanel() {
               </Card>
             );
           })}
+        </div>
+        {renderPager("bottom")}
         </div>
       )}
 
