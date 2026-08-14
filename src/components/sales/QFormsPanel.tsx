@@ -636,19 +636,19 @@ export default function QFormsPanel() {
               <TableHead>Form</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Contact</TableHead>
-              <TableHead>Company / Location</TableHead>
+              {showCompany && <TableHead>Company / Location</TableHead>}
               <TableHead>Temp</TableHead>
               <TableHead>Assigned To</TableHead>
-              <TableHead>Last contact</TableHead>
+              {showLastContact && <TableHead>Last contact</TableHead>}
               <TableHead className="w-[140px]">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={qColCount} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
             )}
             {!loading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No leads match the current filters.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={qColCount} className="text-center text-muted-foreground py-8">No leads match the current filters.</TableCell></TableRow>
             )}
             {!loading && dedupGroups.map(group => {
               const r = group.primary;
@@ -730,10 +730,12 @@ export default function QFormsPanel() {
                       {r.phone && <a className="text-primary hover:underline block" href={`tel:${r.phone}`}>{r.phone}</a>}
                       {!r.email && !r.phone && "—"}
                     </TableCell>
-                    <TableCell className="text-xs">
-                      <div>{r.company ?? "—"}</div>
-                      <div className="text-muted-foreground">{r.location ?? ""}</div>
-                    </TableCell>
+                    {showCompany && (
+                      <TableCell className="text-xs">
+                        <div>{r.company ?? "—"}</div>
+                        <div className="text-muted-foreground">{r.location ?? ""}</div>
+                      </TableCell>
+                    )}
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={r.lead_temperature}
@@ -769,9 +771,11 @@ export default function QFormsPanel() {
                         <span className="text-xs">{r.assigned_to_name ?? "—"}</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {relativeTime(r.last_contacted_at)}
-                    </TableCell>
+                    {showLastContact && (
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {relativeTime(r.last_contacted_at)}
+                      </TableCell>
+                    )}
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select value={r.status} onValueChange={(v) => updateLeadField(r.id, { status: v as Status })}>
                         <SelectTrigger className={`h-7 text-xs ${STATUS_COLORS[r.status] ?? ""}`}>
@@ -785,14 +789,14 @@ export default function QFormsPanel() {
                   </TableRow>
                   {isOpen && (
                     <TableRow key={`${r.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
-                      <TableCell colSpan={11} className="p-4">
+                      <TableCell colSpan={qColCount} className="p-4">
                         <LeadDetail lead={r} />
                       </TableCell>
                     </TableRow>
                   )}
                   {isMerged && dupeOpen && (
                     <DuplicateLeadsHistoryRow
-                      colSpan={11}
+                      colSpan={qColCount}
                       headerLabel={r.phone || r.email || r.name || "this contact"}
                       count={group.duplicates.length}
                       entries={group.duplicates.map((d) => ({
