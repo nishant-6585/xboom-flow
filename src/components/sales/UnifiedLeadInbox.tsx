@@ -322,6 +322,9 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                 {counts.data && counts.data.totalNew > 0 && (
                   <> · <span className="text-primary font-medium">{counts.data.totalNew} new</span></>
                 )}
+                {!isLoading && rows.length > 0 && !showEnquiry && (
+                  <> · no enquiry text on any row</>
+                )}
               </p>
             </div>
           </div>
