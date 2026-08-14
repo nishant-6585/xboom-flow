@@ -1532,7 +1532,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="facebook-leads">
         <div className="space-y-6">
-        <TouchedDashboard source="facebook-leads" />
+        <ChannelTabs
+          listLabel="Facebook Leads"
+          analytics={<TouchedDashboard source="facebook-leads" />}
+          list={<>
         {role === 'admin' && (
           <Collapsible open={fbImportOpen} onOpenChange={setFbImportOpen}>
             <div className="rounded-lg border bg-card">
@@ -1557,11 +1560,17 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           </Collapsible>
         )}
         <UnifiedLeadInbox sources={["facebook"]} />
+          </>}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="indiamart">
         <div className="space-y-6">
+        <ChannelTabs
+          listLabel="IndiaMART Leads"
+          analytics={<TouchedDashboard source="indiamart" />}
+          list={<>
         {role === 'admin' && (
           <Collapsible open={imImportOpen} onOpenChange={setImImportOpen}>
             <div className="rounded-lg border bg-card">
@@ -1590,6 +1599,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           </Collapsible>
         )}
         <UnifiedLeadInbox sources={["indiamart"]} />
+          </>}
+        />
         </div>
       </TabsContent>
     </Tabs>
