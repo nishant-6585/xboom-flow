@@ -404,6 +404,34 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
     return applyDispositionFilter(base, includeDispositioned);
   }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter, includeDispositioned]);
 
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => { setPage(1); }, [search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter, assigneeFilter, includeDispositioned]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  );
+
+  const renderPager = (position: "top" | "bottom") => {
+    if (filtered.length === 0) return null;
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, filtered.length);
+    return (
+      <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs text-muted-foreground ${position === "top" ? "border-b" : "border-t"} border-border/50`}>
+        <span>Showing {start}–{end} of {filtered.length}</span>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</Button>
+          <span className="px-2">Page {page} of {totalPages}</span>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</Button>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+        </div>
+      </div>
+    );
+  };
+
   const stats = useMemo(() => {
     const total = leads.length;
     const high = leads.filter((l) => (l.priority ?? "").toLowerCase() === "high").length;
