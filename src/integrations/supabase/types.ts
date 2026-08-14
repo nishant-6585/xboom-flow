@@ -18939,6 +18939,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      hr_apply_compoff_leave: {
+        Args: {
+          p_earned_date: string
+          p_earned_type: string
+          p_employee_id: string
+          p_holiday_id?: string
+          p_leave_date: string
+          p_reason?: string
+        }
+        Returns: string
+      }
       import_indiamart_leads: { Args: { p_rows: Json }; Returns: Json }
       import_meta_leads: { Args: { p_rows: Json }; Returns: Json }
       increment_session_version: {
