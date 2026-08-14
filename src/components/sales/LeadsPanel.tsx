@@ -1481,18 +1481,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="myoperator">
         <div className="space-y-6">
-        <Tabs defaultValue="list" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="list">MyOperator Leads</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
-          <TabsContent value="analytics" className="space-y-6">
-            <TouchedDashboard source="myoperator" />
-          </TabsContent>
-          <TabsContent value="list" className="space-y-6">
-            <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
-          </TabsContent>
-        </Tabs>
+        <MyOperatorTabContent
+          prospects={prospects}
+          prospectSourceIds={prospectSourceIds}
+          attentionSourceIds={attentionSourceIds}
+          analytics={<TouchedDashboard source="myoperator" />}
+        />
         </div>
       </TabsContent>
 
