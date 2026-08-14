@@ -72,7 +72,7 @@ export function useInteraktLeads() {
       const fetchPage = async (from: number) => {
         const { data, error } = await supabase
           .from('interakt_leads')
-          .select(LIST_COLUMNS, { count: from === 0 ? 'exact' : undefined })
+          .select(LIST_COLUMNS)
           .order('interakt_created_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .range(from, from + PAGE - 1);
