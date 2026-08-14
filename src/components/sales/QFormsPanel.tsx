@@ -432,6 +432,7 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
 
   return (
     <div className="space-y-4">
+      {showList && (<>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold">QForms</h2>
@@ -488,9 +489,10 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
         <StatCard icon={FileText} label="Last 7d" value={stats.weekCount} tint="text-indigo-600" />
         <StatCard icon={UserCheck} label="Unassigned" value={stats.unassigned} tint="text-rose-600" />
       </div>
+      </>)}
 
       {/* Form-type breakdown */}
-      {formTypeBreakdown.length > 0 && (
+      {showAnalytics && formTypeBreakdown.length > 0 && (
         <Card className="p-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Top form types
@@ -506,6 +508,7 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
       )}
 
       {/* Charts: daily trend + form-type breakdown */}
+      {showAnalytics && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
@@ -571,7 +574,9 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
           </div>
         </Card>
       </div>
+      )}
 
+      {showList && (<>
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Select value={formType} onValueChange={setFormType}>
