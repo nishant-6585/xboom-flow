@@ -106,8 +106,26 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
     onOpenChange(false);
   };
 
-  const dynamicTraits = lead?.interakt_traits
-    ? Object.entries(lead.interakt_traits).filter(
+  // interakt_traits is excluded from the list query (heavy jsonb), so load it
+  // on demand when the dialog opens for a specific lead.
+  const [traits, setTraits] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    if (!open || !lead?.id) { setTraits(null); return; }
+    if (lead.interakt_traits) { setTraits(lead.interakt_traits); return; }
+    let cancelled = false;
+    supabase
+      .from('interakt_leads')
+      .select('interakt_traits')
+      .eq('id', lead.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setTraits((data?.interakt_traits as Record<string, unknown>) ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [open, lead?.id, lead?.interakt_traits]);
+
+  const dynamicTraits = traits
+    ? Object.entries(traits).filter(
         ([key]) => !['name', 'Name', 'email', 'Email', 'city', 'City', 'product', 'Product', 'company', 'Company'].includes(key)
       )
     : [];
