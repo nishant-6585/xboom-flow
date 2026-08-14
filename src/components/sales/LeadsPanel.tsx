@@ -90,7 +90,7 @@ const CHANNEL_CARDS: { tab: string; label: string; channel: LeadChannel }[] = [
   { tab: 'elevenlabs', label: 'ElevenLabs', channel: 'elevenlabs' },
   { tab: 'emails', label: 'Emails', channel: 'email' },
   { tab: 'google-ads', label: 'Google Ads', channel: 'google_ads' },
-  { tab: 'facebook-leads', label: 'Facebook Leads', channel: 'facebook' },
+  { tab: 'facebook-leads', label: 'Meta (Facebook)', channel: 'facebook' },
   { tab: 'indiamart', label: 'IndiaMART', channel: 'indiamart' },
 ];
 
