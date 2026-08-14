@@ -830,10 +830,13 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
             })}
           </TableBody>
         </Table>
+        {renderPager("bottom")}
       </Card>
       )}
 
-      {viewMode === "cards" && (
+      {showList && viewMode === "cards" && (
+        <div className="space-y-3">
+        {renderPager("top")}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {loading && (
             <div className="col-span-full text-center text-muted-foreground py-8">Loading…</div>
