@@ -12,6 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { anyValue } from "@/lib/emptyColumns";
+import { CallButton } from "@/components/calls/CallButton";
 import {
   Inbox, RefreshCw, Search, CheckCheck,
   Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store,
@@ -70,6 +71,12 @@ const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }
 
 function lastSeenKey(userId: string | undefined) {
   return `xboom:lead-inbox:last-seen:${userId ?? "anon"}`;
+}
+
+function openWhatsApp(phone: string | null | undefined) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return;
+  window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
 }
 
 /** "about 3 hours ago" → "3h"; keeps the age column to a single glanceable token. */
