@@ -11,7 +11,6 @@ import {
   FileText, 
   ShoppingCart,
   Users,
-  Zap
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { QueryForm } from "@/components/QueryForm";
