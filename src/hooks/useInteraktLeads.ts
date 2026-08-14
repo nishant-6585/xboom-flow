@@ -40,39 +40,62 @@ export interface InteraktLead {
   disposition_by_name?: string | null;
 }
 
+// Columns needed by the table / drawer / export. `interakt_traits` is a heavy
+// jsonb blob (several MB across the table) and is only used inside the edit
+// dialog, so it is fetched lazily there instead of in the list query.
+const LIST_COLUMNS = [
+  'id','customer_name','phone_number','country_code','email','source','status','city',
+  'product_name','company','notes','interakt_user_id','interakt_created_at','synced_at',
+  'synced_by','updated_by','created_at','updated_at','customer_company','product_category',
+  'product_code','quantity','lead_source','urgency','requested_timeline','purpose_of_purchase',
+  'sales_person_id','sales_person_name','disposition','disposition_reason_code',
+  'disposition_reason_note','disposition_at','disposition_by_name',
+].join(',');
+
 export function useInteraktLeads() {
   const queryClient = useQueryClient();
 
   const { data: leads = [], isLoading: loading, refetch } = useQuery({
     queryKey: ['interakt-leads', 'all'],
+    // Keep the fetched set warm so re-opening the Interakt tab renders instantly
+    // instead of re-downloading thousands of rows.
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
-      // Supabase caps a single .select() at 1000 rows by default, which
-      // was causing the Interakt tab and analytics to permanently show
-      // a "1000" count even when there are thousands of leads. Page
-      // through the table in 1000-row chunks so we always return the
-      // full set, sorted by the lead's actual Interakt creation time
-      // (shown in the "Created On" column) so the newest appear first.
+      // Supabase caps a single .select() at 1000 rows, so the full set has to be
+      // paged. Ask for the row count first, then fetch every page in parallel —
+      // the old sequential loop meant ~15 round-trips one after another.
       const PAGE = 1000;
-      const all: InteraktLead[] = [];
-      let from = 0;
-      // Hard safety cap to avoid runaway loops if the table ever grows
-      // unexpectedly large; bump if needed.
       const MAX_ROWS = 100000;
-      while (from < MAX_ROWS) {
-        const query = supabase
+
+      const fetchPage = async (from: number) => {
+        const { data, error } = await supabase
           .from('interakt_leads')
-          .select('*')
+          .select(LIST_COLUMNS, { count: from === 0 ? 'exact' : undefined })
           .order('interakt_created_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .range(from, from + PAGE - 1);
-        const { data, error } = await query;
-
         if (error) throw error;
-        const batch = (data ?? []) as unknown as InteraktLead[];
-        all.push(...batch);
-        if (batch.length < PAGE) break;
-        from += PAGE;
-      }
+        return data as unknown as InteraktLead[];
+      };
+
+      const { data: first, error: firstErr, count } = await supabase
+        .from('interakt_leads')
+        .select(LIST_COLUMNS, { count: 'exact' })
+        .order('interakt_created_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+        .range(0, PAGE - 1);
+      if (firstErr) throw firstErr;
+
+      const all = (first ?? []) as unknown as InteraktLead[];
+      const total = Math.min(count ?? all.length, MAX_ROWS);
+      if (total <= PAGE) return all;
+
+      const offsets: number[] = [];
+      for (let from = PAGE; from < total; from += PAGE) offsets.push(from);
+      const pages = await Promise.all(offsets.map(fetchPage));
+      pages.forEach((p) => all.push(...p));
       return all;
     },
   });
