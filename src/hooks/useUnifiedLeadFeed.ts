@@ -181,6 +181,28 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
   });
 }
 
+/** All-time lead totals per channel. One grouped count query, cached. */
+export type LeadChannel = LeadSource | "manychat";
+
+export function useUnifiedLeadTotals() {
+  return useQuery({
+    queryKey: ["unified-lead-source-totals"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_unified_lead_source_totals");
+      if (error) throw error;
+      const bySource = {} as Record<LeadChannel, number>;
+      let total = 0;
+      for (const row of (data ?? []) as { source: string; total: number }[]) {
+        const n = Number(row.total ?? 0);
+        bySource[row.source as LeadChannel] = (bySource[row.source as LeadChannel] ?? 0) + n;
+        total += n;
+      }
+      return { bySource, total };
+    },
+  });
+}
+
 export const SOURCE_META: Record<
   LeadSource,
   { label: string; chipClass: string }

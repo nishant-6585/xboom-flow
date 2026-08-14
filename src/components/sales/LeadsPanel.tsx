@@ -60,18 +60,48 @@ import { Bot } from 'lucide-react';
 import { TouchedDashboard } from './TouchedDashboard';
 import { MetaLeadsUpload } from './MetaLeadsUpload';
 import { UnifiedLeadInbox } from './UnifiedLeadInbox';
-import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
+import { useUnifiedLeadCounts, useUnifiedLeadTotals, type LeadChannel } from '@/hooks/useUnifiedLeadFeed';
+import { ChannelVolumeGrid, type ChannelVolumeItem } from './ChannelVolumeGrid';
 import { Inbox, Store } from 'lucide-react';
 import { groupDuplicates } from '@/lib/leadDeduplication';
 import { DuplicateCountBadge, DuplicateHistoryRow } from './DuplicateHistoryRow';
 import { LeadsExportMenu } from './LeadsExportMenu';
 
-function InboxNewBadge() {
-  const { data } = useUnifiedLeadCounts();
-  if (!data || data.totalNew === 0) return null;
-  return (
-    <span className="ml-1 font-mono text-[10px] text-primary">{data.totalNew}</span>
-  );
+/** Tab -> unified channel key. Tabs without a channel show no count. */
+const CHANNEL_BY_TAB: Record<string, LeadChannel> = {
+  qforms: 'forms',
+  interakt: 'interakt',
+  myoperator: 'myoperator',
+  manychat: 'manychat',
+  elevenlabs: 'elevenlabs',
+  emails: 'email',
+  'google-ads': 'google_ads',
+  'facebook-leads': 'facebook',
+  indiamart: 'indiamart',
+};
+
+/** Cards for the channel-volume grid, in channel-row order. */
+const CHANNEL_CARDS: { tab: string; label: string; channel: LeadChannel }[] = [
+  { tab: 'all-inbox', label: 'Website', channel: 'website' },
+  { tab: 'qforms', label: 'QForms', channel: 'forms' },
+  { tab: 'interakt', label: 'Interakt', channel: 'interakt' },
+  { tab: 'myoperator', label: 'MyOperator', channel: 'myoperator' },
+  { tab: 'manychat', label: 'ManyChat', channel: 'manychat' },
+  { tab: 'elevenlabs', label: 'ElevenLabs', channel: 'elevenlabs' },
+  { tab: 'emails', label: 'Emails', channel: 'email' },
+  { tab: 'google-ads', label: 'Google Ads', channel: 'google_ads' },
+  { tab: 'facebook-leads', label: 'Facebook Leads', channel: 'facebook' },
+  { tab: 'indiamart', label: 'IndiaMART', channel: 'indiamart' },
+];
+
+/** One number per tab: all-time total, plus a dot when there are unseen leads. */
+function UnseenDot() {
+  return <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" aria-label="New leads" />;
+}
+
+function TabTotal({ total }: { total: number | undefined }) {
+  if (!total) return null;
+  return <span className="ml-1 font-mono text-[10px] text-muted-foreground">{total.toLocaleString()}</span>;
 }
 
 /** Single-line channel row trigger: neutral when inactive, raised card when active. */
@@ -456,37 +486,67 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const uniqueLeadCount = leadGroups.length;
   const mergedLeadCount = totalLeads - uniqueLeadCount;
 
+  // ---- Channel volume: all-time totals + new-since-last-seen per channel ----
+  const [channelTab, setChannelTab] = useState('all-inbox');
+  const { data: totalsData } = useUnifiedLeadTotals();
+  const { data: newCountsData } = useUnifiedLeadCounts();
+  const totalsBySource = totalsData?.bySource as Record<string, number> | undefined;
+  const newBySource = newCountsData?.bySource as Record<string, number> | undefined;
+  const totalFor = (tab: string) => {
+    const key = CHANNEL_BY_TAB[tab];
+    return key ? totalsBySource?.[key] : undefined;
+  };
+  const hasNew = (tab: string) => {
+    const key = CHANNEL_BY_TAB[tab];
+    return !!key && (newBySource?.[key] ?? 0) > 0;
+  };
+  const channelCards: ChannelVolumeItem[] = CHANNEL_CARDS.map((c) => ({
+    tab: c.tab,
+    label: c.label,
+    total: totalsBySource?.[c.channel] ?? 0,
+    newCount: newBySource?.[c.channel] ?? 0,
+  }));
+
   return (
-    <Tabs defaultValue="all-inbox" className="space-y-6">
+    <Tabs value={channelTab} onValueChange={setChannelTab} className="space-y-6">
+      <ChannelVolumeGrid items={channelCards} activeTab={channelTab} onSelect={setChannelTab} />
       <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto scrollbar-hide bg-muted/40 rounded-lg p-1">
         <TabsTrigger value="all-inbox" className={CHANNEL_TRIGGER}>
+          {(newBySource ? Object.values(newBySource).some((n) => n > 0) : false) && <UnseenDot />}
           <Inbox className="w-4 h-4" />
           All Inbox
-          <InboxNewBadge />
+          <TabTotal total={totalsBySource ? Object.values(totalsBySource).reduce((a, b) => a + b, 0) : undefined} />
         </TabsTrigger>
         <TabsTrigger value="leads" className={CHANNEL_TRIGGER}>All Leads</TabsTrigger>
         <TabsTrigger value="qforms" className={CHANNEL_TRIGGER}>
+          {hasNew('qforms') && <UnseenDot />}
           <FileText className="w-4 h-4" />
           QForms
+          <TabTotal total={totalFor('qforms')} />
         </TabsTrigger>
         <TabsTrigger value="interakt" className={CHANNEL_TRIGGER}>
+          {hasNew('interakt') && <UnseenDot />}
           <MessageCircle className="w-4 h-4" />
           Interakt
-          {interaktLeads.length > 0 && (
-            <span className="ml-1 font-mono text-[10px] text-muted-foreground">{interaktLeads.length}</span>
-          )}
+          <TabTotal total={totalFor('interakt')} />
         </TabsTrigger>
         <TabsTrigger value="myoperator" className={CHANNEL_TRIGGER}>
+          {hasNew('myoperator') && <UnseenDot />}
           <Phone className="w-4 h-4" />
           MyOperator
+          <TabTotal total={totalFor('myoperator')} />
         </TabsTrigger>
         <TabsTrigger value="manychat" className={CHANNEL_TRIGGER}>
+          {hasNew('manychat') && <UnseenDot />}
           <MessageCircle className="w-4 h-4" />
           ManyChat
+          <TabTotal total={totalFor('manychat')} />
         </TabsTrigger>
         <TabsTrigger value="elevenlabs" className={CHANNEL_TRIGGER}>
+          {hasNew('elevenlabs') && <UnseenDot />}
           <Bot className="w-4 h-4" />
           ElevenLabs Leads
+          <TabTotal total={totalFor('elevenlabs')} />
         </TabsTrigger>
         <TabsTrigger value="xboom-website" className={CHANNEL_TRIGGER}>
           <Globe className="w-4 h-4" />
@@ -497,20 +557,28 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           Call Tracker
         </TabsTrigger>
         <TabsTrigger value="emails" className={CHANNEL_TRIGGER}>
+          {hasNew('emails') && <UnseenDot />}
           <Mail className="w-4 h-4" />
           Emails
+          <TabTotal total={totalFor('emails')} />
         </TabsTrigger>
         <TabsTrigger value="google-ads" className={CHANNEL_TRIGGER}>
+          {hasNew('google-ads') && <UnseenDot />}
           <Megaphone className="w-4 h-4" />
           Google Ads
+          <TabTotal total={totalFor('google-ads')} />
         </TabsTrigger>
         <TabsTrigger value="facebook-leads" className={CHANNEL_TRIGGER}>
+          {hasNew('facebook-leads') && <UnseenDot />}
           <Facebook className="w-4 h-4" />
           Facebook Leads
+          <TabTotal total={totalFor('facebook-leads')} />
         </TabsTrigger>
         <TabsTrigger value="indiamart" className={CHANNEL_TRIGGER}>
+          {hasNew('indiamart') && <UnseenDot />}
           <Store className="w-4 h-4" />
           Indiamart
+          <TabTotal total={totalFor('indiamart')} />
         </TabsTrigger>
       </TabsList>
 
