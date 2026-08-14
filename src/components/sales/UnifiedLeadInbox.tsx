@@ -11,11 +11,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { anyValue } from "@/lib/emptyColumns";
+import { CallButton } from "@/components/calls/CallButton";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck, Eye,
+  Inbox, RefreshCw, Search, CheckCheck,
   Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -72,6 +71,12 @@ const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }
 
 function lastSeenKey(userId: string | undefined) {
   return `xboom:lead-inbox:last-seen:${userId ?? "anon"}`;
+}
+
+function openWhatsApp(phone: string | null | undefined) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return;
+  window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
 }
 
 /** "about 3 hours ago" → "3h"; keeps the age column to a single glanceable token. */
@@ -225,6 +230,13 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const uniqueTotal = grouped.length;
   const mergedAway = rows.length - uniqueTotal;
 
+  // Drop columns that carry no information in the current view.
+  const showSource = !(isLockedSource && sources?.length === 1);
+  const showProduct = anyValue(rows, (r) => r.product_name);
+  const showEnquiry = anyValue(rows, (r) => r.subject_or_message);
+  const colCount =
+    7 + (showSource ? 1 : 0) + (showProduct ? 1 : 0) + (showEnquiry ? 1 : 0);
+
   // Selection — keyed by `source:source_row_id` so it survives regrouping.
   const rowByKey = useMemo(() => {
     const m = new Map<string, UnifiedLead>();
@@ -316,6 +328,9 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                   : `${total.toLocaleString()} total`}
                 {counts.data && counts.data.totalNew > 0 && (
                   <> · <span className="text-primary font-medium">{counts.data.totalNew} new</span></>
+                )}
+                {!isLoading && rows.length > 0 && !showEnquiry && (
+                  <> · no enquiry text on any row</>
                 )}
               </p>
             </div>
@@ -472,16 +487,16 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                     aria-label="Select all leads on this page"
                   />
                 </TableHead>
-                <TableHead className="w-[24px] px-2" />
-                <TableHead className="w-[110px]">Source</TableHead>
+                <TableHead className="w-[36px] px-2" />
+                {showSource && <TableHead className="w-[110px]">Source</TableHead>}
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead className="hidden xl:table-cell">Product</TableHead>
-                <TableHead>Enquiry</TableHead>
+                {showProduct && <TableHead className="hidden xl:table-cell">Product</TableHead>}
+                {showEnquiry && <TableHead>Enquiry</TableHead>}
                 <TableHead className="w-[110px]">Status</TableHead>
                 <TableHead className="w-[160px] hidden xl:table-cell">Assigned</TableHead>
-                <TableHead className="w-[80px] text-right">Age</TableHead>
-                <TableHead className="w-[50px]" />
+                <TableHead className="w-[80px] text-right hidden xl:table-cell">Age</TableHead>
+                <TableHead className="w-[132px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -499,24 +514,32 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                     )}
                     onClick={() => openDetail(lead)}
                   >
-                    <TableCell className="py-2.5 px-2" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-2 px-2" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedKeys.includes(group.key)}
                         onCheckedChange={() => toggleRow(group.key)}
                         aria-label={`Select ${lead.name ?? "lead"}`}
                       />
                     </TableCell>
-                    <TableCell className="py-2.5 px-2">
-                      {isUnseen && (
-                        <span className="block h-1.5 w-1.5 rounded-full bg-primary" aria-label="New" />
-                      )}
+                    <TableCell className="py-2 px-2">
+                      <span
+                        aria-label={isUnseen ? "New lead" : undefined}
+                        className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-semibold uppercase",
+                          isUnseen ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {(lead.name || "?").trim().charAt(0) || "?"}
+                      </span>
                     </TableCell>
-                    <TableCell className="py-2.5">
-                      <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
-                        {meta.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-2.5">
+                    {showSource && (
+                      <TableCell className="py-2">
+                        <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
+                          {meta.label}
+                        </Badge>
+                      </TableCell>
+                    )}
+                    <TableCell className="py-2">
                       <div className={cn("text-[13px] flex items-center", isUnseen ? "font-bold text-foreground" : "font-normal")}>
                         <span>{lead.name || "—"}</span>
                         <DuplicateCountBadge count={group.count} />
@@ -525,28 +548,35 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         <div className="text-xs text-muted-foreground">{lead.company}</div>
                       )}
                     </TableCell>
-                    <TableCell className="py-2.5">
-                      {lead.phone && <div className="text-[13px]">{lead.phone}</div>}
-                      {lead.email && (
-                        <div className="text-xs text-muted-foreground truncate max-w-[180px]">{lead.email}</div>
-                      )}
-                      {!lead.phone && !lead.email && "—"}
+                    <TableCell className="py-2 max-w-[260px]">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {lead.phone && (
+                          <span className="font-mono text-[11.5px] whitespace-nowrap">{lead.phone}</span>
+                        )}
+                        {lead.phone && lead.email && (
+                          <span className="text-muted-foreground">·</span>
+                        )}
+                        {lead.email && (
+                          <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
+                        )}
+                        {!lead.phone && !lead.email && <span>—</span>}
+                      </div>
                     </TableCell>
-                    <TableCell className="max-w-[280px] py-2.5 hidden xl:table-cell">
-                      <span className="text-[13px] line-clamp-2">
-                        {lead.product_name || "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-w-[280px] py-2.5">
-                      {lead.subject_or_message ? (
-                        <span className="text-[13px] text-muted-foreground line-clamp-2">
-                          {lead.subject_or_message}
+                    {showProduct && (
+                      <TableCell className="max-w-[280px] py-2 hidden xl:table-cell">
+                        <span className="text-[13px] line-clamp-2">
+                          {lead.product_name || "—"}
                         </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">No enquiry text</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2.5">
+                      </TableCell>
+                    )}
+                    {showEnquiry && (
+                      <TableCell className="max-w-[280px] py-2">
+                        <span className="text-[13px] text-muted-foreground line-clamp-2">
+                          {lead.subject_or_message || "—"}
+                        </span>
+                      </TableCell>
+                    )}
+                    <TableCell className="py-2">
                       {hasDisposition ? (
                         <DispositionBadge
                           disposition={lead.disposition}
@@ -561,7 +591,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="py-2.5 hidden xl:table-cell">
+                    <TableCell className="py-2 hidden xl:table-cell">
                       <span className="text-xs">
                         {lead.sales_person_name || (lead.is_assigned ? "Assigned" : "—")}
                         {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
@@ -571,42 +601,47 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2.5 text-right">
+                    <TableCell className="py-2 text-right hidden xl:table-cell">
                       <span className="font-mono text-[11.5px] text-muted-foreground">
                         {compactAge(lead.created_at)}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(lead); }}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openInSource(lead)}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            View in source
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <LeadRowActions
-                        sourceTable={lead.source_table as any}
-                        sourceRowId={lead.source_row_id}
-                        contactName={lead.name ?? undefined}
-                        contactPhone={lead.phone}
-                        currentDisposition={lead.disposition as any}
-                        onDispositionChanged={() => refetch()}
-                      />
+                    <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-0.5">
+                        <CallButton
+                          phoneNumber={lead.phone}
+                          entityType="lead"
+                          entityId={lead.source_row_id}
+                          iconOnly
+                          variant="ghost"
+                          className="h-7 w-7"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 hover:text-green-600"
+                          disabled={!lead.phone}
+                          title={lead.phone ? "WhatsApp" : "No phone number"}
+                          onClick={() => openWhatsApp(lead.phone)}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <LeadRowActions
+                          sourceTable={lead.source_table as any}
+                          sourceRowId={lead.source_row_id}
+                          contactName={lead.name ?? undefined}
+                          contactPhone={lead.phone}
+                          currentDisposition={lead.disposition as any}
+                          onViewDetails={() => openDetail(lead)}
+                          onViewInSource={() => openInSource(lead)}
+                          onDispositionChanged={() => refetch()}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                   <DuplicateHistoryRow
                     count={group.count}
-                    colSpan={11}
+                    colSpan={colCount}
                     entries={group.duplicates.map((d) => ({
                       id: `${d.source}:${d.source_row_id}`,
                       source: SOURCE_META[d.source]?.label ?? d.source,

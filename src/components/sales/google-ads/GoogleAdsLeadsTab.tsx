@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { anyValue } from "@/lib/emptyColumns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInHours } from "date-fns";
@@ -240,6 +241,13 @@ export function GoogleAdsLeadsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortedLeads, mergeDuplicates]);
   const mergedHiddenCount = dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0);
+
+  // Hide columns that carry no information for the currently visible rows.
+  const visibleLeads = dedupGroups.map((g) => g.primary);
+  const showCity = anyValue(visibleLeads, (l) => getCity(l));
+  const showProduct = anyValue(visibleLeads, (l) => l.product_name);
+  const showCampaign = anyValue(visibleLeads, (l) => l.campaign_name);
+  const colCount = 9 + (showCity ? 1 : 0) + (showProduct ? 1 : 0) + (showCampaign ? 1 : 0);
   const toggleDupeGroup = (key: string) => {
     setExpandedDupes((prev) => {
       const n = new Set(prev);
@@ -329,9 +337,9 @@ export function GoogleAdsLeadsTab() {
                     <TableHead className="w-[210px]">Actions</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Campaign</TableHead>
+                    {showCity && <TableHead>Location</TableHead>}
+                    {showProduct && <TableHead>Product</TableHead>}
+                    {showCampaign && <TableHead>Campaign</TableHead>}
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Conversion</TableHead>
@@ -429,25 +437,31 @@ export function GoogleAdsLeadsTab() {
                             {!phone && !email && <span className="text-xs text-muted-foreground">—</span>}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          {city ? (
-                            <div className="text-xs flex items-center gap-1 text-muted-foreground">
-                              <MapPin className="w-3 h-3 shrink-0" />
-                              {city}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm">{lead.product_name}</TableCell>
-                        <TableCell>
-                          <div className="text-xs space-y-0.5">
-                            <div className="truncate max-w-[120px]">{lead.campaign_name || "—"}</div>
-                            {lead.ad_group_id && (
-                              <div className="text-muted-foreground truncate max-w-[120px]">AG: {lead.ad_group_id}</div>
+                        {showCity && (
+                          <TableCell>
+                            {city ? (
+                              <div className="text-xs flex items-center gap-1 text-muted-foreground">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                {city}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
-                          </div>
-                        </TableCell>
+                          </TableCell>
+                        )}
+                        {showProduct && (
+                          <TableCell className="text-sm">{lead.product_name}</TableCell>
+                        )}
+                        {showCampaign && (
+                          <TableCell>
+                            <div className="text-xs space-y-0.5">
+                              <div className="truncate max-w-[120px]">{lead.campaign_name || "—"}</div>
+                              {lead.ad_group_id && (
+                                <div className="text-muted-foreground truncate max-w-[120px]">AG: {lead.ad_group_id}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
                         <TableCell className="text-sm text-muted-foreground">
                           {lead.sales_person_name || '—'}
                         </TableCell>
@@ -494,7 +508,7 @@ export function GoogleAdsLeadsTab() {
                       </TableRow>
                       {isMerged && dupeOpen && (
                         <DuplicateLeadsHistoryRow
-                          colSpan={12}
+                          colSpan={colCount}
                           headerLabel={phone || email || lead.customer_name || "this contact"}
                           count={group.duplicates.length}
                           entries={group.duplicates.map((d) => ({

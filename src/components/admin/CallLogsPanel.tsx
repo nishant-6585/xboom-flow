@@ -428,6 +428,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     };
   }, [filteredLogs, uniqueOnly]);
 
+  // Hide the Recording column when no visible row has a recording.
+  const showRecording = React.useMemo(
+    () =>
+      displayLogs.some((l) => {
+        const i = deriveCallInfo(l);
+        return Boolean(i.recordingFile || i.recordingUrl);
+      }),
+    [displayLogs],
+  );
+  const callLogColCount = showRecording ? 9 : 8;
+
   const togglePhoneExpanded = (key: string) => {
     setExpandedPhones(prev => {
       const next = new Set(prev);
@@ -791,7 +802,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                   <TableHead>Assigned To</TableHead>
                   <TableHead>When</TableHead>
                   <TableHead>Duration</TableHead>
-                  <TableHead>Recording</TableHead>
+                  {showRecording && <TableHead>Recording</TableHead>}
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -925,24 +936,26 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         <TableCell className="text-sm">
                           {info.duration ? formatDuration(info.duration) : "—"}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          {(info.recordingFile || info.recordingUrl) ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 hover:bg-primary/10"
-                              onClick={() => setExpandedAudio(expandedAudio === logKey ? null : logKey)}
-                            >
-                              {expandedAudio === logKey ? (
-                                <Pause className="w-4 h-4 text-primary" />
-                              ) : (
-                                <Play className="w-4 h-4 text-primary" />
-                              )}
-                            </Button>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </TableCell>
+                        {showRecording && (
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {(info.recordingFile || info.recordingUrl) ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:bg-primary/10"
+                                onClick={() => setExpandedAudio(expandedAudio === logKey ? null : logKey)}
+                              >
+                                {expandedAudio === logKey ? (
+                                  <Pause className="w-4 h-4 text-primary" />
+                                ) : (
+                                  <Play className="w-4 h-4 text-primary" />
+                                )}
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
                             <Button
@@ -985,14 +998,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                       </TableRow>
                       {expandedAudio === logKey && (info.recordingFile || info.recordingUrl) && (
                         <TableRow key={`${log.id}-audio`}>
-                          <TableCell colSpan={9} className="py-2 px-4">
+                          <TableCell colSpan={callLogColCount} className="py-2 px-4">
                             <InlineAudioPlayer recordingFile={info.recordingFile} directUrl={info.recordingUrl} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
                       )}
                       {isExpanded && duplicateCount > 0 && (
                         <TableRow key={`${log.id}-history`} className="bg-amber-500/5 hover:bg-amber-500/5">
-                          <TableCell colSpan={9} className="py-2 px-4">
+                          <TableCell colSpan={callLogColCount} className="py-2 px-4">
                             <div className="text-[11px] uppercase tracking-wide text-amber-300/80 font-medium mb-2 flex items-center gap-1">
                               <Layers className="w-3 h-3" />
                               Earlier calls from {log.full_number || log.caller_number} ({duplicateCount})
