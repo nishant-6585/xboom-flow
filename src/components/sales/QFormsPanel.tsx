@@ -4,6 +4,7 @@ import {
   ChevronDown, ChevronRight, Search, X, Phone, PhoneOutgoing, Mail, MessageCircle,
   UserCheck, Inbox, CheckCircle2, Flame, FileText, LayoutGrid, Table as TableIcon, Layers,
 } from "lucide-react";
+import { anyValue } from "@/lib/emptyColumns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
