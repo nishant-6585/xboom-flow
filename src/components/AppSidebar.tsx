@@ -153,7 +153,7 @@ export function AppSidebar({ counts }: AppSidebarProps) {
   };
 
   return (
-    <Sidebar collapsible="offcanvas">
+    <Sidebar collapsible="offcanvas" style={{ "--sidebar-width": "244px" } as React.CSSProperties}>
       <SidebarHeader className="gap-3 px-[18px] pt-5 pb-4">
         <Link to="/" onClick={closeOnMobile} className="flex items-center gap-2.5">
           <img src={logoIcon} alt="Xboom" className="w-[30px] h-[30px] rounded-md object-cover" />
