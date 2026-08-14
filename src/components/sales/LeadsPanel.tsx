@@ -588,6 +588,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="leads" className="space-y-6">
     <div className="space-y-6">
+      <Tabs defaultValue="list" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="list">Leads</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+        <TabsContent value="analytics" className="space-y-6">
       {/* Prospect Analytics */}
       <ProspectAnalyticsCards prospects={prospects} sourceType="enquiry" />
       {/* Touched vs Untouched */}
@@ -654,7 +660,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
 
+        <TabsContent value="list" className="space-y-6">
       {/* Actions & Filters */}
       <Card>
         <CardContent className="p-4">
@@ -940,6 +948,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Import Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
@@ -1008,8 +1018,18 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       {/* QForms Tab */}
       <TabsContent value="qforms" className="space-y-6">
-        <TouchedDashboard source="qforms" />
-        <QFormsPanel />
+        <Tabs defaultValue="list" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="list">Form Leads</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
+          <TabsContent value="analytics" className="space-y-6">
+            <TouchedDashboard source="qforms" />
+          </TabsContent>
+          <TabsContent value="list" className="space-y-6">
+            <QFormsPanel />
+          </TabsContent>
+        </Tabs>
       </TabsContent>
 
       {/* Interakt Tab */}
@@ -1019,6 +1039,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="interakt" className="space-y-6">
         <div className="space-y-6">
+          <Tabs defaultValue="list" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="list">Interakt Leads</TabsTrigger>
+              <TabsTrigger value="analytics">Interakt Analytics</TabsTrigger>
+            </TabsList>
+            <TabsContent value="analytics" className="space-y-6">
           {/* Prospect Analytics for Interakt */}
           <ProspectAnalyticsCards prospects={prospects} sourceType="interakt" />
 
@@ -1029,7 +1055,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           {canSeeAllLeads && (
             <InteraktAnalytics leads={interaktLeads} prospects={prospects} />
           )}
+            </TabsContent>
 
+            <TabsContent value="list" className="space-y-6">
           {/* Sync Button */}
           <Card>
             <CardContent className="p-4">
@@ -1374,6 +1402,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Interakt Edit Dialog */}
@@ -1434,8 +1464,18 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="myoperator">
         <div className="space-y-6">
-        <TouchedDashboard source="myoperator" />
-        <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
+        <Tabs defaultValue="list" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="list">MyOperator Leads</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
+          <TabsContent value="analytics" className="space-y-6">
+            <TouchedDashboard source="myoperator" />
+          </TabsContent>
+          <TabsContent value="list" className="space-y-6">
+            <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
+          </TabsContent>
+        </Tabs>
         </div>
       </TabsContent>
 
