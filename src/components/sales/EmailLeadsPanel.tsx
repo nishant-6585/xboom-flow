@@ -478,8 +478,12 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
         </div>
       )}
 
-      <ProspectAnalyticsCards prospects={prospects} sourceType="email" />
+      {mode === 'analytics' && (
+        <ProspectAnalyticsCards prospects={prospects} sourceType="email" />
+      )}
 
+      {mode === 'analytics' ? null : (
+      <>
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
