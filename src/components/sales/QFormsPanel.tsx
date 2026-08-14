@@ -873,6 +873,7 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
             })}
           </TableBody>
         </Table>
+        {totalItems > 0 && renderPager("bottom")}
       </Card>
       )}
 
@@ -886,7 +887,7 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
               No leads match the current filters.
             </div>
           )}
-          {!loading && filtered.map(r => {
+          {!loading && pagedCards.map(r => {
             const submitted = r.submitted_at || r.created_at;
             const submittedFmt = safeFormat(submitted, "dd MMM, HH:mm");
             const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
@@ -979,6 +980,10 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
           })}
         </div>
       )}
+      {viewMode === "cards" && totalItems > 0 && (
+        <Card>{renderPager("bottom")}</Card>
+      )}
+      </>)}
 
       <LeadContactDrawer
         open={!!drawerLead}
