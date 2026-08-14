@@ -894,6 +894,15 @@ export default function KycVerification() {
                   })}
                 </TableBody>
               </Table>
+              </div>
+              <Pager
+                page={safePage}
+                totalPages={totalPages}
+                from={pageStart + 1}
+                to={Math.min(pageStart + PAGE_SIZE, filtered.length)}
+                total={filtered.length}
+                onChange={setPage}
+              />
             </div>
           )}
         </CardContent>
