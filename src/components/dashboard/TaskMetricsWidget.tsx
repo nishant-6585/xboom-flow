@@ -26,13 +26,15 @@ function MetricCard({ title, value, icon, variant = 'default', description }: Me
     destructive: 'bg-red-500/10 text-red-600 dark:text-red-400',
   };
 
+  const isZero = value === 0;
+
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-      <div className={`p-2.5 rounded-lg ${bgColors[variant]}`}>
+      <div className={`p-2.5 rounded-lg ${isZero ? 'bg-muted text-muted-foreground' : bgColors[variant]}`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-2xl font-bold">{value}</p>
+        <p className={`text-2xl font-bold tabular-nums ${isZero ? 'text-muted-foreground' : ''}`}>{value}</p>
         <p className="text-xs text-muted-foreground truncate">{title}</p>
         {description && (
           <p className="text-[10px] text-muted-foreground">{description}</p>
