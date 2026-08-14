@@ -1481,36 +1481,51 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="elevenlabs">
         <div className="space-y-6">
-        <TouchedDashboard source="elevenlabs" />
-        <ElevenLabsLeadsPanel />
+        <ChannelTabs
+          listLabel="ElevenLabs Leads"
+          list={<ElevenLabsLeadsPanel />}
+          analytics={<TouchedDashboard source="elevenlabs" />}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="xboom-website">
         <div className="space-y-6">
-        <TouchedDashboard source="xboom-website" />
-        <XboomWebsiteLeadsPanel />
+        <ChannelTabs
+          listLabel="Website & Abandoned Carts"
+          list={<XboomWebsiteLeadsPanel />}
+          analytics={<TouchedDashboard source="xboom-website" />}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="call-tracker">
         <div className="space-y-6">
-        <TouchedDashboard source="call-tracker" />
-        <OutboundCallTracker />
+        <ChannelTabs
+          listLabel="Call Tracker"
+          list={<OutboundCallTracker />}
+          analytics={<TouchedDashboard source="call-tracker" />}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="emails">
         <div className="space-y-6">
-        <TouchedDashboard source="emails" />
-        <EmailLeadsPanel />
+        <ChannelTabs
+          listLabel="Email Leads"
+          list={<EmailLeadsPanel />}
+          analytics={<TouchedDashboard source="emails" />}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="google-ads">
         <div className="space-y-6">
-        <TouchedDashboard source="google-ads" />
-        <GoogleAdsSyncPanel />
+        <ChannelTabs
+          listLabel="Google Ads Leads"
+          list={<GoogleAdsSyncPanel />}
+          analytics={<TouchedDashboard source="google-ads" />}
+        />
         </div>
       </TabsContent>
 
