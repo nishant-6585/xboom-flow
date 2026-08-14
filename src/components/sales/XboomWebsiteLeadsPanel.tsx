@@ -306,6 +306,25 @@ export function XboomWebsiteLeadsPanel() {
     window.open(`tel:${phone.replace(/\s+/g, "")}`, "_self");
   };
 
+  const pager = !loading && filteredCount > PAGE_SIZE ? (
+    <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
+      <span>
+        Showing <span className="font-medium text-foreground">{pageStart}</span>–
+        <span className="font-medium text-foreground">{pageEnd}</span> of{" "}
+        <span className="font-medium text-foreground">{filteredCount}</span> leads
+      </span>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" className="h-7 px-2" disabled={safePage <= 1} onClick={() => setPage(1)}>First</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+        <span className="px-1">
+          Page <span className="font-medium text-foreground">{safePage}</span> / {totalPages}
+        </span>
+        <Button size="sm" variant="outline" className="h-7 px-2" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -472,6 +491,7 @@ export function XboomWebsiteLeadsPanel() {
       </Card>
 
       {/* List */}
+      {pager}
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -776,38 +796,7 @@ export function XboomWebsiteLeadsPanel() {
       )}
 
       {/* Pagination */}
-      {!loading && filteredCount > PAGE_SIZE && (
-        <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
-          <span>
-            Showing <span className="font-medium text-foreground">{pageStart}</span>–
-            <span className="font-medium text-foreground">{pageEnd}</span> of{" "}
-            <span className="font-medium text-foreground">{filteredCount}</span> leads
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2"
-              disabled={safePage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </Button>
-            <span className="px-1">
-              Page <span className="font-medium text-foreground">{safePage}</span> / {totalPages}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2"
-              disabled={safePage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+      {pager}
 
       {/* Detail drawer */}
       <Sheet open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>

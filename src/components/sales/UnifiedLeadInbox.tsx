@@ -313,6 +313,33 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
     navigate(`/sales?tab=leads&subtab=${tab}&leadId=${encodeURIComponent(lead.source_row_id)}`);
   };
 
+  const pager = !isLoading && rows.length > 0 ? (
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Rows per page</span>
+        <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+          <SelectTrigger className="w-20 h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZES.map((n) => (
+              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          Page {page} of {totalPages}
+        </span>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>First</Button>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -463,6 +490,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
       </Card>
 
       {/* Table */}
+      {pager}
       <Card className="p-0 overflow-hidden">
         {isLoading ? (
           <div className="p-4"><TableSkeleton rows={8} columns={7} /></div>
@@ -686,38 +714,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
       )}
 
       {/* Pagination */}
-      {!isLoading && rows.length > 0 && (
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Rows per page</span>
-            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-              <SelectTrigger className="w-20 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZES.map((n) => (
-                  <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline" size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >Prev</Button>
-            <Button
-              variant="outline" size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >Next</Button>
-          </div>
-        </div>
-      )}
+      {pager}
 
       <LeadContactDrawer
         open={!!detailLead}
