@@ -85,10 +85,6 @@ export default function Sales() {
     if (role === 'sales' && activeTab === 'manager') setActiveTab('my_leads');
   }, [role, urlTab, activeTab]);
 
-  const triggerBase = "gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-muted/80 data-[state=active]:shadow-md";
-  const triggerPrimary = `${triggerBase} data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`;
-  const triggerSecondary = `${triggerBase} text-xs px-3 py-2`;
-  const triggerSecondaryPrimary = `${triggerSecondary} data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`;
   const neutralTrigger =
     "gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/60 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm whitespace-nowrap";
 
