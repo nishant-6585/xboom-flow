@@ -76,6 +76,17 @@ type ChatTurn = { role: "agent" | "user"; text: string };
 
 interface SalesUser { user_id: string; name: string }
 
+// Cross-mount cache: the tab is unmounted/remounted whenever the user switches
+// channels, and re-downloading ~500 call rows (plus multi-MB transcripts) each
+// time made the table feel slow. Keep the last result so the table paints
+// instantly and refresh in the background.
+type ElevenCacheEntry = {
+  leads: ElevenLead[];
+  summaries: Record<string, string>;
+  prospectIds: Set<string>;
+};
+const elevenCache = new Map<string, ElevenCacheEntry>();
+
 const STATUSES = ["New", "Contacted", "Qualified", "Closed"] as const;
 type Status = typeof STATUSES[number];
 
