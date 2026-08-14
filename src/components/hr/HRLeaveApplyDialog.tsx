@@ -277,6 +277,14 @@ export function HRLeaveApplyDialog({
                   Maternity Leave — paid, no balance deduction. Max 6 months.
                 </span>
               </div>
+            ) : isCompOff ? (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/10 border border-primary/30 text-sm">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <span>
+                  Comp-Off — the employee must have an attendance record for the day
+                  worked (a weekend or company holiday, within the last 90 days).
+                </span>
+              </div>
             ) : employeeId && leaveBalance !== null && (
               <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                 <Wallet className="h-4 w-4 text-primary" />
@@ -294,7 +302,80 @@ export function HRLeaveApplyDialog({
             </div>
           )}
 
+          {isCompOff && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Day the employee worked extra *</Label>
+                <Tabs value={earnedTab} onValueChange={(v) => setEarnedTab(v as "holiday" | "weekend")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="holiday">Worked on a Holiday</TabsTrigger>
+                    <TabsTrigger value="weekend">Worked on a Weekend</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="holiday" className="space-y-2 pt-3">
+                    {availableHolidays.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No holidays in the last 90 days.
+                      </p>
+                    ) : (
+                      <Select value={selectedHolidayId} onValueChange={setSelectedHolidayId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pick the holiday worked on" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableHolidays.map((h) => (
+                            <SelectItem key={h.id} value={h.id}>
+                              {h.name} — {format(parseISO(h.holiday_date), "MMM d, yyyy")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="weekend" className="space-y-2 pt-3">
+                    <Input
+                      type="date"
+                      value={weekendDate}
+                      max={todayStr}
+                      min={ninetyDaysAgo}
+                      onChange={(e) => setWeekendDate(e.target.value)}
+                    />
+                    {weekendDate && (
+                      <p className="text-xs text-muted-foreground">
+                        {format(parseISO(weekendDate), "EEEE, MMM d, yyyy")}
+                      </p>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4" /> Comp-Off date *
+                </Label>
+                <Input
+                  type="date"
+                  value={compoffLeaveDate}
+                  onChange={(e) => setCompoffLeaveDate(e.target.value)}
+                />
+                {earnedDate && (
+                  <p className="text-xs text-muted-foreground">
+                    Earned by working on {format(parseISO(earnedDate), "MMM d, yyyy")}
+                    {earnedTab === "holiday" && selectedHoliday ? ` (${selectedHoliday.name})` : ""}.
+                  </p>
+                )}
+              </div>
+
+              {compoffError && (
+                <div className="flex items-start gap-2 p-3 rounded-md border border-destructive/40 bg-destructive/10 text-sm text-destructive">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>{compoffError}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Dates */}
+          {!isCompOff && (
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Start Date *</Label>
@@ -318,8 +399,9 @@ export function HRLeaveApplyDialog({
               />
             </div>
           </div>
+          )}
 
-          {startDate && endDate && (
+          {!isCompOff && startDate && endDate && (
             <div className="text-center p-3 bg-primary/10 rounded-lg">
               <span className="text-lg font-bold text-primary">
                 {calculateDays()} day(s)
