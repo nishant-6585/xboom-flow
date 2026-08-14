@@ -256,6 +256,10 @@ export default function OrdersListTab(props: OrdersListTabProps) {
         onSalesPersonFilterChange={setDashSalesPersonFilter}
       />
 
+      {canViewProcurementWidget && (
+        <UnlinkedOrdersWidget maxItems={4} showViewAll={true} />
+      )}
+
       <Card className="border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/10 backdrop-blur-sm">
         <CardContent className="p-5">
           <div className="flex flex-col gap-5">
