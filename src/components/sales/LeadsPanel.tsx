@@ -90,7 +90,7 @@ const CHANNEL_CARDS: { tab: string; label: string; channel: LeadChannel }[] = [
   { tab: 'elevenlabs', label: 'ElevenLabs', channel: 'elevenlabs' },
   { tab: 'emails', label: 'Emails', channel: 'email' },
   { tab: 'google-ads', label: 'Google Ads', channel: 'google_ads' },
-  { tab: 'facebook-leads', label: 'Meta (Facebook)', channel: 'facebook' },
+  { tab: 'facebook-leads', label: 'Facebook Leads', channel: 'facebook' },
   { tab: 'indiamart', label: 'IndiaMART', channel: 'indiamart' },
 ];
 
@@ -527,7 +527,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="facebook-leads" className={CHANNEL_TRIGGER}>
           {hasNew('facebook-leads') && <UnseenDot />}
           <Facebook className="w-4 h-4" />
-          Meta (Facebook)
+          Facebook Leads
           <TabTotal total={totalFor('facebook-leads')} />
         </TabsTrigger>
         <TabsTrigger value="interakt" className={CHANNEL_TRIGGER}>
