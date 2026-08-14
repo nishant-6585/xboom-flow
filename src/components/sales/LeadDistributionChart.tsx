@@ -95,6 +95,7 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
       Form: entry.sources.form,
       Email: entry.sources.email,
       Interakt: entry.sources.interakt,
+      Other: entry.sources.other,
       total: entry.leads,
     }));
 
@@ -159,7 +160,9 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
                       outerRadius={108}
                       paddingAngle={3}
                       dataKey="leads"
-                      label={({ name, percent }) => `${name.split(" ")[0]} ${((percent || 0) * 100).toFixed(1)}%`}
+                      label={({ name, payload }: any) =>
+                        `${String(name || "").split(" ")[0]} ${payload?.percent ?? "0"}%`
+                      }
                       onClick={handlePieClick}
                       className="cursor-pointer"
                     >
