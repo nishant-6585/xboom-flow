@@ -126,7 +126,9 @@ function safeFormat(value: string | Date | null | undefined, pattern: string, fa
   return format(d, pattern);
 }
 
-export default function QFormsPanel() {
+export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | "analytics" } = {}) {
+  const showAnalytics = mode !== "list";
+  const showList = mode !== "analytics";
   const { user, profile, role } = useAuth();
   const { data: engagedIds } = useEngagedLeadIds('lead');
   const [rows, setRows] = useState<Lead[]>([]);
@@ -150,6 +152,8 @@ export default function QFormsPanel() {
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [mergeDuplicates, setMergeDuplicates] = useState(true);
   const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   const canManage = role === "admin" || role === "sales" || role === "sales_manager";
 
@@ -257,6 +261,39 @@ export default function QFormsPanel() {
   const mergedHiddenCount = useMemo(
     () => dedupGroups.reduce((acc, g) => acc + Math.max(0, g.count - 1), 0),
     [dedupGroups],
+  );
+
+  // Reset to first page whenever the visible set changes
+  useEffect(() => { setPage(1); }, [search, includeDispositioned, mergeDuplicates, formType, status, assignee, temperature, startDate, endDate, pageSize, viewMode]);
+
+  const totalItems = viewMode === "table" ? dedupGroups.length : filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const pageSafe = Math.min(page, totalPages);
+  const pageStart = (pageSafe - 1) * pageSize;
+  const pagedGroups = dedupGroups.slice(pageStart, pageStart + pageSize);
+  const pagedCards = filtered.slice(pageStart, pageStart + pageSize);
+
+  const renderPager = (position: "top" | "bottom") => (
+    <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${position === "top" ? "border-b" : "border-t"}`}>
+      <div className="text-xs text-muted-foreground">
+        Showing {totalItems === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + pageSize, totalItems)} of {totalItems}
+      </div>
+      <div className="flex items-center gap-2">
+        <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+          <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {[25, 50, 100, 200].map((n) => (
+              <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(1)}>First</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(pageSafe - 1)}>Prev</Button>
+        <span className="text-xs text-muted-foreground">Page {pageSafe} of {totalPages}</span>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(pageSafe + 1)}>Next</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+      </div>
+    </div>
   );
 
   // Stats (computed on full rows ignoring search but respecting filters)
@@ -395,6 +432,7 @@ export default function QFormsPanel() {
 
   return (
     <div className="space-y-4">
+      {showList && (<>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold">QForms</h2>
@@ -451,9 +489,10 @@ export default function QFormsPanel() {
         <StatCard icon={FileText} label="Last 7d" value={stats.weekCount} tint="text-indigo-600" />
         <StatCard icon={UserCheck} label="Unassigned" value={stats.unassigned} tint="text-rose-600" />
       </div>
+      </>)}
 
       {/* Form-type breakdown */}
-      {formTypeBreakdown.length > 0 && (
+      {showAnalytics && formTypeBreakdown.length > 0 && (
         <Card className="p-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Top form types
@@ -469,6 +508,7 @@ export default function QFormsPanel() {
       )}
 
       {/* Charts: daily trend + form-type breakdown */}
+      {showAnalytics && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
@@ -534,7 +574,9 @@ export default function QFormsPanel() {
           </div>
         </Card>
       </div>
+      )}
 
+      {showList && (<>
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Select value={formType} onValueChange={setFormType}>
@@ -634,6 +676,7 @@ export default function QFormsPanel() {
 
       {viewMode === "table" && (
       <Card>
+        {totalItems > 0 && renderPager("top")}
         <Table>
           <TableHeader>
             <TableRow>
@@ -657,7 +700,7 @@ export default function QFormsPanel() {
             {!loading && filtered.length === 0 && (
               <TableRow><TableCell colSpan={qColCount} className="text-center text-muted-foreground py-8">No leads match the current filters.</TableCell></TableRow>
             )}
-            {!loading && dedupGroups.map(group => {
+            {!loading && pagedGroups.map(group => {
               const r = group.primary;
               const dupCount = group.count;
               const isMerged = dupCount > 1;
@@ -830,6 +873,7 @@ export default function QFormsPanel() {
             })}
           </TableBody>
         </Table>
+        {totalItems > 0 && renderPager("bottom")}
       </Card>
       )}
 
@@ -843,7 +887,7 @@ export default function QFormsPanel() {
               No leads match the current filters.
             </div>
           )}
-          {!loading && filtered.map(r => {
+          {!loading && pagedCards.map(r => {
             const submitted = r.submitted_at || r.created_at;
             const submittedFmt = safeFormat(submitted, "dd MMM, HH:mm");
             const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
@@ -936,6 +980,10 @@ export default function QFormsPanel() {
           })}
         </div>
       )}
+      {viewMode === "cards" && totalItems > 0 && (
+        <Card>{renderPager("bottom")}</Card>
+      )}
+      </>)}
 
       <LeadContactDrawer
         open={!!drawerLead}
