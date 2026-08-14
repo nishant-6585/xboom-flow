@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAnalyticsScope } from "@/contexts/AnalyticsScopeContext";
 
-interface LeadSourceCounts {
+export interface LeadSourceCounts {
   enquiry: number;
   call: number;
   form: number;
   email: number;
   interakt: number;
+  other: number;
 }
 
 export interface LeadDistEntry {
@@ -18,186 +20,64 @@ export interface LeadDistEntry {
   sources: LeadSourceCounts;
 }
 
-const KNOWN_NAMES: Record<string, string> = {
-  "456e91f8-34cc-4f92-a1c1-a092f2bbed39": "suman das",
-  "a790b58d-8e3d-4333-b6d6-08be631c865d": "Narasimha",
-  "457fc2d5-9fc5-439a-938e-5b998549b811": "mohammed musthak",
-  "e05f9afe-0160-4956-bb1f-496028386062": "Arjav chauhan",
-  "9fea57d6-a27a-4b35-9293-e2151b84f45a": "Rohit",
-  "7b4818c1-a3d0-44bc-9aac-3744e018e441": "Anvesh Apkari",
-};
-
-function normalizeName(name?: string | null) {
-  const cleaned = (name || "").replace(/\s+/g, " ").trim();
-  if (!cleaned) return null;
-
-  const lower = cleaned.toLowerCase();
-  if (["unassigned", "unknown", "n/a", "na", "null", "none"].includes(lower)) {
-    return null;
-  }
-
-  if (lower === "narasimha" || lower === "narasimha") return "Narasimha";
-  if (["mushtaq", "musthak", "mohammed mushtaq", "mohammed musthak"].includes(lower)) return "mohammed musthak";
-  if (["suman", "suman das"].includes(lower)) return "suman das";
-  if (["arjav", "arjav chauhan", "arnav"].includes(lower)) return "Arjav chauhan";
-
-  return cleaned;
+export interface LeadDistributionResult {
+  data: LeadDistEntry[];
+  total: number;
+  totalProspects: number;
+  totalPipeline: number;
 }
 
-function getDisplayName(userId?: string | null, name?: string | null) {
-  if (userId && KNOWN_NAMES[userId]) return KNOWN_NAMES[userId];
-  return normalizeName(name);
-}
+const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v) || 0);
 
+/**
+ * Single source of truth: derives salesperson-level lead distribution from the
+ * server-side get_sales_dashboard_metrics aggregate so the chart, KPI cards and
+ * funnel can never disagree.
+ */
 export function useLeadDistribution(startDate: string, endDate: string) {
-  return useQuery({
-    queryKey: ["lead-distribution-v2", startDate, endDate],
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+  const { includeWebsite } = useAnalyticsScope();
+
+  return useQuery<LeadDistributionResult>({
+    queryKey: ["lead-distribution-v3", startDate, endDate, includeWebsite],
+    staleTime: 60 * 1000,
     queryFn: async () => {
-      const map = new Map<string, LeadDistEntry>();
+      const { data, error } = await supabase.rpc("get_sales_dashboard_metrics" as any, {
+        p_start: startDate || null,
+        p_end: endDate || null,
+        p_sales_person_id: null,
+        p_include_website: includeWebsite,
+      });
+      if (error) throw error;
 
-      const ensure = (userId?: string | null, name?: string | null) => {
-        const displayName = getDisplayName(userId, name);
-        if (!displayName) return null;
-        if (displayName.toLowerCase().includes("vishal")) return null;
+      const raw = (data ?? {}) as any;
+      const totals = raw.totals ?? {};
+      const people = (raw.by_person ?? []) as any[];
 
-        const key = userId ? `user:${userId}` : `name:${displayName.toLowerCase()}`;
+      const entries: LeadDistEntry[] = people.map((p) => {
+        const s = (p.sources ?? {}) as Record<string, number>;
+        const enquiry = num(s.enquiries);
+        const call = num(s.myoperator) + num(s.elevenlabs);
+        const email = num(s.email);
+        const interakt = num(s.interakt);
+        const form = num(s.qforms);
+        const leads = num(p.leads);
+        const other = Math.max(0, leads - (enquiry + call + email + interakt + form));
+        return {
+          key: `user:${p.user_id}`,
+          name: p.name || "Unknown",
+          leads,
+          prospects: num(p.prospects),
+          pipeline: num(p.pipeline),
+          sources: { enquiry, call, form, email, interakt, other },
+        };
+      });
 
-        if (!map.has(key)) {
-          map.set(key, {
-            key,
-            name: displayName,
-            leads: 0,
-            prospects: 0,
-            pipeline: 0,
-            sources: { enquiry: 0, call: 0, form: 0, email: 0, interakt: 0 },
-          });
-        }
-
-        return map.get(key)!;
+      return {
+        data: entries,
+        total: num(totals.total_leads),
+        totalProspects: num(totals.total_prospects),
+        totalPipeline: num(totals.pipeline_count),
       };
-
-      const endDateTime = `${endDate}T23:59:59`;
-
-      const [enquiriesRes, callsRes, formsRes, emailsRes, interaktRes, prospectsRes, pipelineRes, salesUsersRes] = await Promise.all([
-        supabase
-          .from("enquiries")
-          .select("sales_person_id, sales_person_name, created_at")
-          .gte("created_at", startDate)
-          .lte("created_at", endDateTime),
-        supabase
-          .from("call_logs")
-          .select("sales_person_id, sales_person_name, created_at")
-          .eq("is_enquiry_converted", false)
-          .gte("created_at", startDate)
-          .lte("created_at", endDateTime),
-        supabase
-          .from("leads" as any)
-          .select("assigned_to, assigned_to_name, created_at")
-          .eq("is_enquiry_converted", false)
-          .gte("created_at", startDate)
-          .lte("created_at", endDateTime),
-        supabase
-          .from("email_leads")
-          .select("sales_person_id, sales_person_name, created_at")
-          .eq("is_enquiry_converted", false)
-          .gte("created_at", startDate)
-          .lte("created_at", endDateTime),
-        supabase
-          .from("interakt_leads")
-          .select("sales_person_id, sales_person_name, created_at")
-          .eq("is_enquiry_converted", false)
-          .gte("created_at", startDate)
-          .lte("created_at", endDateTime),
-        supabase
-          .from("prospects")
-          .select("created_by, created_by_name, created_at")
-          .gte("created_at", startDate)
-          .lte("created_at", endDateTime),
-        supabase
-          .from("pipeline_orders")
-          .select("sales_person_id, sales_person_name, created_at")
-          .gte("created_at", startDate)
-          .lte("created_at", endDateTime),
-        supabase
-          .from("user_roles")
-          .select("user_id, role")
-          .in("role", ["sales", "sales_manager"] as any),
-      ]);
-
-      const responses = [enquiriesRes, callsRes, formsRes, emailsRes, interaktRes, prospectsRes, pipelineRes];
-      const errored = responses.find((res) => res.error);
-      if (errored?.error) throw errored.error;
-
-      // Seed every sales executive so they appear with 0 counts when no leads exist
-      const salesUserIds = Array.from(
-        new Set((salesUsersRes.data as any[] | null)?.map((r) => r.user_id).filter(Boolean) ?? [])
-      );
-      if (salesUserIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("user_id, name")
-          .in("user_id", salesUserIds);
-        const nameById = new Map<string, string>();
-        (profilesData ?? []).forEach((p: any) => nameById.set(p.user_id, p.name));
-        salesUserIds.forEach((uid) => ensure(uid, nameById.get(uid) ?? null));
-      }
-
-
-      enquiriesRes.data?.forEach((row) => {
-        const entry = ensure(row.sales_person_id, row.sales_person_name);
-        if (!entry) return;
-        entry.leads += 1;
-        entry.sources.enquiry += 1;
-      });
-
-      callsRes.data?.forEach((row) => {
-        const entry = ensure(row.sales_person_id, row.sales_person_name);
-        if (!entry) return;
-        entry.leads += 1;
-        entry.sources.call += 1;
-      });
-
-      formsRes.data?.forEach((row) => {
-        const entry = ensure((row as any).assigned_to, (row as any).assigned_to_name);
-        if (!entry) return;
-        entry.leads += 1;
-        entry.sources.form += 1;
-      });
-
-      emailsRes.data?.forEach((row) => {
-        const entry = ensure(row.sales_person_id, row.sales_person_name);
-        if (!entry) return;
-        entry.leads += 1;
-        entry.sources.email += 1;
-      });
-
-      interaktRes.data?.forEach((row) => {
-        const entry = ensure(row.sales_person_id, row.sales_person_name);
-        if (!entry) return;
-        entry.leads += 1;
-        entry.sources.interakt += 1;
-      });
-
-      prospectsRes.data?.forEach((row) => {
-        const entry = ensure(row.created_by, row.created_by_name);
-        if (!entry) return;
-        entry.prospects += 1;
-      });
-
-      pipelineRes.data?.forEach((row) => {
-        const entry = ensure(row.sales_person_id, row.sales_person_name);
-        if (!entry) return;
-        entry.pipeline += 1;
-      });
-
-      const data = Array.from(map.values()).sort((a, b) => b.leads - a.leads);
-      const total = data.reduce((sum, entry) => sum + entry.leads, 0);
-      const totalProspects = data.reduce((sum, entry) => sum + entry.prospects, 0);
-      const totalPipeline = data.reduce((sum, entry) => sum + entry.pipeline, 0);
-
-      return { data, total, totalProspects, totalPipeline };
     },
   });
 }
