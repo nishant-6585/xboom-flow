@@ -1525,7 +1525,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <ChannelTabs
           listLabel="Email Leads"
           list={<EmailLeadsPanel />}
-          analytics={<TouchedDashboard source="emails" />}
+          analytics={(
+            <div className="space-y-6">
+              <EmailLeadsPanel mode="analytics" />
+              <TouchedDashboard source="emails" />
+            </div>
+          )}
         />
         </div>
       </TabsContent>

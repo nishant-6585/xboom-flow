@@ -42,7 +42,12 @@ import { DuplicateLeadsHistoryRow } from './DuplicateLeadsHistoryRow';
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
 type SortDir = 'asc' | 'desc';
 
-export function EmailLeadsPanel() {
+interface EmailLeadsPanelProps {
+  /** 'list' renders the table + Gmail card, 'analytics' renders the pipeline dashboard. */
+  mode?: 'list' | 'analytics';
+}
+
+export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
   const { leads, loading, refetch, approveLead, approving, rejectLead, rejecting, metrics } = useEmailLeads();
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
@@ -351,10 +356,10 @@ export function EmailLeadsPanel() {
 
   return (
     <div className="space-y-6">
-      <GmailIntegrationCard />
+      {mode === 'list' && <GmailIntegrationCard />}
 
       {/* Pipeline Funnel with visual flow */}
-      {metrics && (
+      {mode === 'analytics' && metrics && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Target className="w-5 h-5 text-primary" />
@@ -473,8 +478,12 @@ export function EmailLeadsPanel() {
         </div>
       )}
 
-      <ProspectAnalyticsCards prospects={prospects} sourceType="email" />
+      {mode === 'analytics' && (
+        <ProspectAnalyticsCards prospects={prospects} sourceType="email" />
+      )}
 
+      {mode === 'analytics' ? null : (
+      <>
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1009,6 +1018,8 @@ export function EmailLeadsPanel() {
           </div>
         ) : undefined}
       />
+      </>
+      )}
     </div>
   );
 }
