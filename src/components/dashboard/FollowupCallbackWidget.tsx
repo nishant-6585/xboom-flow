@@ -1,12 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useFollowups, Followup } from '@/hooks/useFollowups';
 import { useCallbacks, MissedCallback } from '@/hooks/useCallbacks';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
 import { format, isToday, isBefore } from 'date-fns';
-import { CalendarCheck, Phone, PhoneOff, ArrowRight, Clock, AlertTriangle } from 'lucide-react';
+import { CalendarCheck, PhoneOff, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallButton } from '@/components/calls/CallButton';
 
