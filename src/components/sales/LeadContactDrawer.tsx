@@ -471,22 +471,46 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                       <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
                     </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                    <InfoRow icon={User} label="Name" value={lead.customer_name} />
-                    <InfoRow icon={Phone} label="Phone" value={lead.phone} />
-                    <InfoRow icon={Mail} label="Email" value={lead.email} />
-                    <InfoRow icon={Building2} label="Company" value={lead.company} />
-                    <InfoRow icon={MapPin} label="City" value={lead.city} />
-                    <InfoRow
-                      icon={Package}
-                      label="Enquiry"
-                      value={resolveProductName(lead.product_name, [lead.lead_source, lead.source_type])}
-                    />
-                    {lead.assigned_to_name && <InfoRow icon={User} label="Assigned To" value={lead.assigned_to_name} />}
-                    {lead.created_at && <InfoRow icon={Calendar} label="Created" value={format(new Date(lead.created_at), 'dd MMM yyyy, hh:mm a')} />}
-                  </div>
-                )}
+                ) : (() => {
+                  // Only render fields that carry a value; state the gaps once
+                  // instead of printing a column of em-dashes.
+                  const fields = [
+                    { icon: User, label: 'Name', value: lead.customer_name },
+                    { icon: Phone, label: 'Phone', value: lead.phone },
+                    { icon: Mail, label: 'Email', value: lead.email },
+                    { icon: Building2, label: 'Company', value: lead.company },
+                    { icon: MapPin, label: 'City', value: lead.city },
+                    {
+                      icon: Package,
+                      label: 'Enquiry',
+                      value: resolveProductName(lead.product_name, [lead.lead_source, lead.source_type]),
+                    },
+                    { icon: User, label: 'Assigned To', value: lead.assigned_to_name },
+                    {
+                      icon: Calendar,
+                      label: 'Created',
+                      value: lead.created_at ? format(new Date(lead.created_at), 'dd MMM yyyy, hh:mm a') : null,
+                    },
+                  ];
+                  const present = fields.filter((f) => !!(f.value && String(f.value).trim()));
+                  const missing = fields
+                    .filter((f) => !(f.value && String(f.value).trim()))
+                    .map((f) => f.label);
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                        {present.map((f) => (
+                          <InfoRow key={f.label} icon={f.icon} label={f.label} value={String(f.value)} />
+                        ))}
+                      </div>
+                      {missing.length > 0 && (
+                        <p className="text-xs italic text-muted-foreground">
+                          Not provided by this channel: {missing.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Extra fields */}
                 {lead.extras && Object.keys(lead.extras).length > 0 && (
@@ -549,28 +573,23 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                   </>
                 )}
 
-                {/* Quick follow-up inline */}
+                {/* Activity — how this lead arrived and who owns it. */}
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Recent Follow-ups</h3>
-                  <Button variant="outline" size="sm" className="text-xs" onClick={() => { setActiveTab('followups'); setShowNewFollowup(true); }}>
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Log Follow-up
-                  </Button>
-                </div>
-                {leadFollowups.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-3">No follow-ups logged yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {leadFollowups.slice(0, 3).map(f => (
-                      <FollowupMiniCard key={f.id} followup={f} statusColor={getFollowupStatusColor(f)} typeIcon={getFollowupTypeIcon(getFollowupTypeFromProduct(f.product_name))} />
-                    ))}
-                    {leadFollowups.length > 3 && (
-                      <Button variant="ghost" size="sm" className="text-xs w-full" onClick={() => setActiveTab('followups')}>
-                        View all {leadFollowups.length} follow-ups →
-                      </Button>
-                    )}
-                  </div>
-                )}
+                <h3 className="text-sm font-semibold">Activity</h3>
+                <ul className="space-y-1.5 text-xs text-muted-foreground">
+                  {lead.created_at && (
+                    <li>
+                      Captured {format(new Date(lead.created_at), 'dd MMM yyyy, hh:mm a')}
+                    </li>
+                  )}
+                  <li>Channel: {lead.lead_source || lead.source_type}</li>
+                  <li>
+                    {lead.assigned_to_name
+                      ? `Assigned to ${lead.assigned_to_name}`
+                      : 'Not assigned yet'}
+                    {lead.assignment_method ? ` · ${lead.assignment_method}` : ''}
+                  </li>
+                </ul>
               </div>
             </TabsContent>
 
