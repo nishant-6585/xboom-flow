@@ -413,14 +413,15 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[24px] px-2" />
                 <TableHead className="w-[110px]">Source</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Preview</TableHead>
+                <TableHead className="hidden xl:table-cell">Product</TableHead>
+                <TableHead>Enquiry</TableHead>
                 <TableHead className="w-[110px]">Status</TableHead>
-                <TableHead className="w-[160px]">Assigned</TableHead>
-                <TableHead className="w-[120px]">Created</TableHead>
+                <TableHead className="w-[160px] hidden xl:table-cell">Assigned</TableHead>
+                <TableHead className="w-[80px] text-right">Age</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
@@ -428,57 +429,67 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
               {grouped.map((group) => {
                 const lead = group.primary;
                 const meta = SOURCE_META[lead.source];
+                const isUnseen = !lastSeen || lead.created_at > lastSeen;
+                const hasDisposition = !!lead.disposition && lead.disposition !== "untouched";
                 return (
                   <Fragment key={group.key}>
-                  <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => openDetail(lead)}>
-                    <TableCell>
+                  <TableRow className="cursor-pointer hover:bg-muted/50 text-[13px]" onClick={() => openDetail(lead)}>
+                    <TableCell className="py-2.5 px-2">
+                      {isUnseen && (
+                        <span className="block h-1.5 w-1.5 rounded-full bg-primary" aria-label="New" />
+                      )}
+                    </TableCell>
+                    <TableCell className="py-2.5">
                       <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
                         {meta.label}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-sm flex items-center">
+                    <TableCell className="py-2.5">
+                      <div className={cn("text-[13px] flex items-center", isUnseen ? "font-bold text-foreground" : "font-normal")}>
                         <span>{lead.name || "—"}</span>
                         <DuplicateCountBadge count={group.count} />
                       </div>
                       {lead.company && (
                         <div className="text-xs text-muted-foreground">{lead.company}</div>
                       )}
-                      {lead.disposition && lead.disposition !== "untouched" && (
-                        <div className="mt-1">
-                          <DispositionBadge
-                            disposition={lead.disposition}
-                            reasonCode={lead.disposition_reason_code}
-                            reasonNote={lead.disposition_reason_note}
-                            dispositionAt={lead.disposition_at}
-                            dispositionByName={lead.disposition_by_name}
-                          />
-                        </div>
-                      )}
                     </TableCell>
-                    <TableCell>
-                      {lead.phone && <div className="text-sm">{lead.phone}</div>}
+                    <TableCell className="py-2.5">
+                      {lead.phone && <div className="text-[13px]">{lead.phone}</div>}
                       {lead.email && (
                         <div className="text-xs text-muted-foreground truncate max-w-[180px]">{lead.email}</div>
                       )}
                       {!lead.phone && !lead.email && "—"}
                     </TableCell>
-                    <TableCell className="max-w-[280px]">
-                      <span className="text-sm line-clamp-2">
+                    <TableCell className="max-w-[280px] py-2.5 hidden xl:table-cell">
+                      <span className="text-[13px] line-clamp-2">
                         {lead.product_name || "—"}
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-[280px]">
-                      <span className="text-sm text-muted-foreground line-clamp-2">
-                        {lead.subject_or_message || "—"}
-                      </span>
+                    <TableCell className="max-w-[280px] py-2.5">
+                      {lead.subject_or_message ? (
+                        <span className="text-[13px] text-muted-foreground line-clamp-2">
+                          {lead.subject_or_message}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">No enquiry text</span>
+                      )}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {lead.status ?? "new"}
-                      </Badge>
+                    <TableCell className="py-2.5">
+                      {hasDisposition ? (
+                        <DispositionBadge
+                          disposition={lead.disposition}
+                          reasonCode={lead.disposition_reason_code}
+                          reasonNote={lead.disposition_reason_note}
+                          dispositionAt={lead.disposition_at}
+                          dispositionByName={lead.disposition_by_name}
+                        />
+                      ) : (
+                        <Badge variant="outline" className="text-xs capitalize text-muted-foreground">
+                          {lead.status ?? "new"}
+                        </Badge>
+                      )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-2.5 hidden xl:table-cell">
                       <span className="text-xs">
                         {lead.sales_person_name || (lead.is_assigned ? "Assigned" : "—")}
                         {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
@@ -488,12 +499,12 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
+                    <TableCell className="py-2.5 text-right">
+                      <span className="font-mono text-[11.5px] text-muted-foreground">
+                        {compactAge(lead.created_at)}
                       </span>
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-7 w-7">
