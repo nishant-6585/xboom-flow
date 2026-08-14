@@ -22,6 +22,13 @@ import { cn } from '@/lib/utils';
 import { resolveProductName } from '@/lib/leadEnquiry';
 import { toast } from 'sonner';
 import { CallButton } from '@/components/calls/CallButton';
+import { LeadRowActions, type LeadRowActionsProps } from './LeadRowActions';
+import { DispositionDialog } from './DispositionDialog';
+import { useSalesUsers } from '@/hooks/useSalesUsers';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { LeadSourceBadge, normalizeSource } from '@/components/LeadSourceBadge';
 import { usePushToCompany, pushLeadToCompanyToast } from '@/hooks/usePushToCompany';
 import { isValidCompanyName } from '@/lib/companyNormalize';
@@ -81,6 +88,17 @@ export interface LeadContactData {
   extras?: Record<string, string | number | boolean | null>;
   /** Raw form payload (e.g. Facebook Lead Ads answers). */
   payload?: Record<string, unknown> | null;
+  /** How the lead reached its current owner (e.g. "Round-robin", "Manual"). */
+  assignment_method?: string | null;
+}
+
+/** Wiring for disposition / reassign / source navigation. Optional — omit to hide those controls. */
+export interface LeadDrawerActions {
+  sourceTable: LeadRowActionsProps['sourceTable'];
+  sourceRowId: string;
+  disposition?: string | null;
+  onChanged?: () => void;
+  onViewInSource?: () => void;
 }
 
 interface LeadContactDrawerProps {
@@ -91,20 +109,31 @@ interface LeadContactDrawerProps {
   saving?: boolean;
   /** Extra content rendered below contact details (e.g. email body, call recording) */
   extraContent?: React.ReactNode;
+  /** Enables the Qualified / Not qualified / Junk / Reassign row and the ⋯ menu. */
+  actions?: LeadDrawerActions;
 }
 
 const FOLLOWUP_TYPES = [
-  { value: 'Call', icon: PhoneCall, color: 'text-blue-500' },
-  { value: 'Email', icon: Send, color: 'text-amber-500' },
-  { value: 'WhatsApp', icon: MessageCircle, color: 'text-green-500' },
-  { value: 'Meeting', icon: Video, color: 'text-purple-500' },
+  { value: 'Call', icon: PhoneCall },
+  { value: 'Email', icon: Send },
+  { value: 'WhatsApp', icon: MessageCircle },
+  { value: 'Meeting', icon: Video },
 ];
 
-export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, extraContent }: LeadContactDrawerProps) {
+function openWhatsApp(phone: string | null | undefined) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return;
+  window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
+}
+
+export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, extraContent, actions }: LeadContactDrawerProps) {
   const { user, profile } = useAuth();
   const { followups, createFollowup, completeFollowup, rescheduleFollowup } = useFollowups();
   const { pushLeadToCompany } = usePushToCompany();
+  const { salesUsers } = useSalesUsers();
   const [pushing, setPushing] = useState(false);
+  const [dispositionTarget, setDispositionTarget] = useState<'qualified' | 'not_qualified' | 'junk' | null>(null);
+  const [reassigning, setReassigning] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ customer_name: '', phone: '', email: '', company: '', city: '', product_name: '', notes: '' });
