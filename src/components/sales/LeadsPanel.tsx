@@ -1402,6 +1402,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Interakt Edit Dialog */}
@@ -1458,8 +1460,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           }}
           saving={updating}
         />
-            </TabsContent>
-          </Tabs>
       </TabsContent>
 
       <TabsContent value="myoperator">
