@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -47,6 +48,23 @@ export interface ManychatMessage {
 
 /** Logged incoming messages for one lead, oldest first. */
 export function useManychatMessages(leadId: string | null) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!leadId) return;
+    const ch = supabase
+      .channel(`manychat-messages-${leadId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "manychat_messages", filter: `lead_id=eq.${leadId}` },
+        () => queryClient.invalidateQueries({ queryKey: ["manychat-messages", leadId] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [leadId, queryClient]);
+
   return useQuery({
     queryKey: ["manychat-messages", leadId],
     enabled: Boolean(leadId),
@@ -76,6 +94,32 @@ export interface ManychatSyncLogRow {
 }
 
 export function useManychatLeads() {
+  const queryClient = useQueryClient();
+  const pendingInvalidate = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Live updates: any insert/update on manychat_leads refreshes the table.
+  // Invalidations are coalesced so bursts (CSV imports) trigger one refetch.
+  useEffect(() => {
+    const ch = supabase
+      .channel("manychat-leads-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "manychat_leads" },
+        () => {
+          if (pendingInvalidate.current) return;
+          pendingInvalidate.current = setTimeout(() => {
+            pendingInvalidate.current = null;
+            queryClient.invalidateQueries({ queryKey: ["manychat-leads"] });
+          }, 1000);
+        },
+      )
+      .subscribe();
+    return () => {
+      if (pendingInvalidate.current) clearTimeout(pendingInvalidate.current);
+      supabase.removeChannel(ch);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["manychat-leads"],
     queryFn: async (): Promise<ManychatLead[]> => {
