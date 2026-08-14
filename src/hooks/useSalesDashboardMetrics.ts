@@ -11,6 +11,7 @@ export interface DashboardPerson {
   pipeline_value: number;
   orders_won: number;
   revenue: number;
+  sources: Record<string, number>;
 }
 
 export interface DashboardTotals {
@@ -142,6 +143,7 @@ export function useSalesDashboardMetrics(params: {
           pipeline_value: num(p.pipeline_value),
           orders_won: num(p.orders_won),
           revenue: num(p.revenue),
+          sources: (p.sources ?? {}) as Record<string, number>,
         })),
       };
     },
