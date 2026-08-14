@@ -1460,7 +1460,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         />
             </TabsContent>
           </Tabs>
-        </div>
       </TabsContent>
 
       <TabsContent value="myoperator">
