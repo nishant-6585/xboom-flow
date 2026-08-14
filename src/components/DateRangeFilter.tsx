@@ -74,8 +74,6 @@ export function DateRangeFilter({
     return -1;
   })();
 
-  const isPresetActive = (_preset: Preset, index: number) => index === activePresetIndex;
-
   const applyPreset = (preset: Preset) => {
     const { start, end } = preset.getRange();
     setLastClickedPreset(preset.label);
