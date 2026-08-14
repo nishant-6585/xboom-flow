@@ -259,6 +259,28 @@ function StatCard({ label, value, tone, onClick, active }: {
   );
 }
 
+function Pager({
+  page, totalPages, from, to, total, onChange,
+}: {
+  page: number; totalPages: number; from: number; to: number; total: number;
+  onChange: (p: number) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+      <div className="text-xs text-muted-foreground tabular-nums">
+        Showing {from}–{to} of {total}
+      </div>
+      <div className="flex items-center gap-1">
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onChange(1)}>First</Button>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>Previous</Button>
+        <span className="px-2 text-xs text-muted-foreground tabular-nums">Page {page} of {totalPages}</span>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>Next</Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onChange(totalPages)}>Last</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function KycVerification() {
   const { rows, loading, review, rerunAiReview, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
@@ -280,6 +302,8 @@ export default function KycVerification() {
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   const openOrderDialog = async (orderId: string) => {
     setOrderLoading(true);
@@ -364,6 +388,13 @@ export default function KycVerification() {
     if (focusAccount) list = [...list].sort((a, b) => (a.account.id === focusAccount ? -1 : b.account.id === focusAccount ? 1 : 0));
     return list;
   }, [rows, search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange, focusAccount]);
+
+  // Pagination — 50 rows per page, reset whenever the result set changes.
+  useEffect(() => { setPage(1); }, [search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const paged = useMemo(() => filtered.slice(pageStart, pageStart + PAGE_SIZE), [filtered, pageStart]);
 
   const stats = useMemo(() => {
     let total = 0, pending = 0, approved = 0, rejected = 0;
@@ -549,7 +580,16 @@ export default function KycVerification() {
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">No KYC submissions yet.</div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="space-y-2">
+              <Pager
+                page={safePage}
+                totalPages={totalPages}
+                from={pageStart + 1}
+                to={Math.min(pageStart + PAGE_SIZE, filtered.length)}
+                total={filtered.length}
+                onChange={setPage}
+              />
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/80 font-bold text-foreground">
@@ -565,7 +605,7 @@ export default function KycVerification() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((r) => {
+                  {paged.map((r) => {
                     // Document status is the source of truth. Approval-time
                     // supersession guarantees the "current" doc for the
                     // account is not stale.
@@ -883,6 +923,15 @@ export default function KycVerification() {
                   })}
                 </TableBody>
               </Table>
+              </div>
+              <Pager
+                page={safePage}
+                totalPages={totalPages}
+                from={pageStart + 1}
+                to={Math.min(pageStart + PAGE_SIZE, filtered.length)}
+                total={filtered.length}
+                onChange={setPage}
+              />
             </div>
           )}
         </CardContent>
