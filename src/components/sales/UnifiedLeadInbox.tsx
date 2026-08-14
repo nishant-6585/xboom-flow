@@ -11,11 +11,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { anyValue } from "@/lib/emptyColumns";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck, Eye,
+  Inbox, RefreshCw, Search, CheckCheck,
   Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -224,6 +222,13 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   }, [rows, groupDupes]);
   const uniqueTotal = grouped.length;
   const mergedAway = rows.length - uniqueTotal;
+
+  // Drop columns that carry no information in the current view.
+  const showSource = !(isLockedSource && sources?.length === 1);
+  const showProduct = anyValue(rows, (r) => r.product_name);
+  const showEnquiry = anyValue(rows, (r) => r.subject_or_message);
+  const colCount =
+    7 + (showSource ? 1 : 0) + (showProduct ? 1 : 0) + (showEnquiry ? 1 : 0);
 
   // Selection — keyed by `source:source_row_id` so it survives regrouping.
   const rowByKey = useMemo(() => {
