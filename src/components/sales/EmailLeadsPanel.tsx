@@ -356,10 +356,10 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
 
   return (
     <div className="space-y-6">
-      <GmailIntegrationCard />
+      {mode === 'list' && <GmailIntegrationCard />}
 
       {/* Pipeline Funnel with visual flow */}
-      {metrics && (
+      {mode === 'analytics' && metrics && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Target className="w-5 h-5 text-primary" />
