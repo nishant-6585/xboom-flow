@@ -480,7 +480,6 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                     aria-label="Select all leads on this page"
                   />
                 </TableHead>
-                <TableHead className="w-[24px] px-2" />
                 <TableHead className="w-[36px] px-2" />
                 {showSource && <TableHead className="w-[110px]">Source</TableHead>}
                 <TableHead>Name</TableHead>
