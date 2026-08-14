@@ -551,7 +551,16 @@ export default function KycVerification() {
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">No KYC submissions yet.</div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="space-y-2">
+              <Pager
+                page={safePage}
+                totalPages={totalPages}
+                from={pageStart + 1}
+                to={Math.min(pageStart + PAGE_SIZE, filtered.length)}
+                total={filtered.length}
+                onChange={setPage}
+              />
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/80 font-bold text-foreground">
@@ -567,7 +576,7 @@ export default function KycVerification() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((r) => {
+                  {paged.map((r) => {
                     // Document status is the source of truth. Approval-time
                     // supersession guarantees the "current" doc for the
                     // account is not stale.
