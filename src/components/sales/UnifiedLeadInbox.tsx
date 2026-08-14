@@ -504,7 +504,6 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                 {showSource && <TableHead className="w-[110px]">Source</TableHead>}
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
-                {showProduct && <TableHead className="hidden xl:table-cell">Product</TableHead>}
                 {showEnquiry && <TableHead>Enquiry</TableHead>}
                 <TableHead className="w-[110px]">Status</TableHead>
                 <TableHead className="w-[160px] hidden xl:table-cell">Assigned</TableHead>
@@ -516,6 +515,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
               {grouped.map((group) => {
                 const lead = group.primary;
                 const meta = SOURCE_META[lead.source];
+                const enquiry = enquiryOf(lead);
                 const isUnseen = !lastSeen || lead.created_at > lastSeen;
                 const hasDisposition = !!lead.disposition && lead.disposition !== "untouched";
                 return (
@@ -575,18 +575,22 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         {!lead.phone && !lead.email && <span>—</span>}
                       </div>
                     </TableCell>
-                    {showProduct && (
-                      <TableCell className="max-w-[280px] py-2 hidden xl:table-cell">
-                        <span className="text-[13px] line-clamp-2">
-                          {lead.product_name || "—"}
-                        </span>
-                      </TableCell>
-                    )}
                     {showEnquiry && (
-                      <TableCell className="max-w-[280px] py-2">
-                        <span className="text-[13px] text-muted-foreground line-clamp-2">
-                          {lead.subject_or_message || "—"}
-                        </span>
+                      <TableCell className="max-w-[320px] py-2.5">
+                        {enquiry.primary ? (
+                          <>
+                            <div className="text-[13px] text-foreground truncate">
+                              {enquiry.primary}
+                            </div>
+                            {enquiry.secondary && (
+                              <div className="text-xs text-muted-foreground truncate">
+                                {enquiry.secondary}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-[13px] text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     )}
                     <TableCell className="py-2">
