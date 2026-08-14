@@ -303,7 +303,7 @@ export default function KycVerification() {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 20;
 
   const openOrderDialog = async (orderId: string) => {
     setOrderLoading(true);
@@ -389,7 +389,7 @@ export default function KycVerification() {
     return list;
   }, [rows, search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange, focusAccount]);
 
-  // Pagination — 50 rows per page, reset whenever the result set changes.
+  // Pagination — 20 rows per page, reset whenever the result set changes.
   useEffect(() => { setPage(1); }, [search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
