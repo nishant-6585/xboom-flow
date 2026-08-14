@@ -60,18 +60,48 @@ import { Bot } from 'lucide-react';
 import { TouchedDashboard } from './TouchedDashboard';
 import { MetaLeadsUpload } from './MetaLeadsUpload';
 import { UnifiedLeadInbox } from './UnifiedLeadInbox';
-import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
+import { useUnifiedLeadCounts, useUnifiedLeadTotals, type LeadChannel } from '@/hooks/useUnifiedLeadFeed';
+import { ChannelVolumeGrid, type ChannelVolumeItem } from './ChannelVolumeGrid';
 import { Inbox, Store } from 'lucide-react';
 import { groupDuplicates } from '@/lib/leadDeduplication';
 import { DuplicateCountBadge, DuplicateHistoryRow } from './DuplicateHistoryRow';
 import { LeadsExportMenu } from './LeadsExportMenu';
 
-function InboxNewBadge() {
-  const { data } = useUnifiedLeadCounts();
-  if (!data || data.totalNew === 0) return null;
-  return (
-    <span className="ml-1 font-mono text-[10px] text-primary">{data.totalNew}</span>
-  );
+/** Tab -> unified channel key. Tabs without a channel show no count. */
+const CHANNEL_BY_TAB: Record<string, LeadChannel> = {
+  qforms: 'forms',
+  interakt: 'interakt',
+  myoperator: 'myoperator',
+  manychat: 'manychat',
+  elevenlabs: 'elevenlabs',
+  emails: 'email',
+  'google-ads': 'google_ads',
+  'facebook-leads': 'facebook',
+  indiamart: 'indiamart',
+};
+
+/** Cards for the channel-volume grid, in channel-row order. */
+const CHANNEL_CARDS: { tab: string; label: string; channel: LeadChannel }[] = [
+  { tab: 'all-inbox', label: 'Website', channel: 'website' },
+  { tab: 'qforms', label: 'QForms', channel: 'forms' },
+  { tab: 'interakt', label: 'Interakt', channel: 'interakt' },
+  { tab: 'myoperator', label: 'MyOperator', channel: 'myoperator' },
+  { tab: 'manychat', label: 'ManyChat', channel: 'manychat' },
+  { tab: 'elevenlabs', label: 'ElevenLabs', channel: 'elevenlabs' },
+  { tab: 'emails', label: 'Emails', channel: 'email' },
+  { tab: 'google-ads', label: 'Google Ads', channel: 'google_ads' },
+  { tab: 'facebook-leads', label: 'Facebook Leads', channel: 'facebook' },
+  { tab: 'indiamart', label: 'IndiaMART', channel: 'indiamart' },
+];
+
+/** One number per tab: all-time total, plus a dot when there are unseen leads. */
+function UnseenDot() {
+  return <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" aria-label="New leads" />;
+}
+
+function TabTotal({ total }: { total: number | undefined }) {
+  if (!total) return null;
+  return <span className="ml-1 font-mono text-[10px] text-muted-foreground">{total.toLocaleString()}</span>;
 }
 
 /** Single-line channel row trigger: neutral when inactive, raised card when active. */
