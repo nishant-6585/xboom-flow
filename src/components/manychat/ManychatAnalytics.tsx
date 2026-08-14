@@ -19,6 +19,7 @@ import {
   Cell,
   LineChart,
   Line,
+  ComposedChart,
 } from "recharts";
 import { BarChart3, ChevronDown, ChevronRight } from "lucide-react";
 import { format, subDays, startOfDay, startOfWeek } from "date-fns";
@@ -291,7 +292,7 @@ export function ManychatAnalytics({ leads }: Props) {
               <Empty />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={bySalesperson} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <ComposedChart data={bySalesperson} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
                   <XAxis dataKey="name" tick={axis} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={50} />
                   <YAxis yAxisId="left" tick={axis} tickLine={false} axisLine={false} allowDecimals={false} />
@@ -301,7 +302,7 @@ export function ManychatAnalytics({ leads }: Props) {
                   <Bar yAxisId="left" dataKey="total" name="Contacts" fill="hsl(217, 91%, 60%)" radius={[3, 3, 0, 0]} />
                   <Bar yAxisId="left" dataKey="prospects" name="Prospects" fill="hsl(280, 65%, 60%)" radius={[3, 3, 0, 0]} />
                   <Line yAxisId="right" type="monotone" dataKey="conversionPct" name="Conversion %" stroke="hsl(38, 92%, 50%)" strokeWidth={2} dot={false} />
-                </BarChart>
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </ChartCard>
