@@ -481,15 +481,16 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                   />
                 </TableHead>
                 <TableHead className="w-[24px] px-2" />
-                <TableHead className="w-[110px]">Source</TableHead>
+                <TableHead className="w-[36px] px-2" />
+                {showSource && <TableHead className="w-[110px]">Source</TableHead>}
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead className="hidden xl:table-cell">Product</TableHead>
-                <TableHead>Enquiry</TableHead>
+                {showProduct && <TableHead className="hidden xl:table-cell">Product</TableHead>}
+                {showEnquiry && <TableHead>Enquiry</TableHead>}
                 <TableHead className="w-[110px]">Status</TableHead>
                 <TableHead className="w-[160px] hidden xl:table-cell">Assigned</TableHead>
-                <TableHead className="w-[80px] text-right">Age</TableHead>
-                <TableHead className="w-[50px]" />
+                <TableHead className="w-[80px] text-right hidden xl:table-cell">Age</TableHead>
+                <TableHead className="w-[132px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
