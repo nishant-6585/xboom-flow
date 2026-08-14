@@ -263,6 +263,39 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
     [dedupGroups],
   );
 
+  // Reset to first page whenever the visible set changes
+  useEffect(() => { setPage(1); }, [search, includeDispositioned, mergeDuplicates, formType, status, assignee, temperature, startDate, endDate, pageSize, viewMode]);
+
+  const totalItems = viewMode === "table" ? dedupGroups.length : filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const pageSafe = Math.min(page, totalPages);
+  const pageStart = (pageSafe - 1) * pageSize;
+  const pagedGroups = dedupGroups.slice(pageStart, pageStart + pageSize);
+  const pagedCards = filtered.slice(pageStart, pageStart + pageSize);
+
+  const renderPager = (position: "top" | "bottom") => (
+    <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${position === "top" ? "border-b" : "border-t"}`}>
+      <div className="text-xs text-muted-foreground">
+        Showing {totalItems === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + pageSize, totalItems)} of {totalItems}
+      </div>
+      <div className="flex items-center gap-2">
+        <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+          <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {[25, 50, 100, 200].map((n) => (
+              <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(1)}>First</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(pageSafe - 1)}>Prev</Button>
+        <span className="text-xs text-muted-foreground">Page {pageSafe} of {totalPages}</span>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(pageSafe + 1)}>Next</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+      </div>
+    </div>
+  );
+
   // Stats (computed on full rows ignoring search but respecting filters)
   const stats = useMemo(() => {
     const total = rows.length;
