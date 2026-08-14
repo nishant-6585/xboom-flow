@@ -48,16 +48,23 @@ export function FollowupCallbackWidget() {
   const totalPending = myFollowups.length + myCallbacks.length;
   if (totalPending === 0) return null;
 
+  const highPriority = aCategoryFollowups.length + highPriorityCallbacks.length;
+  const metrics: { label: string; value: number; tone?: string }[] = [
+    { label: 'Overdue', value: overdueFollowups.length, tone: 'text-destructive' },
+    { label: 'today', value: todayFollowups.length },
+    { label: 'pending callbacks', value: myCallbacks.length },
+    { label: 'high priority', value: highPriority, tone: 'text-warning' },
+  ];
+  const primary = metrics.reduce((a, b) => (b.value > a.value ? b : a), metrics[0]);
+  const rest = metrics.filter((m) => m !== primary);
+
   return (
-    <Card className="border-amber-500/20">
+    <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <CalendarCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <CalendarCheck className="w-4 h-4 text-muted-foreground" />
             Follow-ups & Callbacks
-            {totalPending > 0 && (
-              <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-0">{totalPending}</Badge>
-            )}
           </CardTitle>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/sales?tab=followups">
@@ -67,24 +74,28 @@ export function FollowupCallbackWidget() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <div className="bg-amber-500/10 rounded-lg p-2 text-center">
-            <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{todayFollowups.length}</div>
-            <div className="text-[10px] text-muted-foreground">Follow-ups Today</div>
-          </div>
-          <div className="bg-red-500/10 rounded-lg p-2 text-center">
-            <div className="text-lg font-bold text-red-600 dark:text-red-400">{overdueFollowups.length}</div>
-            <div className="text-[10px] text-muted-foreground">Overdue</div>
-          </div>
-          <div className="bg-red-500/10 rounded-lg p-2 text-center">
-            <div className="text-lg font-bold text-red-600 dark:text-red-400">{myCallbacks.length}</div>
-            <div className="text-[10px] text-muted-foreground">Pending Callbacks</div>
-          </div>
-          <div className="bg-red-500/10 rounded-lg p-2 text-center">
-            <div className="text-lg font-bold text-red-600 dark:text-red-400">{aCategoryFollowups.length + highPriorityCallbacks.length}</div>
-            <div className="text-[10px] text-muted-foreground">High Priority</div>
-          </div>
+        {/* Summary line */}
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span
+            className={cn(
+              'text-[28px] font-semibold tabular-nums leading-none',
+              primary.value > 0 && primary.tone ? primary.tone : 'text-foreground'
+            )}
+          >
+            {primary.value}
+          </span>
+          <span className="text-sm text-foreground">{primary.label}</span>
+          <span className="text-xs text-muted-foreground">
+            {rest.map((m, i) => (
+              <span key={m.label}>
+                {i > 0 && <span className="mx-1">·</span>}
+                <span className={cn('tabular-nums', m.value > 0 && m.tone ? m.tone : 'text-muted-foreground')}>
+                  {m.value}
+                </span>{' '}
+                {m.label}
+              </span>
+            ))}
+          </span>
         </div>
 
         {/* Top items */}
