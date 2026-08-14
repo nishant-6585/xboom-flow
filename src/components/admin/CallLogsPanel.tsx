@@ -439,6 +439,41 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   );
   const callLogColCount = showRecording ? 9 : 8;
 
+  // Pagination over the visible (merged) rows
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  useEffect(() => {
+    setPage(1);
+  }, [salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned, pageSize, logs.length]);
+  const totalItems = displayLogs.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const pageSafe = Math.min(page, totalPages);
+  const pageStart = (pageSafe - 1) * pageSize;
+  const pagedLogs = displayLogs.slice(pageStart, pageStart + pageSize);
+
+  const renderPager = (position: 'top' | 'bottom') => (
+    <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${position === 'top' ? 'border-b' : 'border-t'}`}>
+      <div className="text-xs text-muted-foreground">
+        Showing {totalItems === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + pageSize, totalItems)} of {totalItems}
+      </div>
+      <div className="flex items-center gap-2">
+        <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+          <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {[25, 50, 100, 200].map((n) => (
+              <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(1)}>First</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(pageSafe - 1)}>Prev</Button>
+        <span className="text-xs text-muted-foreground">Page {pageSafe} of {totalPages}</span>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(pageSafe + 1)}>Next</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+      </div>
+    </div>
+  );
+
   const togglePhoneExpanded = (key: string) => {
     setExpandedPhones(prev => {
       const next = new Set(prev);
@@ -792,6 +827,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           </div>
         ) : (
           <div className="rounded-md border overflow-auto">
+            {renderPager('top')}
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -807,7 +843,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayLogs.map((log) => {
+                {pagedLogs.map((log) => {
                   const info = deriveCallInfo(log);
                   const logKey = log.call_id || log.id;
                   const phoneKey = (log.caller_number || '').replace(/\D/g, '').slice(-10) || `id:${log.id}`;
@@ -1047,6 +1083,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 })}
               </TableBody>
             </Table>
+            {renderPager('bottom')}
           </div>
         )}
       </CardContent>
