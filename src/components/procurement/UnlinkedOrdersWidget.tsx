@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useOrders, Order } from '@/hooks/useOrders';
 import { useOrderProcurementLinks } from '@/hooks/useOrderProcurementLinks';
 import { LinkProcurementDialog } from './LinkProcurementDialog';
