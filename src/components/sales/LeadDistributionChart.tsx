@@ -236,7 +236,8 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
                   <Bar dataKey="Call" stackId="a" fill="hsl(142 71% 45%)" className="cursor-pointer" />
                   <Bar dataKey="Form" stackId="a" fill="hsl(25 95% 53%)" className="cursor-pointer" />
                   <Bar dataKey="Email" stackId="a" fill="hsl(262 83% 58%)" className="cursor-pointer" />
-                  <Bar dataKey="Interakt" stackId="a" fill="hsl(173 80% 40%)" radius={[4, 4, 0, 0]} className="cursor-pointer" />
+                  <Bar dataKey="Interakt" stackId="a" fill="hsl(173 80% 40%)" className="cursor-pointer" />
+                  <Bar dataKey="Other" stackId="a" fill="hsl(215 20% 65%)" radius={[4, 4, 0, 0]} className="cursor-pointer" />
                 </BarChart>
               </ResponsiveContainer>
             </TabsContent>
@@ -252,6 +253,7 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
                       <th className="px-2 py-2 text-right">Form</th>
                       <th className="px-2 py-2 text-right">Email</th>
                       <th className="px-2 py-2 text-right">Interakt</th>
+                      <th className="px-2 py-2 text-right">Other</th>
                       <th className="px-2 py-2 text-right">Prospects</th>
                       <th className="px-2 py-2 text-right">Pipeline</th>
                       <th className="px-2 py-2 text-right font-bold">Total</th>
@@ -296,6 +298,7 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
                         >
                           {entry.sources.interakt}
                         </td>
+                        <td className="px-2 py-2 text-right">{entry.sources.other}</td>
                         <td className="px-2 py-2 text-right">{entry.prospects}</td>
                         <td className="px-2 py-2 text-right">{entry.pipeline}</td>
                         <td className="px-2 py-2 text-right font-bold">{entry.leads}</td>
@@ -311,6 +314,7 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
                       <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.form, 0)}</td>
                       <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.email, 0)}</td>
                       <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.interakt, 0)}</td>
+                      <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.other, 0)}</td>
                       <td className="px-2 py-2 text-right">{totalProspects}</td>
                       <td className="px-2 py-2 text-right">{totalPipeline}</td>
                       <td className="px-2 py-2 text-right">{totalLeads}</td>
