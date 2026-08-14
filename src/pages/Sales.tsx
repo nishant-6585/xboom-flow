@@ -90,24 +90,23 @@ export default function Sales() {
   const triggerSecondary = `${triggerBase} text-xs px-3 py-2`;
   const triggerSecondaryPrimary = `${triggerSecondary} data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`;
   const neutralTrigger =
-    "gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/60 data-[state=active]:bg-muted data-[state=active]:text-foreground";
+    "gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/60 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm whitespace-nowrap";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-background">
       <Header />
       
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-display font-semibold tracking-tight text-foreground">Sales Arena</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">Sales Arena</h1>
             <p className="text-muted-foreground text-sm">Track, compete, and conquer your sales goals</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
           {role === "admin" && <DataExportDialog triggerLabel="Download data" />}
           <Button
             onClick={() => navigate('/sales/tv')}
-            variant="outline"
-            className="gap-2"
+            className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
             title="Open full-screen auto-rotating sales scoreboard"
           >
             <Tv className="w-4 h-4" />
@@ -117,8 +116,8 @@ export default function Sales() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="rounded-lg border border-border bg-card/60 p-1">
-            <TabsList className="bg-transparent flex flex-wrap gap-0.5 h-auto p-0">
+          <div className="rounded-lg bg-muted/40 p-1 overflow-x-auto scrollbar-hide">
+            <TabsList className="bg-transparent flex flex-nowrap gap-0.5 h-auto p-0 w-max">
               <TabsTrigger value="orders_won" className={neutralTrigger}>
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Orders Won
