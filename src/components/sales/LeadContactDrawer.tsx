@@ -668,11 +668,11 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
-                              {f.status === 'completed' && <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-0 text-[10px]">✅ Done</Badge>}
+                              {f.status === 'completed' && <Badge variant="secondary" className="text-[10px]">Done</Badge>}
                               {f.status === 'cancelled' && <Badge variant="secondary" className="text-[10px]">Cancelled</Badge>}
-                              {isOverdue && <Badge className="bg-red-500/20 text-red-700 dark:text-red-400 border-0 text-[10px]">⚠ Overdue</Badge>}
-                              {isDueToday && !isOverdue && <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-0 text-[10px]">Due Today</Badge>}
-                              {f.status === 'pending' && !isOverdue && !isDueToday && <Badge className="bg-primary/20 text-primary border-0 text-[10px]">Upcoming</Badge>}
+                              {isOverdue && <Badge variant="destructive" className="text-[10px]">Overdue</Badge>}
+                              {isDueToday && !isOverdue && <Badge variant="outline" className="text-[10px]">Due today</Badge>}
+                              {f.status === 'pending' && !isOverdue && !isDueToday && <Badge variant="outline" className="text-[10px]">Upcoming</Badge>}
                             </div>
                           </div>
                           {f.remark && <p className="text-xs text-muted-foreground">{f.remark}</p>}
@@ -716,6 +716,19 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
             </TabsContent>
           </ScrollArea>
         </Tabs>
+
+        {actions && dispositionTarget && (
+          <DispositionDialog
+            open={!!dispositionTarget}
+            onOpenChange={(o) => { if (!o) setDispositionTarget(null); }}
+            sourceTable={actions.sourceTable}
+            sourceRowId={actions.sourceRowId}
+            contactName={lead.customer_name}
+            contactPhone={lead.phone}
+            target={dispositionTarget}
+            onSuccess={actions.onChanged}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
