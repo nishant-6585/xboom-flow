@@ -524,6 +524,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           QForms
           <TabTotal total={totalFor('qforms')} />
         </TabsTrigger>
+        <TabsTrigger value="facebook-leads" className={CHANNEL_TRIGGER}>
+          {hasNew('facebook-leads') && <UnseenDot />}
+          <Facebook className="w-4 h-4" />
+          Meta (Facebook)
+          <TabTotal total={totalFor('facebook-leads')} />
+        </TabsTrigger>
         <TabsTrigger value="interakt" className={CHANNEL_TRIGGER}>
           {hasNew('interakt') && <UnseenDot />}
           <MessageCircle className="w-4 h-4" />
@@ -567,12 +573,6 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           <Megaphone className="w-4 h-4" />
           Google Ads
           <TabTotal total={totalFor('google-ads')} />
-        </TabsTrigger>
-        <TabsTrigger value="facebook-leads" className={CHANNEL_TRIGGER}>
-          {hasNew('facebook-leads') && <UnseenDot />}
-          <Facebook className="w-4 h-4" />
-          Facebook Leads
-          <TabTotal total={totalFor('facebook-leads')} />
         </TabsTrigger>
         <TabsTrigger value="indiamart" className={CHANNEL_TRIGGER}>
           {hasNew('indiamart') && <UnseenDot />}
