@@ -1018,6 +1018,8 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
           </div>
         ) : undefined}
       />
+      </>
+      )}
     </div>
   );
 }
