@@ -288,7 +288,9 @@ export function LeadFunnelTracker({ compact, range: externalRange, rangeLabel }:
         {/* Source Breakdown */}
         {!compact && (
           <div>
-            <div className="text-sm font-medium mb-2 text-muted-foreground">{PERIOD_LABELS[period]} — Leads by Source</div>
+            <div className="text-sm font-medium mb-2 text-muted-foreground">
+              {(usesExternalRange ? rangeLabel : PERIOD_LABELS[period]) ?? PERIOD_LABELS[period]} — Leads by Source
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
               {stats.sources.map(src => (
                 <div key={src.name} className="flex items-center gap-2 rounded-lg border px-3 py-2">
