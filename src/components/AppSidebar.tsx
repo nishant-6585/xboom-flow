@@ -83,37 +83,37 @@ export function AppSidebar({ counts }: AppSidebarProps) {
             <CollapsibleTrigger asChild>
               <SidebarMenuButton
                 className={cn(
-                  "relative rounded-md h-9 gap-2.5",
+                  "relative rounded-lg h-[34px] px-[9px] gap-[9px] text-[13px] leading-none",
                   active
-                    ? "bg-sidebar-accent text-foreground font-semibold"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                    ? "bg-sidebar-accent text-foreground font-semibold [&>svg]:text-foreground"
+                    : "text-muted-foreground font-normal hover:bg-sidebar-accent hover:text-foreground"
                 )}
               >
                 {active && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary" aria-hidden />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[14px] w-[2px] rounded-full bg-primary" aria-hidden />
                 )}
-                <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
-                <span className="text-sm truncate">{item.label}</span>
+                <item.icon className="w-4 h-4 shrink-0 stroke-[1.75] text-muted-foreground" />
+                <span className="truncate">{item.label}</span>
                 <ChevronDown className="ml-auto w-3.5 h-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />
               </SidebarMenuButton>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <SidebarMenuSub className="mr-0 pr-0">
+              <SidebarMenuSub className="mx-0 ml-[17px] gap-px border-l border-border px-0 py-0.5 pl-2">
                 {tabs.map((t) => (
                   <SidebarMenuSubItem key={t.tab}>
                     <SidebarMenuSubButton
                       asChild
                       isActive={currentTab === t.tab}
                       className={cn(
-                        "h-8 gap-2",
+                        "h-[30px] gap-2 rounded-md px-2 text-[12.5px] leading-none",
                         currentTab === t.tab
-                          ? "bg-sidebar-accent text-foreground font-medium"
-                          : "text-muted-foreground hover:text-foreground"
+                          ? "bg-sidebar-accent text-foreground font-medium [&>svg]:text-foreground"
+                          : "text-muted-foreground font-normal hover:text-foreground"
                       )}
                     >
                       <Link to={`/sales?tab=${t.tab}`} onClick={closeOnMobile}>
-                        <t.icon className="w-[15px] h-[15px] flex-shrink-0" />
-                        <span className="text-[13px] truncate">{t.label}</span>
+                        <t.icon className="w-[14px] h-[14px] shrink-0 stroke-[1.75] text-muted-foreground" />
+                        <span className="truncate">{t.label}</span>
                       </Link>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
