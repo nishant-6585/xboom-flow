@@ -527,14 +527,14 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                     )}
                     onClick={() => openDetail(lead)}
                   >
-                    <TableCell className="py-2 px-2" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-2.5 px-2" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedKeys.includes(group.key)}
                         onCheckedChange={() => toggleRow(group.key)}
                         aria-label={`Select ${lead.name ?? "lead"}`}
                       />
                     </TableCell>
-                    <TableCell className="py-2 px-2">
+                    <TableCell className="py-2.5 px-2">
                       <span
                         aria-label={isUnseen ? "New lead" : undefined}
                         className={cn(
@@ -546,13 +546,13 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                       </span>
                     </TableCell>
                     {showSource && (
-                      <TableCell className="py-2">
+                      <TableCell className="py-2.5">
                         <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
                           {meta.label}
                         </Badge>
                       </TableCell>
                     )}
-                    <TableCell className="py-2">
+                    <TableCell className="py-2.5">
                       <div className={cn("text-[13px] flex items-center", isUnseen ? "font-bold text-foreground" : "font-normal")}>
                         <span>{lead.name || "—"}</span>
                         <DuplicateCountBadge count={group.count} />
@@ -561,7 +561,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         <div className="text-xs text-muted-foreground">{lead.company}</div>
                       )}
                     </TableCell>
-                    <TableCell className="py-2 max-w-[260px]">
+                    <TableCell className="py-2.5 max-w-[260px]">
                       <div className="flex items-center gap-1.5 min-w-0">
                         {lead.phone && (
                           <span className="font-mono text-[11.5px] whitespace-nowrap">{lead.phone}</span>
@@ -593,7 +593,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         )}
                       </TableCell>
                     )}
-                    <TableCell className="py-2">
+                    <TableCell className="py-2.5">
                       {hasDisposition ? (
                         <DispositionBadge
                           disposition={lead.disposition}
@@ -608,7 +608,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="py-2 hidden xl:table-cell">
+                    <TableCell className="py-2.5 hidden xl:table-cell">
                       <span className="text-xs">
                         {lead.sales_person_name || (lead.is_assigned ? "Assigned" : "—")}
                         {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
@@ -618,12 +618,12 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2 text-right hidden xl:table-cell">
+                    <TableCell className="py-2.5 text-right hidden xl:table-cell">
                       <span className="font-mono text-[11.5px] text-muted-foreground">
                         {compactAge(lead.created_at)}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-0.5">
                         <CallButton
                           phoneNumber={lead.phone}
