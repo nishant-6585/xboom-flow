@@ -126,7 +126,9 @@ function safeFormat(value: string | Date | null | undefined, pattern: string, fa
   return format(d, pattern);
 }
 
-export default function QFormsPanel() {
+export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | "analytics" } = {}) {
+  const showAnalytics = mode !== "list";
+  const showList = mode !== "analytics";
   const { user, profile, role } = useAuth();
   const { data: engagedIds } = useEngagedLeadIds('lead');
   const [rows, setRows] = useState<Lead[]>([]);
@@ -150,6 +152,8 @@ export default function QFormsPanel() {
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [mergeDuplicates, setMergeDuplicates] = useState(true);
   const [expandedDupes, setExpandedDupes] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   const canManage = role === "admin" || role === "sales" || role === "sales_manager";
 
