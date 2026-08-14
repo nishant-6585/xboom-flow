@@ -72,6 +72,15 @@ function lastSeenKey(userId: string | undefined) {
   return `xboom:lead-inbox:last-seen:${userId ?? "anon"}`;
 }
 
+/** "about 3 hours ago" → "3h"; keeps the age column to a single glanceable token. */
+function compactAge(iso: string): string {
+  const raw = formatDistanceToNow(new Date(iso));
+  const m = raw.match(/(\d+)\s*(minute|hour|day|month|year)/);
+  if (!m) return raw.includes("less than") ? "now" : raw;
+  const unit = { minute: "m", hour: "h", day: "d", month: "mo", year: "y" }[m[2]] ?? "";
+  return `${m[1]}${unit}`;
+}
+
 interface UnifiedLeadInboxProps {
   /** Pre-selected sources. When provided, the source filter chips are hidden and only these sources are queried. */
   sources?: LeadSource[];
