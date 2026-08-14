@@ -450,9 +450,15 @@ export function ManychatLeadsPanel() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 border-b pb-4">
-          <ManychatAnalytics leads={filtered} />
-        </div>
+        <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="leads">ManyChat Leads</TabsTrigger>
+            <TabsTrigger value="analytics">ManyChat Analytics</TabsTrigger>
+          </TabsList>
+          <TabsContent value="analytics" className="mt-0">
+            <ManychatAnalytics leads={filtered} />
+          </TabsContent>
+          <TabsContent value="leads" className="mt-0">
         {isLoading ? (
           <div className="py-10 text-center text-sm text-muted-foreground">Loading ManyChat leads…</div>
         ) : groups.length === 0 ? (
@@ -513,6 +519,8 @@ export function ManychatLeadsPanel() {
             </div>
           </>
         )}
+          </TabsContent>
+        </Tabs>
 
         <Dialog open={detailsLead !== null} onOpenChange={(o) => !o && setDetailsLead(null)}>
           <DialogContent className="max-w-lg">
