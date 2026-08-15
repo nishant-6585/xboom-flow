@@ -44,6 +44,7 @@ import { SalesPersonDeepDive } from '@/components/sales/SalesPersonDeepDive';
 import { LeadFunnelTracker } from '@/components/sales/LeadFunnelTracker';
 import { isWooLeadStatus } from '@/lib/wooOrderStatuses';
 import type { DateRange } from 'react-day-picker';
+import { KPICard } from '@/components/sales/KPICard';
 
 const formatCurrency = (value: number) => {
   if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
@@ -1088,11 +1089,18 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
         </Badge>
       </div>
 
-      {/* ============ TOP KPI CARDS ============ */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-        <KPICard label="Total Leads" value={totalLeadsAll} icon={Users} gradient="from-indigo-500 to-blue-600" onClick={() => handleFunnelClick('Total Leads')} />
-        <KPICard label="Prospects" value={totalProspects} icon={Target} gradient="from-amber-500 to-orange-600" onClick={() => handleFunnelClick('Prospects')} />
-        <KPICard label="A-Category" value={aCategory} icon={Award} gradient="from-rose-500 to-pink-600" onClick={() => {
+      {/* ============ TOP KPI CARDS — primary tier ============ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard label="Total Leads" value={totalLeadsAll} icon={Users} onClick={() => handleFunnelClick('Total Leads')} />
+        <KPICard label="Active Pipeline" value={activePipeline.length} icon={TrendingUp} subText={formatCurrency(pipelineValue)} onClick={() => handleFunnelClick('Pipeline')} />
+        <KPICard label="Orders Won" value={ordersWon} icon={ShoppingCart} subText={formatCurrency(ordersValue)} onClick={() => handleFunnelClick('Orders Won')} />
+        <KPICard label="Avg Deal" value={formatCurrency(avgDealSize)} icon={DollarSign} isText onClick={() => handleFunnelClick('Orders Won')} />
+      </div>
+
+      {/* ============ TOP KPI CARDS — secondary tier ============ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard tier="secondary" label="Prospects" value={totalProspects} icon={Target} onClick={() => handleFunnelClick('Prospects')} />
+        <KPICard tier="secondary" label="A-Category" value={aCategory} icon={Award} onClick={() => {
           const items: DetailItem[] = filtered.prospects.filter((p: any) => p.is_a_category).slice(0, 50).map((p: any) => ({
             id: p.id, type: 'prospect' as const, customer_name: p.customer_name,
             customer_company: p.company || '', product_name: p.product_name || '',
@@ -1100,11 +1108,8 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
           }));
           openDrillDown(`A-Category Prospects (${items.length})`, items);
         }} />
-        <KPICard label="Hot Leads" value={hotLeads} icon={Zap} gradient="from-red-500 to-orange-600" onClick={() => handleTemperatureClick('Hot')} />
-        <KPICard label="Active Pipeline" value={activePipeline.length} icon={TrendingUp} gradient="from-blue-500 to-cyan-600" subText={formatCurrency(pipelineValue)} onClick={() => handleFunnelClick('Pipeline')} />
-        <KPICard label="Orders Won" value={ordersWon} icon={ShoppingCart} gradient="from-green-500 to-emerald-600" subText={formatCurrency(ordersValue)} onClick={() => handleFunnelClick('Orders Won')} />
-        <KPICard label="Avg Deal" value={formatCurrency(avgDealSize)} icon={DollarSign} gradient="from-purple-500 to-violet-600" isText onClick={() => handleFunnelClick('Orders Won')} />
-        <KPICard label="Win Rate" value={`${winRate}%`} icon={Percent} gradient="from-teal-500 to-emerald-600" isText onClick={() => {
+        <KPICard tier="secondary" label="Hot Leads" value={hotLeads} icon={Zap} onClick={() => handleTemperatureClick('Hot')} />
+        <KPICard tier="secondary" label="Win Rate" value={`${winRate}%`} icon={Percent} isText onClick={() => {
           const wonItems: DetailItem[] = filtered.enquiries.filter((e: any) => e.status === 'order_won').slice(0, 50).map((e: any) => ({
             id: e.id, type: 'enquiry' as const, customer_name: e.customer_name,
             customer_company: e.customer_company, product_name: e.product_name,
@@ -1799,23 +1804,6 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
 }
 
 // ============ Sub-components ============
-
-function KPICard({ label, value, icon: Icon, gradient, subText, isText, onClick }: {
-  label: string; value: number | string; icon: any; gradient: string; subText?: string; isText?: boolean; onClick?: () => void;
-}) {
-  return (
-    <Card className={`overflow-hidden ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all' : ''}`} onClick={onClick}>
-      <CardContent className={`p-3 bg-gradient-to-br ${gradient} text-white`}>
-        <div className="flex items-center gap-1.5 mb-1">
-          <Icon className="w-3.5 h-3.5 opacity-80" />
-          <span className="text-[9px] uppercase tracking-wider opacity-80 leading-none">{label}</span>
-        </div>
-        <p className="text-xl font-bold leading-tight">{isText ? value : typeof value === 'number' ? value.toLocaleString() : value}</p>
-        {subText && <p className="text-[10px] opacity-80 mt-0.5">{subText}</p>}
-      </CardContent>
-    </Card>
-  );
-}
 
 function MetricRow({ label, value, color, onClick }: { label: string; value: number; color?: string; onClick?: () => void }) {
   return (
