@@ -44,6 +44,7 @@ import { SalesPersonDeepDive } from '@/components/sales/SalesPersonDeepDive';
 import { LeadFunnelTracker } from '@/components/sales/LeadFunnelTracker';
 import { isWooLeadStatus } from '@/lib/wooOrderStatuses';
 import type { DateRange } from 'react-day-picker';
+import { KPICard } from '@/components/sales/KPICard';
 
 const formatCurrency = (value: number) => {
   if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
