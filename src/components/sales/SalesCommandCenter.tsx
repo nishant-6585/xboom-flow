@@ -1225,166 +1225,181 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
         </Card>
       )}
 
-      {/* ============ SALES ACTUALS — Yesterday & Today ============ */}
-      {(salesActuals.today.length > 0 || salesActuals.yesterday.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Today */}
-          <Card 
-            className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/10 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => openDrillDown("Today's Sales Won", salesActuals.today.map(o => ({
-              id: o.id,
-              type: 'pipeline' as const,
-              customer_name: (o as any).customer_name || (o as any).party_name || 'N/A',
-              customer_company: (o as any).customer_company || (o as any).company || '',
-              product_name: (o as any).product_name || (o as any).item_name || 'N/A',
-              value: o.total_sales_amount || 0,
-              date: o.order_date || o.created_at || '',
-              status: 'won',
-              tab: 'orders_won',
-            })))}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4 text-green-600" />
-                  Today's Sales Won
-                  <Badge variant="secondary" className="text-xs">{salesActuals.today.length}</Badge>
-                </CardTitle>
-                <span className="text-lg font-bold text-green-700 dark:text-green-400">{formatCurrency(salesActuals.todayTotal)}</span>
+      {/* ============ WON & LOST — Yesterday & Today ============ */}
+      {(salesActuals.today.length > 0 || salesActuals.yesterday.length > 0 ||
+        lostActuals.today.length > 0 || lostActuals.yesterday.length > 0) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-sm font-medium">Won &amp; lost</CardTitle>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
+                <span>Won: today {formatCurrency(salesActuals.todayTotal)} · yesterday {formatCurrency(salesActuals.yesterdayTotal)}</span>
+                <span className="text-destructive">Lost: today −{formatCurrency(lostActuals.todayTotal)} · yesterday −{formatCurrency(lostActuals.yesterdayTotal)}</span>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {salesActuals.todayBySp.map(sp => (
-                <div key={sp.name} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
-                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Won column */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                  <ShoppingCart className="w-4 h-4" />
+                  Won
                 </div>
-              ))}
-              {salesActuals.today.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No sales closed today yet</p>
-              )}
-            </CardContent>
-          </Card>
-          {/* Yesterday */}
-          <Card 
-            className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/10 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => openDrillDown("Yesterday's Sales Won", salesActuals.yesterday.map(o => ({
-              id: o.id,
-              type: 'pipeline' as const,
-              customer_name: (o as any).customer_name || (o as any).party_name || 'N/A',
-              customer_company: (o as any).customer_company || (o as any).company || '',
-              product_name: (o as any).product_name || (o as any).item_name || 'N/A',
-              value: o.total_sales_amount || 0,
-              date: o.order_date || o.created_at || '',
-              status: 'won',
-              tab: 'orders_won',
-            })))}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4 text-blue-600" />
-                  Yesterday's Sales Won
-                  <Badge variant="secondary" className="text-xs">{salesActuals.yesterday.length}</Badge>
-                </CardTitle>
-                <span className="text-lg font-bold text-blue-700 dark:text-blue-400">{formatCurrency(salesActuals.yesterdayTotal)}</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {salesActuals.yesterdayBySp.map(sp => (
-                <div key={sp.name} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
-                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
-                </div>
-              ))}
-              {salesActuals.yesterday.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No sales closed yesterday</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
-      {/* ============ ORDERS LOST — Yesterday & Today ============ */}
-      {(lostActuals.today.length > 0 || lostActuals.yesterday.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Today Lost */}
-          <Card 
-            className="border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/10 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => openDrillDown("Today's Orders Lost", lostActuals.today.map(p => ({
-              id: p.id,
-              type: 'pipeline' as const,
-              customer_name: p.customer_name,
-              customer_company: p.customer_company,
-              product_name: p.product_name,
-              value: p.expected_price || 0,
-              date: p.updated_at || p.created_at,
-              status: 'lost',
-              temperature: p.lead_temperature,
-              tab: 'orders_lost',
-            })))}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-600" />
-                  Today's Orders Lost
-                  <Badge variant="destructive" className="text-xs">{lostActuals.today.length}</Badge>
-                </CardTitle>
-                <span className="text-lg font-bold text-red-700 dark:text-red-400">{formatCurrency(lostActuals.todayTotal)}</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {lostActuals.todayBySp.map(sp => (
-                <div key={sp.name} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
-                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                <div>
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => openDrillDown("Today's Sales Won", salesActuals.today.map(o => ({
+                      id: o.id,
+                      type: 'pipeline' as const,
+                      customer_name: (o as any).customer_name || (o as any).party_name || 'N/A',
+                      customer_company: (o as any).customer_company || (o as any).company || '',
+                      product_name: (o as any).product_name || (o as any).item_name || 'N/A',
+                      value: o.total_sales_amount || 0,
+                      date: o.order_date || o.created_at || '',
+                      status: 'won',
+                      tab: 'orders_won',
+                    })))}
+                  >
+                    <span className="flex items-center gap-2">
+                      Today
+                      <Badge variant="secondary" className="text-xs">{salesActuals.today.length}</Badge>
+                    </span>
+                    <span className="tabular-nums font-medium text-foreground">{formatCurrency(salesActuals.todayTotal)}</span>
+                  </button>
+                  <div className="mt-2 space-y-1">
+                    {salesActuals.todayBySp.map(sp => (
+                      <div key={`won-today-${sp.name}`} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                        <span className="font-medium tabular-nums">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                      </div>
+                    ))}
+                    {salesActuals.today.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No sales closed today yet</p>
+                    )}
+                  </div>
                 </div>
-              ))}
-              {lostActuals.today.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No orders lost today</p>
-              )}
-            </CardContent>
-          </Card>
-          {/* Yesterday Lost */}
-          <Card 
-            className="border-orange-200 dark:border-orange-800 bg-orange-50/30 dark:bg-orange-950/10 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => openDrillDown("Yesterday's Orders Lost", lostActuals.yesterday.map(p => ({
-              id: p.id,
-              type: 'pipeline' as const,
-              customer_name: p.customer_name,
-              customer_company: p.customer_company,
-              product_name: p.product_name,
-              value: p.expected_price || 0,
-              date: p.updated_at || p.created_at,
-              status: 'lost',
-              temperature: p.lead_temperature,
-              tab: 'orders_lost',
-            })))}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-orange-600" />
-                  Yesterday's Orders Lost
-                  <Badge variant="outline" className="text-xs">{lostActuals.yesterday.length}</Badge>
-                </CardTitle>
-                <span className="text-lg font-bold text-orange-700 dark:text-orange-400">{formatCurrency(lostActuals.yesterdayTotal)}</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {lostActuals.yesterdayBySp.map(sp => (
-                <div key={sp.name} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
-                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+
+                <div className="pt-3 border-t border-border">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => openDrillDown("Yesterday's Sales Won", salesActuals.yesterday.map(o => ({
+                      id: o.id,
+                      type: 'pipeline' as const,
+                      customer_name: (o as any).customer_name || (o as any).party_name || 'N/A',
+                      customer_company: (o as any).customer_company || (o as any).company || '',
+                      product_name: (o as any).product_name || (o as any).item_name || 'N/A',
+                      value: o.total_sales_amount || 0,
+                      date: o.order_date || o.created_at || '',
+                      status: 'won',
+                      tab: 'orders_won',
+                    })))}
+                  >
+                    <span className="flex items-center gap-2">
+                      Yesterday
+                      <Badge variant="secondary" className="text-xs">{salesActuals.yesterday.length}</Badge>
+                    </span>
+                    <span className="tabular-nums font-medium text-foreground">{formatCurrency(salesActuals.yesterdayTotal)}</span>
+                  </button>
+                  <div className="mt-2 space-y-1">
+                    {salesActuals.yesterdayBySp.map(sp => (
+                      <div key={`won-yest-${sp.name}`} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                        <span className="font-medium tabular-nums">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                      </div>
+                    ))}
+                    {salesActuals.yesterday.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No sales closed yesterday</p>
+                    )}
+                  </div>
                 </div>
-              ))}
-              {lostActuals.yesterday.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No orders lost yesterday</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+
+              {/* Lost column */}
+              <div className="space-y-4 md:border-l md:border-border md:pl-6">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                  <AlertTriangle className="w-4 h-4" />
+                  Lost
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => openDrillDown("Today's Orders Lost", lostActuals.today.map(p => ({
+                      id: p.id,
+                      type: 'pipeline' as const,
+                      customer_name: p.customer_name,
+                      customer_company: p.customer_company,
+                      product_name: p.product_name,
+                      value: p.expected_price || 0,
+                      date: p.updated_at || p.created_at,
+                      status: 'lost',
+                      temperature: p.lead_temperature,
+                      tab: 'orders_lost',
+                    })))}
+                  >
+                    <span className="flex items-center gap-2">
+                      Today
+                      <Badge variant="destructive" className="text-xs">{lostActuals.today.length}</Badge>
+                    </span>
+                    <span className="tabular-nums font-medium text-destructive">−{formatCurrency(lostActuals.todayTotal)}</span>
+                  </button>
+                  <div className="mt-2 space-y-1">
+                    {lostActuals.todayBySp.map(sp => (
+                      <div key={`lost-today-${sp.name}`} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                        <span className="font-medium tabular-nums text-destructive">{sp.count} deal{sp.count !== 1 ? 's' : ''} — −{formatCurrency(sp.total)}</span>
+                      </div>
+                    ))}
+                    {lostActuals.today.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No orders lost today</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-border">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => openDrillDown("Yesterday's Orders Lost", lostActuals.yesterday.map(p => ({
+                      id: p.id,
+                      type: 'pipeline' as const,
+                      customer_name: p.customer_name,
+                      customer_company: p.customer_company,
+                      product_name: p.product_name,
+                      value: p.expected_price || 0,
+                      date: p.updated_at || p.created_at,
+                      status: 'lost',
+                      temperature: p.lead_temperature,
+                      tab: 'orders_lost',
+                    })))}
+                  >
+                    <span className="flex items-center gap-2">
+                      Yesterday
+                      <Badge variant="outline" className="text-xs">{lostActuals.yesterday.length}</Badge>
+                    </span>
+                    <span className="tabular-nums font-medium text-destructive">−{formatCurrency(lostActuals.yesterdayTotal)}</span>
+                  </button>
+                  <div className="mt-2 space-y-1">
+                    {lostActuals.yesterdayBySp.map(sp => (
+                      <div key={`lost-yest-${sp.name}`} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                        <span className="font-medium tabular-nums text-destructive">{sp.count} deal{sp.count !== 1 ? 's' : ''} — −{formatCurrency(sp.total)}</span>
+                      </div>
+                    ))}
+                    {lostActuals.yesterday.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No orders lost yesterday</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {isManager && targetComparison.length > 0 && (
