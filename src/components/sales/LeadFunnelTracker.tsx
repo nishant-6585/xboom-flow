@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useInteraktLeads } from '@/hooks/useInteraktLeads';
 import { useEmailLeads } from '@/hooks/useEmailLeads';
@@ -140,14 +140,14 @@ export function LeadFunnelTracker({ compact, range: externalRange, rangeLabel }:
 
     return {
       sources: [
-        { name: 'Enquiries', count: enquiryCount, icon: Package, color: 'text-blue-600' },
-        { name: 'Interakt', count: interaktCount, icon: MessageCircle, color: 'text-green-600' },
-        { name: 'MyOperator', count: myOpCount, icon: Phone, color: 'text-purple-600' },
-        { name: 'ElevenLabs', count: elevenCount, icon: Bot, color: 'text-violet-600' },
-        { name: 'Emails', count: emailCount, icon: Mail, color: 'text-red-600' },
-        { name: 'QForms', count: formCount, icon: FileText, color: 'text-orange-600' },
-        { name: 'Google Ads', count: googleAdsCount, icon: Globe, color: 'text-cyan-600' },
-        { name: 'Abandoned Cart', count: wooCount, icon: Globe, color: 'text-emerald-600' },
+        { name: 'Enquiries', count: enquiryCount, icon: Package },
+        { name: 'Interakt', count: interaktCount, icon: MessageCircle },
+        { name: 'MyOperator', count: myOpCount, icon: Phone },
+        { name: 'ElevenLabs', count: elevenCount, icon: Bot },
+        { name: 'Emails', count: emailCount, icon: Mail },
+        { name: 'QForms', count: formCount, icon: FileText },
+        { name: 'Google Ads', count: googleAdsCount, icon: Globe },
+        { name: 'Abandoned Cart', count: wooCount, icon: Globe },
       ],
       totalLeads,
       prospectsCount,
