@@ -63,7 +63,13 @@ export function KPICard({
         <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
           {label}
         </span>
-        <Icon className={cn("w-4 h-4 shrink-0", zero ? "text-muted-foreground/50" : "text-muted-foreground")} />
+        <Icon
+          className={cn(
+            "w-4 h-4 shrink-0 transition-opacity",
+            zero ? "text-muted-foreground/50" : "text-muted-foreground",
+            onClick && "group-hover:opacity-0",
+          )}
+        />
       </div>
 
       <p
@@ -79,7 +85,12 @@ export function KPICard({
       {subText && <p className="text-xs text-muted-foreground mt-1">{subText}</p>}
 
       {onClick && (
-        <ChevronRight className="absolute top-2 right-2 w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ChevronRight
+          className={cn(
+            "absolute w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity",
+            secondary ? "top-3 right-3" : "top-4 right-4",
+          )}
+        />
       )}
     </div>
   );
