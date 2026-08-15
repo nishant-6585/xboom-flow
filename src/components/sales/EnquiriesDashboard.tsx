@@ -107,32 +107,6 @@ interface DetailItem {
   temperature?: string;
 }
 
-function KPICard({ label, value, icon: Icon, gradient, subText, isText, onClick }: {
-  label: string; value: string | number; icon: typeof Package; gradient: string;
-  subText?: string; isText?: boolean; onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={`relative overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-border/30`}
-      onClick={onClick}
-    >
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-15`} />
-      <CardContent className="pt-3 pb-3 px-3 relative">
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg bg-gradient-to-br ${gradient} shadow-sm`}>
-            <Icon className="h-4 w-4 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className={`${isText ? 'text-lg' : 'text-xl'} font-bold leading-tight`}>{value}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{label}</p>
-            {subText && <p className="text-[10px] text-muted-foreground/70">{subText}</p>}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
   const [, setSearchParams] = useSearchParams();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('this_month');
