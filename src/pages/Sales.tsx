@@ -6,6 +6,10 @@ import { DataExportDialog } from "@/components/exports/DataExportDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
+import { useSalesDashboardMetrics } from "@/hooks/useSalesDashboardMetrics";
+import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv, FileText } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
@@ -64,6 +68,25 @@ export default function Sales() {
   });
   const handleDateRangeChange = useCallback((s: string, e: string) => setDashboardDateRange({ start: s, end: e }), []);
 
+  // ---- Live header state (today's funnel + yesterday's lost value) ----
+  const todayStr = format(now, 'yyyy-MM-dd');
+  const yesterdayStr = format(new Date(now.getTime() - 86400000), 'yyyy-MM-dd');
+  const { metrics } = useSalesDashboardMetrics({ startDate: todayStr, endDate: todayStr });
+  const { pipelineOrders } = usePipelineOrders();
+  const lostYesterdayValue = (pipelineOrders ?? []).reduce(
+    (sum, p: any) =>
+      p.status === 'lost' && (p.updated_at || '').slice(0, 10) === yesterdayStr
+        ? sum + (p.expected_price || 0)
+        : sum,
+    0,
+  );
+  const fmtCurrency = (v: number) => {
+    if (v >= 10000000) return `₹${(v / 10000000).toFixed(1)}Cr`;
+    if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+    if (v >= 1000) return `₹${(v / 1000).toFixed(0)}K`;
+    return `₹${v.toFixed(0)}`;
+  };
+
   // Read tab and leadId from URL params (reactive to changes)
   const urlTab = searchParams.get("tab");
   const urlLeadId = searchParams.get("leadId");
@@ -96,18 +119,37 @@ export default function Sales() {
         <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">Sales Arena</h1>
-            <p className="text-muted-foreground text-sm">Track, compete, and conquer your sales goals</p>
+            <p className="text-muted-foreground text-sm tabular-nums">
+              {metrics.totals.total_leads} leads today · {metrics.totals.total_prospects} prospects ·{' '}
+              {metrics.totals.orders_won} orders won ·{' '}
+              <span className="text-destructive">{fmtCurrency(lostYesterdayValue)} lost yesterday</span>
+            </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-          {role === "admin" && <DataExportDialog triggerLabel="Download data" />}
           <Button
+            variant="outline"
             onClick={() => navigate('/sales/tv')}
-            className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="gap-2"
             title="Open full-screen auto-rotating sales scoreboard"
           >
             <Tv className="w-4 h-4" />
             TV View
           </Button>
+          {role === "admin" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More actions">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DataExportDialog
+                  triggerLabel="Download data"
+                  trigger={<DropdownMenuItem onSelect={(e) => e.preventDefault()}>Download data</DropdownMenuItem>}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           </div>
         </div>
 
