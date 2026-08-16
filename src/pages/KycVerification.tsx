@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useKycQueue, kycStatusMeta, type KycQueueRow } from "@/hooks/useKyc";
-import { format, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks } from "date-fns";
-import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw } from "lucide-react";
+import { format, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, startOfDay, endOfDay } from "date-fns";
+import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Header } from "@/components/Header";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
