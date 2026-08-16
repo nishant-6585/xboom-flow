@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useKycQueue, kycStatusMeta, type KycQueueRow } from "@/hooks/useKyc";
-import { format, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks } from "date-fns";
-import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw } from "lucide-react";
+import { format, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, startOfDay, endOfDay } from "date-fns";
+import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Header } from "@/components/Header";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
@@ -293,6 +295,8 @@ export default function KycVerification() {
   const [repFilter, setRepFilter] = useState<string>("all");
   const [aiFilter, setAiFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [reviewing, setReviewing] = useState<{ row: KycQueueRow; mode: "approve" | "reject" } | null>(null);
   const [reason, setReason] = useState("");
   const [reasonCategory, setReasonCategory] = useState<string>("document_unclear");
@@ -361,6 +365,15 @@ export default function KycVerification() {
         return ts >= startOfWeek(lw, { weekStartsOn: 1 }) && ts <= endOfWeek(lw, { weekStartsOn: 1 });
       }
       case "this_month": return ts >= startOfMonth(now) && ts <= endOfMonth(now);
+      case "last_month": {
+        const lm = subMonths(now, 1);
+        return ts >= startOfMonth(lm) && ts <= endOfMonth(lm);
+      }
+      case "custom": {
+        if (customStart && ts < startOfDay(customStart)) return false;
+        if (customEnd && ts > endOfDay(customEnd)) return false;
+        return true;
+      }
       default: return true;
     }
   };
@@ -510,6 +523,8 @@ export default function KycVerification() {
               { v: "this_week", l: "This week" },
               { v: "last_week", l: "Last week" },
               { v: "this_month", l: "This month" },
+              { v: "last_month", l: "Last month" },
+              { v: "custom", l: "Custom" },
             ].map((d) => (
               <Button
                 key={d.v}
@@ -520,6 +535,33 @@ export default function KycVerification() {
                 {d.l}
               </Button>
             ))}
+            {dateRange === "custom" && (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customStart ? format(customStart, "dd MMM yyyy") : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={customStart} onSelect={setCustomStart} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-sm text-muted-foreground self-center">to</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customEnd ? format(customEnd, "dd MMM yyyy") : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={customEnd} onSelect={setCustomEnd} disabled={(d) => (customStart ? d < customStart : false)} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
