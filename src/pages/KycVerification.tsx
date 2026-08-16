@@ -523,6 +523,8 @@ export default function KycVerification() {
               { v: "this_week", l: "This week" },
               { v: "last_week", l: "Last week" },
               { v: "this_month", l: "This month" },
+              { v: "last_month", l: "Last month" },
+              { v: "custom", l: "Custom" },
             ].map((d) => (
               <Button
                 key={d.v}
@@ -533,6 +535,33 @@ export default function KycVerification() {
                 {d.l}
               </Button>
             ))}
+            {dateRange === "custom" && (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customStart ? format(customStart, "dd MMM yyyy") : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={customStart} onSelect={setCustomStart} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-sm text-muted-foreground self-center">to</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customEnd ? format(customEnd, "dd MMM yyyy") : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={customEnd} onSelect={setCustomEnd} disabled={(d) => (customStart ? d < customStart : false)} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
