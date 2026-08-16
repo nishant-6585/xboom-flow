@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface DateRangeFilterProps {
   startDate: Date | undefined;
@@ -87,28 +86,35 @@ export function DateRangeFilter({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <Select
-        value={selectValue}
-        onValueChange={(v) => {
-          if (v === CUSTOM) {
-            setShowCustom(true);
-            return;
-          }
-          setShowCustom(false);
-          const preset = PRESETS.find((p) => p.label === v);
-          if (preset) applyPreset(preset);
-        }}
-      >
-        <SelectTrigger className="h-8 w-[168px] text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {PRESETS.map((p) => (
-            <SelectItem key={p.label} value={p.label} className="text-xs">{p.label}</SelectItem>
-          ))}
-          <SelectItem value={CUSTOM} className="text-xs">{CUSTOM}</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-1 flex-wrap">
+        {PRESETS.map((p) => {
+          const active = selectValue === p.label;
+          return (
+            <Button
+              key={p.label}
+              type="button"
+              size="sm"
+              variant={active ? 'default' : 'outline'}
+              className="h-8 px-2.5 text-xs"
+              onClick={() => {
+                setShowCustom(false);
+                applyPreset(p);
+              }}
+            >
+              {p.label}
+            </Button>
+          );
+        })}
+        <Button
+          type="button"
+          size="sm"
+          variant={selectValue === CUSTOM ? 'default' : 'outline'}
+          className="h-8 px-2.5 text-xs"
+          onClick={() => setShowCustom(true)}
+        >
+          Custom
+        </Button>
+      </div>
 
       {selectValue === CUSTOM && (
       <>
