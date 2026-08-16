@@ -363,6 +363,15 @@ export default function KycVerification() {
         return ts >= startOfWeek(lw, { weekStartsOn: 1 }) && ts <= endOfWeek(lw, { weekStartsOn: 1 });
       }
       case "this_month": return ts >= startOfMonth(now) && ts <= endOfMonth(now);
+      case "last_month": {
+        const lm = subMonths(now, 1);
+        return ts >= startOfMonth(lm) && ts <= endOfMonth(lm);
+      }
+      case "custom": {
+        if (customStart && ts < startOfDay(customStart)) return false;
+        if (customEnd && ts > endOfDay(customEnd)) return false;
+        return true;
+      }
       default: return true;
     }
   };
