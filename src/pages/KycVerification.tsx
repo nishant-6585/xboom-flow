@@ -295,6 +295,8 @@ export default function KycVerification() {
   const [repFilter, setRepFilter] = useState<string>("all");
   const [aiFilter, setAiFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [reviewing, setReviewing] = useState<{ row: KycQueueRow; mode: "approve" | "reject" } | null>(null);
   const [reason, setReason] = useState("");
   const [reasonCategory, setReasonCategory] = useState<string>("document_unclear");
