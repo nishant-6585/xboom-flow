@@ -134,7 +134,35 @@ Deno.serve(async (req) => {
     }
 
     let force = false;
-    try { force = (await req.json())?.force === true; } catch { /* no body */ }
+    let inspectTemplates = false;
+    try {
+      const b = await req.json();
+      force = b?.force === true;
+      inspectTemplates = b?.inspect_templates === true;
+    } catch { /* no body */ }
+
+    // Debug helper: dump the WABA template definitions so the report's
+    // bodyValues count can be verified against the approved template.
+    if (inspectTemplates) {
+      const apiKey = Deno.env.get("INTERAKT_API_KEY");
+      const endpoints = [
+        "https://api.interakt.ai/v1/public/organizations/templates/?limit=100&offset=0",
+        "https://api.interakt.ai/v1/public/track/templates/",
+        "https://api.interakt.ai/v1/public/message/templates/",
+      ];
+      for (const url of endpoints) {
+        try {
+          const r = await fetch(url, { headers: { Authorization: `Basic ${apiKey}` } });
+          const t = await r.text();
+          console.log(`[templates] ${url} -> ${r.status} ${t.slice(0, 1500)}`);
+        } catch (e) {
+          console.log(`[templates] ${url} -> error ${e instanceof Error ? e.message : "fail"}`);
+        }
+      }
+      return new Response(JSON.stringify({ inspected: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabase = createClient(supabaseUrl, serviceKey);
     const { data: settings } = await supabase.from("slack_settings").select("*").limit(1).maybeSingle();
