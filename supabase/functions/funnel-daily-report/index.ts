@@ -258,6 +258,17 @@ Deno.serve(async (req) => {
       const res = await sendWhatsApp(r.phone, bodyValues);
       whatsapp.push({ name: r.name, ...res });
       if (!res.ok) console.error(`whatsapp funnel report failed for ${r.name}:`, res.error);
+      // Persist the outbound attempt so the delivery webhook can be matched
+      // against it and silent (accepted-but-undelivered) sends surface.
+      await supabase.from("whatsapp_message_events").insert({
+        provider: "interakt",
+        provider_message_id: (res as any)?.response?.id ?? null,
+        phone: r.phone.replace(/\D/g, ""),
+        template_name: WA_TEMPLATE,
+        status: res.ok ? "api_accepted" : "api_rejected",
+        failure_reason: res.ok ? null : String((res as any).error ?? "unknown"),
+        raw: { recipient: r.name, bodyValues, response: (res as any)?.response ?? null },
+      });
     }
 
     return new Response(JSON.stringify({
