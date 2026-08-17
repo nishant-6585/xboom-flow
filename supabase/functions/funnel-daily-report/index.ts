@@ -71,7 +71,7 @@ async function sendSlack(
 }
 
 /** Interakt WABA template send. bodyValues order must match the approved template. */
-async function sendWhatsApp(phone: string, bodyValues: string[]) {
+async function sendWhatsAppTemplate(templateName: string, phone: string, bodyValues: string[]) {
   const apiKey = Deno.env.get("INTERAKT_API_KEY");
   if (!apiKey) return { ok: false, error: "INTERAKT_API_KEY not configured" };
 
@@ -89,7 +89,7 @@ async function sendWhatsApp(phone: string, bodyValues: string[]) {
         phoneNumber,
         callbackData: `funnel_report_${Date.now()}`,
         type: "Template",
-        template: { name: WA_TEMPLATE, languageCode: "en", bodyValues },
+        template: { name: templateName, languageCode: "en", bodyValues },
       }),
     });
     const text = await r.text();
@@ -98,11 +98,15 @@ async function sendWhatsApp(phone: string, bodyValues: string[]) {
     if (!r.ok || j?.result === false) {
       return { ok: false, error: `Interakt ${r.status}: ${j?.message || j?.error || "send failed"}` };
     }
-    return { ok: true };
+    console.log(`[whatsapp] ${templateName} -> ${phoneNumber} accepted:`, JSON.stringify(j).slice(0, 400));
+    return { ok: true, status: r.status, response: j };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "interakt request failed" };
   }
 }
+
+const sendWhatsApp = (phone: string, bodyValues: string[]) =>
+  sendWhatsAppTemplate(WA_TEMPLATE, phone, bodyValues);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -133,7 +137,49 @@ Deno.serve(async (req) => {
     }
 
     let force = false;
-    try { force = (await req.json())?.force === true; } catch { /* no body */ }
+    let inspectTemplates = false;
+    let testTemplate: string | null = null;
+    let testPhone: string | null = null;
+    let testValues: string[] = [];
+    try {
+      const b = await req.json();
+      force = b?.force === true;
+      inspectTemplates = b?.inspect_templates === true;
+      testTemplate = typeof b?.test_template === "string" ? b.test_template : null;
+      testPhone = typeof b?.test_phone === "string" ? b.test_phone : null;
+      testValues = Array.isArray(b?.test_values) ? b.test_values.map(String) : [];
+    } catch { /* no body */ }
+
+    // Debug helper: send one arbitrary approved template to one number.
+    if (testTemplate && testPhone) {
+      const res = await sendWhatsAppTemplate(testTemplate, testPhone, testValues);
+      return new Response(JSON.stringify({ test: true, res }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Debug helper: dump the WABA template definitions so the report's
+    // bodyValues count can be verified against the approved template.
+    if (inspectTemplates) {
+      const apiKey = Deno.env.get("INTERAKT_API_KEY");
+      const endpoints = [
+        "https://api.interakt.ai/v1/public/organizations/templates/?limit=100&offset=0",
+        "https://api.interakt.ai/v1/public/track/templates/",
+        "https://api.interakt.ai/v1/public/message/templates/",
+      ];
+      for (const url of endpoints) {
+        try {
+          const r = await fetch(url, { headers: { Authorization: `Basic ${apiKey}` } });
+          const t = await r.text();
+          console.log(`[templates] ${url} -> ${r.status} ${t.slice(0, 1500)}`);
+        } catch (e) {
+          console.log(`[templates] ${url} -> error ${e instanceof Error ? e.message : "fail"}`);
+        }
+      }
+      return new Response(JSON.stringify({ inspected: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabase = createClient(supabaseUrl, serviceKey);
     const { data: settings } = await supabase.from("slack_settings").select("*").limit(1).maybeSingle();
@@ -212,6 +258,17 @@ Deno.serve(async (req) => {
       const res = await sendWhatsApp(r.phone, bodyValues);
       whatsapp.push({ name: r.name, ...res });
       if (!res.ok) console.error(`whatsapp funnel report failed for ${r.name}:`, res.error);
+      // Persist the outbound attempt so the delivery webhook can be matched
+      // against it and silent (accepted-but-undelivered) sends surface.
+      await supabase.from("whatsapp_message_events").insert({
+        provider: "interakt",
+        provider_message_id: (res as any)?.response?.id ?? null,
+        phone: r.phone.replace(/\D/g, ""),
+        template_name: WA_TEMPLATE,
+        status: res.ok ? "api_accepted" : "api_rejected",
+        failure_reason: res.ok ? null : String((res as any).error ?? "unknown"),
+        raw: { recipient: r.name, bodyValues, response: (res as any)?.response ?? null },
+      });
     }
 
     return new Response(JSON.stringify({
