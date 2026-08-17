@@ -135,11 +135,25 @@ Deno.serve(async (req) => {
 
     let force = false;
     let inspectTemplates = false;
+    let testTemplate: string | null = null;
+    let testPhone: string | null = null;
+    let testValues: string[] = [];
     try {
       const b = await req.json();
       force = b?.force === true;
       inspectTemplates = b?.inspect_templates === true;
+      testTemplate = typeof b?.test_template === "string" ? b.test_template : null;
+      testPhone = typeof b?.test_phone === "string" ? b.test_phone : null;
+      testValues = Array.isArray(b?.test_values) ? b.test_values.map(String) : [];
     } catch { /* no body */ }
+
+    // Debug helper: send one arbitrary approved template to one number.
+    if (testTemplate && testPhone) {
+      const res = await sendWhatsAppTemplate(testTemplate, testPhone, testValues);
+      return new Response(JSON.stringify({ test: true, res }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Debug helper: dump the WABA template definitions so the report's
     // bodyValues count can be verified against the approved template.
