@@ -98,7 +98,8 @@ async function sendWhatsApp(phone: string, bodyValues: string[]) {
     if (!r.ok || j?.result === false) {
       return { ok: false, error: `Interakt ${r.status}: ${j?.message || j?.error || "send failed"}` };
     }
-    return { ok: true };
+    console.log(`[whatsapp] ${phoneNumber} accepted:`, JSON.stringify(j).slice(0, 400));
+    return { ok: true, status: r.status, response: j };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "interakt request failed" };
   }
