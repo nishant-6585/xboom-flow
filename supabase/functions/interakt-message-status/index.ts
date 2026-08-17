@@ -18,18 +18,36 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Interakt can deliver its configured secret key in several shapes depending
+  // on the dashboard version: ?token= / ?secret= in the URL, a header, or a
+  // `secret` field in the JSON body. Accept any of them.
   const expected = Deno.env.get("INTERAKT_WEBHOOK_TOKEN");
+
+  let payload: any = null;
+  try { payload = await req.json(); } catch { /* ignore */ }
+
   if (expected) {
-    const token = new URL(req.url).searchParams.get("token");
-    if (token !== expected) {
+    const url = new URL(req.url);
+    const candidates = [
+      url.searchParams.get("token"),
+      url.searchParams.get("secret"),
+      url.searchParams.get("secret_key"),
+      req.headers.get("secret-key"),
+      req.headers.get("x-secret-key"),
+      req.headers.get("x-interakt-secret"),
+      req.headers.get("x-webhook-secret"),
+      (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""),
+      payload?.secret ?? payload?.secret_key ?? payload?.secretKey ?? null,
+    ].filter(Boolean) as string[];
+
+    if (!candidates.includes(expected)) {
+      console.error("[interakt-message-status] unauthorized webhook call");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
   }
 
-  let payload: any = null;
-  try { payload = await req.json(); } catch { /* ignore */ }
   if (!payload) {
     return new Response(JSON.stringify({ error: "invalid body" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
