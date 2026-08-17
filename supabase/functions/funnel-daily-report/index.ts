@@ -71,7 +71,7 @@ async function sendSlack(
 }
 
 /** Interakt WABA template send. bodyValues order must match the approved template. */
-async function sendWhatsApp(phone: string, bodyValues: string[]) {
+async function sendWhatsAppTemplate(templateName: string, phone: string, bodyValues: string[]) {
   const apiKey = Deno.env.get("INTERAKT_API_KEY");
   if (!apiKey) return { ok: false, error: "INTERAKT_API_KEY not configured" };
 
@@ -89,7 +89,7 @@ async function sendWhatsApp(phone: string, bodyValues: string[]) {
         phoneNumber,
         callbackData: `funnel_report_${Date.now()}`,
         type: "Template",
-        template: { name: WA_TEMPLATE, languageCode: "en", bodyValues },
+        template: { name: templateName, languageCode: "en", bodyValues },
       }),
     });
     const text = await r.text();
@@ -98,12 +98,15 @@ async function sendWhatsApp(phone: string, bodyValues: string[]) {
     if (!r.ok || j?.result === false) {
       return { ok: false, error: `Interakt ${r.status}: ${j?.message || j?.error || "send failed"}` };
     }
-    console.log(`[whatsapp] ${phoneNumber} accepted:`, JSON.stringify(j).slice(0, 400));
+    console.log(`[whatsapp] ${templateName} -> ${phoneNumber} accepted:`, JSON.stringify(j).slice(0, 400));
     return { ok: true, status: r.status, response: j };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "interakt request failed" };
   }
 }
+
+const sendWhatsApp = (phone: string, bodyValues: string[]) =>
+  sendWhatsAppTemplate(WA_TEMPLATE, phone, bodyValues);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
