@@ -16832,6 +16832,45 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_message_events: {
+        Row: {
+          callback_data: string | null
+          created_at: string
+          failure_reason: string | null
+          id: string
+          phone: string | null
+          provider: string
+          provider_message_id: string | null
+          raw: Json | null
+          status: string | null
+          template_name: string | null
+        }
+        Insert: {
+          callback_data?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          phone?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          raw?: Json | null
+          status?: string | null
+          template_name?: string | null
+        }
+        Update: {
+          callback_data?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          phone?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          raw?: Json | null
+          status?: string | null
+          template_name?: string | null
+        }
+        Relationships: []
+      }
       woo_lead_activities: {
         Row: {
           activity_date: string
