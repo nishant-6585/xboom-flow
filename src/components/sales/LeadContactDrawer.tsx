@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -150,22 +150,30 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
   const [completeRemark, setCompleteRemark] = useState('');
   const [completing, setCompleting] = useState(false);
 
+  // Keep the latest lead available without making it an effect dependency —
+  // callers build this object inline, so its identity changes on every parent
+  // render (realtime/refetch). Resetting on identity was wiping the open
+  // follow-up form mid-typing.
+  const leadRef = useRef(lead);
+  leadRef.current = lead;
+
   useEffect(() => {
-    if (lead) {
-      setForm({
-        customer_name: lead.customer_name || '',
-        phone: lead.phone || '',
-        email: lead.email || '',
-        company: lead.company || '',
-        city: lead.city || '',
-        product_name: lead.product_name || '',
-        notes: lead.notes || '',
-      });
-      setEditing(false);
-      setShowNewFollowup(false);
-      setCompletingId(null);
-    }
-  }, [lead]);
+    const l = leadRef.current;
+    if (!l) return;
+    setForm({
+      customer_name: l.customer_name || '',
+      phone: l.phone || '',
+      email: l.email || '',
+      company: l.company || '',
+      city: l.city || '',
+      product_name: l.product_name || '',
+      notes: l.notes || '',
+    });
+    setEditing(false);
+    setShowNewFollowup(false);
+    setCompletingId(null);
+    // Reset only when a different lead is opened (or the drawer reopens).
+  }, [lead?.id, lead?.source_type, open]);
 
   // Filter followups for this lead
   const leadFollowups = useMemo(() => {
