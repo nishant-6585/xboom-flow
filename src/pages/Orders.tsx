@@ -132,6 +132,7 @@ export default function Orders() {
   useEffect(() => {
     if (tabFromUrl === 'pipeline') setActiveTab('pipeline');
     else if (tabFromUrl === 'new') setActiveTab('new');
+    else if (tabFromUrl === 'attribution_requests') setActiveTab('attribution_requests');
   }, [tabFromUrl]);
 
   // Deep-link: open a specific order when ?order_id=<uuid> is present
