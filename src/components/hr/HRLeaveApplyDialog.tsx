@@ -227,18 +227,49 @@ export function HRLeaveApplyDialog({
           {/* Employee Selection */}
           <div className="space-y-2">
             <Label>Employee *</Label>
-            <Select value={employeeId} onValueChange={setEmployeeId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select employee..." />
-              </SelectTrigger>
-              <SelectContent>
-                {activeEmployees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id}>
-                    {emp.name} — {emp.department}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={employeePickerOpen} onOpenChange={setEmployeePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={employeePickerOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {selectedEmployee
+                    ? `${selectedEmployee.name} — ${selectedEmployee.department}`
+                    : "Select employee..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search employee..." />
+                  <CommandList className="max-h-[280px] overflow-y-auto overscroll-contain">
+                    <CommandEmpty>No employee found.</CommandEmpty>
+                    <CommandGroup>
+                      {activeEmployees.map((emp) => (
+                        <CommandItem
+                          key={emp.id}
+                          value={`${emp.name} ${emp.department}`}
+                          onSelect={() => {
+                            setEmployeeId(emp.id);
+                            setEmployeePickerOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              employeeId === emp.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {emp.name} — {emp.department}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
             {selectedEmployee && (
               <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
