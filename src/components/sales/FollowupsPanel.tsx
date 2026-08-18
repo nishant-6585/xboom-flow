@@ -26,6 +26,7 @@ export function FollowupsPanel() {
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('active');
+  const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [completingFollowup, setCompletingFollowup] = useState<Followup | null>(null);
@@ -75,6 +76,15 @@ export function FollowupsPanel() {
     else if (statusFilter === 'today') items = items.filter(f => isToday(new Date(f.followup_at)));
     else if (statusFilter === 'overdue') items = items.filter(f => f.status === 'pending' && isBefore(new Date(f.followup_at), now));
 
+    if (ownerFilter !== 'all') {
+      items = items.filter(f => {
+        const owner = (f as any).user_id || f.created_by;
+        return ownerFilter === 'unassigned'
+          ? !owner
+          : owner === ownerFilter;
+      });
+    }
+
     if (search) {
       const q = search.toLowerCase();
       items = items.filter(f =>
@@ -85,7 +95,19 @@ export function FollowupsPanel() {
       );
     }
     return items;
-  }, [followups, statusFilter, search, now]);
+  }, [followups, statusFilter, ownerFilter, search, now]);
+
+  // Salesperson options derived from the loaded follow-ups
+  const ownerOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    followups.forEach(f => {
+      const id = (f as any).user_id || f.created_by;
+      if (id) map.set(id, f.created_by_name || 'Unknown');
+    });
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [followups]);
 
   // Stats
   const todayCount = followups.filter(f => f.status === 'pending' && isToday(new Date(f.followup_at))).length;
