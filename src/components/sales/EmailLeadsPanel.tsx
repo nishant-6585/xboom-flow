@@ -652,41 +652,25 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
-                    <TableHead className="w-8" />
-                    <TableHead className="w-[210px]">Actions</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
-                        Date
-                        <ArrowUpDown className="w-3 h-3" />
-                      </button>
-                    </TableHead>
-                    <TableHead>Admin</TableHead>
+                    <TableHead className="w-[36px] px-2" />
+                    <TableHead className="w-[110px]">Source</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('customer_name')}>
-                        Customer
+                        Name
                         <ArrowUpDown className="w-3 h-3" />
                       </button>
                     </TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('processing_status')}>
-                        AI Status
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Enquiry</TableHead>
+                    <TableHead className="w-[110px]">Status</TableHead>
+                    <TableHead className="w-[160px]">Assigned</TableHead>
+                    <TableHead className="w-[80px] text-right">
+                      <button className="flex items-center gap-1 ml-auto hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
+                        Age
                         <ArrowUpDown className="w-3 h-3" />
                       </button>
                     </TableHead>
-                    <TableHead>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('ai_confidence')}>
-                        Confidence
-                        <ArrowUpDown className="w-3 h-3" />
-                      </button>
-                    </TableHead>
-                    <TableHead>Cust. Type</TableHead>
+                    <TableHead className="w-[150px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
