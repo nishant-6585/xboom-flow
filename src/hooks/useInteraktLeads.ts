@@ -64,38 +64,48 @@ export function useInteraktLeads() {
     refetchOnWindowFocus: false,
     queryFn: async () => {
       // Supabase caps a single .select() at 1000 rows, so the full set has to be
-      // paged. Ask for the row count first, then fetch every page in parallel —
-      // the old sequential loop meant ~15 round-trips one after another.
+      // paged. Pages are fetched with bounded concurrency and retried — a single
+      // flaky page must never wipe out the whole table (the old Promise.all
+      // rejected the entire query and rendered an empty "no leads" state).
       const PAGE = 1000;
       const MAX_ROWS = 100000;
+      const CONCURRENCY = 4;
 
-      const fetchPage = async (from: number) => {
+      const fetchPage = async (from: number, attempt = 0): Promise<InteraktLead[]> => {
         const { data, error } = await supabase
           .from('interakt_leads')
           .select(LIST_COLUMNS)
           .order('interakt_created_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .range(from, from + PAGE - 1);
-        if (error) throw error;
-        return data as unknown as InteraktLead[];
+        if (error) {
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+            return fetchPage(from, attempt + 1);
+          }
+          console.error('[useInteraktLeads] page failed', from, error.message);
+          return [];
+        }
+        return (data ?? []) as unknown as InteraktLead[];
       };
 
-      const { data: first, error: firstErr, count } = await supabase
+      const { count } = await supabase
         .from('interakt_leads')
-        .select(LIST_COLUMNS, { count: 'exact' })
-        .order('interakt_created_at', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false })
-        .range(0, PAGE - 1);
-      if (firstErr) throw firstErr;
+        .select('id', { count: 'exact', head: true });
 
-      const all = (first ?? []) as unknown as InteraktLead[];
+      const first = await fetchPage(0);
+      const all = first;
       const total = Math.min(count ?? all.length, MAX_ROWS);
       if (total <= PAGE) return all;
 
       const offsets: number[] = [];
       for (let from = PAGE; from < total; from += PAGE) offsets.push(from);
-      const pages = await Promise.all(offsets.map(fetchPage));
-      pages.forEach((p) => all.push(...p));
+
+      for (let i = 0; i < offsets.length; i += CONCURRENCY) {
+        const batch = offsets.slice(i, i + CONCURRENCY);
+        const pages = await Promise.all(batch.map((o) => fetchPage(o)));
+        pages.forEach((p) => all.push(...p));
+      }
       return all;
     },
   });
