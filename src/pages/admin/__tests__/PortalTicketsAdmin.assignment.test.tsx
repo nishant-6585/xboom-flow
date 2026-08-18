@@ -52,8 +52,14 @@ function row(over: Record<string, unknown> = {}) {
 }
 
 const ASSIGNEES = [
-  { user_id: "u-sc", name: "Suman Das", email: "suman@xboom.in", role: "supply_chain" },
-  { user_id: "u-sm", name: "Vishal R", email: "vishal@xboom.in", role: "sales_manager" },
+  {
+    user_id: "u-sc", name: "Suman Das", email: "suman@xboom.in",
+    role: "supply_chain", in_slack_channel: true, assigned_count: 3,
+  },
+  {
+    user_id: "u-sm", name: "Vishal R", email: "vishal@xboom.in",
+    role: "sales_manager", in_slack_channel: true, assigned_count: 2,
+  },
 ];
 
 function mockRpc(rows: Record<string, unknown>[]) {
@@ -129,13 +135,21 @@ describe("usePortalTicketAssignees", () => {
       user_id: "u-sc",
       name: "Suman Das",
       role: "supply_chain",
+      in_slack_channel: true,
+      assigned_count: 3,
     });
   });
 
   it("falls back to the email when a profile has no name", async () => {
     rpc.mockImplementation(async (name: string) => {
       if (name === "list_portal_ticket_assignees") {
-        return { data: [{ user_id: "u-x", name: null, email: "x@xboom.in", role: "supply_chain" }], error: null };
+        return {
+          data: [{
+            user_id: "u-x", name: null, email: "x@xboom.in",
+            role: "supply_chain", in_slack_channel: true, assigned_count: 0,
+          }],
+          error: null,
+        };
       }
       return { data: null, error: null };
     });
@@ -181,5 +195,49 @@ describe("useAssignPortalTicket", () => {
     await expect(
       result.current.mutateAsync({ ticketId: "t1", userId: "u-sc" }),
     ).rejects.toMatchObject({ message: "forbidden" });
+  });
+});
+
+describe("assignment pool fallback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    rpc.mockReset();
+  });
+
+  it("flags rows as outside the Slack channel when the pool is empty", async () => {
+    // The RPC falls back to the role-based list and marks the rows, so the
+    // admin UI can warn that assignment is wider than #customer-portal-ticket.
+    rpc.mockImplementation(async (name: string) => {
+      if (name === "list_portal_ticket_assignees") {
+        return {
+          data: [{
+            user_id: "u-any", name: "Some Admin", email: "a@xboom.in",
+            role: "admin", in_slack_channel: false, assigned_count: 0,
+          }],
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
+    const { result } = renderHook(() => usePortalTicketAssignees(), { wrapper });
+    await waitFor(() => expect(result.current.assignees).toHaveLength(1));
+    expect(result.current.assignees[0].in_slack_channel).toBe(false);
+  });
+
+  it("treats a missing in_slack_channel field as in-channel rather than warning", async () => {
+    // Defensive: an older RPC shape must not light up the amber fallback banner.
+    rpc.mockImplementation(async (name: string) => {
+      if (name === "list_portal_ticket_assignees") {
+        return {
+          data: [{ user_id: "u-a", name: "A", email: "a@x.in", role: "supply_chain" }],
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
+    const { result } = renderHook(() => usePortalTicketAssignees(), { wrapper });
+    await waitFor(() => expect(result.current.assignees).toHaveLength(1));
+    expect(result.current.assignees[0].in_slack_channel).toBe(true);
+    expect(result.current.assignees[0].assigned_count).toBe(0);
   });
 });

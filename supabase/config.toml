@@ -98,6 +98,11 @@ verify_jwt = false
     verify_jwt = false
   [functions.portal-set-password]
     verify_jwt = false
+  # Mirrors Slack #customer-portal-ticket membership into the assignment pool.
+  # Accepts either x-cron-secret (pg_cron) or an admin/supply_chain JWT
+  # (the "Sync now" button), so JWT verification is handled in-function.
+  [functions.sync-portal-ticket-assignees]
+    verify_jwt = false
   # Called by pg_net from the portal-ticket triggers; authenticated with
   # x-cron-secret rather than a user JWT.
   [functions.portal-ticket-alert]

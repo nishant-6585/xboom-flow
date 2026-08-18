@@ -12333,6 +12333,39 @@ export type Database = {
           },
         ]
       }
+      portal_ticket_assignee_pool: {
+        Row: {
+          added_at: string
+          assigned_count: number
+          is_active: boolean
+          last_assigned_at: string | null
+          slack_handle: string | null
+          slack_user_id: string | null
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          assigned_count?: number
+          is_active?: boolean
+          last_assigned_at?: string | null
+          slack_handle?: string | null
+          slack_user_id?: string | null
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          assigned_count?: number
+          is_active?: boolean
+          last_assigned_at?: string | null
+          slack_handle?: string | null
+          slack_user_id?: string | null
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       portal_ticket_messages: {
         Row: {
           attachments: Json
@@ -19116,7 +19149,9 @@ export type Database = {
       list_portal_ticket_assignees: {
         Args: never
         Returns: {
+          assigned_count: number
           email: string
+          in_slack_channel: boolean
           name: string
           role: string
           user_id: string
@@ -19415,6 +19450,7 @@ export type Database = {
         }
       }
       order_has_drone: { Args: { p_order_id: string }; Returns: boolean }
+      pick_next_portal_ticket_assignee: { Args: never; Returns: string }
       portal_ticket_dispatch_alert: {
         Args: { _event: string; _message_id?: string; _ticket_id: string }
         Returns: undefined
@@ -19613,6 +19649,14 @@ export type Database = {
       supersede_stale_kyc_documents: {
         Args: { _account_id: string; _approved_doc_id: string }
         Returns: number
+      }
+      sync_portal_ticket_assignee_pool: {
+        Args: { _members: Json }
+        Returns: {
+          added: number
+          deactivated: number
+          kept: number
+        }[]
       }
       sync_profiles_to_employees: { Args: never; Returns: number }
       touch_portal_last_login: { Args: never; Returns: undefined }
