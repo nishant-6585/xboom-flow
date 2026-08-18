@@ -23,6 +23,37 @@ function navigateToNotification(notification: Notification) {
   }
 }
 
+/**
+ * Portal customer-ticket notification types. These are written by the database
+ * triggers in migration 20260818120000 and are the only alert supply chain
+ * gets for a ticket nobody has picked up yet, so they toast and persist.
+ */
+const PORTAL_TICKET_TYPES = new Set([
+  'portal_ticket_created',
+  'portal_ticket_message',
+  'portal_ticket_assigned',
+  'portal_service_request',
+  'portal_sla_breach',
+]);
+
+const PORTAL_TICKET_ICONS: Record<string, string> = {
+  portal_ticket_created: '🎫',
+  portal_ticket_message: '💬',
+  portal_ticket_assigned: '📌',
+  portal_service_request: '🔧',
+  portal_sla_breach: '🚨',
+};
+
+/** Every notification type that raises a snackbar toast. */
+const TOASTED_TYPES = new Set([
+  'hot_lead',
+  'mega_deal',
+  'enquiry_response',
+  'enquiry_message',
+  'enquiry_nudge',
+  ...PORTAL_TICKET_TYPES,
+]);
+
 export interface Notification {
   id: string;
   order_id: string | null;
@@ -49,14 +80,10 @@ export function useNotifications() {
   const isInitialLoad = useRef(true);
 
   const showToastForNotification = useCallback((notification: Notification) => {
-    // Show toasts for hot leads, mega deals, enquiry responses, and enquiry messages
-    if (
-      notification.type !== 'hot_lead' &&
-      notification.type !== 'mega_deal' &&
-      notification.type !== 'enquiry_response' &&
-      notification.type !== 'enquiry_message' &&
-      notification.type !== 'enquiry_nudge'
-    ) {
+    // Show toasts for hot leads, mega deals, enquiry threads, and portal
+    // customer tickets. Portal ticket types were previously excluded, which is
+    // why customer tickets and replies produced no snackbar at all.
+    if (!TOASTED_TYPES.has(notification.type)) {
       return;
     }
 
@@ -75,37 +102,50 @@ export function useNotifications() {
       return;
     }
 
+    // Same idea for portal tickets: don't toast a ticket the user is already
+    // reading — the message is right there in the thread.
+    if (
+      notification.portal_ticket_id &&
+      typeof window !== 'undefined' &&
+      window.location.pathname.includes(notification.portal_ticket_id)
+    ) {
+      return;
+    }
+
     shownToastIds.current.add(notification.id);
 
     const isHotLead = notification.type === 'hot_lead';
-    const isEnquiry =
-      notification.type === 'enquiry_response' ||
-      notification.type === 'enquiry_message' ||
-      notification.type === 'enquiry_nudge';
     const isEnquiryMessage =
       notification.type === 'enquiry_message' || notification.type === 'enquiry_nudge';
-    
+    const isPortalTicket = PORTAL_TICKET_TYPES.has(notification.type);
+
     // Play sound alert
-    playNotificationSound(isHotLead ? 'hot_lead' : 'mega_deal');
-    
-    const icon = isHotLead
-      ? '🔥'
-      : notification.type === 'enquiry_response'
-      ? '📋'
-      : notification.type === 'enquiry_nudge'
-      ? '👋'
-      : notification.type === 'enquiry_message'
-      ? '💬'
-      : '🌟';
-    
+    playNotificationSound(
+      isPortalTicket ? 'ticket' : isHotLead ? 'hot_lead' : 'mega_deal',
+    );
+
+    const icon = PORTAL_TICKET_ICONS[notification.type]
+      ?? (isHotLead
+        ? '🔥'
+        : notification.type === 'enquiry_response'
+        ? '📋'
+        : notification.type === 'enquiry_nudge'
+        ? '👋'
+        : notification.type === 'enquiry_message'
+        ? '💬'
+        : '🌟');
+
+    // Anything that needs a human to act — an unanswered customer thread or a
+    // breached ticket — stays on screen until it is dismissed. Everything else
+    // keeps the default 8s auto-dismiss.
+    const persist = isEnquiryMessage || isPortalTicket;
+
     toast(notification.title, {
       description: notification.order_number
         ? `Order #${notification.order_number} — ${notification.message}`
         : notification.message,
-      // Enquiry thread messages persist until the user closes them so they
-      // aren't missed. Everything else keeps the default 8s auto-dismiss.
-      duration: isEnquiryMessage ? Infinity : 8000,
-      closeButton: isEnquiryMessage ? true : undefined,
+      duration: persist ? Infinity : 8000,
+      closeButton: persist ? true : undefined,
       icon,
       action: {
         label: 'View',

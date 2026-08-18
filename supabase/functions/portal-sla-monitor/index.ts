@@ -9,6 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 import { resolveRecipients } from "../_shared/staff-routing.ts";
+import { sendSlackDmToEmail, sendSlackDmToUserId } from "../_shared/slack-dm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -128,21 +129,56 @@ Deno.serve(async (req) => {
       },
     );
 
-    // In-app notifications for service_request tickets (unchanged behavior).
-    if (row.ticket_type === "service_request") {
-      const label = kind === "first_response" ? "First response" : "Resolution";
-      for (const uid of userIds) {
-        try {
-          await admin.from("notifications").insert({
-            user_id: uid,
-            type: "portal_service_request_sla",
-            title: `[SLA breach] ${label} — ${row.ticket_number}`,
-            message: `${row.subject} (${row.account?.company_name ?? "—"})`,
-          });
-        } catch { /* ignore */ }
-      }
+    const shortLabel = kind === "first_response" ? "First response" : "Resolution";
+    const ticketUrl = `https://xboomflow.com/admin/portal-tickets/${row.id}`;
+
+    // In-app notification for EVERY breached ticket, not just service
+    // requests. portal_ticket_id makes the bell entry and the toast navigate
+    // straight to the thread; the portal_sla_breach type is what the client
+    // toasts on (see useNotifications).
+    for (const uid of userIds) {
+      try {
+        await admin.from("notifications").insert({
+          user_id: uid,
+          type: "portal_sla_breach",
+          title: `[SLA breach] ${shortLabel} — ${row.ticket_number}`,
+          message: `${row.subject} (${row.account?.company_name ?? "—"})`,
+          portal_ticket_id: row.id,
+          metadata: {
+            ticket_number: row.ticket_number,
+            breach_type: kind,
+            priority: row.priority,
+            ticket_type: row.ticket_type,
+            unassigned: row.assigned_to === null,
+          },
+        });
+      } catch { /* in-app is best-effort; email/Slack still go out */ }
     }
     console.log(`[sla-monitor] ${row.ticket_number} ${kind} recipients=${emails.length} reasons=${reasons.join(",")}`);
+
+    // Slack DM to the same people. Prefer the stored Slack member id and fall
+    // back to a users.lookupByEmail on the app login address.
+    try {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("user_id, email, slack_user_id")
+        .in("user_id", userIds);
+      const slackText =
+        `🚨 ${shortLabel} SLA breached — ${row.ticket_number}: ${row.subject} ` +
+        `(${row.account?.company_name ?? "—"})${row.assigned_to ? "" : " · UNASSIGNED"}\n${ticketUrl}`;
+      await Promise.all(
+        ((profs ?? []) as Array<{ user_id: string; email: string | null; slack_user_id: string | null }>)
+          .map((pr) =>
+            pr.slack_user_id
+              ? sendSlackDmToUserId(pr.slack_user_id, slackText)
+              : pr.email
+              ? sendSlackDmToEmail(pr.email, slackText)
+              : Promise.resolve({ ok: false, error: "no slack target" })
+          ),
+      );
+    } catch (e) {
+      console.warn("[sla-monitor] slack fan-out failed:", e instanceof Error ? e.message : e);
+    }
 
     const label = kind === "first_response" ? "First-response SLA breached" : "Resolution SLA breached";
     if (emails.length > 0) {

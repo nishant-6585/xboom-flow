@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 
-type SoundType = 'hot_lead' | 'mega_deal';
+type SoundType = 'hot_lead' | 'mega_deal' | 'ticket';
 
 export function useNotificationSound() {
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -71,6 +71,27 @@ export function useNotificationSound() {
         oscillator2.start(now);
         oscillator1.stop(now + 0.6);
         oscillator2.stop(now + 0.6);
+      } else if (type === 'ticket') {
+        // Softer descending two-tone for portal tickets — noticeable without
+        // the urgency of the hot-lead alert, which fires far less often.
+        oscillator1.frequency.setValueAtTime(783.99, now); // G5
+        oscillator1.frequency.setValueAtTime(587.33, now + 0.12); // D5
+
+        oscillator2.frequency.setValueAtTime(392.00, now); // G4
+        oscillator2.frequency.setValueAtTime(293.66, now + 0.12); // D4
+
+        oscillator1.type = 'sine';
+        oscillator2.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.18, now + 0.03);
+        gainNode.gain.setValueAtTime(0.18, now + 0.2);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
+
+        oscillator1.start(now);
+        oscillator2.start(now);
+        oscillator1.stop(now + 0.4);
+        oscillator2.stop(now + 0.4);
       } else {
         // Quick attention-grabbing two-tone for hot leads
         oscillator1.frequency.setValueAtTime(880, now); // A5

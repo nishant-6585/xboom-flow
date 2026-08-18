@@ -98,6 +98,13 @@ verify_jwt = false
     verify_jwt = false
   [functions.portal-set-password]
     verify_jwt = false
+  # Called by pg_net from the portal-ticket triggers; authenticated with
+  # x-cron-secret rather than a user JWT.
+  [functions.portal-ticket-alert]
+    verify_jwt = false
+  # Called by pg_cron every 30 min; authenticated with x-cron-secret.
+  [functions.portal-sla-monitor]
+    verify_jwt = false
   [functions.process-email-queue]
     verify_jwt = true
   [functions.resolve-ticket-ai]

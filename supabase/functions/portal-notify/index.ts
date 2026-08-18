@@ -6,9 +6,16 @@
 //   - order_state_changed     payload: { order_id, customer_facing_note?, public_url? }
 //   - rfq_submitted           payload: { rfq_id }                  (notifies assigned rep + sales managers)
 //   - rfq_assigned            payload: { rfq_id }                  (notifies customer)
-//   - ticket_created          payload: { ticket_id }               (notifies internal assignees)
-//   - ticket_message_added    payload: { ticket_id, message_id }   (notifies the *other* side)
+//   - ticket_created          payload: { ticket_id }               (NO-OP — see below)
+//   - ticket_message_added    payload: { ticket_id, message_id }   (staff -> customer only)
 //   - ticket_status_changed   payload: { ticket_id, new_status, note? } (notifies customer)
+//
+// SCOPE, as of migration 20260818120000: this function handles
+// *customer-facing* portal notifications only. Everything staff-facing for a
+// portal ticket is dispatched by database triggers via portal-ticket-alert,
+// because this function is called from the browser and its role guard
+// (correctly) rejects the b2b_customer role that portal contacts hold — so
+// customer-raised events never reached staff from here.
 //
 // Resend-only for internal staff (no WhatsApp). Customers get both when a
 // whatsapp_number is on file.
@@ -381,36 +388,13 @@ Deno.serve(async (req) => {
       }
 
       case "ticket_created": {
-        const ticketId = String(body.payload.ticket_id ?? "");
-        const { data: t } = await admin
-          .from("portal_tickets")
-          .select("ticket_number, subject, priority, ticket_type, assigned_to, account_id, account:portal_accounts(company_name, assigned_rep_id)")
-          .eq("id", ticketId)
-          .maybeSingle();
-        if (!t) return json({ error: "Ticket not found" }, 404);
-        const tk = t as { ticket_number: string; subject: string; priority: string; ticket_type: string | null; assigned_to: string | null; account: { company_name: string; assigned_rep_id: string | null } | null };
-        const { emails, reasons } = await resolveRecipients(admin, "ticket_created", {
-          assignee: tk.assigned_to,
-          accountRep: tk.account?.assigned_rep_id ?? null,
-          ticketType: tk.ticket_type,
-        });
-        console.log(`[portal-notify] ticket_created ${ticketId} recipients=${emails.length} reasons=${reasons.join(",")}`);
-        for (const e of emails) {
-          const res = await sendEmail(
-            e,
-            "portal-ticket-created",
-            {
-              ticket_number: tk.ticket_number,
-              subject: tk.subject,
-              priority: tk.priority,
-              company_name: tk.account?.company_name ?? "—",
-              ticket_url: `${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}`,
-            },
-            `portal-notify:ticket_created:${ticketId}:${e}`,
-          );
-          results.push({ channel: "email", to: e, ok: res.ok, error: res.error });
-        }
-        break;
+        // Superseded by the DB trigger trg_portal_tickets_notify_staff, which
+        // dispatches through portal-ticket-alert (migration 20260818120000).
+        // Kept as an explicit no-op so a stale caller cannot produce a second
+        // copy of the same email. The old path could never fire anyway: it was
+        // invoked from the customer's session and portal contacts hold
+        // b2b_customer, which the role guard above rejects with 403.
+        return json({ ok: true, superseded: "portal-ticket-alert" });
       }
 
       case "ticket_message_added": {
@@ -443,28 +427,11 @@ Deno.serve(async (req) => {
         const senderIsCustomer = !!portalContact;
 
         if (senderIsCustomer) {
-          // notify staff
-          const { emails, reasons } = await resolveRecipients(admin, "ticket_reply_to_staff", {
-            assignee: tk.assigned_to,
-            accountRep: tk.account?.assigned_rep_id ?? null,
-            ticketType: tk.ticket_type,
-          });
-          console.log(`[portal-notify] ticket_reply_to_staff ${ticketId} recipients=${emails.length} reasons=${reasons.join(",")}`);
-          for (const e of emails) {
-            const res = await sendEmail(
-              e,
-              "portal-ticket-reply-to-staff",
-              {
-                ticket_number: tk.ticket_number,
-                subject: tk.subject,
-                sender_name: msg.sender_name_snapshot ?? "Customer",
-                body: msg.body,
-                ticket_url: `${STAFF_BASE_URL}/admin/portal-tickets/${ticketId}`,
-              },
-              `portal-notify:ticket_message_added:${messageId}:${e}`,
-            );
-            results.push({ channel: "email", to: e, ok: res.ok, error: res.error });
-          }
+          // Superseded by trg_portal_ticket_messages_notify_staff, which
+          // dispatches through portal-ticket-alert. Skipping here keeps a
+          // customer reply from being emailed twice if this event is ever
+          // raised for one.
+          break;
         } else {
           // notify customer contacts
           const contacts = await getAccountContacts(admin, tk.account_id);
