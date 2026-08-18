@@ -18052,6 +18052,10 @@ export type Database = {
         Returns: Record<string, unknown>
       }
       assign_orphan_leads_sweep: { Args: never; Returns: number }
+      assign_portal_ticket: {
+        Args: { _ticket_id: string; _user_id: string }
+        Returns: undefined
+      }
       assign_woo_lead: {
         Args: { p_assignee: string; p_order_id: string }
         Returns: undefined
@@ -19109,11 +19113,21 @@ export type Database = {
           total_count: number
         }[]
       }
+      list_portal_ticket_assignees: {
+        Args: never
+        Returns: {
+          email: string
+          name: string
+          role: string
+          user_id: string
+        }[]
+      }
       list_portal_ticket_inbox: {
         Args: never
         Returns: {
           account_id: string
           assigned_to: string
+          assigned_to_name: string
           category: string
           company_name: string
           created_at: string
@@ -19401,6 +19415,16 @@ export type Database = {
         }
       }
       order_has_drone: { Args: { p_order_id: string }; Returns: boolean }
+      portal_ticket_dispatch_alert: {
+        Args: { _event: string; _message_id?: string; _ticket_id: string }
+        Returns: undefined
+      }
+      portal_ticket_notify_targets: {
+        Args: { _ticket_id: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
       profiles_self_update_identity_lock: { Args: never; Returns: boolean }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }

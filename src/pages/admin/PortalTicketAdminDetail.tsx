@@ -21,6 +21,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { TicketPriorityBadge, TicketStatusBadge } from "@/portal/components/TicketStatusBadge";
+import { TicketAssigneeSelect } from "@/components/portal-tickets/TicketAssigneeSelect";
 import { notifyPortal } from "@/portal/lib/portalNotify";
 import { signedAttachmentUrl } from "@/portal/lib/portalUploads";
 import type { PortalTicket, PortalTicketMessage, TicketStatus, TicketPriority } from "@/portal/hooks/usePortalTickets";
@@ -359,6 +360,11 @@ export default function PortalTicketAdminDetail() {
               </div>
 
               <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
+                <TicketAssigneeSelect
+                  ticketId={ticket.id}
+                  assignedTo={ticket.assigned_to}
+                  size="default"
+                />
                 <Button
                   variant={isAssignedToMe ? "secondary" : "outline"}
                   size="sm"

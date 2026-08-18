@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
-import { notifyPortal } from "@/portal/lib/portalNotify";
 
 export type TicketStatus = "open" | "in_progress" | "awaiting_customer" | "resolved" | "closed";
 export type TicketPriority = "low" | "medium" | "high" | "critical";
@@ -145,7 +144,12 @@ export function useCreateTicket() {
         is_internal: false,
       } as never);
 
-      notifyPortal("ticket_created", { ticket_id: ticket.id });
+      // Staff alerting is owned by the DB trigger
+      // trg_portal_tickets_notify_staff (migration 20260818120000): in-app +
+      // push from the notifications INSERT, email + Slack from
+      // portal-ticket-alert. Calling portal-notify from here never worked —
+      // portal contacts hold the b2b_customer role and the function's role
+      // guard rejected them with a 403 that notifyPortal only console.warn'd.
 
       return ticket;
     },
@@ -171,10 +175,9 @@ export function useReplyTicket(ticketId: string | undefined) {
         .select("id")
         .single();
       if (error) throw error;
-      notifyPortal("ticket_message_added", {
-        ticket_id: ticketId,
-        message_id: (msg as { id: string }).id,
-      });
+      // As above: trg_portal_ticket_messages_notify_staff dispatches the
+      // staff-side alert for a customer reply. This call 403'd for every
+      // customer, which is why "N new from customer" never notified anyone.
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portal", "ticket", ticketId] });
