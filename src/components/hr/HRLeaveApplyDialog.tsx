@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -74,6 +74,9 @@ export function HRLeaveApplyDialog({
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [leaveBalance, setLeaveBalance] = useState<number | null>(null);
+  const employeeTriggerRef = useRef<HTMLButtonElement>(null);
+  const employeeSearchRef = useRef<HTMLInputElement>(null);
+  const [employeePopoverContainer, setEmployeePopoverContainer] = useState<HTMLElement | null>(null);
 
   // Comp-off specific state (HR raising it on someone's behalf).
   const { holidays } = useCompOff();
@@ -228,9 +231,20 @@ export function HRLeaveApplyDialog({
           {/* Employee Selection */}
           <div className="space-y-2">
             <Label>Employee *</Label>
-            <Popover modal open={employeePickerOpen} onOpenChange={setEmployeePickerOpen}>
+            <Popover
+              open={employeePickerOpen}
+              onOpenChange={(nextOpen) => {
+                if (nextOpen) {
+                  setEmployeePopoverContainer(
+                    employeeTriggerRef.current?.closest<HTMLElement>('[role="dialog"]') ?? null,
+                  );
+                }
+                setEmployeePickerOpen(nextOpen);
+              }}
+            >
               <PopoverTrigger asChild>
                 <Button
+                  ref={employeeTriggerRef}
                   variant="outline"
                   role="combobox"
                   aria-expanded={employeePickerOpen}
@@ -243,16 +257,28 @@ export function HRLeaveApplyDialog({
                 </Button>
               </PopoverTrigger>
               <PopoverContent
+                portalContainer={employeePopoverContainer}
                 className="w-[--radix-popover-trigger-width] p-0"
                 align="start"
                 onWheel={(event) => event.stopPropagation()}
+                onOpenAutoFocus={(event) => {
+                  event.preventDefault();
+                  employeeSearchRef.current?.focus();
+                }}
               >
-                <Command>
-                  <CommandInput placeholder="Search employee..." />
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    ref={employeeSearchRef}
+                    placeholder="Search employee..."
+                    value={searchTerm}
+                    onValueChange={setSearchTerm}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => employeeSearchRef.current?.focus()}
+                  />
                   <CommandList className="h-[280px] max-h-[min(280px,40vh)] touch-pan-y overflow-y-auto overscroll-contain">
                     <CommandEmpty>No employee found.</CommandEmpty>
                     <CommandGroup>
-                      {activeEmployees.map((emp) => (
+                      {filteredEmployees.map((emp) => (
                         <CommandItem
                           key={emp.id}
                           value={`${emp.name} ${emp.department}`}
