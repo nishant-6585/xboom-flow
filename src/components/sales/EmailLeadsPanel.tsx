@@ -32,6 +32,9 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
 import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { LeadActionsCell } from './LeadActionsCell';
+import { LeadAssigneeSelect } from './LeadAssigneeSelect';
+import { DispositionBadge } from './DispositionBadge';
+import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
 import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
@@ -512,16 +515,9 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
               )}
             </CardTitle>
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Bulk Actions */}
-              {selectedLeads.size > 0 && canManage && (
+              {selectedLeads.size > 0 && (
                 <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-muted/30">
                   <span className="text-xs text-muted-foreground mr-1">{selectedLeads.size} selected</span>
-                  <Button variant="outline" size="sm" className="h-7 text-xs text-green-600 border-green-500/30" onClick={handleBulkApprove} disabled={approving}>
-                    <CheckCircle className="w-3 h-3 mr-1" /> Approve
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs text-destructive border-destructive/30" onClick={handleBulkReject} disabled={rejecting}>
-                    <XCircle className="w-3 h-3 mr-1" /> Reject
-                  </Button>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedLeads(new Set())}>
                     Clear
                   </Button>
