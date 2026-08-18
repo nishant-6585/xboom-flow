@@ -17,10 +17,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LeaveType, Employee } from "@/hooks/useHR";
 import { useCompOff } from "@/hooks/useCompOff";
-import { UserPlus, AlertCircle, Wallet, CalendarDays, AlertTriangle } from "lucide-react";
+import { UserPlus, AlertCircle, Wallet, CalendarDays, AlertTriangle, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { addMonths, isAfter, differenceInMonths, format, parseISO } from "date-fns";
 
