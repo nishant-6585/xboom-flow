@@ -45,6 +45,15 @@ import { DuplicateLeadsHistoryRow } from './DuplicateLeadsHistoryRow';
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
 type SortDir = 'asc' | 'desc';
 
+/** "about 3 hours ago" → "3h" — matches the All Inbox age column. */
+function compactAge(iso: string): string {
+  const raw = formatDistanceToNow(new Date(iso));
+  const m = raw.match(/(\d+)\s*(minute|hour|day|month|year)/);
+  if (!m) return raw.includes('less than') ? 'now' : raw;
+  const unit = { minute: 'm', hour: 'h', day: 'd', month: 'mo', year: 'y' }[m[2]] ?? '';
+  return `${m[1]}${unit}`;
+}
+
 interface EmailLeadsPanelProps {
   /** 'list' renders the table + Gmail card, 'analytics' renders the pipeline dashboard. */
   mode?: 'list' | 'analytics';
