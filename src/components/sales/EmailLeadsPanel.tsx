@@ -32,6 +32,9 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
 import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { LeadActionsCell } from './LeadActionsCell';
+import { LeadAssigneeSelect } from './LeadAssigneeSelect';
+import { DispositionBadge } from './DispositionBadge';
+import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { touchedRowCn, isRowTouched } from '@/lib/touchedRow';
 import { useEngagedLeadIds } from '@/hooks/useEngagedLeadIds';
@@ -41,6 +44,15 @@ import { DuplicateLeadsHistoryRow } from './DuplicateLeadsHistoryRow';
 
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
 type SortDir = 'asc' | 'desc';
+
+/** "about 3 hours ago" → "3h" — matches the All Inbox age column. */
+function compactAge(iso: string): string {
+  const raw = formatDistanceToNow(new Date(iso));
+  const m = raw.match(/(\d+)\s*(minute|hour|day|month|year)/);
+  if (!m) return raw.includes('less than') ? 'now' : raw;
+  const unit = { minute: 'm', hour: 'h', day: 'd', month: 'mo', year: 'y' }[m[2]] ?? '';
+  return `${m[1]}${unit}`;
+}
 
 interface EmailLeadsPanelProps {
   /** 'list' renders the table + Gmail card, 'analytics' renders the pipeline dashboard. */
@@ -77,20 +89,11 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
   const { data: detailBody } = useEmailLeadBody(detailLead?.id);
 
   useEffect(() => {
-    supabase
-      .from('employees')
-      .select('id, name, user_id')
-      .eq('is_active', true)
-      .eq('department', 'Sales')
-      .order('name')
-      .then(async ({ data }) => {
-        const { filterAllowedAssignees } = await import('@/lib/allowedAssignees');
-        // Use user_id as the canonical id since email_leads.sales_person_id stores the auth user_id
-        const mapped = (data || [])
-          .filter((e: any) => e.user_id)
-          .map((e: any) => ({ id: e.user_id as string, name: e.name as string }));
-        setSalespeople(filterAllowedAssignees(mapped));
-      });
+    import('@/lib/salesAssignees').then(({ fetchAssignableSalespeople }) =>
+      fetchAssignableSalespeople().then((roster) =>
+        setSalespeople(roster.map((r) => ({ id: r.user_id, name: r.name }))),
+      ),
+    );
   }, []);
 
   const filteredLeads = useMemo(() => {
@@ -512,16 +515,9 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
               )}
             </CardTitle>
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Bulk Actions */}
-              {selectedLeads.size > 0 && canManage && (
+              {selectedLeads.size > 0 && (
                 <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-muted/30">
                   <span className="text-xs text-muted-foreground mr-1">{selectedLeads.size} selected</span>
-                  <Button variant="outline" size="sm" className="h-7 text-xs text-green-600 border-green-500/30" onClick={handleBulkApprove} disabled={approving}>
-                    <CheckCircle className="w-3 h-3 mr-1" /> Approve
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs text-destructive border-destructive/30" onClick={handleBulkReject} disabled={rejecting}>
-                    <XCircle className="w-3 h-3 mr-1" /> Reject
-                  </Button>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedLeads(new Set())}>
                     Clear
                   </Button>
@@ -656,41 +652,25 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
-                    <TableHead className="w-8" />
-                    <TableHead className="w-[210px]">Actions</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
-                        Date
-                        <ArrowUpDown className="w-3 h-3" />
-                      </button>
-                    </TableHead>
-                    <TableHead>Admin</TableHead>
+                    <TableHead className="w-[36px] px-2" />
+                    <TableHead className="w-[110px]">Source</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('customer_name')}>
-                        Customer
+                        Name
                         <ArrowUpDown className="w-3 h-3" />
                       </button>
                     </TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('processing_status')}>
-                        AI Status
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Enquiry</TableHead>
+                    <TableHead className="w-[110px]">Status</TableHead>
+                    <TableHead className="w-[160px]">Assigned</TableHead>
+                    <TableHead className="w-[80px] text-right">
+                      <button className="flex items-center gap-1 ml-auto hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
+                        Age
                         <ArrowUpDown className="w-3 h-3" />
                       </button>
                     </TableHead>
-                    <TableHead>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('ai_confidence')}>
-                        Confidence
-                        <ArrowUpDown className="w-3 h-3" />
-                      </button>
-                    </TableHead>
-                    <TableHead>Cust. Type</TableHead>
+                    <TableHead className="w-[150px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -716,12 +696,86 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
                           <TableCell>
                             <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(lead.id)} />
                           </TableCell>
-                          <TableCell>
-                            <button onClick={() => toggleRow(lead.id)} className="p-0.5 hover:bg-muted rounded">
-                              {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                            </button>
+                          <TableCell className="py-2.5 px-2">
+                            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-semibold uppercase ${isRowTouched('emails', lead, engagedIds) ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
+                              {(lead.customer_name || '?').trim().charAt(0) || '?'}
+                            </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-2.5">
+                            <Badge variant="outline" className={`text-[10px] ${mailBadgeColor(lead.mail_source)}`}>
+                              {lead.mail_source?.startsWith('gmail:') ? 'Gmail' : 'Email'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-2.5">
+                            <div className="text-[13px] font-medium flex items-center gap-1.5">
+                              <span>{lead.customer_name || '—'}</span>
+                              {isMerged && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
+                                  className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                                  title={`${dupCount} entries merged`}
+                                >
+                                  <Layers className="h-3 w-3" />×{dupCount}
+                                </button>
+                              )}
+                            </div>
+                            {lead.customer_company && (
+                              <div className="text-xs text-muted-foreground truncate max-w-[200px]">{lead.customer_company}</div>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2.5 max-w-[260px]">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {getCleanPhone(lead.phone_number) && (
+                                <span className="font-mono text-[11.5px] whitespace-nowrap">{getCleanPhone(lead.phone_number)}</span>
+                              )}
+                              {getCleanPhone(lead.phone_number) && lead.email && <span className="text-muted-foreground">·</span>}
+                              {lead.email && <span className="text-xs text-muted-foreground truncate">{lead.email}</span>}
+                              {!getCleanPhone(lead.phone_number) && !lead.email && <span>—</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2.5 max-w-[320px]">
+                            {(lead as any).subject || lead.product_name ? (
+                              <>
+                                <div className="text-[13px] truncate">{(lead as any).subject || lead.product_name}</div>
+                                {(lead as any).subject && lead.product_name && (
+                                  <div className="text-xs text-muted-foreground truncate">{lead.product_name}</div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[13px] text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2.5">
+                            {lead.disposition && lead.disposition !== 'untouched' ? (
+                              <DispositionBadge
+                                disposition={lead.disposition as any}
+                                reasonCode={lead.disposition_reason_code}
+                                reasonNote={lead.disposition_reason_note}
+                                dispositionAt={lead.disposition_at}
+                                dispositionByName={lead.disposition_by_name}
+                              />
+                            ) : (
+                              <Badge variant="outline" className="text-xs capitalize text-muted-foreground">
+                                {lead.status ?? 'pending'}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                            <LeadAssigneeSelect
+                              sourceTable="email_leads"
+                              sourceRowId={lead.id}
+                              assigneeId={lead.sales_person_id}
+                              assigneeName={lead.sales_person_name}
+                              onChanged={() => refetch()}
+                            />
+                          </TableCell>
+                          <TableCell className="py-2.5 text-right">
+                            <span className="font-mono text-[11.5px] text-muted-foreground" title={format(new Date(lead.created_at), 'dd MMM yyyy HH:mm')}>
+                              {compactAge(lead.created_at)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
                               <LeadActionsCell
                                 sourceType="email"
@@ -753,137 +807,12 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
                               <ACategoryButton sourceType="email" sourceId={lead.id} isACategory={lead.is_a_category} />
                             </div>
                           </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Select
-                              value={lead.sales_person_id || 'unassigned'}
-                              onValueChange={async (val) => {
-                                const sp = salespeople.find(s => s.id === val);
-                                await updateLead({
-                                  id: lead.id,
-                                  sales_person_id: val === 'unassigned' ? null : val,
-                                  sales_person_name: val === 'unassigned' ? null : sp?.name || null,
-                                } as any);
-                                refetch();
-                              }}
-                            >
-                              <SelectTrigger className="h-7 w-[130px] text-xs">
-                                <SelectValue placeholder="Assign..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="unassigned">Unassigned</SelectItem>
-                                {salespeople.map(sp => (
-                                  <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {format(new Date(lead.created_at), 'dd MMM yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {lead.processing_status === 'needs_review' && canManage && (
-                                <>
-                                  <Button variant="outline" size="sm" className="text-green-600 border-green-500/30 h-7 px-2 text-xs" onClick={() => approveLead(lead.id)} disabled={approving}>
-                                    {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
-                                    Approve
-                                  </Button>
-                                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30 h-7 px-2 text-xs" onClick={() => rejectLead(lead.id)} disabled={rejecting}>
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                              {lead.processing_status === 'failed' && lead.error_message && (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="text-[10px] text-destructive max-w-[80px] truncate cursor-help">
-                                        {lead.error_message}
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-sm">
-                                      <p className="text-xs">{lead.error_message}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              )}
-                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
-                                Edit
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="font-medium cursor-default inline-flex items-center gap-1.5">
-                                    {lead.customer_name}
-                                    {isMerged && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); toggleDupeGroup(group.key); }}
-                                        className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
-                                        title={`${dupCount} entries merged — click to ${dupeOpen ? 'hide' : 'show'} history`}
-                                      >
-                                        <Layers className="h-3 w-3" />×{dupCount} {dupeOpen ? 'hide' : 'history'}
-                                      </button>
-                                    )}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="right" className="max-w-xs">
-                                  <div className="space-y-1 text-xs">
-                                    <p><strong>{lead.customer_name}</strong></p>
-                                    {lead.customer_company && <p>🏢 {lead.customer_company}</p>}
-                                    {lead.email && <p>📧 {lead.email}</p>}
-                                    {lead.phone_number && <p>📱 {lead.phone_number}</p>}
-                                    {lead.city && <p>📍 {lead.city}</p>}
-                                    {lead.product_name && <p>📦 {lead.product_name}</p>}
-                                    {lead.urgency && <p>⚡ {lead.urgency}</p>}
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </TableCell>
-                          <TableCell className="text-sm">{lead.customer_company || '-'}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground max-w-[180px]">
-                            {lead.email ? <span className="block truncate">{lead.email}</span> : '-'}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {getCleanPhone(lead.phone_number) || '-'}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground max-w-[220px]">
-                            {(lead as any).subject ? <span className="block truncate">{(lead as any).subject}</span> : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={`text-[10px] ${mailBadgeColor(lead.mail_source)}`}>
-                              {lead.mail_source?.startsWith('gmail:') ? '📧 Gmail' : lead.mail_source}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">{lead.product_name || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={`gap-1 ${processingStatusColor(lead.processing_status)}`}>
-                              {processingStatusIcon(lead.processing_status)}
-                              {lead.processing_status}
-                            </Badge>
-                            {lead.retry_count > 0 && (
-                              <span className="text-[10px] text-muted-foreground ml-1">r{lead.retry_count}</span>
-                            )}
-                          </TableCell>
-                          <TableCell>{confidenceBar(lead.ai_confidence)}</TableCell>
-                          <TableCell>
-                            {(lead as any).customer_type ? (
-                              <Badge variant="outline" className="text-xs">{(lead as any).customer_type}</Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
                         </TableRow>
 
                         {/* Expandable Detail Row */}
                         {isExpanded && (
                           <TableRow key={`${lead.id}-detail`} className="bg-muted/20 hover:bg-muted/30">
-                            <TableCell colSpan={16} className="p-4">
+                            <TableCell colSpan={10} className="p-4">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 <div className="space-y-2">
                                   <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Lead Details</h4>
@@ -932,7 +861,7 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
                         )}
                         {isMerged && dupeOpen && (
                           <DuplicateLeadsHistoryRow
-                            colSpan={16}
+                            colSpan={10}
                             headerLabel={lead.email || getCleanPhone(lead.phone_number) || lead.customer_name || 'this contact'}
                             count={group.duplicates.length}
                             entries={group.duplicates.map((d) => ({

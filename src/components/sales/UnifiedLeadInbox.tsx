@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { LeadRowActions } from "./LeadRowActions";
+import { LeadAssigneeSelect } from "./LeadAssigneeSelect";
 import { DispositionBadge } from "./DispositionBadge";
 import { LeadsExportMenu } from "./LeadsExportMenu";
 import { useNavigate } from "react-router-dom";
@@ -636,15 +637,19 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="py-2.5 hidden xl:table-cell">
-                      <span className="text-xs">
-                        {lead.sales_person_name || (lead.is_assigned ? "Assigned" : "—")}
-                        {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
-                          <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
-                            (out today)
-                          </span>
-                        )}
-                      </span>
+                    <TableCell className="py-2.5 hidden xl:table-cell" onClick={(e) => e.stopPropagation()}>
+                      <LeadAssigneeSelect
+                        sourceTable={lead.source_table}
+                        sourceRowId={lead.source_row_id}
+                        assigneeId={lead.sales_person_id}
+                        assigneeName={lead.sales_person_name || (lead.is_assigned ? "Assigned" : null)}
+                        onChanged={() => refetch()}
+                      />
+                      {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
+                        <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                          (out today)
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="py-2.5 text-right hidden xl:table-cell">
                       <span className="font-mono text-[11.5px] text-muted-foreground">

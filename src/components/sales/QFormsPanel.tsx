@@ -190,20 +190,8 @@ export default function QFormsPanel({ mode = "all" }: { mode?: "all" | "list" | 
   // Load sales pool (for assignment dropdown)
   useEffect(() => {
     (async () => {
-      const { data: roleRows } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["sales", "sales_manager"]);
-      const ids = Array.from(new Set((roleRows ?? []).map((r: any) => r.user_id)));
-      if (ids.length === 0) return;
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("user_id, name")
-        .eq("is_approved", true)
-        .in("user_id", ids);
-      const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
-      const filtered = filterAllowedAssignees((profs ?? []) as any[]);
-      setSalesPool(filtered.sort((a: any, b: any) => a.name.localeCompare(b.name)) as any);
+      const { fetchAssignableSalespeople } = await import("@/lib/salesAssignees");
+      setSalesPool((await fetchAssignableSalespeople()) as any);
     })();
   }, []);
 
