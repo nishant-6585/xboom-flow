@@ -24,9 +24,34 @@ export function PendingAttributionApprovalsCard() {
   const rows = canManage ? data?.rows ?? [] : [];
   const orders = data?.orders;
 
-  if (!canManage || rows.length === 0) return null;
+  // Managers/admins always see the section (even at zero) so the approval
+  // surface is discoverable; everyone else sees nothing.
+  if (!canManage) return null;
 
   const openQueue = () => navigate('/orders?tab=attribution_requests');
+
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <ShieldQuestion className="h-4 w-4 text-muted-foreground" />
+            Attribution requests pending approval
+            <Badge variant="secondary">0</Badge>
+          </CardTitle>
+          <Button size="sm" variant="outline" className="gap-1" onClick={openQueue}>
+            Review queue
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-sm text-muted-foreground">
+            No pending attribution requests right now.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-amber-300 dark:border-amber-800">
