@@ -228,7 +228,7 @@ export function HRLeaveApplyDialog({
           {/* Employee Selection */}
           <div className="space-y-2">
             <Label>Employee *</Label>
-            <Popover open={employeePickerOpen} onOpenChange={setEmployeePickerOpen}>
+            <Popover modal open={employeePickerOpen} onOpenChange={setEmployeePickerOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -242,10 +242,14 @@ export function HRLeaveApplyDialog({
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <PopoverContent
+                className="w-[--radix-popover-trigger-width] p-0"
+                align="start"
+                onWheel={(event) => event.stopPropagation()}
+              >
                 <Command>
                   <CommandInput placeholder="Search employee..." />
-                  <CommandList className="max-h-[280px] overflow-y-auto overscroll-contain">
+                  <CommandList className="h-[280px] max-h-[min(280px,40vh)] touch-pan-y overflow-y-auto overscroll-contain">
                     <CommandEmpty>No employee found.</CommandEmpty>
                     <CommandGroup>
                       {activeEmployees.map((emp) => (
