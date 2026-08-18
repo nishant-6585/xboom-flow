@@ -362,20 +362,8 @@ export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" |
   };
 
   const loadPool = async () => {
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("user_id,role")
-      .in("role", ["sales", "sales_manager"]);
-    const userIds = Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
-    if (!userIds.length) { setSalesPool([]); return; }
-    const { data: profs } = await supabase
-      .from("profiles")
-      .select("user_id,name,is_approved")
-      .in("user_id", userIds)
-      .eq("is_approved", true);
-    const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
-    const pool: SalesUser[] = (profs ?? []).map((p: any) => ({ user_id: p.user_id, name: p.name }));
-    setSalesPool(filterAllowedAssignees(pool).sort((a, b) => a.name.localeCompare(b.name)));
+    const { fetchAssignableSalespeople } = await import("@/lib/salesAssignees");
+    setSalesPool((await fetchAssignableSalespeople()) as SalesUser[]);
   };
 
   useEffect(() => { load(); }, [assigneeFilter, user?.id]);

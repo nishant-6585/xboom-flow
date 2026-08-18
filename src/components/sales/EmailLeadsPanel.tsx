@@ -89,20 +89,11 @@ export function EmailLeadsPanel({ mode = 'list' }: EmailLeadsPanelProps = {}) {
   const { data: detailBody } = useEmailLeadBody(detailLead?.id);
 
   useEffect(() => {
-    supabase
-      .from('employees')
-      .select('id, name, user_id')
-      .eq('is_active', true)
-      .eq('department', 'Sales')
-      .order('name')
-      .then(async ({ data }) => {
-        const { filterAllowedAssignees } = await import('@/lib/allowedAssignees');
-        // Use user_id as the canonical id since email_leads.sales_person_id stores the auth user_id
-        const mapped = (data || [])
-          .filter((e: any) => e.user_id)
-          .map((e: any) => ({ id: e.user_id as string, name: e.name as string }));
-        setSalespeople(filterAllowedAssignees(mapped));
-      });
+    import('@/lib/salesAssignees').then(({ fetchAssignableSalespeople }) =>
+      fetchAssignableSalespeople().then((roster) =>
+        setSalespeople(roster.map((r) => ({ id: r.user_id, name: r.name }))),
+      ),
+    );
   }, []);
 
   const filteredLeads = useMemo(() => {

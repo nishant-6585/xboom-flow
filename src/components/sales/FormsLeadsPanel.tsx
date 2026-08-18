@@ -111,20 +111,8 @@ export function FormsLeadsPanel() {
   const { data: assignableUsers = [] } = useQuery({
     queryKey: ["form_leads_assignable_users"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, name")
-        .eq("is_approved", true)
-        .in("user_id", (await supabase
-          .from("user_roles")
-          .select("user_id")
-          .in("role", ["sales", "sales_manager"])
-        ).data?.map(r => r.user_id) || []);
-      if (error) throw error;
-
-      const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
-      const all = filterAllowedAssignees([...(data || [])]);
-      return all.sort((a, b) => a.name.localeCompare(b.name));
+      const { fetchAssignableSalespeople } = await import("@/lib/salesAssignees");
+      return await fetchAssignableSalespeople();
     },
   });
 

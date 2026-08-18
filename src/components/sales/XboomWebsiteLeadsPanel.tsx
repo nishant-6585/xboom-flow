@@ -122,24 +122,10 @@ export function XboomWebsiteLeadsPanel() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("user_id, role, profiles!inner(user_id, name, email, is_approved)")
-        .in("role", ["admin", "sales", "sales_manager"]);
-      if (cancelled || error || !data) return;
-      const map = new Map<string, { user_id: string; name: string }>();
-      for (const r of data as unknown as Array<{
-        user_id: string;
-        profiles: { user_id: string; name: string | null; email: string | null; is_approved: boolean };
-      }>) {
-        if (!r.profiles?.is_approved) continue;
-        const name = r.profiles.name || r.profiles.email || "Salesperson";
-        if (!map.has(r.user_id)) map.set(r.user_id, { user_id: r.user_id, name });
-      }
-      const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
-      setSalespeople(
-        filterAllowedAssignees(Array.from(map.values())).sort((a, b) => a.name.localeCompare(b.name)),
-      );
+      const { fetchAssignableSalespeople } = await import("@/lib/salesAssignees");
+      const roster = await fetchAssignableSalespeople();
+      if (cancelled) return;
+      setSalespeople(roster);
     })();
     return () => {
       cancelled = true;
