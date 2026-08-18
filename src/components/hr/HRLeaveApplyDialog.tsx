@@ -66,6 +66,7 @@ export function HRLeaveApplyDialog({
   onSubmit,
 }: HRLeaveApplyDialogProps) {
   const [employeeId, setEmployeeId] = useState("");
+  const [employeePickerOpen, setEmployeePickerOpen] = useState(false);
   const [leaveType, setLeaveType] = useState<LeaveType>("EL");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
