@@ -13,10 +13,17 @@ import {
   Mail,
   MessageSquare,
   MonitorSmartphone,
+  RefreshCw,
   Search,
   Slack,
+  TriangleAlert,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  usePortalTicketAssignees,
+  useSyncPortalTicketAssignees,
+} from "@/hooks/usePortalTicketAssignees";
 
 type RecipientRow = {
   user_id: string;
@@ -240,6 +247,114 @@ function OrderScopeChecker() {
   );
 }
 
+/**
+ * The round-robin pool. Slack is the source of truth: whoever is in
+ * #customer-portal-ticket is assignable and takes their turn in the rotation.
+ */
+function AssignmentPoolPanel() {
+  const { assignees, isLoading } = usePortalTicketAssignees();
+  const sync = useSyncPortalTicketAssignees();
+
+  // The RPC falls back to the role-based list when the pool is empty, and
+  // flags those rows — that means the Slack sync has not run or found nobody.
+  const usingFallback = assignees.length > 0 && assignees.some((a) => !a.in_slack_channel);
+  const totalAssigned = assignees.reduce((n, a) => n + a.assigned_count, 0);
+
+  async function handleSync() {
+    try {
+      const res = await sync.mutateAsync();
+      const bits = [`${res.pool ?? 0} in pool`];
+      if (res.added) bits.push(`${res.added} added`);
+      if (res.deactivated) bits.push(`${res.deactivated} removed`);
+      toast.success(`Synced from Slack — ${bits.join(", ")}`);
+      if (res.unmatched?.length) {
+        toast.warning(
+          `${res.unmatched.length} Slack member(s) have no matching staff account: ` +
+            res.unmatched.map((u) => u.email).join(", "),
+          { duration: 12000 },
+        );
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Sync failed");
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Slack className="h-4 w-4" /> Assignment pool — #customer-portal-ticket
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            New tickets are auto-assigned round-robin across these people, least
+            recently assigned first. Add or remove someone in the Slack channel and
+            sync to change the rotation.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={handleSync} disabled={sync.isPending}>
+          <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+          {sync.isPending ? "Syncing…" : "Sync now"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {usingFallback && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-400/60 bg-amber-50/50 dark:bg-amber-950/20 p-3 text-sm">
+            <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+            <div>
+              <div className="font-medium">Pool is empty — showing all internal staff instead.</div>
+              <div className="text-muted-foreground">
+                The Slack sync has not populated the pool yet, so assignment is falling
+                back to every admin / supply chain / support / sales manager user. Press
+                “Sync now”. If it fails, the bot most likely needs the{" "}
+                <span className="font-mono">groups:read</span> scope and to be a member
+                of the private channel.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading pool…</p>
+        ) : assignees.length === 0 ? (
+          <p className="text-sm text-destructive">
+            Nobody is assignable. New tickets will stay unassigned (the team is still
+            alerted). Press “Sync now”.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {assignees.map((a) => (
+              <li key={a.user_id} className="py-2 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{a.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{a.email ?? "—"}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant="secondary" className="text-[10px]">{a.role}</Badge>
+                  <span
+                    className="text-xs text-muted-foreground tabular-nums"
+                    title="Tickets assigned by the round-robin"
+                  >
+                    {a.assigned_count}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {assignees.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {assignees.length} assignable · {totalAssigned} ticket(s) auto-assigned so far.
+            An empty pool never blocks a ticket — it is created unassigned and the whole
+            supply-chain team is still alerted.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PortalTicketNotificationConfig() {
   const teamQ = useRecipients(TEAM_ROLES);
   const rows = teamQ.data ?? [];
@@ -334,16 +449,20 @@ export default function PortalTicketNotificationConfig() {
           </CardContent>
         </Card>
 
+        <AssignmentPoolPanel />
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Assignment and escalation</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <p>
-              Assigning a ticket from the inbox writes{" "}
-              <span className="font-mono">portal_tickets.assigned_to</span> and DMs, emails and
-              notifies the new owner directly. It does <span className="font-medium">not</span>{" "}
-              silence the team — supply chain still gets every subsequent customer reply.
+              Every new ticket is auto-assigned round-robin across the pool above, so a
+              ticket always has an owner. Reassigning from the inbox writes{" "}
+              <span className="font-mono">portal_tickets.assigned_to</span> and DMs, emails
+              and notifies the new owner directly. Assignment does{" "}
+              <span className="font-medium">not</span> silence the team — supply chain still
+              gets every subsequent customer reply.
             </p>
             <p>
               <span className="font-mono">portal-sla-monitor</span> runs every 30 minutes and
