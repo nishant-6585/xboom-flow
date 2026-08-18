@@ -45,6 +45,7 @@ import { LeadFunnelTracker } from '@/components/sales/LeadFunnelTracker';
 import { isWooLeadStatus } from '@/lib/wooOrderStatuses';
 import type { DateRange } from 'react-day-picker';
 import { KPICard } from '@/components/sales/KPICard';
+import { PendingAttributionApprovalsCard } from '@/components/sales/PendingAttributionApprovalsCard';
 
 const formatCurrency = (value: number) => {
   if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
@@ -1038,6 +1039,8 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
 
   return (
     <div className="space-y-6">
+      <PendingAttributionApprovalsCard />
+
       {/* ============ FILTERS BAR ============ */}
       <div className="flex flex-wrap items-center gap-3">
         <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
