@@ -255,6 +255,19 @@ export function FollowupsPanel() {
             <SelectItem value="all">All</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+          <SelectTrigger className="w-[180px] h-9 rounded-xl">
+            <User className="w-3.5 h-3.5 mr-1" />
+            <SelectValue placeholder="All salespersons" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All salespersons</SelectItem>
+            {ownerOptions.map(o => (
+              <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+            ))}
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="flex rounded-xl border border-border overflow-hidden">
           <Button variant={view === 'list' ? 'default' : 'ghost'} size="sm" className="rounded-none h-9 px-3" onClick={() => setView('list')}>
             <List className="w-4 h-4 mr-1" /> List
