@@ -36,11 +36,14 @@ import {
   Send,
   Settings2,
   Eye,
+  UserX,
 } from "lucide-react";
 import { TicketStatusBadge, TicketPriorityBadge } from "@/portal/components/TicketStatusBadge";
 import type { TicketStatus, TicketPriority } from "@/portal/hooks/usePortalTickets";
 import { useAuth } from "@/hooks/useAuth";
 import { notifyPortal } from "@/portal/lib/portalNotify";
+import { TicketAssigneeSelect } from "@/components/portal-tickets/TicketAssigneeSelect";
+import { usePortalTicketAssignees, useAssignPortalTicket } from "@/hooks/usePortalTicketAssignees";
 
 type InboxRow = {
   id: string;
@@ -58,6 +61,7 @@ type InboxRow = {
   customer_email: string | null;
   item_summary: string | null;
   assigned_to: string | null;
+  assigned_to_name: string | null;
   created_at: string;
   updated_at: string;
   first_response_at: string | null;
@@ -70,17 +74,21 @@ type InboxRow = {
 };
 
 type TypeFilter = "all" | "general" | "service_request";
-type StatusFilter = "all" | "unread" | TicketStatus;
+type StatusFilter = "all" | "unread" | "unassigned" | TicketStatus;
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All statuses" },
   { value: "unread", label: "Needs reply (unread from customer)" },
+  { value: "unassigned", label: "Unassigned (nobody owns it)" },
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In progress" },
   { value: "awaiting_customer", label: "Awaiting customer" },
   { value: "resolved", label: "Resolved" },
   { value: "closed", label: "Closed" },
 ];
+
+/** Radix Select cannot hold an empty-string item value. */
+const BULK_UNASSIGN = "__unassign__";
 
 const BULK_STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
   { value: "open", label: "Open" },
@@ -221,6 +229,8 @@ export default function PortalTicketsAdmin() {
   const { data, isLoading } = useTicketInbox();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { assignees } = usePortalTicketAssignees();
+  const assignTicket = useAssignPortalTicket();
 
   const filtered = useMemo(() => {
     const rows = data ?? [];
@@ -231,6 +241,8 @@ export default function PortalTicketsAdmin() {
       if (typeFilter !== "all" && r.ticket_type !== typeFilter) return false;
       if (statusFilter === "unread") {
         if ((r.unread_customer_count ?? 0) === 0) return false;
+      } else if (statusFilter === "unassigned") {
+        if (r.assigned_to) return false;
       } else if (statusFilter !== "all") {
         if (r.status !== statusFilter) return false;
       }
@@ -263,6 +275,7 @@ export default function PortalTicketsAdmin() {
       breached: rows.filter((r) => isBreached(r) !== null).length,
       unread: rows.reduce((sum, r) => sum + (r.unread_customer_count || 0), 0),
       unreadTickets: rows.filter((r) => (r.unread_customer_count || 0) > 0).length,
+      unassigned: rows.filter((r) => !r.assigned_to).length,
     };
   }, [data]);
 
@@ -335,6 +348,31 @@ export default function PortalTicketsAdmin() {
     }
   }
 
+  async function handleBulkAssign(value: string) {
+    if (selectedIds.length === 0) return;
+    const userId = value === BULK_UNASSIGN ? null : value;
+    setBulkBusy(true);
+    try {
+      // Sequential rather than Promise.all: each assignment fires a trigger
+      // that emails and Slack-DMs the new owner, and the RPC is cheap.
+      for (const id of selectedIds) {
+        await assignTicket.mutateAsync({ ticketId: id, userId });
+      }
+      const name = assignees.find((a) => a.user_id === userId)?.name;
+      toast.success(
+        userId
+          ? `Assigned ${selectedIds.length} ticket(s) to ${name ?? "teammate"}`
+          : `Cleared owner on ${selectedIds.length} ticket(s)`,
+      );
+      clearSelection();
+      qc.invalidateQueries({ queryKey: ["admin", "portal-tickets", "inbox"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to assign tickets");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   function toggleExpanded(id: string) {
     setExpanded((p) => ({ ...p, [id]: !p[id] }));
   }
@@ -349,7 +387,10 @@ export default function PortalTicketsAdmin() {
             <h1 className="text-2xl font-semibold">Ticket Inbox</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {stats.total} total · {stats.unreadTickets} awaiting your reply ·{" "}
-              {stats.sr} service requests · {stats.breached} SLA breached
+              {stats.sr} service requests · {stats.breached} SLA breached ·{" "}
+              <span className={stats.unassigned > 0 ? "text-amber-600 font-medium" : ""}>
+                {stats.unassigned} unassigned
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -448,6 +489,22 @@ export default function PortalTicketsAdmin() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select
+                onValueChange={handleBulkAssign}
+                disabled={selectedIds.length === 0 || bulkBusy}
+              >
+                <SelectTrigger className="w-56 h-9">
+                  <SelectValue placeholder="Assign to…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignees.map((a) => (
+                    <SelectItem key={a.user_id} value={a.user_id}>
+                      Assign → {a.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={BULK_UNASSIGN}>Clear owner</SelectItem>
+                </SelectContent>
+              </Select>
               {selectedIds.length > 0 && (
                 <Button size="sm" variant="ghost" onClick={clearSelection}>
                   Clear
@@ -525,6 +582,15 @@ export default function PortalTicketsAdmin() {
                           {breach === "fr" ? "First-response breached" : "Resolution breached"}
                         </Badge>
                       )}
+                      {!t.assigned_to && (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-400 text-amber-700 dark:text-amber-500"
+                          data-testid={`unassigned-badge-${t.id}`}
+                        >
+                          <UserX className="h-3 w-3 mr-1" /> Unassigned
+                        </Badge>
+                      )}
                     </div>
                     <div className="font-medium mt-0.5 truncate">{t.subject}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">
@@ -553,7 +619,12 @@ export default function PortalTicketsAdmin() {
                         )}
                       </div>
                     )}
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+                      <TicketAssigneeSelect
+                        ticketId={t.id}
+                        assignedTo={t.assigned_to}
+                        assignedToName={t.assigned_to_name}
+                      />
                       <ReadByStack reads={reads} />
                     </div>
                     {isExpanded && (

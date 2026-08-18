@@ -21,6 +21,48 @@ async function lookupSlackUserId(botToken: string, email: string): Promise<strin
 }
 
 /**
+ * Send a Slack direct message to a known Slack member id (the value stored in
+ * `profiles.slack_user_id`). Skips the users.lookupByEmail round-trip, so it
+ * also works for staff whose Slack account uses a different address than their
+ * app login.
+ */
+export async function sendSlackDmToUserId(
+  slackUserId: string,
+  text: string,
+  blocks?: unknown[],
+): Promise<SlackDmResult> {
+  try {
+    const botToken = Deno.env.get("SLACK_BOT_TOKEN");
+    if (!botToken) return { ok: false, error: "SLACK_BOT_TOKEN not configured" };
+    return await postDm(botToken, slackUserId, text, blocks);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "slack dm failed" };
+  }
+}
+
+async function postDm(
+  botToken: string,
+  channel: string,
+  text: string,
+  blocks?: unknown[],
+): Promise<SlackDmResult> {
+  const body: Record<string, unknown> = { channel, text };
+  if (blocks && blocks.length) body.blocks = blocks;
+
+  const r = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${botToken}`,
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; channel?: string } | null;
+  if (!j?.ok) return { ok: false, error: j?.error || `http ${r.status}` };
+  return { ok: true, channel: j.channel };
+}
+
+/**
  * Send a Slack direct message to a user identified by email.
  * Returns {ok:false,...} on any failure but never throws — callers should not
  * let notification problems break their main flow.
@@ -37,20 +79,7 @@ export async function sendSlackDmToEmail(
     const userId = await lookupSlackUserId(botToken, email);
     if (!userId) return { ok: false, error: `slack user not found for ${email}` };
 
-    const body: Record<string, unknown> = { channel: userId, text };
-    if (blocks && blocks.length) body.blocks = blocks;
-
-    const r = await fetch("https://slack.com/api/chat.postMessage", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${botToken}`,
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      body: JSON.stringify(body),
-    });
-    const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; channel?: string } | null;
-    if (!j?.ok) return { ok: false, error: j?.error || `http ${r.status}` };
-    return { ok: true, channel: j.channel };
+    return await postDm(botToken, userId, text, blocks);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "slack dm failed" };
   }
