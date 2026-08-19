@@ -24,6 +24,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 import { resolveRecipients, type RoutingEvent } from "../_shared/staff-routing.ts";
 import { sendSlackDmToEmail, sendSlackDmToUserId } from "../_shared/slack-dm.ts";
+import { postSlackChannel } from "../_shared/slack-dm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +37,10 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CRON_SECRET = Deno.env.get("CRON_SECRET");
 const STAFF_BASE_URL = "https://xboomflow.com";
+// #customer-portal-ticket. Every alert is posted here so the whole team sees
+// the queue in one place; DMs continue on top so the people who must act still
+// get a personal ping. Unset this secret to disable channel posting.
+const TICKET_CHANNEL_ID = Deno.env.get("SLACK_TICKET_CHANNEL_ID") ?? "C0BR3CZ0KLL";
 
 type Event = "ticket_created" | "ticket_reply_to_staff" | "ticket_assigned";
 
@@ -310,8 +315,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ---- Slack DM -----------------------------------------------------------
-  // DM only, by explicit product decision — no channel broadcast.
+  // ---- Slack --------------------------------------------------------------
+  // Channel post so the whole team sees the queue in one place, plus DMs so
+  // the people who must act get a personal ping. The channel post is sent
+  // first: if the DM fan-out fails, the alert is still visible somewhere.
   const blocks = slackBlocks({
     heading,
     ticketNumber: tk.ticket_number,
@@ -325,6 +332,16 @@ Deno.serve(async (req) => {
     ticketUrl,
   });
   const fallbackText = `${heading} — ${truncate(tk.subject, 120)} (${company})`;
+
+  if (TICKET_CHANNEL_ID) {
+    const res = await postSlackChannel(TICKET_CHANNEL_ID, fallbackText, blocks);
+    results.push({
+      channel: "slack",
+      to: `#${TICKET_CHANNEL_ID}`,
+      ok: res.ok,
+      error: res.ok ? undefined : res.error,
+    });
+  }
 
   await Promise.all(recipients.map(async (rcpt) => {
     const prof = profileByUser.get(rcpt.userId);

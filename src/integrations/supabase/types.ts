@@ -11920,6 +11920,70 @@ export type Database = {
           },
         ]
       }
+      portal_notifications: {
+        Row: {
+          account_id: string
+          contact_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          metadata: Json | null
+          order_id: string | null
+          portal_ticket_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          account_id: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          metadata?: Json | null
+          order_id?: string | null
+          portal_ticket_id?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          account_id?: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          metadata?: Json | null
+          order_id?: string | null
+          portal_ticket_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_notifications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_notifications_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_notifications_portal_ticket_id_fkey"
+            columns: ["portal_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "portal_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_notifications_log: {
         Row: {
           channel: string
@@ -19285,6 +19349,10 @@ export type Database = {
         Returns: number
       }
       mark_old_woo_leads_as_lost: { Args: never; Returns: number }
+      mark_portal_notifications_read: {
+        Args: { _ids: string[] }
+        Returns: number
+      }
       mark_portal_tickets_read: {
         Args: { _ticket_ids: string[] }
         Returns: number
@@ -19451,6 +19519,10 @@ export type Database = {
       }
       order_has_drone: { Args: { p_order_id: string }; Returns: boolean }
       pick_next_portal_ticket_assignee: { Args: never; Returns: string }
+      portal_message_is_from_customer: {
+        Args: { _account_id: string; _sender_id: string }
+        Returns: boolean
+      }
       portal_ticket_dispatch_alert: {
         Args: { _event: string; _message_id?: string; _ticket_id: string }
         Returns: undefined
