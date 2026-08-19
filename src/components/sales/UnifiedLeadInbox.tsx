@@ -16,7 +16,7 @@ import { resolveProductName, sameText } from "@/lib/leadEnquiry";
 import { CallButton } from "@/components/calls/CallButton";
 import {
   Inbox, RefreshCw, Search, CheckCheck,
-  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store,
+  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store, Users,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
