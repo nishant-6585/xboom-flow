@@ -710,6 +710,7 @@ function QuickReplyPanel({
           body: trimmed,
           attachments: [],
           is_internal: false,
+          sender_side: "staff",
         })
         .select("id")
         .single();
