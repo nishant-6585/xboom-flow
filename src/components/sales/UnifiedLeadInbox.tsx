@@ -57,6 +57,7 @@ const SOURCE_TO_TAB: Record<LeadSource, string> = {
   email: "emails",
   facebook: "facebook-leads",
   indiamart: "indiamart",
+  walk_in: "walk-in",
 };
 
 const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }>> = {
@@ -69,6 +70,7 @@ const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }
   email: Mail,
   facebook: Facebook,
   indiamart: Store,
+  walk_in: Users,
 };
 
 function lastSeenKey(userId: string | undefined) {
