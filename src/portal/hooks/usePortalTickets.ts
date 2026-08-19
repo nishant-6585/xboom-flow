@@ -142,6 +142,10 @@ export function useCreateTicket() {
         body: input.description,
         attachments: input.attachments,
         is_internal: false,
+        // Written from the customer portal. Recorded rather than inferred:
+        // when one person is both the portal contact and internal staff,
+        // nothing about the sender can tell the two sides apart.
+        sender_side: "customer",
       } as never);
 
       // Staff alerting is owned by the DB trigger
@@ -171,6 +175,7 @@ export function useReplyTicket(ticketId: string | undefined) {
           body: input.body,
           attachments: input.attachments,
           is_internal: false,
+          sender_side: "customer",
         } as never)
         .select("id")
         .single();
