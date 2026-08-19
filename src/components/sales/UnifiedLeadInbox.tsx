@@ -16,7 +16,7 @@ import { resolveProductName, sameText } from "@/lib/leadEnquiry";
 import { CallButton } from "@/components/calls/CallButton";
 import {
   Inbox, RefreshCw, Search, CheckCheck,
-  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store,
+  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store, Users,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -57,6 +57,7 @@ const SOURCE_TO_TAB: Record<LeadSource, string> = {
   email: "emails",
   facebook: "facebook-leads",
   indiamart: "indiamart",
+  walk_in: "walk-in",
 };
 
 const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }>> = {
@@ -69,6 +70,7 @@ const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }
   email: Mail,
   facebook: Facebook,
   indiamart: Store,
+  walk_in: Users,
 };
 
 function lastSeenKey(userId: string | undefined) {
@@ -358,7 +360,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
             <div>
               <h2 className="text-lg font-semibold">
                 {isLockedSource && sources?.length === 1
-                  ? SOURCE_META[sources[0]!].label
+                  ? (SOURCE_META[sources[0]!]?.label ?? sources[0])
                   : "All Leads"}
               </h2>
               <p className="text-xs text-muted-foreground">
@@ -459,7 +461,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
               All
             </button>
             {LEAD_SOURCES.map((src) => {
-              const meta = SOURCE_META[src];
+              const meta = SOURCE_META[src] ?? { label: src, chipClass: "bg-muted text-foreground" };
               const selected = selectedSources.includes(src);
               const newCount = counts.data?.bySource[src] ?? 0;
               return (
@@ -543,7 +545,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
             <TableBody>
               {grouped.map((group) => {
                 const lead = group.primary;
-                const meta = SOURCE_META[lead.source];
+                const meta = SOURCE_META[lead.source] ?? { label: lead.source, chipClass: "bg-muted text-foreground" };
                 const enquiry = enquiryOf(lead);
                 const isUnseen = !lastSeen || lead.created_at > lastSeen;
                 const hasDisposition = !!lead.disposition && lead.disposition !== "untouched";
