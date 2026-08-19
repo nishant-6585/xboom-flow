@@ -19257,6 +19257,20 @@ export type Database = {
           updated_at: string
         }[]
       }
+      list_portal_ticket_pool: {
+        Args: never
+        Returns: {
+          assigned_count: number
+          email: string
+          is_active: boolean
+          is_assignable: boolean
+          last_assigned_at: string
+          name: string
+          role: string
+          slack_handle: string
+          user_id: string
+        }[]
+      }
       list_portal_ticket_reads: {
         Args: { _ticket_ids: string[] }
         Returns: {
@@ -19712,6 +19726,10 @@ export type Database = {
           _source_row_id: string
           _source_table: string
         }
+        Returns: undefined
+      }
+      set_portal_ticket_assignable: {
+        Args: { _assignable: boolean; _user_id: string }
         Returns: undefined
       }
       settle_compoff_leave_decision: {
