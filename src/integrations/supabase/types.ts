@@ -8386,6 +8386,68 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_walk_in_details: {
+        Row: {
+          accompanied_by: string | null
+          budget_range: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          follow_up_at: string | null
+          lead_id: number
+          notes: string | null
+          products_interested: string[]
+          purchase_timeline: string | null
+          referral_source: string | null
+          store_location: string | null
+          updated_at: string
+          visit_outcome: string | null
+          visited_at: string
+        }
+        Insert: {
+          accompanied_by?: string | null
+          budget_range?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          follow_up_at?: string | null
+          lead_id: number
+          notes?: string | null
+          products_interested?: string[]
+          purchase_timeline?: string | null
+          referral_source?: string | null
+          store_location?: string | null
+          updated_at?: string
+          visit_outcome?: string | null
+          visited_at?: string
+        }
+        Update: {
+          accompanied_by?: string | null
+          budget_range?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          follow_up_at?: string | null
+          lead_id?: number
+          notes?: string | null
+          products_interested?: string[]
+          purchase_timeline?: string | null
+          referral_source?: string | null
+          store_location?: string | null
+          updated_at?: string
+          visit_outcome?: string | null
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_walk_in_details_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -18454,6 +18516,25 @@ export type Database = {
         }
         Returns: string
       }
+      create_walk_in_lead: {
+        Args: {
+          _accompanied_by?: string
+          _budget_range?: string
+          _company?: string
+          _email?: string
+          _follow_up_at?: string
+          _name: string
+          _notes?: string
+          _phone: string
+          _products_interested?: string[]
+          _purchase_timeline?: string
+          _referral_source?: string
+          _store_location?: string
+          _visit_outcome?: string
+          _visited_at?: string
+        }
+        Returns: number
+      }
       credit_monthly_el: {
         Args: { p_credit_amount?: number; p_month: number; p_year: number }
         Returns: Json
@@ -18587,6 +18668,20 @@ export type Database = {
           sales_person_name: string
           source: string
           total_sales_amount: number
+        }[]
+      }
+      find_leads_by_contact: {
+        Args: { _email?: string; _phone?: string }
+        Returns: {
+          company: string
+          created_at: string
+          email: string
+          name: string
+          phone: string
+          sales_person_name: string
+          source: string
+          source_row_id: string
+          status: string
         }[]
       }
       find_or_create_company:
@@ -19311,6 +19406,32 @@ export type Database = {
           user_id: string
         }[]
       }
+      list_walk_in_leads: {
+        Args: { _limit?: number; _mine_only?: boolean }
+        Returns: {
+          accompanied_by: string
+          assigned_to: string
+          assigned_to_name: string
+          budget_range: string
+          company: string
+          created_at: string
+          disposition: string
+          email: string
+          follow_up_at: string
+          follow_up_overdue: boolean
+          lead_id: number
+          name: string
+          notes: string
+          phone: string
+          products_interested: string[]
+          purchase_timeline: string
+          referral_source: string
+          status: string
+          store_location: string
+          visit_outcome: string
+          visited_at: string
+        }[]
+      }
       log_company_activity: {
         Args: {
           _amount?: number
@@ -19833,6 +19954,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_walk_in_outcome: {
+        Args: {
+          _follow_up_at?: string
+          _lead_id: number
+          _notes?: string
+          _visit_outcome?: string
+        }
+        Returns: undefined
       }
       update_woo_lead_status: {
         Args: { p_new_status: string; p_order_id: string }
