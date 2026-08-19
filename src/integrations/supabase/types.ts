@@ -12442,6 +12442,7 @@ export type Database = {
           is_internal: boolean
           sender_id: string | null
           sender_name_snapshot: string | null
+          sender_side: string | null
           ticket_id: string
         }
         Insert: {
@@ -12452,6 +12453,7 @@ export type Database = {
           is_internal?: boolean
           sender_id?: string | null
           sender_name_snapshot?: string | null
+          sender_side?: string | null
           ticket_id: string
         }
         Update: {
@@ -12462,6 +12464,7 @@ export type Database = {
           is_internal?: boolean
           sender_id?: string | null
           sender_name_snapshot?: string | null
+          sender_side?: string | null
           ticket_id?: string
         }
         Relationships: [
