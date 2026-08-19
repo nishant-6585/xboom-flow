@@ -12402,6 +12402,7 @@ export type Database = {
           added_at: string
           assigned_count: number
           is_active: boolean
+          is_assignable: boolean
           last_assigned_at: string | null
           slack_handle: string | null
           slack_user_id: string | null
@@ -12412,6 +12413,7 @@ export type Database = {
           added_at?: string
           assigned_count?: number
           is_active?: boolean
+          is_assignable?: boolean
           last_assigned_at?: string | null
           slack_handle?: string | null
           slack_user_id?: string | null
@@ -12422,6 +12424,7 @@ export type Database = {
           added_at?: string
           assigned_count?: number
           is_active?: boolean
+          is_assignable?: boolean
           last_assigned_at?: string | null
           slack_handle?: string | null
           slack_user_id?: string | null
@@ -12439,6 +12442,7 @@ export type Database = {
           is_internal: boolean
           sender_id: string | null
           sender_name_snapshot: string | null
+          sender_side: string | null
           ticket_id: string
         }
         Insert: {
@@ -12449,6 +12453,7 @@ export type Database = {
           is_internal?: boolean
           sender_id?: string | null
           sender_name_snapshot?: string | null
+          sender_side?: string | null
           ticket_id: string
         }
         Update: {
@@ -12459,6 +12464,7 @@ export type Database = {
           is_internal?: boolean
           sender_id?: string | null
           sender_name_snapshot?: string | null
+          sender_side?: string | null
           ticket_id?: string
         }
         Relationships: [

@@ -137,7 +137,18 @@ export default function PortalTicketAdminDetail() {
   useEffect(() => {
     if (!canAccess || !isValidTicketId || !ticketId) return;
     markTicketNotificationsAsRead(ticketId);
-  }, [canAccess, isValidTicketId, ticketId, markTicketNotificationsAsRead]);
+    // Also record that this user has READ THE TICKET. markTicketNotifications-
+    // AsRead only clears the bell entry; portal_ticket_reads is what drives the
+    // inbox "unread from customer" badge and the "Not read yet" indicator, and
+    // nothing but the inbox's bulk button was ever writing it — so opening a
+    // ticket left it looking permanently unread.
+    void (supabase as any)
+      .rpc("mark_portal_tickets_read", { _ticket_ids: [ticketId] })
+      .then(({ error }: { error: unknown }) => {
+        if (error) console.warn("[portal-ticket] mark read failed", error);
+        queryClient.invalidateQueries({ queryKey: ["admin", "portal-tickets"] });
+      });
+  }, [canAccess, isValidTicketId, ticketId, markTicketNotificationsAsRead, queryClient]);
 
   useEffect(() => {
     if (!ticketId || !canAccess || !isValidTicketId) return;
@@ -234,6 +245,10 @@ export default function PortalTicketAdminDetail() {
           body,
           attachments: [],
           is_internal: internalNote,
+          // Written from the staff admin surface. Recorded rather than
+          // inferred: when one person is both the portal contact and internal
+          // staff, nothing about the sender distinguishes the two sides.
+          sender_side: "staff",
         } as never)
         .select("id")
         .single();
