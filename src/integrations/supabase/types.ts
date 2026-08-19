@@ -12402,6 +12402,7 @@ export type Database = {
           added_at: string
           assigned_count: number
           is_active: boolean
+          is_assignable: boolean
           last_assigned_at: string | null
           slack_handle: string | null
           slack_user_id: string | null
@@ -12412,6 +12413,7 @@ export type Database = {
           added_at?: string
           assigned_count?: number
           is_active?: boolean
+          is_assignable?: boolean
           last_assigned_at?: string | null
           slack_handle?: string | null
           slack_user_id?: string | null
@@ -12422,6 +12424,7 @@ export type Database = {
           added_at?: string
           assigned_count?: number
           is_active?: boolean
+          is_assignable?: boolean
           last_assigned_at?: string | null
           slack_handle?: string | null
           slack_user_id?: string | null
