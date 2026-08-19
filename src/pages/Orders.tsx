@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Package, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal, Plus } from 'lucide-react';
 import { startOfMonth } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { OrderDialog } from '@/components/OrderDialog';
 import { MissingPhoneBanner } from '@/components/orders/MissingPhoneBanner';
@@ -129,6 +132,7 @@ export default function Orders() {
   useEffect(() => {
     if (tabFromUrl === 'pipeline') setActiveTab('pipeline');
     else if (tabFromUrl === 'new') setActiveTab('new');
+    else if (tabFromUrl === 'attribution_requests') setActiveTab('attribution_requests');
   }, [tabFromUrl]);
 
   // Deep-link: open a specific order when ?order_id=<uuid> is present
@@ -256,8 +260,24 @@ export default function Orders() {
     ? attributionRequests?.rows.length ?? 0
     : 0;
 
+  // Header summary — real numbers, one line. Sales reps keep the instructional
+  // wording since for a rep that sentence is the actual job.
+  const totalOrderCount = orders.length + wooTotalCount;
+  const totalOrderValue = orders.reduce((sum, o) => sum + (Number((o as any).total_amount) || 0), 0);
+  const awaitingProcurement = orders.filter(
+    (o) => o.status === 'procurement_to_plan' || o.status === 'procurement_in_process',
+  ).length;
+  const compactValue = totalOrderValue >= 1e7
+    ? `₹${(totalOrderValue / 1e7).toFixed(2)}Cr`
+    : totalOrderValue >= 1e5
+      ? `₹${(totalOrderValue / 1e5).toFixed(2)}L`
+      : formatINR(totalOrderValue);
+  const headerSummary = role === 'sales'
+    ? 'Track your order status and delivery'
+    : `${totalOrderCount.toLocaleString()} orders · ${compactValue} · ${awaitingProcurement.toLocaleString()} awaiting procurement match`;
+
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
+    <div className="min-h-[100dvh] flex flex-col">
       <Header />
       <main className="container mx-auto py-4 sm:py-8 px-4 flex-1 overflow-x-hidden">
         <MissingPhoneBanner
@@ -267,35 +287,57 @@ export default function Orders() {
           }}
         />
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25">
-                    <Package className="h-7 w-7" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Orders</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      {role === 'sales' ? 'Track your order status and delivery' : 'Manage orders and procurement workflows'}
-                    </p>
-                  </div>
-                </div>
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+                <p className="text-[13px] text-muted-foreground mt-0.5">{headerSummary}</p>
                 {enquiryIdFromUrl && (
-                  <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors mt-3 ml-16 font-medium">
-                    <ArrowLeft className="h-4 w-4" /> Back to Enquiries
+                  <Link to="/" className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 mt-1.5">
+                    <ArrowLeft className="h-3.5 w-3.5" /> Back to Enquiries
                   </Link>
                 )}
               </div>
-              <div className="flex items-center gap-2 self-start flex-wrap">
+              <div className="flex items-center gap-2">
+                <Select value={dashTimePeriod} onValueChange={(v) => setDashTimePeriod(v as typeof dashTimePeriod)}>
+                  <SelectTrigger className="h-8 w-[140px] text-[12.5px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="this_week">This week</SelectItem>
+                    <SelectItem value="this_month">This month</SelectItem>
+                    <SelectItem value="prev_month">Previous month</SelectItem>
+                  </SelectContent>
+                </Select>
                 <OrdersExportButton
                   activeTab={activeTab}
                   manualOrders={filteredOrders}
                   shopifyOrders={filteredShopifyOrders}
                   wooOrders={filteredWooOrders}
                 />
-                {role === 'admin' && <DataExportDialog triggerLabel="Download data" />}
+                {role === 'admin' && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 px-2" aria-label="More export options">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DataExportDialog
+                        triggerLabel="Download data"
+                        trigger={
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Download data</DropdownMenuItem>
+                        }
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                {canCreateOrder && (
+                  <Button size="sm" className="h-8" onClick={() => setActiveTab('new')}>
+                    <Plus className="h-4 w-4 mr-1" /> New Order
+                  </Button>
+                )}
               </div>
+            </div>
+            <div className="min-w-0">
               <OrdersTabsList
                 sourceFilter={sourceFilter}
                 filteredOrdersCount={filteredOrders.length}
@@ -312,7 +354,6 @@ export default function Orders() {
                 attributionRequestsCount={attributionRequestsCount}
               />
             </div>
-
           </div>
 
           <OrdersListTab

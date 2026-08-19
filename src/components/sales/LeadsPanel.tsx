@@ -58,21 +58,56 @@ import { XboomWebsiteLeadsPanel } from './XboomWebsiteLeadsPanel';
 import { Globe } from 'lucide-react';
 import { Bot } from 'lucide-react';
 import { TouchedDashboard } from './TouchedDashboard';
+import { ChannelTabs } from './ChannelTabs';
 import { MetaLeadsUpload } from './MetaLeadsUpload';
 import { UnifiedLeadInbox } from './UnifiedLeadInbox';
-import { useUnifiedLeadCounts } from '@/hooks/useUnifiedLeadFeed';
-import { Inbox } from 'lucide-react';
+import { useUnifiedLeadCounts, useUnifiedLeadTotals, type LeadChannel } from '@/hooks/useUnifiedLeadFeed';
+import { ChannelVolumeGrid, type ChannelVolumeItem } from './ChannelVolumeGrid';
+import { Inbox, Store } from 'lucide-react';
 import { groupDuplicates } from '@/lib/leadDeduplication';
 import { DuplicateCountBadge, DuplicateHistoryRow } from './DuplicateHistoryRow';
 import { LeadsExportMenu } from './LeadsExportMenu';
 
-function InboxNewBadge() {
-  const { data } = useUnifiedLeadCounts();
-  if (!data || data.totalNew === 0) return null;
-  return (
-    <Badge variant="default" className="ml-1 text-xs px-1.5 py-0">{data.totalNew}</Badge>
-  );
+/** Tab -> unified channel key. Tabs without a channel show no count. */
+const CHANNEL_BY_TAB: Record<string, LeadChannel> = {
+  qforms: 'forms',
+  interakt: 'interakt',
+  myoperator: 'myoperator',
+  manychat: 'manychat',
+  elevenlabs: 'elevenlabs',
+  emails: 'email',
+  'google-ads': 'google_ads',
+  'facebook-leads': 'facebook',
+  indiamart: 'indiamart',
+};
+
+/** Cards for the channel-volume grid, in channel-row order. */
+const CHANNEL_CARDS: { tab: string; label: string; channel: LeadChannel }[] = [
+  { tab: 'all-inbox', label: 'Website', channel: 'website' },
+  { tab: 'qforms', label: 'QForms', channel: 'forms' },
+  { tab: 'interakt', label: 'Interakt', channel: 'interakt' },
+  { tab: 'myoperator', label: 'MyOperator', channel: 'myoperator' },
+  { tab: 'manychat', label: 'ManyChat', channel: 'manychat' },
+  { tab: 'elevenlabs', label: 'ElevenLabs', channel: 'elevenlabs' },
+  { tab: 'emails', label: 'Emails', channel: 'email' },
+  { tab: 'google-ads', label: 'Google Ads', channel: 'google_ads' },
+  { tab: 'facebook-leads', label: 'Facebook Leads', channel: 'facebook' },
+  { tab: 'indiamart', label: 'IndiaMART', channel: 'indiamart' },
+];
+
+/** One number per tab: all-time total, plus a dot when there are unseen leads. */
+function UnseenDot() {
+  return <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" aria-label="New leads" />;
 }
+
+function TabTotal({ total }: { total: number | undefined }) {
+  if (!total) return null;
+  return <span className="ml-1 font-mono text-[10px] text-muted-foreground">{total.toLocaleString()}</span>;
+}
+
+/** Single-line channel row trigger: neutral when inactive, raised card when active. */
+const CHANNEL_TRIGGER =
+  "h-8 px-3 text-[13px] rounded-md whitespace-nowrap gap-1.5 shrink-0 text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-medium data-[state=active]:shadow-sm";
 
 /**
  * Source filter options for the All Leads tab.
@@ -126,6 +161,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   }, [attentionItems]);
   const [searchQuery, setSearchQuery] = useState(initialSearch || '');
   const [fbImportOpen, setFbImportOpen] = useState(false);
+  const [imImportOpen, setImImportOpen] = useState(false);
   useEffect(() => {
     if (initialSearch) setSearchQuery(initialSearch);
   }, [initialSearch]);
@@ -210,6 +246,44 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const paginatedInteraktLeads = filteredInteraktLeads.slice(
     interaktPageStart,
     interaktPageStart + interaktPageSize,
+  );
+
+  const renderInteraktPager = (position: 'top' | 'bottom') => (
+    <div
+      className={`flex flex-wrap items-center justify-between gap-3 ${position === 'top' ? 'pb-2' : 'pt-2'}`}
+    >
+      <div className="text-sm text-muted-foreground tabular-nums">
+        Showing {interaktPageStart + 1}–{Math.min(interaktPageStart + interaktPageSize, filteredInteraktLeads.length)} of {filteredInteraktLeads.length}
+      </div>
+      <div className="flex items-center gap-2">
+        <Select value={String(interaktPageSize)} onValueChange={(v) => { setInteraktPageSize(Number(v)); setInteraktPage(1); }}>
+          <SelectTrigger className="w-[110px] h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="25">25 / page</SelectItem>
+            <SelectItem value="50">50 / page</SelectItem>
+            <SelectItem value="100">100 / page</SelectItem>
+            <SelectItem value="200">200 / page</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" disabled={interaktPageSafe <= 1} onClick={() => setInteraktPage(1)}>
+          First
+        </Button>
+        <Button variant="outline" size="sm" disabled={interaktPageSafe <= 1} onClick={() => setInteraktPage(interaktPageSafe - 1)}>
+          Previous
+        </Button>
+        <span className="text-sm whitespace-nowrap tabular-nums">
+          Page {interaktPageSafe} of {interaktTotalPages}
+        </span>
+        <Button variant="outline" size="sm" disabled={interaktPageSafe >= interaktTotalPages} onClick={() => setInteraktPage(interaktPageSafe + 1)}>
+          Next
+        </Button>
+        <Button variant="outline" size="sm" disabled={interaktPageSafe >= interaktTotalPages} onClick={() => setInteraktPage(interaktTotalPages)}>
+          Last
+        </Button>
+      </div>
+    </div>
   );
 
   // Interakt groups (over the currently paginated slice).
@@ -451,57 +525,99 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const uniqueLeadCount = leadGroups.length;
   const mergedLeadCount = totalLeads - uniqueLeadCount;
 
+  // ---- Channel volume: all-time totals + new-since-last-seen per channel ----
+  const [channelTab, setChannelTab] = useState('all-inbox');
+  const { data: totalsData } = useUnifiedLeadTotals();
+  const { data: newCountsData } = useUnifiedLeadCounts();
+  const totalsBySource = totalsData?.bySource as Record<string, number> | undefined;
+  const newBySource = newCountsData?.bySource as Record<string, number> | undefined;
+  const totalFor = (tab: string) => {
+    const key = CHANNEL_BY_TAB[tab];
+    return key ? totalsBySource?.[key] : undefined;
+  };
+  const hasNew = (tab: string) => {
+    const key = CHANNEL_BY_TAB[tab];
+    return !!key && (newBySource?.[key] ?? 0) > 0;
+  };
+  const channelCards: ChannelVolumeItem[] = CHANNEL_CARDS.map((c) => ({
+    tab: c.tab,
+    label: c.label,
+    total: totalsBySource?.[c.channel] ?? 0,
+    newCount: newBySource?.[c.channel] ?? 0,
+  }));
+
   return (
-    <Tabs defaultValue="all-inbox" className="space-y-6">
-      <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start">
-        <TabsTrigger value="all-inbox" className="gap-1.5">
-          <Inbox className="h-3.5 w-3.5" />
+    <Tabs value={channelTab} onValueChange={setChannelTab} className="space-y-6">
+      <ChannelVolumeGrid items={channelCards} activeTab={channelTab} onSelect={setChannelTab} />
+      <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto scrollbar-hide bg-muted/40 rounded-lg p-1">
+        <TabsTrigger value="all-inbox" className={CHANNEL_TRIGGER}>
+          {(newBySource ? Object.values(newBySource).some((n) => n > 0) : false) && <UnseenDot />}
+          <Inbox className="w-4 h-4" />
           All Inbox
-          <InboxNewBadge />
+          <TabTotal total={totalsBySource ? Object.values(totalsBySource).reduce((a, b) => a + b, 0) : undefined} />
         </TabsTrigger>
-        <TabsTrigger value="leads">All Leads</TabsTrigger>
-        <TabsTrigger value="qforms" className="gap-1.5">
-          <FileText className="h-3.5 w-3.5" />
+        <TabsTrigger value="leads" className={CHANNEL_TRIGGER}>All Leads</TabsTrigger>
+        <TabsTrigger value="qforms" className={CHANNEL_TRIGGER}>
+          {hasNew('qforms') && <UnseenDot />}
+          <FileText className="w-4 h-4" />
           QForms
+          <TabTotal total={totalFor('qforms')} />
         </TabsTrigger>
-        <TabsTrigger value="interakt" className="gap-1.5">
-          <MessageCircle className="h-3.5 w-3.5" />
+        <TabsTrigger value="facebook-leads" className={CHANNEL_TRIGGER}>
+          {hasNew('facebook-leads') && <UnseenDot />}
+          <Facebook className="w-4 h-4" />
+          Facebook Leads
+          <TabTotal total={totalFor('facebook-leads')} />
+        </TabsTrigger>
+        <TabsTrigger value="interakt" className={CHANNEL_TRIGGER}>
+          {hasNew('interakt') && <UnseenDot />}
+          <MessageCircle className="w-4 h-4" />
           Interakt
-          {interaktLeads.length > 0 && (
-            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{interaktLeads.length}</Badge>
-          )}
+          <TabTotal total={totalFor('interakt')} />
         </TabsTrigger>
-        <TabsTrigger value="myoperator" className="gap-1.5">
-          <Phone className="h-3.5 w-3.5" />
+        <TabsTrigger value="myoperator" className={CHANNEL_TRIGGER}>
+          {hasNew('myoperator') && <UnseenDot />}
+          <Phone className="w-4 h-4" />
           MyOperator
+          <TabTotal total={totalFor('myoperator')} />
         </TabsTrigger>
-        <TabsTrigger value="manychat" className="gap-1.5">
-          <MessageCircle className="h-3.5 w-3.5" />
+        <TabsTrigger value="manychat" className={CHANNEL_TRIGGER}>
+          {hasNew('manychat') && <UnseenDot />}
+          <MessageCircle className="w-4 h-4" />
           ManyChat
+          <TabTotal total={totalFor('manychat')} />
         </TabsTrigger>
-        <TabsTrigger value="elevenlabs" className="gap-1.5">
-          <Bot className="h-3.5 w-3.5" />
+        <TabsTrigger value="elevenlabs" className={CHANNEL_TRIGGER}>
+          {hasNew('elevenlabs') && <UnseenDot />}
+          <Bot className="w-4 h-4" />
           ElevenLabs Leads
+          <TabTotal total={totalFor('elevenlabs')} />
         </TabsTrigger>
-        <TabsTrigger value="xboom-website" className="gap-1.5">
-          <Globe className="h-3.5 w-3.5" />
+        <TabsTrigger value="xboom-website" className={CHANNEL_TRIGGER}>
+          <Globe className="w-4 h-4" />
           Abandoned Cart
         </TabsTrigger>
-        <TabsTrigger value="call-tracker" className="gap-1.5">
-          <PhoneOutgoing className="h-3.5 w-3.5" />
+        <TabsTrigger value="call-tracker" className={CHANNEL_TRIGGER}>
+          <PhoneOutgoing className="w-4 h-4" />
           Call Tracker
         </TabsTrigger>
-        <TabsTrigger value="emails" className="gap-1.5">
-          <Mail className="h-3.5 w-3.5" />
+        <TabsTrigger value="emails" className={CHANNEL_TRIGGER}>
+          {hasNew('emails') && <UnseenDot />}
+          <Mail className="w-4 h-4" />
           Emails
+          <TabTotal total={totalFor('emails')} />
         </TabsTrigger>
-        <TabsTrigger value="google-ads" className="gap-1.5">
-          <Megaphone className="h-3.5 w-3.5" />
+        <TabsTrigger value="google-ads" className={CHANNEL_TRIGGER}>
+          {hasNew('google-ads') && <UnseenDot />}
+          <Megaphone className="w-4 h-4" />
           Google Ads
+          <TabTotal total={totalFor('google-ads')} />
         </TabsTrigger>
-        <TabsTrigger value="facebook-leads" className="gap-1.5">
-          <Facebook className="h-3.5 w-3.5" />
-          Facebook Leads
+        <TabsTrigger value="indiamart" className={CHANNEL_TRIGGER}>
+          {hasNew('indiamart') && <UnseenDot />}
+          <Store className="w-4 h-4" />
+          Indiamart
+          <TabTotal total={totalFor('indiamart')} />
         </TabsTrigger>
       </TabsList>
 
@@ -511,6 +627,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="leads" className="space-y-6">
     <div className="space-y-6">
+      <Tabs defaultValue="list" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="list">Leads</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+        <TabsContent value="analytics" className="space-y-6">
       {/* Prospect Analytics */}
       <ProspectAnalyticsCards prospects={prospects} sourceType="enquiry" />
       {/* Touched vs Untouched */}
@@ -577,7 +699,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
 
+        <TabsContent value="list" className="space-y-6">
       {/* Actions & Filters */}
       <Card>
         <CardContent className="p-4">
@@ -863,6 +987,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Import Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
@@ -931,8 +1057,19 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       {/* QForms Tab */}
       <TabsContent value="qforms" className="space-y-6">
-        <TouchedDashboard source="qforms" />
-        <QFormsPanel />
+        <Tabs defaultValue="list" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="list">Form Leads</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
+          <TabsContent value="analytics" className="space-y-6">
+            <TouchedDashboard source="qforms" />
+            <QFormsPanel mode="analytics" />
+          </TabsContent>
+          <TabsContent value="list" className="space-y-6">
+            <QFormsPanel mode="list" />
+          </TabsContent>
+        </Tabs>
       </TabsContent>
 
       {/* Interakt Tab */}
@@ -942,6 +1079,12 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="interakt" className="space-y-6">
         <div className="space-y-6">
+          <Tabs defaultValue="list" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="list">Interakt Leads</TabsTrigger>
+              <TabsTrigger value="analytics">Interakt Analytics</TabsTrigger>
+            </TabsList>
+            <TabsContent value="analytics" className="space-y-6">
           {/* Prospect Analytics for Interakt */}
           <ProspectAnalyticsCards prospects={prospects} sourceType="interakt" />
 
@@ -952,7 +1095,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           {canSeeAllLeads && (
             <InteraktAnalytics leads={interaktLeads} prospects={prospects} />
           )}
+            </TabsContent>
 
+            <TabsContent value="list" className="space-y-6">
           {/* Sync Button */}
           <Card>
             <CardContent className="p-4">
@@ -1110,6 +1255,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                   )}
                 </div>
               ) : (
+                <>
+                {filteredInteraktLeads.length > 0 && renderInteraktPager('top')}
                 <div className="border rounded-lg overflow-hidden">
                   <div className="overflow-x-auto">
                     <Table>
@@ -1265,38 +1412,15 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     </Table>
                   </div>
                 </div>
+                </>
               )}
               {!interaktLoading && filteredInteraktLeads.length > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {interaktPageStart + 1}–{Math.min(interaktPageStart + interaktPageSize, filteredInteraktLeads.length)} of {filteredInteraktLeads.length}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Select value={String(interaktPageSize)} onValueChange={(v) => setInteraktPageSize(Number(v))}>
-                      <SelectTrigger className="w-[110px] h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="25">25 / page</SelectItem>
-                        <SelectItem value="50">50 / page</SelectItem>
-                        <SelectItem value="100">100 / page</SelectItem>
-                        <SelectItem value="200">200 / page</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button variant="outline" size="sm" disabled={interaktPageSafe <= 1} onClick={() => setInteraktPage(interaktPageSafe - 1)}>
-                      Previous
-                    </Button>
-                    <span className="text-sm whitespace-nowrap">
-                      Page {interaktPageSafe} of {interaktTotalPages}
-                    </span>
-                    <Button variant="outline" size="sm" disabled={interaktPageSafe >= interaktTotalPages} onClick={() => setInteraktPage(interaktPageSafe + 1)}>
-                      Next
-                    </Button>
-                  </div>
-                </div>
+                renderInteraktPager('bottom')
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Interakt Edit Dialog */}
@@ -1357,49 +1481,76 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="myoperator">
         <div className="space-y-6">
-        <TouchedDashboard source="myoperator" />
-        <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
+        <MyOperatorTabContent
+          prospects={prospects}
+          prospectSourceIds={prospectSourceIds}
+          attentionSourceIds={attentionSourceIds}
+          analytics={<TouchedDashboard source="myoperator" />}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="elevenlabs">
         <div className="space-y-6">
-        <TouchedDashboard source="elevenlabs" />
-        <ElevenLabsLeadsPanel />
+        <ChannelTabs
+          listLabel="ElevenLabs Leads"
+          list={<ElevenLabsLeadsPanel mode="list" />}
+          analytics={<div className="space-y-6"><TouchedDashboard source="elevenlabs" /><ElevenLabsLeadsPanel mode="analytics" /></div>}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="xboom-website">
         <div className="space-y-6">
-        <TouchedDashboard source="xboom-website" />
-        <XboomWebsiteLeadsPanel />
+        <ChannelTabs
+          listLabel="Website & Abandoned Carts"
+          list={<XboomWebsiteLeadsPanel />}
+          analytics={<TouchedDashboard source="xboom-website" />}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="call-tracker">
         <div className="space-y-6">
-        <TouchedDashboard source="call-tracker" />
-        <OutboundCallTracker />
+        <ChannelTabs
+          listLabel="Call Tracker"
+          list={<OutboundCallTracker />}
+          analytics={<TouchedDashboard source="call-tracker" />}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="emails">
         <div className="space-y-6">
-        <TouchedDashboard source="emails" />
-        <EmailLeadsPanel />
+        <ChannelTabs
+          listLabel="Email Leads"
+          list={<EmailLeadsPanel />}
+          analytics={(
+            <div className="space-y-6">
+              <EmailLeadsPanel mode="analytics" />
+              <TouchedDashboard source="emails" />
+            </div>
+          )}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="google-ads">
         <div className="space-y-6">
-        <TouchedDashboard source="google-ads" />
-        <GoogleAdsSyncPanel />
+        <ChannelTabs
+          listLabel="Google Ads Leads"
+          list={<GoogleAdsSyncPanel />}
+          analytics={<TouchedDashboard source="google-ads" />}
+        />
         </div>
       </TabsContent>
 
       <TabsContent value="facebook-leads">
         <div className="space-y-6">
-        <TouchedDashboard source="facebook-leads" />
+        <ChannelTabs
+          listLabel="Facebook Leads"
+          analytics={<TouchedDashboard source="facebook-leads" />}
+          list={<>
         {role === 'admin' && (
           <Collapsible open={fbImportOpen} onOpenChange={setFbImportOpen}>
             <div className="rounded-lg border bg-card">
@@ -1424,6 +1575,47 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           </Collapsible>
         )}
         <UnifiedLeadInbox sources={["facebook"]} />
+          </>}
+        />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="indiamart">
+        <div className="space-y-6">
+        <ChannelTabs
+          listLabel="IndiaMART Leads"
+          analytics={<TouchedDashboard source="indiamart" />}
+          list={<>
+        {role === 'admin' && (
+          <Collapsible open={imImportOpen} onOpenChange={setImImportOpen}>
+            <div className="rounded-lg border bg-card">
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium"
+                >
+                  <span className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import IndiaMART leads (Excel / CSV)
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${imImportOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="border-t p-4">
+                  <MetaLeadsUpload
+                    rpc="import_indiamart_leads"
+                    title="Upload IndiaMART Leads"
+                    sourceLabel="IndiaMART"
+                  />
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        )}
+        <UnifiedLeadInbox sources={["indiamart"]} />
+          </>}
+        />
         </div>
       </TabsContent>
     </Tabs>

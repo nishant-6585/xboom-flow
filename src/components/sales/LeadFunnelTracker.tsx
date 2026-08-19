@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useInteraktLeads } from '@/hooks/useInteraktLeads';
 import { useEmailLeads } from '@/hooks/useEmailLeads';
@@ -48,10 +48,15 @@ function inRange(dateStr: string | null | undefined, range: { start: Date; end: 
 
 interface LeadFunnelTrackerProps {
   compact?: boolean;
+  /** When provided, the funnel follows the page-level date filter and hides
+   *  its own period Select (no duplicate timeline controls). */
+  range?: { start: Date; end: Date } | null;
+  rangeLabel?: string;
 }
 
-export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
+export function LeadFunnelTracker({ compact, range: externalRange, rangeLabel }: LeadFunnelTrackerProps) {
   const [period, setPeriod] = useState<Period>('today');
+  const usesExternalRange = Boolean(externalRange);
 
   const { enquiries } = useEnquiries();
   const { leads: interaktLeads } = useInteraktLeads();
@@ -100,7 +105,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
   });
 
   const stats = useMemo(() => {
-    const range = getRange(period);
+    const range = externalRange ?? getRange(period);
 
     // Count leads by source in period
     const interaktCount = (interaktLeads as any[]).filter(l => !l.is_enquiry_converted && inRange(l.created_at, range)).length;
@@ -135,14 +140,14 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
 
     return {
       sources: [
-        { name: 'Enquiries', count: enquiryCount, icon: Package, color: 'text-blue-600' },
-        { name: 'Interakt', count: interaktCount, icon: MessageCircle, color: 'text-green-600' },
-        { name: 'MyOperator', count: myOpCount, icon: Phone, color: 'text-purple-600' },
-        { name: 'ElevenLabs', count: elevenCount, icon: Bot, color: 'text-violet-600' },
-        { name: 'Emails', count: emailCount, icon: Mail, color: 'text-red-600' },
-        { name: 'QForms', count: formCount, icon: FileText, color: 'text-orange-600' },
-        { name: 'Google Ads', count: googleAdsCount, icon: Globe, color: 'text-cyan-600' },
-        { name: 'Abandoned Cart', count: wooCount, icon: Globe, color: 'text-emerald-600' },
+        { name: 'Enquiries', count: enquiryCount, icon: Package },
+        { name: 'Interakt', count: interaktCount, icon: MessageCircle },
+        { name: 'MyOperator', count: myOpCount, icon: Phone },
+        { name: 'ElevenLabs', count: elevenCount, icon: Bot },
+        { name: 'Emails', count: emailCount, icon: Mail },
+        { name: 'QForms', count: formCount, icon: FileText },
+        { name: 'Google Ads', count: googleAdsCount, icon: Globe },
+        { name: 'Abandoned Cart', count: wooCount, icon: Globe },
       ],
       totalLeads,
       prospectsCount,
@@ -154,7 +159,7 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
       prospectToPipelineRate,
       pipelineToWonRate,
     };
-  }, [period, enquiries, interaktLeads, emailLeads, callLogs, formLeads, googleAdsLeads, wooLeads, prospects, pipelineOrders]);
+  }, [period, externalRange, enquiries, interaktLeads, emailLeads, callLogs, formLeads, googleAdsLeads, wooLeads, prospects, pipelineOrders]);
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
@@ -171,116 +176,64 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
             <TrendingUp className="w-5 h-5 text-primary" />
             Lead → Prospect → Pipeline Funnel
           </CardTitle>
-          <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-            <SelectTrigger className="w-[140px]">
-              <CalendarDays className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="this_week">This Week</SelectItem>
-              <SelectItem value="this_month">This Month</SelectItem>
-            </SelectContent>
-          </Select>
+          {usesExternalRange ? (
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {rangeLabel ?? 'Filtered'}
+            </span>
+          ) : (
+            <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+              <SelectTrigger className="w-[140px]">
+                <CalendarDays className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="this_week">This Week</SelectItem>
+                <SelectItem value="this_month">This Month</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* Funnel Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {/* Total Leads */}
-          <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/10 border-blue-200 dark:border-blue-800 p-4 text-center">
-            <Users className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{stats.totalLeads}</div>
-            <div className="text-xs text-muted-foreground font-medium">Total Leads</div>
-          </div>
-
-          {/* Arrow */}
-          <div className="hidden md:flex items-center justify-center relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t-2 border-dashed border-muted-foreground/30" />
-            </div>
-            <div className="rounded-xl border bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-800 p-4 text-center relative z-10 w-full">
-              <Target className="w-6 h-6 text-amber-600 mx-auto mb-1" />
-              <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">{stats.prospectsCount}</div>
-              <div className="text-xs text-muted-foreground font-medium">Prospects</div>
-              {stats.totalLeads > 0 && (
-                <Badge variant="secondary" className="text-[10px] mt-1">{stats.leadToProspectRate.toFixed(0)}% conv.</Badge>
+        {/* Funnel Steps — neutral, no connectors */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Total Leads', icon: Users, count: stats.totalLeads, value: null as string | null, rate: null as number | null },
+            { label: 'Prospects', icon: Target, count: stats.prospectsCount, value: null, rate: stats.totalLeads > 0 ? stats.leadToProspectRate : null },
+            { label: 'Pipeline', icon: TrendingUp, count: stats.pipelineCount, value: formatCurrency(stats.pipelineValue), rate: stats.prospectsCount > 0 ? stats.prospectToPipelineRate : null },
+            { label: 'Won', icon: Package, count: stats.wonCount, value: formatCurrency(stats.wonValue), rate: stats.pipelineCount > 0 ? stats.pipelineToWonRate : null },
+          ].map(step => (
+            <div key={step.label} className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-medium">{step.label}</span>
+                <step.icon className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
+              <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">{step.count}</div>
+              {step.value && <div className="text-xs text-muted-foreground tabular-nums">{step.value}</div>}
+              {step.rate !== null && (
+                <Badge
+                  variant="secondary"
+                  className={cn('mt-2 text-[10px] tabular-nums', step.rate < 5 && 'text-destructive')}
+                >
+                  {step.rate.toFixed(1)}% conv.
+                </Badge>
               )}
             </div>
-          </div>
-
-          {/* Mobile: Prospects */}
-          <div className="md:hidden rounded-xl border bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-800 p-4 text-center">
-            <Target className="w-6 h-6 text-amber-600 mx-auto mb-1" />
-            <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">{stats.prospectsCount}</div>
-            <div className="text-xs text-muted-foreground font-medium">Prospects</div>
-            {stats.totalLeads > 0 && (
-              <Badge variant="secondary" className="text-[10px] mt-1">{stats.leadToProspectRate.toFixed(0)}% conv.</Badge>
-            )}
-          </div>
-
-          {/* Pipeline */}
-          <div className="hidden md:flex items-center justify-center relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t-2 border-dashed border-muted-foreground/30" />
-            </div>
-            <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/10 border-purple-200 dark:border-purple-800 p-4 text-center relative z-10 w-full">
-              <TrendingUp className="w-6 h-6 text-purple-600 mx-auto mb-1" />
-              <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">{stats.pipelineCount}</div>
-              <div className="text-xs text-muted-foreground font-medium">Pipeline</div>
-              <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">{formatCurrency(stats.pipelineValue)}</div>
-            </div>
-          </div>
-
-          <div className="md:hidden rounded-xl border bg-purple-50/50 dark:bg-purple-950/10 border-purple-200 dark:border-purple-800 p-4 text-center">
-            <TrendingUp className="w-6 h-6 text-purple-600 mx-auto mb-1" />
-            <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">{stats.pipelineCount}</div>
-            <div className="text-xs text-muted-foreground font-medium">Pipeline</div>
-            <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">{formatCurrency(stats.pipelineValue)}</div>
-          </div>
-
-          {/* Won */}
-          <div className="rounded-xl border bg-green-50/50 dark:bg-green-950/10 border-green-200 dark:border-green-800 p-4 text-center">
-            <Package className="w-6 h-6 text-green-600 mx-auto mb-1" />
-            <div className="text-2xl font-bold text-green-700 dark:text-green-400">{stats.wonCount}</div>
-            <div className="text-xs text-muted-foreground font-medium">Won</div>
-            <div className="text-[10px] text-green-600 dark:text-green-400 font-medium">{formatCurrency(stats.wonValue)}</div>
-          </div>
-        </div>
-
-        {/* Conversion Bars */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Lead → Prospect</span>
-              <span className="font-semibold">{stats.leadToProspectRate.toFixed(1)}%</span>
-            </div>
-            <Progress value={Math.min(stats.leadToProspectRate, 100)} className="h-2" />
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Prospect → Pipeline</span>
-              <span className="font-semibold">{stats.prospectToPipelineRate.toFixed(1)}%</span>
-            </div>
-            <Progress value={Math.min(stats.prospectToPipelineRate, 100)} className="h-2" />
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Pipeline → Won</span>
-              <span className="font-semibold">{stats.pipelineToWonRate.toFixed(1)}%</span>
-            </div>
-            <Progress value={Math.min(stats.pipelineToWonRate, 100)} className="h-2" />
-          </div>
+          ))}
         </div>
 
         {/* Source Breakdown */}
         {!compact && (
           <div>
-            <div className="text-sm font-medium mb-2 text-muted-foreground">{PERIOD_LABELS[period]} — Leads by Source</div>
+            <div className="text-sm font-medium mb-2 text-muted-foreground">
+              {(usesExternalRange ? rangeLabel : PERIOD_LABELS[period]) ?? PERIOD_LABELS[period]} — Leads by Source
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
               {stats.sources.map(src => (
                 <div key={src.name} className="flex items-center gap-2 rounded-lg border px-3 py-2">
-                  <src.icon className={`w-4 h-4 ${src.color} shrink-0`} />
+                  <src.icon className="w-4 h-4 text-muted-foreground shrink-0" />
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">{src.count}</div>
                     <div className="text-[10px] text-muted-foreground truncate">{src.name}</div>

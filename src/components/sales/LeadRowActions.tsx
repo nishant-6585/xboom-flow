@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MoreVertical, CheckCircle2, XCircle, ArrowUpRight, RotateCcw } from "lucide-react";
+import { MoreHorizontal, CheckCircle2, XCircle, ArrowUpRight, RotateCcw, Trash, Eye, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +33,10 @@ export interface LeadRowActionsProps {
   currentDisposition?: LeadDisposition | string | null;
   onMoveToProspect?: () => void;
   onDispositionChanged?: () => void;
+  /** Optional "View details" entry rendered at the top of the menu. */
+  onViewDetails?: () => void;
+  /** Optional "View in source" entry rendered at the top of the menu. */
+  onViewInSource?: () => void;
   /** Render as a compact icon button (default true). When false, used inline. */
   compact?: boolean;
 }
@@ -45,6 +49,8 @@ export function LeadRowActions({
   currentDisposition,
   onMoveToProspect,
   onDispositionChanged,
+  onViewDetails,
+  onViewInSource,
   compact = true,
 }: LeadRowActionsProps) {
   const { role } = useAuth();
@@ -52,16 +58,17 @@ export function LeadRowActions({
 
   const [qualifyOpen, setQualifyOpen] = useState(false);
   const [notQualifyOpen, setNotQualifyOpen] = useState(false);
+  const [junkOpen, setJunkOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Radix can leave `pointer-events: none` on <body> when a dropdown unmounts
   // in the same tick a dialog mounts — that freezes the whole page.
   useEffect(() => {
-    if (!menuOpen && !qualifyOpen && !notQualifyOpen) {
+    if (!menuOpen && !qualifyOpen && !notQualifyOpen && !junkOpen) {
       document.body.style.pointerEvents = "";
     }
-  }, [menuOpen, qualifyOpen, notQualifyOpen]);
+  }, [menuOpen, qualifyOpen, notQualifyOpen, junkOpen]);
   useEffect(() => () => {
     document.body.style.pointerEvents = "";
   }, []);
@@ -73,7 +80,11 @@ export function LeadRowActions({
   };
 
   const disposition = (currentDisposition ?? "untouched") as LeadDisposition;
-  const isTerminal = disposition === "qualified" || disposition === "not_qualified";
+  const isJunk = disposition === "junk";
+  const isTerminal =
+    disposition === "qualified" || disposition === "not_qualified" || isJunk;
+  // Junk is always reversible by any rep — it is never a delete.
+  const canClear = canReevaluate || isJunk;
 
   const handleReevaluate = async () => {
     setSubmitting(true);
@@ -104,7 +115,7 @@ export function LeadRowActions({
             aria-label="Lead actions"
             disabled={submitting}
           >
-            <MoreVertical className="h-4 w-4" />
+            <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
@@ -114,6 +125,20 @@ export function LeadRowActions({
               : "Set lead disposition"}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+
+          {onViewDetails && (
+            <DropdownMenuItem onClick={onViewDetails}>
+              <Eye className="h-4 w-4 mr-2" />
+              View details
+            </DropdownMenuItem>
+          )}
+          {onViewInSource && (
+            <DropdownMenuItem onClick={onViewInSource}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View in source
+            </DropdownMenuItem>
+          )}
+          {(onViewDetails || onViewInSource) && <DropdownMenuSeparator />}
 
           {onMoveToProspect && (
             <DropdownMenuItem
@@ -148,14 +173,26 @@ export function LeadRowActions({
             </>
           )}
 
-          {isTerminal && canReevaluate && (
-            <DropdownMenuItem onClick={handleReevaluate} disabled={submitting}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Re-evaluate
+          {!isTerminal && (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                openAfterMenuClose(() => setJunkOpen(true));
+              }}
+            >
+              <Trash className="h-4 w-4 mr-2 text-muted-foreground" />
+              Mark junk…
             </DropdownMenuItem>
           )}
 
-          {isTerminal && !canReevaluate && (
+          {isTerminal && canClear && (
+            <DropdownMenuItem onClick={handleReevaluate} disabled={submitting}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              {isJunk ? "Not junk — restore" : "Re-evaluate"}
+            </DropdownMenuItem>
+          )}
+
+          {isTerminal && !canClear && (
             <DropdownMenuItem disabled>
               Only manager/admin can re-evaluate
             </DropdownMenuItem>
@@ -181,6 +218,16 @@ export function LeadRowActions({
         contactName={contactName}
         contactPhone={contactPhone}
         target="not_qualified"
+        onSuccess={onDispositionChanged}
+      />
+      <DispositionDialog
+        open={junkOpen}
+        onOpenChange={setJunkOpen}
+        sourceTable={sourceTable}
+        sourceRowId={sourceRowId}
+        contactName={contactName}
+        contactPhone={contactPhone}
+        target="junk"
         onSuccess={onDispositionChanged}
       />
     </>

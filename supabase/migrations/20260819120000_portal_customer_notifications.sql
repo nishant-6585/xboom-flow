@@ -32,6 +32,9 @@ CREATE INDEX IF NOT EXISTS idx_portal_notifications_account
 CREATE INDEX IF NOT EXISTS idx_portal_notifications_unread
   ON public.portal_notifications (account_id) WHERE NOT is_read;
 
+GRANT SELECT, UPDATE ON public.portal_notifications TO authenticated;
+GRANT ALL ON public.portal_notifications TO service_role;
+
 ALTER TABLE public.portal_notifications ENABLE ROW LEVEL SECURITY;
 
 -- Customers see their own account's notifications, and may mark them read.

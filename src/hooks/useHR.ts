@@ -804,6 +804,11 @@ export function useHR() {
     start_date: string;
     end_date: string;
     reason?: string;
+    compoff?: {
+      earned_date: string;
+      earned_type: 'holiday' | 'weekend';
+      holiday_id?: string | null;
+    };
   }): Promise<boolean> => {
     if (!user || !profile) {
       toast.error('You must be logged in');
@@ -811,6 +816,33 @@ export function useHR() {
     }
 
     try {
+      // Comp-off applied on behalf of an employee needs a ledger credit, which
+      // clients cannot insert directly. The dedicated RPC validates the worked
+      // day, creates the (already approved) credit and redeems it against the
+      // new approved leave request in one transaction.
+      if (data.leave_type === 'compoff') {
+        if (!data.compoff?.earned_date) {
+          toast.error('Select the day the employee worked extra');
+          return false;
+        }
+        const { error: rpcErr } = await supabase.rpc('hr_apply_compoff_leave', {
+          p_employee_id: data.employee_id,
+          p_earned_date: data.compoff.earned_date,
+          p_earned_type: data.compoff.earned_type,
+          p_leave_date: data.start_date,
+          p_holiday_id: data.compoff.holiday_id ?? null,
+          p_reason: data.reason ?? null,
+        } as any);
+        if (rpcErr) {
+          const { friendlyCompoffError } = await import('@/lib/compoff');
+          toast.error(friendlyCompoffError(rpcErr.message));
+          return false;
+        }
+        toast.success('Comp-off applied and approved successfully');
+        fetchLeaveRequests();
+        return true;
+      }
+
       // Check for overlapping leave
       const { data: existingLeaves } = await supabase
         .from('leave_requests')

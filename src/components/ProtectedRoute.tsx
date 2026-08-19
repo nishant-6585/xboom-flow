@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { MFAEnrollment } from "@/components/auth/MFAEnrollment";
 import { MFAVerification } from "@/components/auth/MFAVerification";
 import { ProfilePicturePrompt } from "@/components/ProfilePicturePrompt";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -141,9 +143,12 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
   }
 
   return (
-    <>
-      {children}
+    <SidebarProvider>
+      <div className="flex min-h-[100dvh] w-full">
+        <AppSidebar />
+        <div className="flex-1 min-w-0">{children}</div>
+      </div>
       <ProfilePicturePrompt />
-    </>
+    </SidebarProvider>
   );
 };

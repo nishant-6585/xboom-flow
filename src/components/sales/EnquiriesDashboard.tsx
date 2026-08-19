@@ -26,6 +26,7 @@ import {
 } from 'date-fns';
 import { LeadTemperatureBadge } from '@/components/LeadTemperatureBadge';
 import type { DateRange } from 'react-day-picker';
+import { KPICard } from '@/components/sales/KPICard';
 
 interface EnquiriesDashboardProps {
   enquiries: Enquiry[];
@@ -105,32 +106,6 @@ interface DetailItem {
   date: string;
   sales_person: string;
   temperature?: string;
-}
-
-function KPICard({ label, value, icon: Icon, gradient, subText, isText, onClick }: {
-  label: string; value: string | number; icon: typeof Package; gradient: string;
-  subText?: string; isText?: boolean; onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={`relative overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-border/30`}
-      onClick={onClick}
-    >
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-15`} />
-      <CardContent className="pt-3 pb-3 px-3 relative">
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg bg-gradient-to-br ${gradient} shadow-sm`}>
-            <Icon className="h-4 w-4 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className={`${isText ? 'text-lg' : 'text-xl'} font-bold leading-tight`}>{value}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{label}</p>
-            {subText && <p className="text-[10px] text-muted-foreground/70">{subText}</p>}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
@@ -466,15 +441,18 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
       </div>
 
       {/* ============ TOP KPI CARDS ============ */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-        <KPICard label="Total Enquiries" value={stats.total} icon={Package} gradient="from-indigo-500 to-blue-600" onClick={() => handleKPIClick('total')} />
-        <KPICard label="Pending" value={stats.pendingCount} icon={Clock} gradient="from-amber-500 to-orange-600" subText={stats.pendingUrgent > 0 ? `${stats.pendingUrgent} urgent` : undefined} onClick={() => handleKPIClick('pending')} />
-        <KPICard label="Hot Leads" value={stats.hotLeads} icon={Flame} gradient="from-red-500 to-orange-600" onClick={() => handleKPIClick('hot')} />
-        <KPICard label="Mega Deals" value={stats.megaDeals} icon={Award} gradient="from-amber-500 to-yellow-600" onClick={() => handleKPIClick('mega')} />
-        <KPICard label="Avg Response" value={stats.avgResponseTime} icon={Timer} gradient="from-purple-500 to-violet-600" subText={`${stats.respondedCount} responded`} isText onClick={() => handleKPIClick('total')} />
-        <KPICard label="Conversion" value={`${stats.conversionRate}%`} icon={TrendingUp} gradient="from-green-500 to-emerald-600" isText onClick={() => handleKPIClick('won')} />
-        <KPICard label="SLA Met" value={stats.slaMetCount} icon={CheckCircle2} gradient="from-emerald-500 to-green-600" subText={`${stats.slaBreachedCount} breached`} onClick={() => handleKPIClick('sla_met')} />
-        <KPICard label="Win Rate" value={`${stats.winRate}%`} icon={Percent} gradient="from-teal-500 to-cyan-600" isText onClick={() => handleKPIClick('won')} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard label="Total Enquiries" value={stats.total} icon={Package} onClick={() => handleKPIClick('total')} />
+        <KPICard label="Pending" value={stats.pendingCount} icon={Clock} subText={stats.pendingUrgent > 0 ? `${stats.pendingUrgent} urgent` : undefined} onClick={() => handleKPIClick('pending')} />
+        <KPICard label="Avg Response" value={stats.avgResponseTime} icon={Timer} subText={`${stats.respondedCount} responded`} isText onClick={() => handleKPIClick('total')} />
+        <KPICard label="Conversion" value={`${stats.conversionRate}%`} icon={TrendingUp} isText onClick={() => handleKPIClick('won')} />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard tier="secondary" label="Hot Leads" value={stats.hotLeads} icon={Flame} onClick={() => handleKPIClick('hot')} />
+        <KPICard tier="secondary" label="Mega Deals" value={stats.megaDeals} icon={Award} onClick={() => handleKPIClick('mega')} />
+        <KPICard tier="secondary" label="SLA Met" value={stats.slaMetCount} icon={CheckCircle2} subText={`${stats.slaBreachedCount} breached`} onClick={() => handleKPIClick('sla_met')} />
+        <KPICard tier="secondary" label="Win Rate" value={`${stats.winRate}%`} icon={Percent} isText onClick={() => handleKPIClick('won')} />
       </div>
 
       {/* ============ WON / LOST SUMMARY ============ */}

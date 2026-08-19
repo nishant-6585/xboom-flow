@@ -8386,6 +8386,68 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_walk_in_details: {
+        Row: {
+          accompanied_by: string | null
+          budget_range: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          follow_up_at: string | null
+          lead_id: number
+          notes: string | null
+          products_interested: string[]
+          purchase_timeline: string | null
+          referral_source: string | null
+          store_location: string | null
+          updated_at: string
+          visit_outcome: string | null
+          visited_at: string
+        }
+        Insert: {
+          accompanied_by?: string | null
+          budget_range?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          follow_up_at?: string | null
+          lead_id: number
+          notes?: string | null
+          products_interested?: string[]
+          purchase_timeline?: string | null
+          referral_source?: string | null
+          store_location?: string | null
+          updated_at?: string
+          visit_outcome?: string | null
+          visited_at?: string
+        }
+        Update: {
+          accompanied_by?: string | null
+          budget_range?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          follow_up_at?: string | null
+          lead_id?: number
+          notes?: string | null
+          products_interested?: string[]
+          purchase_timeline?: string | null
+          referral_source?: string | null
+          store_location?: string | null
+          updated_at?: string
+          visit_outcome?: string | null
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_walk_in_details_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -11920,6 +11982,70 @@ export type Database = {
           },
         ]
       }
+      portal_notifications: {
+        Row: {
+          account_id: string
+          contact_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          metadata: Json | null
+          order_id: string | null
+          portal_ticket_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          account_id: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          metadata?: Json | null
+          order_id?: string | null
+          portal_ticket_id?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          account_id?: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          metadata?: Json | null
+          order_id?: string | null
+          portal_ticket_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_notifications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "portal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_notifications_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "portal_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_notifications_portal_ticket_id_fkey"
+            columns: ["portal_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "portal_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_notifications_log: {
         Row: {
           channel: string
@@ -12333,6 +12459,42 @@ export type Database = {
           },
         ]
       }
+      portal_ticket_assignee_pool: {
+        Row: {
+          added_at: string
+          assigned_count: number
+          is_active: boolean
+          is_assignable: boolean
+          last_assigned_at: string | null
+          slack_handle: string | null
+          slack_user_id: string | null
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          assigned_count?: number
+          is_active?: boolean
+          is_assignable?: boolean
+          last_assigned_at?: string | null
+          slack_handle?: string | null
+          slack_user_id?: string | null
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          assigned_count?: number
+          is_active?: boolean
+          is_assignable?: boolean
+          last_assigned_at?: string | null
+          slack_handle?: string | null
+          slack_user_id?: string | null
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       portal_ticket_messages: {
         Row: {
           attachments: Json
@@ -12342,6 +12504,7 @@ export type Database = {
           is_internal: boolean
           sender_id: string | null
           sender_name_snapshot: string | null
+          sender_side: string | null
           ticket_id: string
         }
         Insert: {
@@ -12352,6 +12515,7 @@ export type Database = {
           is_internal?: boolean
           sender_id?: string | null
           sender_name_snapshot?: string | null
+          sender_side?: string | null
           ticket_id: string
         }
         Update: {
@@ -12362,6 +12526,7 @@ export type Database = {
           is_internal?: boolean
           sender_id?: string | null
           sender_name_snapshot?: string | null
+          sender_side?: string | null
           ticket_id?: string
         }
         Relationships: [
@@ -16832,6 +16997,45 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_message_events: {
+        Row: {
+          callback_data: string | null
+          created_at: string
+          failure_reason: string | null
+          id: string
+          phone: string | null
+          provider: string
+          provider_message_id: string | null
+          raw: Json | null
+          status: string | null
+          template_name: string | null
+        }
+        Insert: {
+          callback_data?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          phone?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          raw?: Json | null
+          status?: string | null
+          template_name?: string | null
+        }
+        Update: {
+          callback_data?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          phone?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          raw?: Json | null
+          status?: string | null
+          template_name?: string | null
+        }
+        Relationships: []
+      }
       woo_lead_activities: {
         Row: {
           activity_date: string
@@ -18013,6 +18217,10 @@ export type Database = {
         Returns: Record<string, unknown>
       }
       assign_orphan_leads_sweep: { Args: never; Returns: number }
+      assign_portal_ticket: {
+        Args: { _ticket_id: string; _user_id: string }
+        Returns: undefined
+      }
       assign_woo_lead: {
         Args: { p_assignee: string; p_order_id: string }
         Returns: undefined
@@ -18308,6 +18516,25 @@ export type Database = {
         }
         Returns: string
       }
+      create_walk_in_lead: {
+        Args: {
+          _accompanied_by?: string
+          _budget_range?: string
+          _company?: string
+          _email?: string
+          _follow_up_at?: string
+          _name: string
+          _notes?: string
+          _phone: string
+          _products_interested?: string[]
+          _purchase_timeline?: string
+          _referral_source?: string
+          _store_location?: string
+          _visit_outcome?: string
+          _visited_at?: string
+        }
+        Returns: number
+      }
       credit_monthly_el: {
         Args: { p_credit_amount?: number; p_month: number; p_year: number }
         Returns: Json
@@ -18441,6 +18668,20 @@ export type Database = {
           sales_person_name: string
           source: string
           total_sales_amount: number
+        }[]
+      }
+      find_leads_by_contact: {
+        Args: { _email?: string; _phone?: string }
+        Returns: {
+          company: string
+          created_at: string
+          email: string
+          name: string
+          phone: string
+          sales_person_name: string
+          source: string
+          source_row_id: string
+          status: string
         }[]
       }
       find_or_create_company:
@@ -18770,6 +19011,15 @@ export type Database = {
           quoted_price: number
         }[]
       }
+      get_sales_dashboard_metrics: {
+        Args: {
+          p_end?: string
+          p_include_website?: boolean
+          p_sales_person_id?: string
+          p_start?: string
+        }
+        Returns: Json
+      }
       get_sales_leaderboard:
         | {
             Args: { end_date?: string; start_date?: string }
@@ -18851,6 +19101,13 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_unified_lead_source_totals: {
+        Args: never
+        Returns: {
+          source: string
+          total: number
+        }[]
+      }
       get_user_activity_summary: {
         Args: { p_end_date?: string; p_start_date?: string }
         Returns: {
@@ -18923,6 +19180,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      hr_apply_compoff_leave: {
+        Args: {
+          p_earned_date: string
+          p_earned_type: string
+          p_employee_id: string
+          p_holiday_id?: string
+          p_leave_date: string
+          p_reason?: string
+        }
+        Returns: string
+      }
+      import_indiamart_leads: { Args: { p_rows: Json }; Returns: Json }
       import_meta_leads: { Args: { p_rows: Json }; Returns: Json }
       increment_session_version: {
         Args: { p_user_id: string }
@@ -18948,6 +19217,10 @@ export type Database = {
         Returns: boolean
       }
       is_internal_staff: { Args: { p_user_id: string }; Returns: boolean }
+      is_junk_lead: {
+        Args: { _enquiry: string; _name: string; _product: string }
+        Returns: boolean
+      }
       is_kyc_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_reporting_manager: {
         Args: { _employee_id: string; _manager_id: string }
@@ -19038,11 +19311,23 @@ export type Database = {
           total_count: number
         }[]
       }
+      list_portal_ticket_assignees: {
+        Args: never
+        Returns: {
+          assigned_count: number
+          email: string
+          in_slack_channel: boolean
+          name: string
+          role: string
+          user_id: string
+        }[]
+      }
       list_portal_ticket_inbox: {
         Args: never
         Returns: {
           account_id: string
           assigned_to: string
+          assigned_to_name: string
           category: string
           company_name: string
           created_at: string
@@ -19065,6 +19350,20 @@ export type Database = {
           ticket_type: string
           unread_customer_count: number
           updated_at: string
+        }[]
+      }
+      list_portal_ticket_pool: {
+        Args: never
+        Returns: {
+          assigned_count: number
+          email: string
+          is_active: boolean
+          is_assignable: boolean
+          last_assigned_at: string
+          name: string
+          role: string
+          slack_handle: string
+          user_id: string
         }[]
       }
       list_portal_ticket_reads: {
@@ -19105,6 +19404,32 @@ export type Database = {
           name: string
           role: string
           user_id: string
+        }[]
+      }
+      list_walk_in_leads: {
+        Args: { _limit?: number; _mine_only?: boolean }
+        Returns: {
+          accompanied_by: string
+          assigned_to: string
+          assigned_to_name: string
+          budget_range: string
+          company: string
+          created_at: string
+          disposition: string
+          email: string
+          follow_up_at: string
+          follow_up_overdue: boolean
+          lead_id: number
+          name: string
+          notes: string
+          phone: string
+          products_interested: string[]
+          purchase_timeline: string
+          referral_source: string
+          status: string
+          store_location: string
+          visit_outcome: string
+          visited_at: string
         }[]
       }
       log_company_activity: {
@@ -19165,6 +19490,10 @@ export type Database = {
         Returns: number
       }
       mark_old_woo_leads_as_lost: { Args: never; Returns: number }
+      mark_portal_notifications_read: {
+        Args: { _ids: string[] }
+        Returns: number
+      }
       mark_portal_tickets_read: {
         Args: { _ticket_ids: string[] }
         Returns: number
@@ -19330,6 +19659,21 @@ export type Database = {
         }
       }
       order_has_drone: { Args: { p_order_id: string }; Returns: boolean }
+      pick_next_portal_ticket_assignee: { Args: never; Returns: string }
+      portal_message_is_from_customer: {
+        Args: { _account_id: string; _sender_id: string }
+        Returns: boolean
+      }
+      portal_ticket_dispatch_alert: {
+        Args: { _event: string; _message_id?: string; _ticket_id: string }
+        Returns: undefined
+      }
+      portal_ticket_notify_targets: {
+        Args: { _ticket_id: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
       profiles_self_update_identity_lock: { Args: never; Returns: boolean }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
@@ -19487,6 +19831,14 @@ export type Database = {
           total_orders_count: number
         }[]
       }
+      set_lead_assignee: {
+        Args: {
+          _source_row_id: string
+          _source_table: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       set_lead_disposition: {
         Args: {
           _new_disposition: Database["public"]["Enums"]["lead_disposition"]
@@ -19495,6 +19847,10 @@ export type Database = {
           _source_row_id: string
           _source_table: string
         }
+        Returns: undefined
+      }
+      set_portal_ticket_assignable: {
+        Args: { _assignable: boolean; _user_id: string }
         Returns: undefined
       }
       settle_compoff_leave_decision: {
@@ -19510,6 +19866,14 @@ export type Database = {
       supersede_stale_kyc_documents: {
         Args: { _account_id: string; _approved_doc_id: string }
         Returns: number
+      }
+      sync_portal_ticket_assignee_pool: {
+        Args: { _members: Json }
+        Returns: {
+          added: number
+          deactivated: number
+          kept: number
+        }[]
       }
       sync_profiles_to_employees: { Args: never; Returns: number }
       touch_portal_last_login: { Args: never; Returns: undefined }
@@ -19590,6 +19954,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_walk_in_outcome: {
+        Args: {
+          _follow_up_at?: string
+          _lead_id: number
+          _notes?: string
+          _visit_outcome?: string
+        }
+        Returns: undefined
       }
       update_woo_lead_status: {
         Args: { p_new_status: string; p_order_id: string }
@@ -19775,7 +20148,12 @@ export type Database = {
         | "approved"
         | "rejected"
         | "resubmission_required"
-      lead_disposition: "untouched" | "prospect" | "qualified" | "not_qualified"
+      lead_disposition:
+        | "untouched"
+        | "prospect"
+        | "qualified"
+        | "not_qualified"
+        | "junk"
       notice_visibility:
         | "all"
         | "sales"
@@ -20141,7 +20519,13 @@ export const Constants = {
         "rejected",
         "resubmission_required",
       ],
-      lead_disposition: ["untouched", "prospect", "qualified", "not_qualified"],
+      lead_disposition: [
+        "untouched",
+        "prospect",
+        "qualified",
+        "not_qualified",
+        "junk",
+      ],
       notice_visibility: [
         "all",
         "sales",

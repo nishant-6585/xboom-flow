@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { anyValue } from "@/lib/emptyColumns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -328,6 +329,7 @@ export function OutboundCallTracker() {
             </div>
           ) : (
             <div className="border rounded-md overflow-auto">
+              {/* Hide columns that carry no information for the current rows. */}
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -338,7 +340,7 @@ export function OutboundCallTracker() {
                     <TableHead>Outcome</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Response Time</TableHead>
-                    <TableHead>Notes</TableHead>
+                    {anyValue(filteredLogs, (l) => l.call_notes) && <TableHead>Notes</TableHead>}
                     <TableHead>When</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -393,11 +395,13 @@ export function OutboundCallTracker() {
                           );
                         })()}
                       </TableCell>
-                      <TableCell>
-                        <p className="text-sm max-w-[200px] truncate" title={log.call_notes || ''}>
-                          {log.call_notes || '—'}
-                        </p>
-                      </TableCell>
+                      {anyValue(filteredLogs, (l) => l.call_notes) && (
+                        <TableCell>
+                          <p className="text-sm max-w-[200px] truncate" title={log.call_notes || ''}>
+                            {log.call_notes || '—'}
+                          </p>
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="text-xs text-muted-foreground">
                           <p>{format(new Date(log.created_at), 'hh:mm a')}</p>

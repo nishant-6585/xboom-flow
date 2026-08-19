@@ -76,6 +76,17 @@ type ChatTurn = { role: "agent" | "user"; text: string };
 
 interface SalesUser { user_id: string; name: string }
 
+// Cross-mount cache: the tab is unmounted/remounted whenever the user switches
+// channels, and re-downloading ~500 call rows (plus multi-MB transcripts) each
+// time made the table feel slow. Keep the last result so the table paints
+// instantly and refresh in the background.
+type ElevenCacheEntry = {
+  leads: ElevenLead[];
+  summaries: Record<string, string>;
+  prospectIds: Set<string>;
+};
+const elevenCache = new Map<string, ElevenCacheEntry>();
+
 const STATUSES = ["New", "Contacted", "Qualified", "Closed"] as const;
 type Status = typeof STATUSES[number];
 
@@ -250,7 +261,9 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
   return turns;
 };
 
-export function ElevenLabsLeadsPanel() {
+export function ElevenLabsLeadsPanel({ mode = "all" }: { mode?: "all" | "list" | "analytics" } = {}) {
+  const showAnalyticsSection = mode !== "list";
+  const showList = mode !== "analytics";
   const { data: engagedIds } = useEngagedLeadIds('myoperator');
   const { user, role } = useAuth();
   const canManage = role === "admin" || role === "sales_manager";
@@ -275,62 +288,82 @@ export function ElevenLabsLeadsPanel() {
   const [showAnalytics, setShowAnalytics] = useState(true);
   const [prospectIds, setProspectIds] = useState<Set<string>>(new Set());
 
+  const cacheKey = `${assigneeFilter}|${user?.id ?? "anon"}|${canManage ? "mgr" : "rep"}`;
+
   const load = async () => {
-    setLoading(true);
-    let q = supabase
-      .from("call_logs")
-      .select(
-        "id,caller_number,customer_name,call_duration,requirement,budget,priority,lead_score,lead_status,raw_transcript,notes,created_at,assigned_to,assigned_to_name,last_contacted_at,lead_temperature,is_enquiry_converted,disposition,disposition_reason_code,disposition_reason_note,disposition_at,disposition_by_name",
-      )
-      .eq("lead_source", "ElevenLabs")
-      .order("created_at", { ascending: false })
-      .limit(500);
+    const cached = elevenCache.get(cacheKey);
+    if (cached) {
+      // Paint from cache immediately, then refresh silently.
+      setLeads(cached.leads);
+      setSummaries(cached.summaries);
+      setProspectIds(cached.prospectIds);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
-    if (assigneeFilter === "unassigned") q = q.is("assigned_to", null);
-    else if (assigneeFilter === "mine" && user) q = q.eq("assigned_to", user.id);
-    else if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
+    const buildQuery = (columns: string) => {
+      let q = supabase
+        .from("call_logs")
+        .select(columns)
+        .eq("lead_source", "ElevenLabs")
+        .order("created_at", { ascending: false })
+        .limit(500);
 
-    // Server-side scoping: sales reps can only see leads assigned to them.
-    if (!canManage && user) q = q.eq("assigned_to", user.id);
+      if (assigneeFilter === "unassigned") q = q.is("assigned_to", null);
+      else if (assigneeFilter === "mine" && user) q = q.eq("assigned_to", user.id);
+      else if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
 
-    const { data, error } = await q;
-    if (!error && data) setLeads(data as any as ElevenLead[]);
-    const ids = (data ?? []).map((d: any) => d.id);
-    if (ids.length) {
-      const { data: ana } = await supabase
-        .from("call_ai_analysis")
-        .select("call_log_id,summary")
-        .in("call_log_id", ids);
-      const sumDict: Record<string, string> = {};
-      (ana ?? []).forEach((a: any) => { if (a.summary) sumDict[a.call_log_id] = a.summary; });
-      setSummaries(sumDict);
+      // Server-side scoping: sales reps can only see leads assigned to them.
+      if (!canManage && user) q = q.eq("assigned_to", user.id);
+      return q;
+    };
 
-      // Fetch prospects converted from these call logs
-      const { data: pros } = await supabase
-        .from("prospects")
-        .select("source_id")
-        .eq("source_type", "lead")
-        .in("source_id", ids);
-      setProspectIds(new Set((pros ?? []).map((p: any) => p.source_id)));
-    } else { setSummaries({}); setProspectIds(new Set()); }
+    // Phase 1: light row data (no raw_transcript — that column alone is ~15MB
+    // across the table and was the main reason the table took seconds to show).
+    const { data, error } = await buildQuery(
+      "id,caller_number,customer_name,call_duration,requirement,budget,priority,lead_score,lead_status,notes,created_at,assigned_to,assigned_to_name,last_contacted_at,lead_temperature,is_enquiry_converted,disposition,disposition_reason_code,disposition_reason_note,disposition_at,disposition_by_name",
+    );
+
+    let rows: ElevenLead[] = [];
+    if (!error && data) {
+      rows = (data as any[]).map((d) => ({ ...d, raw_transcript: null })) as ElevenLead[];
+      setLeads(rows);
+    }
     setLoading(false);
+
+    const ids = rows.map((d) => d.id);
+    let sumDict: Record<string, string> = {};
+    let prosSet = new Set<string>();
+    if (ids.length) {
+      const [{ data: ana }, { data: pros }] = await Promise.all([
+        supabase.from("call_ai_analysis").select("call_log_id,summary").in("call_log_id", ids),
+        supabase.from("prospects").select("source_id").eq("source_type", "lead").in("source_id", ids),
+      ]);
+      (ana ?? []).forEach((a: any) => { if (a.summary) sumDict[a.call_log_id] = a.summary; });
+      prosSet = new Set((pros ?? []).map((p: any) => p.source_id));
+    }
+    setSummaries(sumDict);
+    setProspectIds(prosSet);
+
+    elevenCache.set(cacheKey, { leads: rows, summaries: sumDict, prospectIds: prosSet });
+
+    // Phase 2: hydrate transcripts in the background so phone/name extraction
+    // and the transcript drawer keep working without blocking first paint.
+    if (ids.length) {
+      const { data: tx } = await buildQuery("id,raw_transcript");
+      if (tx) {
+        const byId = new Map((tx as any[]).map((t) => [t.id, t.raw_transcript]));
+        const hydrated = rows.map((r) => ({ ...r, raw_transcript: byId.get(r.id) ?? null }));
+        setLeads(hydrated);
+        elevenCache.set(cacheKey, { leads: hydrated, summaries: sumDict, prospectIds: prosSet });
+      }
+    }
   };
 
   const loadPool = async () => {
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("user_id,role")
-      .in("role", ["sales", "sales_manager"]);
-    const userIds = Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
-    if (!userIds.length) { setSalesPool([]); return; }
-    const { data: profs } = await supabase
-      .from("profiles")
-      .select("user_id,name,is_approved")
-      .in("user_id", userIds)
-      .eq("is_approved", true);
-    const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
-    const pool: SalesUser[] = (profs ?? []).map((p: any) => ({ user_id: p.user_id, name: p.name }));
-    setSalesPool(filterAllowedAssignees(pool).sort((a, b) => a.name.localeCompare(b.name)));
+    const { fetchAssignableSalespeople } = await import("@/lib/salesAssignees");
+    setSalesPool((await fetchAssignableSalespeople()) as SalesUser[]);
   };
 
   useEffect(() => { load(); }, [assigneeFilter, user?.id]);
@@ -401,6 +434,34 @@ export function ElevenLabsLeadsPanel() {
     });
     return applyDispositionFilter(base, includeDispositioned);
   }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter, includeDispositioned]);
+
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => { setPage(1); }, [search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter, assigneeFilter, includeDispositioned]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  );
+
+  const renderPager = (position: "top" | "bottom") => {
+    if (filtered.length === 0) return null;
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, filtered.length);
+    return (
+      <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs text-muted-foreground ${position === "top" ? "border-b" : "border-t"} border-border/50`}>
+        <span>Showing {start}–{end} of {filtered.length}</span>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</Button>
+          <span className="px-2">Page {page} of {totalPages}</span>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</Button>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+        </div>
+      </div>
+    );
+  };
 
   const stats = useMemo(() => {
     const total = leads.length;
@@ -536,11 +597,12 @@ export function ElevenLabsLeadsPanel() {
       </div>
 
       {/* Analytics dashboard - managers only */}
-      {canManage && showAnalytics && (
+      {showAnalyticsSection && canManage && showAnalytics && (
         <ElevenLabsAnalytics leads={leads} prospectIds={prospectIds} />
       )}
 
       {/* Filters */}
+      {showList && (
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[220px]">
@@ -625,10 +687,12 @@ export function ElevenLabsLeadsPanel() {
           </div>
         </div>
       </Card>
+      )}
 
       {/* Table */}
-      {viewMode === "table" && (
+      {showList && viewMode === "table" && (
       <Card>
+        {renderPager("top")}
         <Table>
           <TableHeader>
             <TableRow>
@@ -655,7 +719,7 @@ export function ElevenLabsLeadsPanel() {
                 No leads match your filters yet — calls will appear here automatically.
               </TableCell></TableRow>
             )}
-            {!loading && filtered.map(r => {
+            {!loading && paged.map(r => {
               const isOpen = expanded.has(r.id);
               const { name, isUnidentified } = resolveName(r);
               const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
@@ -797,10 +861,13 @@ export function ElevenLabsLeadsPanel() {
             })}
           </TableBody>
         </Table>
+        {renderPager("bottom")}
       </Card>
       )}
 
-      {viewMode === "cards" && (
+      {showList && viewMode === "cards" && (
+        <div className="space-y-3">
+        {renderPager("top")}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {loading && (
             <div className="col-span-full text-center text-muted-foreground py-8">Loading…</div>
@@ -810,7 +877,7 @@ export function ElevenLabsLeadsPanel() {
               No leads match your filters yet — calls will appear here automatically.
             </div>
           )}
-          {!loading && filtered.map(r => {
+          {!loading && paged.map(r => {
             const { name, isUnidentified } = resolveName(r);
             const { phone: resolvedPhone, isAvailable: phoneAvailable } = resolvePhone(r);
             const phone = phoneAvailable ? formatPhone(resolvedPhone) : "Not available";
@@ -908,6 +975,8 @@ export function ElevenLabsLeadsPanel() {
               </Card>
             );
           })}
+        </div>
+        {renderPager("bottom")}
         </div>
       )}
 

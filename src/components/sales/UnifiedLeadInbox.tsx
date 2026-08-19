@@ -11,17 +11,19 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { anyValue } from "@/lib/emptyColumns";
+import { resolveProductName, sameText } from "@/lib/leadEnquiry";
+import { CallButton } from "@/components/calls/CallButton";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Inbox, MoreVertical, RefreshCw, Search, ExternalLink, CheckCheck, Eye,
-  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook,
+  Inbox, RefreshCw, Search, CheckCheck,
+  Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { LeadRowActions } from "./LeadRowActions";
+import { LeadAssigneeSelect } from "./LeadAssigneeSelect";
 import { DispositionBadge } from "./DispositionBadge";
 import { LeadsExportMenu } from "./LeadsExportMenu";
 import { useNavigate } from "react-router-dom";
@@ -40,6 +42,7 @@ import { useTeamAvailability } from "@/hooks/useTeamAvailability";
 import { groupDuplicates } from "@/lib/leadDeduplication";
 import { DuplicateCountBadge, DuplicateHistoryRow } from "./DuplicateHistoryRow";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
+import { LeadBulkActionBar, type BulkLead } from "./LeadBulkActionBar";
 
 const PAGE_SIZES = [50, 100, 250] as const;
 
@@ -53,6 +56,7 @@ const SOURCE_TO_TAB: Record<LeadSource, string> = {
   elevenlabs: "elevenlabs",
   email: "emails",
   facebook: "facebook-leads",
+  indiamart: "indiamart",
 };
 
 const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }>> = {
@@ -64,10 +68,26 @@ const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }
   elevenlabs: Headphones,
   email: Mail,
   facebook: Facebook,
+  indiamart: Store,
 };
 
 function lastSeenKey(userId: string | undefined) {
   return `xboom:lead-inbox:last-seen:${userId ?? "anon"}`;
+}
+
+function openWhatsApp(phone: string | null | undefined) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return;
+  window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
+}
+
+/** "about 3 hours ago" → "3h"; keeps the age column to a single glanceable token. */
+function compactAge(iso: string): string {
+  const raw = formatDistanceToNow(new Date(iso));
+  const m = raw.match(/(\d+)\s*(minute|hour|day|month|year)/);
+  if (!m) return raw.includes("less than") ? "now" : raw;
+  const unit = { minute: "m", hour: "h", day: "d", month: "mo", year: "y" }[m[2]] ?? "";
+  return `${m[1]}${unit}`;
 }
 
 interface UnifiedLeadInboxProps {
@@ -90,6 +110,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const [pageSize, setPageSize] = useState<number>(50);
   const [includeDispositioned, setIncludeDispositioned] = useState(false);
   const [groupDupes, setGroupDupes] = useState(true);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
   // Detail drawer state
   const [detailLead, setDetailLead] = useState<UnifiedLead | null>(null);
@@ -159,6 +180,8 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
 
   const drawerData = useMemo<LeadContactData | null>(() => {
     if (!detailLead) return null;
+    const sourceLabel = SOURCE_META[detailLead.source]?.label ?? detailLead.source;
+    const product = resolveProductName(detailLead.product_name, [sourceLabel, detailLead.source]);
     return {
       id: detailLead.source_row_id,
       source_type: "lead",
@@ -166,11 +189,11 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
       phone: detailLead.phone,
       email: detailLead.email,
       company: detailLead.company,
-      product_name: detailLead.subject_or_message,
+      product_name: product ?? detailLead.subject_or_message,
       status: detailLead.status,
       assigned_to_name: detailLead.sales_person_name,
       created_at: detailLead.created_at,
-      lead_source: SOURCE_META[detailLead.source]?.label ?? detailLead.source,
+      lead_source: sourceLabel,
       payload: detailPayload,
     };
   }, [detailLead, detailPayload]);
@@ -211,6 +234,61 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
   const uniqueTotal = grouped.length;
   const mergedAway = rows.length - uniqueTotal;
 
+  // Product / Preview are merged into one honest "Enquiry" column: the view
+  // duplicates the same text across both fields for several sources.
+  const enquiryOf = (r: UnifiedLead) => {
+    const label = SOURCE_META[r.source]?.label ?? r.source;
+    const product = resolveProductName(r.product_name, [label, r.source]);
+    const message = r.subject_or_message?.trim() || null;
+    if (product && message && !sameText(product, message)) {
+      return { primary: product, secondary: message };
+    }
+    return { primary: product ?? message, secondary: null as string | null };
+  };
+
+  // Drop columns that carry no information in the current view.
+  const showSource = !(isLockedSource && sources?.length === 1);
+  const showEnquiry = anyValue(rows, (r) => enquiryOf(r).primary);
+  const colCount = 7 + (showSource ? 1 : 0) + (showEnquiry ? 1 : 0);
+
+  // Selection — keyed by `source:source_row_id` so it survives regrouping.
+  const rowByKey = useMemo(() => {
+    const m = new Map<string, UnifiedLead>();
+    for (const r of rows) m.set(`${r.source}:${r.source_row_id}`, r);
+    return m;
+  }, [rows]);
+
+  const selectedLeads = useMemo<BulkLead[]>(
+    () =>
+      selectedKeys
+        .map((k) => rowByKey.get(k))
+        .filter((r): r is UnifiedLead => !!r)
+        .map((r) => ({
+          source_table: r.source_table,
+          source_row_id: r.source_row_id,
+          name: r.name,
+          phone: r.phone,
+          email: r.email,
+          company: r.company,
+          created_at: r.created_at,
+          key: `${r.source}:${r.source_row_id}`,
+        })),
+    [selectedKeys, rowByKey],
+  );
+
+  const toggleRow = (key: string) =>
+    setSelectedKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+
+  const allPageKeys = grouped.map((g) => g.key);
+  const allSelected = allPageKeys.length > 0 && allPageKeys.every((k) => selectedKeys.includes(k));
+
+  // Selection is page-scoped; drop it whenever the visible set changes.
+  useEffect(() => {
+    setSelectedKeys([]);
+  }, [page, selectedSources, debouncedSearch, startDate, endDate, pageSize, includeDispositioned]);
+
   const resetFilters = () => {
     setSelectedSources([]);
     setSearch("");
@@ -236,6 +314,33 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
     navigate(`/sales?tab=leads&subtab=${tab}&leadId=${encodeURIComponent(lead.source_row_id)}`);
   };
 
+  const pager = !isLoading && rows.length > 0 ? (
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Rows per page</span>
+        <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+          <SelectTrigger className="w-20 h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZES.map((n) => (
+              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          Page {page} of {totalPages}
+        </span>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>First</Button>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -244,9 +349,9 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               {(() => {
-                const Icon = isLockedSource && sources?.length === 1
+                const Icon = (isLockedSource && sources?.length === 1
                   ? SOURCE_ICON[sources[0]!]
-                  : Inbox;
+                  : Inbox) ?? Inbox;
                 return <Icon className="h-5 w-5 text-primary" />;
               })()}
             </div>
@@ -264,6 +369,9 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                   : `${total.toLocaleString()} total`}
                 {counts.data && counts.data.totalNew > 0 && (
                   <> · <span className="text-primary font-medium">{counts.data.totalNew} new</span></>
+                )}
+                {!isLoading && rows.length > 0 && !showEnquiry && (
+                  <> · no enquiry text on any row</>
                 )}
               </p>
             </div>
@@ -363,14 +471,14 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
                     "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5",
                     selected
                       ? "bg-primary text-primary-foreground border-primary"
-                      : cn("hover:bg-muted border-border", meta.chipClass),
+                      : "bg-background border-border text-muted-foreground hover:bg-muted",
                   )}
                 >
                   {meta.label}
                   {newCount > 0 && (
                     <span className={cn(
-                      "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold",
-                      selected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary text-primary-foreground",
+                      "font-mono text-[10px]",
+                      selected ? "text-primary-foreground" : "text-primary",
                     )}>
                       {newCount}
                     </span>
@@ -383,6 +491,7 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
       </Card>
 
       {/* Table */}
+      {pager}
       <Card className="p-0 overflow-hidden">
         {isLoading ? (
           <div className="p-4"><TableSkeleton rows={8} columns={7} /></div>
@@ -411,117 +520,178 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[110px]">Source</TableHead>
+                <TableHead className="w-[36px] px-2">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={(v) =>
+                      setSelectedKeys(v ? allPageKeys : [])
+                    }
+                    aria-label="Select all leads on this page"
+                  />
+                </TableHead>
+                <TableHead className="w-[36px] px-2" />
+                {showSource && <TableHead className="w-[110px]">Source</TableHead>}
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Preview</TableHead>
+                {showEnquiry && <TableHead>Enquiry</TableHead>}
                 <TableHead className="w-[110px]">Status</TableHead>
-                <TableHead className="w-[160px]">Assigned</TableHead>
-                <TableHead className="w-[120px]">Created</TableHead>
-                <TableHead className="w-[50px]" />
+                <TableHead className="w-[160px] hidden xl:table-cell">Assigned</TableHead>
+                <TableHead className="w-[80px] text-right hidden xl:table-cell">Age</TableHead>
+                <TableHead className="w-[132px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {grouped.map((group) => {
                 const lead = group.primary;
                 const meta = SOURCE_META[lead.source];
+                const enquiry = enquiryOf(lead);
+                const isUnseen = !lastSeen || lead.created_at > lastSeen;
+                const hasDisposition = !!lead.disposition && lead.disposition !== "untouched";
                 return (
                   <Fragment key={group.key}>
-                  <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => openDetail(lead)}>
-                    <TableCell>
-                      <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
-                        {meta.label}
-                      </Badge>
+                  <TableRow
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/50 text-[13px]",
+                      selectedKeys.includes(group.key) && "bg-muted/60",
+                    )}
+                    onClick={() => openDetail(lead)}
+                  >
+                    <TableCell className="py-2.5 px-2" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedKeys.includes(group.key)}
+                        onCheckedChange={() => toggleRow(group.key)}
+                        aria-label={`Select ${lead.name ?? "lead"}`}
+                      />
                     </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-sm flex items-center">
+                    <TableCell className="py-2.5 px-2">
+                      <span
+                        aria-label={isUnseen ? "New lead" : undefined}
+                        className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-semibold uppercase",
+                          isUnseen ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {(lead.name || "?").trim().charAt(0) || "?"}
+                      </span>
+                    </TableCell>
+                    {showSource && (
+                      <TableCell className="py-2.5">
+                        <Badge variant="secondary" className={cn("text-xs", meta.chipClass)}>
+                          {meta.label}
+                        </Badge>
+                      </TableCell>
+                    )}
+                    <TableCell className="py-2.5">
+                      <div className={cn("text-[13px] flex items-center", isUnseen ? "font-bold text-foreground" : "font-normal")}>
                         <span>{lead.name || "—"}</span>
                         <DuplicateCountBadge count={group.count} />
                       </div>
                       {lead.company && (
                         <div className="text-xs text-muted-foreground">{lead.company}</div>
                       )}
-                      {lead.disposition && lead.disposition !== "untouched" && (
-                        <div className="mt-1">
-                          <DispositionBadge
-                            disposition={lead.disposition}
-                            reasonCode={lead.disposition_reason_code}
-                            reasonNote={lead.disposition_reason_note}
-                            dispositionAt={lead.disposition_at}
-                            dispositionByName={lead.disposition_by_name}
-                          />
-                        </div>
-                      )}
                     </TableCell>
-                    <TableCell>
-                      {lead.phone && <div className="text-sm">{lead.phone}</div>}
-                      {lead.email && (
-                        <div className="text-xs text-muted-foreground truncate max-w-[180px]">{lead.email}</div>
-                      )}
-                      {!lead.phone && !lead.email && "—"}
-                    </TableCell>
-                    <TableCell className="max-w-[280px]">
-                      <span className="text-sm line-clamp-2">
-                        {lead.product_name || "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-w-[280px]">
-                      <span className="text-sm text-muted-foreground line-clamp-2">
-                        {lead.subject_or_message || "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {lead.status ?? "new"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs">
-                        {lead.sales_person_name || (lead.is_assigned ? "Assigned" : "—")}
-                        {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
-                          <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
-                            (out today)
-                          </span>
+                    <TableCell className="py-2.5 max-w-[260px]">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {lead.phone && (
+                          <span className="font-mono text-[11.5px] whitespace-nowrap">{lead.phone}</span>
                         )}
-                      </span>
+                        {lead.phone && lead.email && (
+                          <span className="text-muted-foreground">·</span>
+                        )}
+                        {lead.email && (
+                          <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
+                        )}
+                        {!lead.phone && !lead.email && <span>—</span>}
+                      </div>
                     </TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
-                      </span>
+                    {showEnquiry && (
+                      <TableCell className="max-w-[320px] py-2.5">
+                        {enquiry.primary ? (
+                          <>
+                            <div className="text-[13px] text-foreground truncate">
+                              {enquiry.primary}
+                            </div>
+                            {enquiry.secondary && (
+                              <div className="text-xs text-muted-foreground truncate">
+                                {enquiry.secondary}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-[13px] text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell className="py-2.5">
+                      {hasDisposition ? (
+                        <DispositionBadge
+                          disposition={lead.disposition}
+                          reasonCode={lead.disposition_reason_code}
+                          reasonNote={lead.disposition_reason_note}
+                          dispositionAt={lead.disposition_at}
+                          dispositionByName={lead.disposition_by_name}
+                        />
+                      ) : (
+                        <Badge variant="outline" className="text-xs capitalize text-muted-foreground">
+                          {lead.status ?? "new"}
+                        </Badge>
+                      )}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(lead); }}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openInSource(lead)}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            View in source
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <LeadRowActions
-                        sourceTable={lead.source_table as any}
+                    <TableCell className="py-2.5 hidden xl:table-cell" onClick={(e) => e.stopPropagation()}>
+                      <LeadAssigneeSelect
+                        sourceTable={lead.source_table}
                         sourceRowId={lead.source_row_id}
-                        contactName={lead.name ?? undefined}
-                        contactPhone={lead.phone}
-                        currentDisposition={lead.disposition as any}
-                        onDispositionChanged={() => refetch()}
+                        assigneeId={lead.sales_person_id}
+                        assigneeName={lead.sales_person_name || (lead.is_assigned ? "Assigned" : null)}
+                        onChanged={() => refetch()}
                       />
+                      {lead.sales_person_id && currentlyUnavailable.has(lead.sales_person_id) && (
+                        <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                          (out today)
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-2.5 text-right hidden xl:table-cell">
+                      <span className="font-mono text-[11.5px] text-muted-foreground">
+                        {compactAge(lead.created_at)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-0.5">
+                        <CallButton
+                          phoneNumber={lead.phone}
+                          entityType="lead"
+                          entityId={lead.source_row_id}
+                          iconOnly
+                          variant="ghost"
+                          className="h-7 w-7"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 hover:text-green-600"
+                          disabled={!lead.phone}
+                          title={lead.phone ? "WhatsApp" : "No phone number"}
+                          onClick={() => openWhatsApp(lead.phone)}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <LeadRowActions
+                          sourceTable={lead.source_table as any}
+                          sourceRowId={lead.source_row_id}
+                          contactName={lead.name ?? undefined}
+                          contactPhone={lead.phone}
+                          currentDisposition={lead.disposition as any}
+                          onViewDetails={() => openDetail(lead)}
+                          onViewInSource={() => openInSource(lead)}
+                          onDispositionChanged={() => refetch()}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                   <DuplicateHistoryRow
                     count={group.count}
-                    colSpan={8}
+                    colSpan={colCount}
                     entries={group.duplicates.map((d) => ({
                       id: `${d.source}:${d.source_row_id}`,
                       source: SOURCE_META[d.source]?.label ?? d.source,
@@ -540,44 +710,28 @@ export function UnifiedLeadInbox({ sources }: UnifiedLeadInboxProps = {}) {
         )}
       </Card>
 
-      {/* Pagination */}
-      {!isLoading && rows.length > 0 && (
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Rows per page</span>
-            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-              <SelectTrigger className="w-20 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZES.map((n) => (
-                  <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline" size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >Prev</Button>
-            <Button
-              variant="outline" size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >Next</Button>
-          </div>
-        </div>
+      {selectedLeads.length > 0 && (
+        <LeadBulkActionBar
+          selected={selectedLeads}
+          onClear={() => setSelectedKeys([])}
+          onDone={() => { refetch(); counts.refetch(); }}
+        />
       )}
+
+      {/* Pagination */}
+      {pager}
 
       <LeadContactDrawer
         open={!!detailLead}
         onOpenChange={(open) => { if (!open) closeDetail(); }}
         lead={drawerData}
+        actions={detailLead ? {
+          sourceTable: detailLead.source_table as any,
+          sourceRowId: detailLead.source_row_id,
+          disposition: detailLead.disposition,
+          onChanged: () => { refetch(); counts.refetch(); },
+          onViewInSource: () => openInSource(detailLead),
+        } : undefined}
       />
     </div>
   );

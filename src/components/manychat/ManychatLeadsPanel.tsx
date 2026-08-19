@@ -12,10 +12,10 @@ import {
   Eye,
   ExternalLink,
   Layers,
-  Upload,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
+  Upload,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -35,7 +35,9 @@ import { LeadsExportMenu } from "@/components/sales/LeadsExportMenu";
 import { LeadRowActions } from "@/components/sales/LeadRowActions";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { DispositionBadge } from "@/components/sales/DispositionBadge";
+import { ManychatAnalytics } from "@/components/manychat/ManychatAnalytics";
 import { ManychatCsvImport } from "@/components/manychat/ManychatCsvImport";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const PAGE_SIZE = 25;
 
@@ -92,11 +94,12 @@ export function ManychatLeadsPanel() {
   const [channelFilter, setChannelFilter] = useState("all");
   const [assignedFilter, setAssignedFilter] = useState("all");
   const [mergeDuplicates, setMergeDuplicates] = useState(true);
+  const [tab, setTab] = useState("leads");
   const [page, setPage] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [detailsLead, setDetailsLead] = useState<ManychatLead | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
   const { data: leadMessages = [], isLoading: messagesLoading } = useManychatMessages(
     detailsLead?.id ?? null,
   );
@@ -158,6 +161,28 @@ export function ManychatLeadsPanel() {
   const pageCount = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
   useEffect(() => setPage(0), [search, channelFilter, assignedFilter, startDate, endDate, mergeDuplicates]);
   const pageGroups = groups.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const pagerNode = (position: "top" | "bottom") => (
+    <div className={`flex items-center justify-between ${position === "top" ? "pb-3" : "pt-3"}`}>
+      <span className="text-xs text-muted-foreground">
+        Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, groups.length)} of {groups.length}
+        {mergeDuplicates && mergedAway > 0 ? ` (${mergedAway} duplicates merged)` : ""}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(0)}>First</Button>
+        <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+          <ChevronLeft className="h-4 w-4" /> Prev
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          Page {page + 1} / {pageCount}
+        </span>
+        <Button size="sm" variant="outline" disabled={page >= pageCount - 1} onClick={() => setPage((p) => p + 1)}>
+          Next <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button size="sm" variant="outline" disabled={page >= pageCount - 1} onClick={() => setPage(pageCount - 1)}>Last</Button>
+      </div>
+    </div>
+  );
   const mergedAway = filtered.length - groups.length;
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["manychat-leads"] });
@@ -457,6 +482,15 @@ export function ManychatLeadsPanel() {
         </div>
       </CardHeader>
       <CardContent>
+        <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="leads">ManyChat Leads</TabsTrigger>
+            <TabsTrigger value="analytics">ManyChat Analytics</TabsTrigger>
+          </TabsList>
+          <TabsContent value="analytics" className="mt-0">
+            <ManychatAnalytics leads={filtered} />
+          </TabsContent>
+          <TabsContent value="leads" className="mt-0">
         {isLoading ? (
           <div className="py-10 text-center text-sm text-muted-foreground">Loading ManyChat leads…</div>
         ) : groups.length === 0 ? (
@@ -465,6 +499,7 @@ export function ManychatLeadsPanel() {
           </div>
         ) : (
           <>
+            {pagerNode("top")}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-background">
@@ -493,30 +528,11 @@ export function ManychatLeadsPanel() {
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between pt-3">
-              <span className="text-xs text-muted-foreground">
-                Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, groups.length)} of {groups.length}
-                {mergeDuplicates && mergedAway > 0 ? ` (${mergedAway} duplicates merged)` : ""}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-                  <ChevronLeft className="h-4 w-4" /> Prev
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Page {page + 1} / {pageCount}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={page >= pageCount - 1}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            {pagerNode("bottom")}
           </>
         )}
+          </TabsContent>
+        </Tabs>
 
         <Dialog open={importOpen} onOpenChange={setImportOpen}>
           <DialogContent className="max-w-2xl">

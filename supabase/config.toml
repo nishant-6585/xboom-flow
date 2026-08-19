@@ -180,3 +180,5 @@ verify_jwt = false
     verify_jwt = false
   [functions.handle-email-suppression]
     verify_jwt = false
+  [functions.interakt-message-status]
+    verify_jwt = false

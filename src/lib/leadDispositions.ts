@@ -1,4 +1,7 @@
-export type LeadDisposition = "untouched" | "prospect" | "qualified" | "not_qualified";
+export type LeadDisposition = "untouched" | "prospect" | "qualified" | "not_qualified" | "junk";
+
+/** Reason code stamped by the ingest auto-junk rule (never by a human). */
+export const AUTO_JUNK_REASON_CODE = "auto_no_enquiry";
 
 export interface DispositionReason {
   code: string;
@@ -33,12 +36,36 @@ export const NOT_QUALIFIED_REASONS: DispositionReason[] = [
   { code: "custom", label: "Other (specify)" },
 ];
 
+export const JUNK_REASONS: DispositionReason[] = [
+  { code: AUTO_JUNK_REASON_CODE, label: "No enquiry — auto-detected" },
+  { code: "no_enquiry", label: "No enquiry / empty contact" },
+  { code: "spam_or_bot", label: "Spam / bot / test submission" },
+  { code: "wrong_number", label: "Wrong or unusable number" },
+  { code: "custom", label: "Other (specify)" },
+];
+
+/**
+ * True when the junk disposition came from the ingest rule rather than a person,
+ * so a human decision stays distinguishable from the rule.
+ */
+export function isAutoDisposition(
+  disposition: LeadDisposition | string | null | undefined,
+  reasonCode: string | null | undefined,
+  dispositionByName?: string | null,
+): boolean {
+  return (
+    disposition === "junk" &&
+    (reasonCode === AUTO_JUNK_REASON_CODE || dispositionByName === "Auto rule")
+  );
+}
+
 export function getDispositionLabel(d: LeadDisposition | string | null | undefined): string {
   switch (d) {
     case "untouched": return "New";
     case "prospect": return "Prospect";
     case "qualified": return "Qualified";
     case "not_qualified": return "Not Qualified";
+    case "junk": return "Junk";
     default: return "Unknown";
   }
 }
@@ -48,6 +75,7 @@ export function getDispositionBadgeClass(d: LeadDisposition | string | null | un
     case "prospect": return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20";
     case "qualified": return "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20";
     case "not_qualified": return "bg-destructive/10 text-destructive border-destructive/20";
+    case "junk": return "bg-muted text-muted-foreground border-border line-through decoration-muted-foreground/40";
     default: return "bg-muted text-muted-foreground border-border";
   }
 }
@@ -57,7 +85,12 @@ export function getReasonLabel(
   code: string | null | undefined,
 ): string {
   if (!code) return "—";
-  const list = target === "qualified" ? QUALIFIED_REASONS : NOT_QUALIFIED_REASONS;
+  const list =
+    target === "qualified"
+      ? QUALIFIED_REASONS
+      : target === "junk"
+      ? JUNK_REASONS
+      : NOT_QUALIFIED_REASONS;
   return list.find((r) => r.code === code)?.label ?? code;
 }
 

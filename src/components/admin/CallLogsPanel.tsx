@@ -428,6 +428,52 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     };
   }, [filteredLogs, uniqueOnly]);
 
+  // Hide the Recording column when no visible row has a recording.
+  const showRecording = React.useMemo(
+    () =>
+      displayLogs.some((l) => {
+        const i = deriveCallInfo(l);
+        return Boolean(i.recordingFile || i.recordingUrl);
+      }),
+    [displayLogs],
+  );
+  const callLogColCount = showRecording ? 9 : 8;
+
+  // Pagination over the visible (merged) rows
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  useEffect(() => {
+    setPage(1);
+  }, [salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly, includeDispositioned, pageSize, logs.length]);
+  const totalItems = displayLogs.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const pageSafe = Math.min(page, totalPages);
+  const pageStart = (pageSafe - 1) * pageSize;
+  const pagedLogs = displayLogs.slice(pageStart, pageStart + pageSize);
+
+  const renderPager = (position: 'top' | 'bottom') => (
+    <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${position === 'top' ? 'border-b' : 'border-t'}`}>
+      <div className="text-xs text-muted-foreground">
+        Showing {totalItems === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + pageSize, totalItems)} of {totalItems}
+      </div>
+      <div className="flex items-center gap-2">
+        <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+          <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {[25, 50, 100, 200].map((n) => (
+              <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(1)}>First</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(pageSafe - 1)}>Prev</Button>
+        <span className="text-xs text-muted-foreground">Page {pageSafe} of {totalPages}</span>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(pageSafe + 1)}>Next</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+      </div>
+    </div>
+  );
+
   const togglePhoneExpanded = (key: string) => {
     setExpandedPhones(prev => {
       const next = new Set(prev);
@@ -781,6 +827,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           </div>
         ) : (
           <div className="rounded-md border overflow-auto">
+            {renderPager('top')}
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -791,12 +838,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                   <TableHead>Assigned To</TableHead>
                   <TableHead>When</TableHead>
                   <TableHead>Duration</TableHead>
-                  <TableHead>Recording</TableHead>
+                  {showRecording && <TableHead>Recording</TableHead>}
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayLogs.map((log) => {
+                {pagedLogs.map((log) => {
                   const info = deriveCallInfo(log);
                   const logKey = log.call_id || log.id;
                   const phoneKey = (log.caller_number || '').replace(/\D/g, '').slice(-10) || `id:${log.id}`;
@@ -925,24 +972,26 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         <TableCell className="text-sm">
                           {info.duration ? formatDuration(info.duration) : "—"}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          {(info.recordingFile || info.recordingUrl) ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 hover:bg-primary/10"
-                              onClick={() => setExpandedAudio(expandedAudio === logKey ? null : logKey)}
-                            >
-                              {expandedAudio === logKey ? (
-                                <Pause className="w-4 h-4 text-primary" />
-                              ) : (
-                                <Play className="w-4 h-4 text-primary" />
-                              )}
-                            </Button>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </TableCell>
+                        {showRecording && (
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {(info.recordingFile || info.recordingUrl) ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:bg-primary/10"
+                                onClick={() => setExpandedAudio(expandedAudio === logKey ? null : logKey)}
+                              >
+                                {expandedAudio === logKey ? (
+                                  <Pause className="w-4 h-4 text-primary" />
+                                ) : (
+                                  <Play className="w-4 h-4 text-primary" />
+                                )}
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
                             <Button
@@ -985,14 +1034,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                       </TableRow>
                       {expandedAudio === logKey && (info.recordingFile || info.recordingUrl) && (
                         <TableRow key={`${log.id}-audio`}>
-                          <TableCell colSpan={9} className="py-2 px-4">
+                          <TableCell colSpan={callLogColCount} className="py-2 px-4">
                             <InlineAudioPlayer recordingFile={info.recordingFile} directUrl={info.recordingUrl} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
                       )}
                       {isExpanded && duplicateCount > 0 && (
                         <TableRow key={`${log.id}-history`} className="bg-amber-500/5 hover:bg-amber-500/5">
-                          <TableCell colSpan={9} className="py-2 px-4">
+                          <TableCell colSpan={callLogColCount} className="py-2 px-4">
                             <div className="text-[11px] uppercase tracking-wide text-amber-300/80 font-medium mb-2 flex items-center gap-1">
                               <Layers className="w-3 h-3" />
                               Earlier calls from {log.full_number || log.caller_number} ({duplicateCount})
@@ -1034,6 +1083,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 })}
               </TableBody>
             </Table>
+            {renderPager('bottom')}
           </div>
         )}
       </CardContent>

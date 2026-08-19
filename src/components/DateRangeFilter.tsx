@@ -73,8 +73,6 @@ export function DateRangeFilter({
     return -1;
   })();
 
-  const isPresetActive = (_preset: Preset, index: number) => index === activePresetIndex;
-
   const applyPreset = (preset: Preset) => {
     const { start, end } = preset.getRange();
     setLastClickedPreset(preset.label);
@@ -82,23 +80,44 @@ export function DateRangeFilter({
     onEndDateChange(end);
   };
 
+  const CUSTOM = 'Custom range…';
+  const [showCustom, setShowCustom] = useState(false);
+  const selectValue = showCustom || activePresetIndex < 0 ? CUSTOM : PRESETS[activePresetIndex].label;
+
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {PRESETS.map((p, i) => (
+      <div className="flex items-center gap-1 flex-wrap">
+        {PRESETS.map((p) => {
+          const active = selectValue === p.label;
+          return (
+            <Button
+              key={p.label}
+              type="button"
+              size="sm"
+              variant={active ? 'default' : 'outline'}
+              className="h-8 px-2.5 text-xs"
+              onClick={() => {
+                setShowCustom(false);
+                applyPreset(p);
+              }}
+            >
+              {p.label}
+            </Button>
+          );
+        })}
         <Button
-          key={p.label}
-          variant={isPresetActive(p, i) ? 'default' : 'outline'}
+          type="button"
           size="sm"
-          className={cn(
-            "text-xs h-8",
-            isPresetActive(p, i) && "bg-primary text-primary-foreground hover:bg-primary/90",
-          )}
-          onClick={() => applyPreset(p)}
+          variant={selectValue === CUSTOM ? 'default' : 'outline'}
+          className="h-8 px-2.5 text-xs"
+          onClick={() => setShowCustom(true)}
         >
-          {p.label}
+          Custom
         </Button>
-      ))}
+      </div>
 
+      {selectValue === CUSTOM && (
+      <>
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -151,12 +170,14 @@ export function DateRangeFilter({
           />
         </PopoverContent>
       </Popover>
+      </>
+      )}
 
       {hasDateFilter && (
         <Button
           variant="ghost"
           size="sm"
-          onClick={onClear}
+          onClick={() => { setShowCustom(false); onClear(); }}
           className="h-8 px-2"
         >
           <X className="h-4 w-4" />

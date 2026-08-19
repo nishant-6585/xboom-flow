@@ -7,6 +7,7 @@ import { LeadDistributionChart } from "./LeadDistributionChart";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { IncludeWebsiteToggle } from "@/components/analytics/IncludeWebsiteToggle";
+import { PendingAttributionApprovalsCard } from "@/components/sales/PendingAttributionApprovalsCard";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import html2canvas from "html2canvas";
@@ -95,6 +96,8 @@ export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) 
 
   return (
     <div className="space-y-6">
+      <PendingAttributionApprovalsCard />
+
       {/* Download Button - Top */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">Dashboard Overview</h2>

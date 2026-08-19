@@ -61,9 +61,8 @@ export function FloatingActionButton() {
 
   const actions: QuickAction[] = [
     {
-      // First in the list deliberately: a walk-in is captured with the
-      // customer still standing there, so it is the most time-critical thing
-      // on this menu.
+      // First deliberately: a walk-in is captured with the customer still
+      // standing there, so it is the most time-critical entry here.
       id: "walk_in",
       label: "Walk-in",
       icon: UserPlus,
@@ -264,12 +263,12 @@ export function FloatingActionButton() {
         )}
       </div>
 
-      {/* Enquiry Dialog */}
       <WalkInLeadFormDialog
         open={activeDialog === "walk_in"}
         onOpenChange={(open) => !open && setActiveDialog(null)}
       />
 
+      {/* Enquiry Dialog */}
       <Dialog open={activeDialog === "enquiry"} onOpenChange={(open) => !open && setActiveDialog(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>

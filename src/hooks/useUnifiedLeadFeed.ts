@@ -11,6 +11,7 @@ export const LEAD_SOURCES = [
   "elevenlabs",
   "email",
   "facebook",
+  "indiamart",
 ] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
@@ -56,6 +57,7 @@ const COUNTS_KEY = "unified-lead-counts";
 const SOURCE_TABLES: { source: LeadSource; table: string; filter?: string }[] = [
   { source: "website", table: "leads" },
   { source: "facebook", table: "leads", filter: "source=eq.Facebook Leads" },
+  { source: "indiamart", table: "leads", filter: "source=eq.IndiaMART" },
   { source: "forms", table: "form_leads" },
   { source: "google_ads", table: "google_ads_leads" },
   { source: "interakt", table: "interakt_leads" },
@@ -155,6 +157,8 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
       const { data, error } = await supabase
         .from("unified_lead_feed" as any)
         .select("source")
+        // Junk never inflates the new-lead counts.
+        .neq("disposition", "junk")
         .gte("created_at", since);
       if (error) throw error;
       const bySource: Record<LeadSource, number> = {
@@ -166,12 +170,35 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
         elevenlabs: 0,
         email: 0,
         facebook: 0,
+        indiamart: 0,
       };
       for (const row of ((data ?? []) as unknown as { source: LeadSource }[])) {
         if (row.source in bySource) bySource[row.source]++;
       }
       const totalNew = Object.values(bySource).reduce((a, b) => a + b, 0);
       return { bySource, totalNew };
+    },
+  });
+}
+
+/** All-time lead totals per channel. One grouped count query, cached. */
+export type LeadChannel = LeadSource | "manychat";
+
+export function useUnifiedLeadTotals() {
+  return useQuery({
+    queryKey: ["unified-lead-source-totals"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_unified_lead_source_totals");
+      if (error) throw error;
+      const bySource = {} as Record<LeadChannel, number>;
+      let total = 0;
+      for (const row of (data ?? []) as { source: string; total: number }[]) {
+        const n = Number(row.total ?? 0);
+        bySource[row.source as LeadChannel] = (bySource[row.source as LeadChannel] ?? 0) + n;
+        total += n;
+      }
+      return { bySource, total };
     },
   });
 }
@@ -188,4 +215,5 @@ export const SOURCE_META: Record<
   elevenlabs: { label: "ElevenLabs", chipClass: "bg-pink-500/15 text-pink-700 dark:text-pink-300" },
   email: { label: "Email", chipClass: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
   facebook: { label: "Facebook Leads", chipClass: "bg-blue-600/15 text-blue-700 dark:text-blue-300" },
+  indiamart: { label: "IndiaMART", chipClass: "bg-orange-500/15 text-orange-700 dark:text-orange-300" },
 };

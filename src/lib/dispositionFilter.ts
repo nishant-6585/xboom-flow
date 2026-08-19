@@ -1,13 +1,17 @@
 import type { LeadDisposition } from "./leadDispositions";
 
 /**
- * Returns true when the row should be hidden because it has been qualified
- * or not-qualified and the panel is in default (filtered) view.
+ * Returns true when the row should be hidden because it has been qualified,
+ * not-qualified or marked junk and the panel is in default (filtered) view.
  */
 export function isTerminalDisposition(
   disposition: LeadDisposition | string | null | undefined,
 ): boolean {
-  return disposition === "qualified" || disposition === "not_qualified";
+  return (
+    disposition === "qualified" ||
+    disposition === "not_qualified" ||
+    disposition === "junk"
+  );
 }
 
 /**

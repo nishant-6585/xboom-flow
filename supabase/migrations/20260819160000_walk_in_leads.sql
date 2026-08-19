@@ -411,3 +411,7 @@ $fn$;
 
 REVOKE ALL ON FUNCTION public.update_walk_in_outcome(bigint, text, timestamptz, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.update_walk_in_outcome(bigint, text, timestamptz, text) TO authenticated;
+
+-- Data API grants (RLS above governs row access).
+GRANT SELECT, UPDATE ON public.lead_walk_in_details TO authenticated;
+GRANT ALL ON public.lead_walk_in_details TO service_role;

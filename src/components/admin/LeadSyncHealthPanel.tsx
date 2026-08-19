@@ -8,6 +8,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
 
+function formatLastRecord(value: unknown): { relative: string; absolute: string } | null {
+  if (typeof value !== "string" && typeof value !== "number" && !(value instanceof Date)) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+
+  try {
+    return {
+      relative: formatDistanceToNow(date, { addSuffix: true }),
+      absolute: date.toLocaleString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function LeadSyncHealthPanel() {
   const { data: rows, isLoading, refetch, isFetching } = useLeadSyncHealth();
   const [sendingTest, setSendingTest] = useState(false);
@@ -93,14 +111,18 @@ export function LeadSyncHealthPanel() {
                   <tr key={r.source} className="border-b hover:bg-muted/30">
                     <td className="py-2 px-2 font-medium">{r.label}</td>
                     <td className="py-2 px-2 text-muted-foreground">
-                      {r.last_record_at ? (
-                        <div>
-                          <div>{formatDistanceToNow(new Date(r.last_record_at), { addSuffix: true })}</div>
-                          <div className="text-xs opacity-60">{new Date(r.last_record_at).toLocaleString()}</div>
-                        </div>
-                      ) : (
-                        <span className="text-destructive">Never</span>
-                      )}
+                      {(() => {
+                        const formatted = formatLastRecord(r.last_record_at);
+                        if (!formatted) {
+                          return <span className="text-destructive">Never</span>;
+                        }
+                        return (
+                          <div>
+                            <div>{formatted.relative}</div>
+                            <div className="text-xs opacity-60">{formatted.absolute}</div>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="py-2 px-2">{r.hours_since === null ? "—" : `${r.hours_since.toFixed(1)} h`}</td>
                     <td className="py-2 px-2 text-muted-foreground">{r.threshold_hours} h</td>

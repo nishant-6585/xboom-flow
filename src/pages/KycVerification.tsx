@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useKycQueue, kycStatusMeta, type KycQueueRow } from "@/hooks/useKyc";
-import { format, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks } from "date-fns";
-import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw } from "lucide-react";
+import { format, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, startOfDay, endOfDay } from "date-fns";
+import { Eye, Check, X, Loader2, ShieldCheck, Search, Sparkles, RotateCcw, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Header } from "@/components/Header";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
@@ -259,6 +261,28 @@ function StatCard({ label, value, tone, onClick, active }: {
   );
 }
 
+function Pager({
+  page, totalPages, from, to, total, onChange,
+}: {
+  page: number; totalPages: number; from: number; to: number; total: number;
+  onChange: (p: number) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+      <div className="text-xs text-muted-foreground tabular-nums">
+        Showing {from}–{to} of {total}
+      </div>
+      <div className="flex items-center gap-1">
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onChange(1)}>First</Button>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>Previous</Button>
+        <span className="px-2 text-xs text-muted-foreground tabular-nums">Page {page} of {totalPages}</span>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>Next</Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onChange(totalPages)}>Last</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function KycVerification() {
   const { rows, loading, review, rerunAiReview, getSignedUrl, getAadhaarFull } = useKycQueue();
   const [params] = useSearchParams();
@@ -271,6 +295,8 @@ export default function KycVerification() {
   const [repFilter, setRepFilter] = useState<string>("all");
   const [aiFilter, setAiFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [reviewing, setReviewing] = useState<{ row: KycQueueRow; mode: "approve" | "reject" } | null>(null);
   const [reason, setReason] = useState("");
   const [reasonCategory, setReasonCategory] = useState<string>("document_unclear");
@@ -280,6 +306,8 @@ export default function KycVerification() {
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const openOrderDialog = async (orderId: string) => {
     setOrderLoading(true);
@@ -337,6 +365,15 @@ export default function KycVerification() {
         return ts >= startOfWeek(lw, { weekStartsOn: 1 }) && ts <= endOfWeek(lw, { weekStartsOn: 1 });
       }
       case "this_month": return ts >= startOfMonth(now) && ts <= endOfMonth(now);
+      case "last_month": {
+        const lm = subMonths(now, 1);
+        return ts >= startOfMonth(lm) && ts <= endOfMonth(lm);
+      }
+      case "custom": {
+        if (customStart && ts < startOfDay(customStart)) return false;
+        if (customEnd && ts > endOfDay(customEnd)) return false;
+        return true;
+      }
       default: return true;
     }
   };
@@ -364,6 +401,13 @@ export default function KycVerification() {
     if (focusAccount) list = [...list].sort((a, b) => (a.account.id === focusAccount ? -1 : b.account.id === focusAccount ? 1 : 0));
     return list;
   }, [rows, search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange, focusAccount]);
+
+  // Pagination — 20 rows per page, reset whenever the result set changes.
+  useEffect(() => { setPage(1); }, [search, statusFilter, docTypeFilter, methodFilter, repFilter, aiFilter, dateRange]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const paged = useMemo(() => filtered.slice(pageStart, pageStart + PAGE_SIZE), [filtered, pageStart]);
 
   const stats = useMemo(() => {
     let total = 0, pending = 0, approved = 0, rejected = 0;
@@ -479,6 +523,8 @@ export default function KycVerification() {
               { v: "this_week", l: "This week" },
               { v: "last_week", l: "Last week" },
               { v: "this_month", l: "This month" },
+              { v: "last_month", l: "Last month" },
+              { v: "custom", l: "Custom" },
             ].map((d) => (
               <Button
                 key={d.v}
@@ -489,6 +535,33 @@ export default function KycVerification() {
                 {d.l}
               </Button>
             ))}
+            {dateRange === "custom" && (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customStart ? format(customStart, "dd MMM yyyy") : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={customStart} onSelect={setCustomStart} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-sm text-muted-foreground self-center">to</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customEnd ? format(customEnd, "dd MMM yyyy") : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={customEnd} onSelect={setCustomEnd} disabled={(d) => (customStart ? d < customStart : false)} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -549,7 +622,16 @@ export default function KycVerification() {
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">No KYC submissions yet.</div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="space-y-2">
+              <Pager
+                page={safePage}
+                totalPages={totalPages}
+                from={pageStart + 1}
+                to={Math.min(pageStart + PAGE_SIZE, filtered.length)}
+                total={filtered.length}
+                onChange={setPage}
+              />
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/80 font-bold text-foreground">
@@ -565,7 +647,7 @@ export default function KycVerification() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((r) => {
+                  {paged.map((r) => {
                     // Document status is the source of truth. Approval-time
                     // supersession guarantees the "current" doc for the
                     // account is not stale.
@@ -883,6 +965,15 @@ export default function KycVerification() {
                   })}
                 </TableBody>
               </Table>
+              </div>
+              <Pager
+                page={safePage}
+                totalPages={totalPages}
+                from={pageStart + 1}
+                to={Math.min(pageStart + PAGE_SIZE, filtered.length)}
+                total={filtered.length}
+                onChange={setPage}
+              />
             </div>
           )}
         </CardContent>
@@ -1071,13 +1162,15 @@ export default function KycVerification() {
         </div>
       )}
 
-      <OrderDialog
-        order={selectedOrder}
-        open={orderDialogOpen}
-        onOpenChange={(open) => { setOrderDialogOpen(open); if (!open) setSelectedOrder(null); }}
-        onUpdate={handleOrderUpdate as any}
-        onDelete={async () => false}
-      />
+      {selectedOrder && orderDialogOpen && (
+        <OrderDialog
+          order={selectedOrder}
+          open={orderDialogOpen}
+          onOpenChange={(open) => { setOrderDialogOpen(open); if (!open) setSelectedOrder(null); }}
+          onUpdate={handleOrderUpdate as any}
+          onDelete={async () => false}
+        />
+      )}
       </main>
     </div>
   );

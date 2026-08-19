@@ -122,24 +122,10 @@ export function XboomWebsiteLeadsPanel() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("user_id, role, profiles!inner(user_id, name, email, is_approved)")
-        .in("role", ["admin", "sales", "sales_manager"]);
-      if (cancelled || error || !data) return;
-      const map = new Map<string, { user_id: string; name: string }>();
-      for (const r of data as unknown as Array<{
-        user_id: string;
-        profiles: { user_id: string; name: string | null; email: string | null; is_approved: boolean };
-      }>) {
-        if (!r.profiles?.is_approved) continue;
-        const name = r.profiles.name || r.profiles.email || "Salesperson";
-        if (!map.has(r.user_id)) map.set(r.user_id, { user_id: r.user_id, name });
-      }
-      const { filterAllowedAssignees } = await import("@/lib/allowedAssignees");
-      setSalespeople(
-        filterAllowedAssignees(Array.from(map.values())).sort((a, b) => a.name.localeCompare(b.name)),
-      );
+      const { fetchAssignableSalespeople } = await import("@/lib/salesAssignees");
+      const roster = await fetchAssignableSalespeople();
+      if (cancelled) return;
+      setSalespeople(roster);
     })();
     return () => {
       cancelled = true;
@@ -305,6 +291,25 @@ export function XboomWebsiteLeadsPanel() {
     if (!phone) return;
     window.open(`tel:${phone.replace(/\s+/g, "")}`, "_self");
   };
+
+  const pager = !loading && filteredCount > PAGE_SIZE ? (
+    <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
+      <span>
+        Showing <span className="font-medium text-foreground">{pageStart}</span>–
+        <span className="font-medium text-foreground">{pageEnd}</span> of{" "}
+        <span className="font-medium text-foreground">{filteredCount}</span> leads
+      </span>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" className="h-7 px-2" disabled={safePage <= 1} onClick={() => setPage(1)}>First</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+        <span className="px-1">
+          Page <span className="font-medium text-foreground">{safePage}</span> / {totalPages}
+        </span>
+        <Button size="sm" variant="outline" className="h-7 px-2" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>Last</Button>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-6">
@@ -472,6 +477,7 @@ export function XboomWebsiteLeadsPanel() {
       </Card>
 
       {/* List */}
+      {pager}
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -776,38 +782,7 @@ export function XboomWebsiteLeadsPanel() {
       )}
 
       {/* Pagination */}
-      {!loading && filteredCount > PAGE_SIZE && (
-        <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
-          <span>
-            Showing <span className="font-medium text-foreground">{pageStart}</span>–
-            <span className="font-medium text-foreground">{pageEnd}</span> of{" "}
-            <span className="font-medium text-foreground">{filteredCount}</span> leads
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2"
-              disabled={safePage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </Button>
-            <span className="px-1">
-              Page <span className="font-medium text-foreground">{safePage}</span> / {totalPages}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2"
-              disabled={safePage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+      {pager}
 
       {/* Detail drawer */}
       <Sheet open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
