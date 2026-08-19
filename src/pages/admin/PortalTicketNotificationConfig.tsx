@@ -20,8 +20,11 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
   usePortalTicketAssignees,
+  usePortalTicketPool,
+  useSetPortalTicketAssignable,
   useSyncPortalTicketAssignees,
 } from "@/hooks/usePortalTicketAssignees";
 
@@ -252,13 +255,25 @@ function OrderScopeChecker() {
  * #customer-portal-ticket is assignable and takes their turn in the rotation.
  */
 function AssignmentPoolPanel() {
-  const { assignees, isLoading } = usePortalTicketAssignees();
+  const { assignees } = usePortalTicketAssignees();
+  const { pool, isLoading } = usePortalTicketPool();
   const sync = useSyncPortalTicketAssignees();
+  const setAssignable = useSetPortalTicketAssignable();
 
-  // The RPC falls back to the role-based list when the pool is empty, and
+  // The RPC falls back to the role-based list when nobody is eligible, and
   // flags those rows — that means the Slack sync has not run or found nobody.
   const usingFallback = assignees.length > 0 && assignees.some((a) => !a.in_slack_channel);
-  const totalAssigned = assignees.reduce((n, a) => n + a.assigned_count, 0);
+  const inRotation = pool.filter((p) => p.is_assignable);
+  const totalAssigned = pool.reduce((n, p) => n + p.assigned_count, 0);
+
+  async function toggle(userId: string, assignable: boolean, name: string) {
+    try {
+      await setAssignable.mutateAsync({ userId, assignable });
+      toast.success(assignable ? `${name} added to the rotation` : `${name} removed from the rotation`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not update the rotation");
+    }
+  }
 
   async function handleSync() {
     try {
@@ -287,9 +302,10 @@ function AssignmentPoolPanel() {
             <Slack className="h-4 w-4" /> Assignment pool — #customer-portal-ticket
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            New tickets are auto-assigned round-robin across these people, least
-            recently assigned first. Add or remove someone in the Slack channel and
-            sync to change the rotation.
+            New tickets are auto-assigned round-robin across the people in the
+            rotation, least recently assigned first. Channel membership is synced from
+            Slack; the toggle controls who actually takes a turn, and survives every
+            re-sync.
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={handleSync} disabled={sync.isPending}>
@@ -316,37 +332,52 @@ function AssignmentPoolPanel() {
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading pool…</p>
-        ) : assignees.length === 0 ? (
+        ) : pool.length === 0 ? (
           <p className="text-sm text-destructive">
-            Nobody is assignable. New tickets will stay unassigned (the team is still
+            Nobody in the pool. New tickets will stay unassigned (the team is still
             alerted). Press “Sync now”.
           </p>
         ) : (
           <ul className="divide-y">
-            {assignees.map((a) => (
-              <li key={a.user_id} className="py-2 flex items-center justify-between gap-3">
+            {pool.map((m) => (
+              <li key={m.user_id} className="py-2 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{a.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{a.email ?? "—"}</div>
+                  <div
+                    className={`text-sm font-medium truncate ${m.is_assignable ? "" : "text-muted-foreground"}`}
+                  >
+                    {m.name}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">{m.email ?? "—"}</div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="secondary" className="text-[10px]">{a.role}</Badge>
+                <div className="flex items-center gap-3 shrink-0">
+                  <Badge variant="secondary" className="text-[10px]">{m.role}</Badge>
                   <span
-                    className="text-xs text-muted-foreground tabular-nums"
+                    className="text-xs text-muted-foreground tabular-nums w-6 text-right"
                     title="Tickets assigned by the round-robin"
                   >
-                    {a.assigned_count}
+                    {m.assigned_count}
                   </span>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Switch
+                      checked={m.is_assignable}
+                      onCheckedChange={(v) => toggle(m.user_id, v, m.name)}
+                      disabled={setAssignable.isPending}
+                      aria-label={`${m.name} takes a turn in the rotation`}
+                    />
+                    <span className="w-20">{m.is_assignable ? "In rotation" : "Visibility only"}</span>
+                  </label>
                 </div>
               </li>
             ))}
           </ul>
         )}
 
-        {assignees.length > 0 && (
+        {pool.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            {assignees.length} assignable · {totalAssigned} ticket(s) auto-assigned so far.
-            An empty pool never blocks a ticket — it is created unassigned and the whole
+            {inRotation.length} of {pool.length} in the rotation · {totalAssigned} ticket(s)
+            auto-assigned so far. “Visibility only” members stay in the Slack channel and
+            keep seeing every ticket — they just never get handed one as the owner. An empty
+            rotation never blocks a ticket: it is created unassigned and the whole
             supply-chain team is still alerted.
           </p>
         )}

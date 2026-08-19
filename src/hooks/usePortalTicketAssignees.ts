@@ -110,3 +110,55 @@ export function useSyncPortalTicketAssignees() {
     },
   });
 }
+
+export interface PortalTicketPoolMember {
+  user_id: string;
+  name: string;
+  email: string | null;
+  role: string;
+  slack_handle: string | null;
+  is_active: boolean;
+  /** Whether this member takes a turn in the round-robin. */
+  is_assignable: boolean;
+  assigned_count: number;
+  last_assigned_at: string | null;
+}
+
+/**
+ * Everyone in the Slack channel, including members opted out of the rotation.
+ *
+ * Distinct from usePortalTicketAssignees, which returns only the people who
+ * actually take a turn (and therefore drives the "Assign to…" dropdown). The
+ * admin panel needs the fuller list so an opt-out is visible and reversible
+ * rather than looking like a failed sync.
+ */
+export function usePortalTicketPool() {
+  const { data = [], isLoading } = useQuery({
+    queryKey: ["portal-ticket-pool"],
+    queryFn: async (): Promise<PortalTicketPoolMember[]> => {
+      const { data, error } = await (supabase as any).rpc("list_portal_ticket_pool");
+      if (error) throw error;
+      return (data ?? []) as PortalTicketPoolMember[];
+    },
+    staleTime: 60 * 1000,
+  });
+  return { pool: data, isLoading };
+}
+
+/** Opt a channel member in or out of the round-robin. */
+export function useSetPortalTicketAssignable() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, assignable }: { userId: string; assignable: boolean }) => {
+      const { error } = await (supabase as any).rpc("set_portal_ticket_assignable", {
+        _user_id: userId,
+        _assignable: assignable,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["portal-ticket-pool"] });
+      qc.invalidateQueries({ queryKey: ["portal-ticket-assignees"] });
+    },
+  });
+}

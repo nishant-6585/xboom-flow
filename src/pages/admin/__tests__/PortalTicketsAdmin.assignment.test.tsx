@@ -18,6 +18,8 @@ import PortalTicketsAdmin from "@/pages/admin/PortalTicketsAdmin";
 import {
   usePortalTicketAssignees,
   useAssignPortalTicket,
+  usePortalTicketPool,
+  useSetPortalTicketAssignable,
 } from "@/hooks/usePortalTicketAssignees";
 
 function row(over: Record<string, unknown> = {}) {
@@ -239,5 +241,65 @@ describe("assignment pool fallback", () => {
     await waitFor(() => expect(result.current.assignees).toHaveLength(1));
     expect(result.current.assignees[0].in_slack_channel).toBe(true);
     expect(result.current.assignees[0].assigned_count).toBe(0);
+  });
+});
+
+describe("rotation opt-out", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    rpc.mockReset();
+  });
+
+  const POOL = [
+    {
+      user_id: "u-sc", name: "Sanu Sabu", email: "sanu@xboom.in", role: "supply_chain",
+      slack_handle: "Sanu Sabu", is_active: true, is_assignable: true,
+      assigned_count: 4, last_assigned_at: "2026-08-19T10:00:00Z",
+    },
+    {
+      user_id: "u-admin", name: "Nishant Kumar", email: "n@xboom.in", role: "admin",
+      slack_handle: "Nishant Kumar", is_active: true, is_assignable: false,
+      assigned_count: 1, last_assigned_at: "2026-08-19T09:00:00Z",
+    },
+  ];
+
+  it("lists channel members who are opted out, so the state stays visible", async () => {
+    rpc.mockImplementation(async (name: string) =>
+      name === "list_portal_ticket_pool" ? { data: POOL, error: null } : { data: null, error: null });
+    const { result } = renderHook(() => usePortalTicketPool(), { wrapper });
+    await waitFor(() => expect(result.current.pool).toHaveLength(2));
+    // Still in the channel, just not taking a turn — the dropdown hides them
+    // but the admin panel must not, or an opt-out looks like a failed sync.
+    expect(result.current.pool[1]).toMatchObject({ is_active: true, is_assignable: false });
+  });
+
+  it("keeps an opted-out member out of the assignable list the dropdown uses", async () => {
+    rpc.mockImplementation(async (name: string) =>
+      name === "list_portal_ticket_assignees"
+        ? { data: [{ ...POOL[0], in_slack_channel: true }], error: null }
+        : { data: null, error: null });
+    const { result } = renderHook(() => usePortalTicketAssignees(), { wrapper });
+    await waitFor(() => expect(result.current.assignees).toHaveLength(1));
+    expect(result.current.assignees.map((a) => a.user_id)).not.toContain("u-admin");
+  });
+
+  it("toggles a member out of the rotation through the RPC", async () => {
+    rpc.mockImplementation(async () => ({ data: null, error: null }));
+    const { result } = renderHook(() => useSetPortalTicketAssignable(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ userId: "u-admin", assignable: false });
+    });
+    expect(rpc).toHaveBeenCalledWith("set_portal_ticket_assignable", {
+      _user_id: "u-admin",
+      _assignable: false,
+    });
+  });
+
+  it("surfaces a rejection rather than appearing to succeed", async () => {
+    rpc.mockImplementation(async () => ({ data: null, error: { message: "forbidden" } }));
+    const { result } = renderHook(() => useSetPortalTicketAssignable(), { wrapper });
+    await expect(
+      result.current.mutateAsync({ userId: "u-admin", assignable: true }),
+    ).rejects.toMatchObject({ message: "forbidden" });
   });
 });
