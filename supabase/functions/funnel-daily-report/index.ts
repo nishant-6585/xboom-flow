@@ -210,8 +210,42 @@ Deno.serve(async (req) => {
     const p2pl = num(t.prospect_to_pipeline);
     const pl2w = num(t.pipeline_to_won);
 
+    // ---- Daily follow-ups (all lead sources) ----
+    const dayStartUtc = new Date(`${day}T00:00:00+05:30`).toISOString();
+    const dayEndUtc = new Date(`${day}T23:59:59+05:30`).toISOString();
+
+    const { data: fuRows } = await supabase
+      .from("followups")
+      .select("status,followup_at,completed_at,source_type,is_a_category")
+      .or(
+        `and(followup_at.gte.${dayStartUtc},followup_at.lte.${dayEndUtc}),` +
+        `and(completed_at.gte.${dayStartUtc},completed_at.lte.${dayEndUtc}),` +
+        `and(status.eq.pending,followup_at.lt.${dayStartUtc})`,
+      );
+
+    const fu = (fuRows ?? []) as Array<{
+      status: string; followup_at: string; completed_at: string | null;
+      source_type: string | null; is_a_category: boolean | null;
+    }>;
+    const dueToday = fu.filter(f => f.followup_at >= dayStartUtc && f.followup_at <= dayEndUtc);
+    const doneToday = fu.filter(f => f.status === "completed" && f.completed_at &&
+      f.completed_at >= dayStartUtc && f.completed_at <= dayEndUtc);
+    const pendingToday = dueToday.filter(f => f.status === "pending");
+    const overdue = fu.filter(f => f.status === "pending" && f.followup_at < dayStartUtc);
+    const aPending = fu.filter(f => f.status === "pending" && f.is_a_category);
+
+    const bySource = new Map<string, number>();
+    for (const f of doneToday) {
+      const k = f.source_type || "other";
+      bySource.set(k, (bySource.get(k) ?? 0) + 1);
+    }
+    const sourceLine = [...bySource.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `${k.replace(/_/g, " ")} ${v}`)
+      .join(" • ") || "—";
+
     const summary =
-      `Funnel ${day} — Leads ${leads} → Prospects ${prospects} → Pipeline ${pipeline} (${inr(pipelineValue)}) → Won ${won} (${inr(revenue)})`;
+      `Funnel ${day} — Leads ${leads} → Prospects ${prospects} → Pipeline ${pipeline} (${inr(pipelineValue)}) → Won ${won} (${inr(revenue)}) • Follow-ups done ${doneToday.length}, pending ${pendingToday.length}, overdue ${overdue.length}`;
 
     const blocks: unknown[] = [
       { type: "header", text: { type: "plain_text", text: "📊 Lead → Prospect → Pipeline Funnel", emoji: true } },
@@ -235,6 +269,27 @@ Deno.serve(async (req) => {
       },
       { type: "context", elements: [{ type: "mrkdwn", text: "XBoom Flow • automated funnel report" }] },
     ];
+
+    blocks.splice(blocks.length - 1, 0,
+      { type: "divider" },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "*📞 Daily Follow-ups (all lead sources)*" },
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*Scheduled Today*\n${dueToday.length}` },
+          { type: "mrkdwn", text: `*Completed Today*\n${doneToday.length}` },
+          { type: "mrkdwn", text: `*Pending Today*\n${pendingToday.length}` },
+          { type: "mrkdwn", text: `*Overdue*\n${overdue.length}` },
+        ],
+      },
+      {
+        type: "context",
+        elements: [{ type: "mrkdwn", text: `A-category pending: *${aPending.length}* • Completed by source: ${sourceLine}` }],
+      },
+    );
 
     const slack = slackOn
       ? await sendSlack(
