@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FileText, MessageSquare, FileQuestion, Settings, LogOut, ShieldCheck, ShoppingBag, UserCircle2, Star } from "lucide-react";
 import { usePortalAuth } from "@/portal/hooks/usePortalAuth";
 import { Button } from "@/components/ui/button";
+import { PortalNotificationBell } from "@/portal/components/PortalNotificationBell";
 
 const NAV = [
   { to: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -111,10 +112,21 @@ export function PortalLayout({ children }: { children: ReactNode }) {
               </span>
               <span className="text-[10px] uppercase tracking-wider ml-2 text-white/70">Portal</span>
             </div>
-            <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-white hover:text-white">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <span className="text-white [&_svg]:text-white">
+                <PortalNotificationBell />
+              </span>
+              <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-white hover:text-white">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </header>
+
+          {/* Desktop top bar — the sidebar carries navigation, so this exists
+              purely to give the notification bell a home on wide screens. */}
+          <div className="hidden md:flex items-center justify-end px-8 pt-4">
+            <PortalNotificationBell />
+          </div>
 
           <div className="px-4 md:px-8 py-6 md:py-8 max-w-6xl mx-auto">{children}</div>
         </main>
