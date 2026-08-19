@@ -263,6 +263,11 @@ export function FloatingActionButton() {
         )}
       </div>
 
+      <WalkInLeadFormDialog
+        open={activeDialog === "walk_in"}
+        onOpenChange={(open) => !open && setActiveDialog(null)}
+      />
+
       {/* Enquiry Dialog */}
       <Dialog open={activeDialog === "enquiry"} onOpenChange={(open) => !open && setActiveDialog(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
