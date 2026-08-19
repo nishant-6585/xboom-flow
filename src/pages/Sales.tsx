@@ -5,8 +5,9 @@ import { Header } from "@/components/Header";
 import { DataExportDialog } from "@/components/exports/DataExportDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WalkInLeadsPanel } from "@/components/leads/WalkInLeadsPanel";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv, FileText } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv, FileText, Store} from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -139,6 +140,10 @@ export default function Sales() {
                 <TabsTrigger value="leads" className={triggerPrimary}>
                   <Users className="w-4 h-4" />
                   Leads
+                </TabsTrigger>
+                <TabsTrigger value="walk_in" className={`${triggerBase} data-[state=active]:bg-rose-600 data-[state=active]:text-white`}>
+                  <Store className="w-4 h-4" />
+                  Walk-In
                 </TabsTrigger>
                 <TabsTrigger value="prospects" className={`${triggerBase} data-[state=active]:bg-warning data-[state=active]:text-warning-foreground`}>
                   <Target className="w-4 h-4" />
@@ -301,6 +306,10 @@ export default function Sales() {
           </TabsContent>
 
 
+
+          <TabsContent value="walk_in" className="space-y-6">
+            <WalkInLeadsPanel />
+          </TabsContent>
 
           <TabsContent value="leads" className="space-y-6">
             <LeadsPanel initialSearch={urlSearch} />
