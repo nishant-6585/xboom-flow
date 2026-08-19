@@ -49,7 +49,7 @@ export function useFollowups() {
       const { data, error } = await supabase
         .from('followups')
         .select('*')
-        .order('followup_at', { ascending: true });
+        .order('followup_at', { ascending: false });
       if (error) throw error;
       return data as unknown as Followup[];
     },
