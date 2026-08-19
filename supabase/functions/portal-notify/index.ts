@@ -418,21 +418,17 @@ Deno.serve(async (req) => {
           // fanout, no template. Staff see internal notes in the ticket UI.
           break;
         }
-        // Determine if sender is staff or customer
-        const { data: portalContact } = await admin
-          .from("portal_contacts")
-          .select("id")
-          .eq("auth_user_id", msg.sender_id ?? "")
-          .maybeSingle();
-        const senderIsCustomer = !!portalContact;
-
-        if (senderIsCustomer) {
-          // Superseded by trg_portal_ticket_messages_notify_staff, which
-          // dispatches through portal-ticket-alert. Skipping here keeps a
-          // customer reply from being emailed twice if this event is ever
-          // raised for one.
-          break;
-        } else {
+        // Every remaining caller of this event is staff replying to a
+        // customer: the portal's own reply path no longer invokes it (the DB
+        // trigger owns staff-facing alerts now), and the two admin reply
+        // surfaces both call it after a staff reply.
+        //
+        // This used to branch on "is the sender a portal contact?" to decide.
+        // That misfires for a staff member who is ALSO a contact on the
+        // account — their reply was read as a customer message and the
+        // customer was never emailed. Same dual-identity fault as the one
+        // fixed in 20260819100000, mirrored to the customer side.
+        {
           // notify customer contacts
           const contacts = await getAccountContacts(admin, tk.account_id);
           const prefs = await getPrefMap(admin, contacts.map((c) => c.id!).filter(Boolean), "ticket_replies");

@@ -9,7 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { sendEmail as sendMailSeam } from "../_shared/email.ts";
 import { resolveRecipients } from "../_shared/staff-routing.ts";
-import { sendSlackDmToEmail, sendSlackDmToUserId } from "../_shared/slack-dm.ts";
+import { sendSlackDmToEmail, sendSlackDmToUserId, postSlackChannel } from "../_shared/slack-dm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -159,6 +159,9 @@ Deno.serve(async (req) => {
     // Slack DM to the same people. Prefer the stored Slack member id and fall
     // back to a users.lookupByEmail on the app login address.
     try {
+      // Breaches go to the shared channel too — an unactioned SLA is exactly
+      // what the whole team should be able to see without opening a DM.
+      const channelId = Deno.env.get("SLACK_TICKET_CHANNEL_ID") ?? "C0BR3CZ0KLL";
       const { data: profs } = await admin
         .from("profiles")
         .select("user_id, email, slack_user_id")
@@ -166,6 +169,7 @@ Deno.serve(async (req) => {
       const slackText =
         `🚨 ${shortLabel} SLA breached — ${row.ticket_number}: ${row.subject} ` +
         `(${row.account?.company_name ?? "—"})${row.assigned_to ? "" : " · UNASSIGNED"}\n${ticketUrl}`;
+      if (channelId) await postSlackChannel(channelId, slackText);
       await Promise.all(
         ((profs ?? []) as Array<{ user_id: string; email: string | null; slack_user_id: string | null }>)
           .map((pr) =>
