@@ -12,6 +12,7 @@ export const LEAD_SOURCES = [
   "email",
   "facebook",
   "indiamart",
+  "walk_in",
 ] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
@@ -58,6 +59,7 @@ const SOURCE_TABLES: { source: LeadSource; table: string; filter?: string }[] = 
   { source: "website", table: "leads" },
   { source: "facebook", table: "leads", filter: "source=eq.Facebook Leads" },
   { source: "indiamart", table: "leads", filter: "source=eq.IndiaMART" },
+  { source: "walk_in", table: "leads", filter: "source=eq.walk_in" },
   { source: "forms", table: "form_leads" },
   { source: "google_ads", table: "google_ads_leads" },
   { source: "interakt", table: "interakt_leads" },
@@ -171,6 +173,7 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
         email: 0,
         facebook: 0,
         indiamart: 0,
+        walk_in: 0,
       };
       for (const row of ((data ?? []) as unknown as { source: LeadSource }[])) {
         if (row.source in bySource) bySource[row.source]++;
@@ -216,4 +219,5 @@ export const SOURCE_META: Record<
   email: { label: "Email", chipClass: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
   facebook: { label: "Facebook Leads", chipClass: "bg-blue-600/15 text-blue-700 dark:text-blue-300" },
   indiamart: { label: "IndiaMART", chipClass: "bg-orange-500/15 text-orange-700 dark:text-orange-300" },
+  walk_in: { label: "Walk-in", chipClass: "bg-teal-500/15 text-teal-700 dark:text-teal-300" },
 };
