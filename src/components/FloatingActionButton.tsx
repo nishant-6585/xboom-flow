@@ -8,7 +8,8 @@ import {
   TrendingUp, 
   FileText, 
   ShoppingCart,
-  Users
+  Users,
+  UserPlus
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import { PipelineForm } from "@/components/pipeline/PipelineForm";
 import { OrderForm } from "@/components/OrderForm";
 import { SupplierForm } from "@/components/SupplierForm";
 import { ManualProcurementForm } from "@/components/procurement/ManualProcurementForm";
+import { WalkInLeadFormDialog } from "@/components/leads/WalkInLeadFormDialog";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders } from "@/hooks/useOrders";
 import { useSuppliers } from "@/hooks/useSuppliers";
@@ -36,7 +38,7 @@ const triggerHaptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
   }
 };
 
-type DialogType = "enquiry" | "pipeline" | "order" | "supplier" | "procurement" | null;
+type DialogType = "enquiry" | "pipeline" | "order" | "supplier" | "procurement" | "walk_in" | null;
 
 interface QuickAction {
   id: DialogType;
@@ -58,6 +60,16 @@ export function FloatingActionButton() {
   const { createPipelineOrder } = usePipelineOrders();
 
   const actions: QuickAction[] = [
+    {
+      // First deliberately: a walk-in is captured with the customer still
+      // standing there, so it is the most time-critical entry here.
+      id: "walk_in",
+      label: "Walk-in",
+      icon: UserPlus,
+      color: "text-rose-500",
+      bg: "bg-rose-500",
+      roles: ["sales", "sales_manager", "admin"],
+    },
     {
       id: "enquiry",
       label: "Enquiry",
