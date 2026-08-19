@@ -10,7 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreHorizontal } from "lucide-react";
 import { useSalesDashboardMetrics } from "@/hooks/useSalesDashboardMetrics";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv, FileText } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2, Tv, FileText, Store } from "lucide-react";
+import { WalkInLeadsPanel } from "@/components/leads/WalkInLeadsPanel";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -160,6 +161,10 @@ export default function Sales() {
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Orders Won
               </TabsTrigger>
+              <TabsTrigger value="walk_in" className={neutralTrigger}>
+                <Store className="w-3.5 h-3.5" />
+                Walk-In
+              </TabsTrigger>
               <TabsTrigger value="orders_lost" className={neutralTrigger}>
                 <XCircle className="w-3.5 h-3.5" />
                 Orders Lost
@@ -242,6 +247,10 @@ export default function Sales() {
 
           <TabsContent value="leads" className="space-y-6">
             <LeadsPanel initialSearch={urlSearch} />
+          </TabsContent>
+
+          <TabsContent value="walk_in" className="space-y-6">
+            <WalkInLeadsPanel />
           </TabsContent>
 
           {canAccessEnquiries && (
