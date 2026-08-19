@@ -125,6 +125,7 @@ Deno.serve(async (req) => {
       ticket_id: ticketId,
       sender_id: null,
       sender_name_snapshot: contactName ?? "Customer (WhatsApp)",
+      sender_side: "customer",
       body: body || "(empty message)",
       is_internal: false,
     });
@@ -148,6 +149,7 @@ Deno.serve(async (req) => {
       ticket_id: ticketId,
       sender_id: null,
       sender_name_snapshot: contactName ?? "Customer (WhatsApp)",
+      sender_side: "customer",
       body: body || "(inbound WhatsApp message)",
       is_internal: false,
     });
