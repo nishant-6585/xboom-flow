@@ -11,6 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -155,12 +156,15 @@ export function AppSidebar({ counts }: AppSidebarProps) {
   return (
     <Sidebar collapsible="offcanvas" style={{ "--sidebar-width": "244px" } as React.CSSProperties}>
       <SidebarHeader className="gap-3 px-[18px] pt-5 pb-4">
-        <Link to="/" onClick={closeOnMobile} className="flex items-center gap-2.5">
-          <img src={logoIcon} alt="Xboom" className="w-[30px] h-[30px] rounded-md object-cover" />
-          <span className="font-display font-semibold text-[17px] tracking-tight text-foreground">
-            Xboom <span className="text-primary">Flow</span>
-          </span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/" onClick={closeOnMobile} className="flex items-center gap-2.5 min-w-0">
+            <img src={logoIcon} alt="Xboom" className="w-[30px] h-[30px] rounded-md object-cover" />
+            <span className="font-display font-semibold text-[17px] tracking-tight text-foreground truncate">
+              Xboom <span className="text-primary">Flow</span>
+            </span>
+          </Link>
+          <SidebarTrigger className="ml-auto h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" />
+        </div>
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
