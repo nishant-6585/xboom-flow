@@ -340,7 +340,37 @@ export function useAttributionMutations() {
     onSuccess: invalidate,
   });
 
-  return { attribute, requestAttribution, decide, SYSTEM_USER_ID };
+  /** Rep edits their own still-pending request (reason / lead source / evidence). */
+  const updateRequest = useMutation({
+    mutationFn: async (p: {
+      requestId: string;
+      reason: string;
+      reasonCustom?: string | null;
+      evidence: unknown[];
+    }) => {
+      const { error } = await supabase.rpc('update_attribution_request' as any, {
+        p_request_id: p.requestId,
+        p_reason: p.reason,
+        p_reason_custom: p.reasonCustom ?? null,
+        p_evidence: p.evidence,
+      });
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  /** Rep cancels their own still-pending request. */
+  const withdrawRequest = useMutation({
+    mutationFn: async (p: { requestId: string }) => {
+      const { error } = await supabase.rpc('withdraw_attribution_request' as any, {
+        p_request_id: p.requestId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  return { attribute, requestAttribution, decide, updateRequest, withdrawRequest, SYSTEM_USER_ID };
 }
 
 export { SYSTEM_USER_ID };
