@@ -41,6 +41,14 @@ function reasonLabel(value?: string | null) {
   return ATTRIBUTION_REASONS.find((r) => r.value === value)?.label ?? value;
 }
 
+/** Reason notes are stored as `Lead source: X` or `Lead source: X — free text`. */
+function splitReasonCustom(raw?: string | null): { leadSource: string; customReason: string } {
+  const s = (raw || '').trim();
+  const m = s.match(/^Lead source:\s*([^—]*)(?:—\s*([\s\S]*))?$/);
+  if (!m) return { leadSource: '', customReason: s };
+  return { leadSource: (m[1] || '').trim(), customReason: (m[2] || '').trim() };
+}
+
 interface Props {
   /** Internal orders.id (when known) */
   internalOrderId?: string | null;
