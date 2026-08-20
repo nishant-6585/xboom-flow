@@ -19885,6 +19885,15 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: undefined
       }
+      update_attribution_request: {
+        Args: {
+          p_evidence?: Json
+          p_reason: string
+          p_reason_custom?: string
+          p_request_id: string
+        }
+        Returns: undefined
+      }
       update_mfa_verified_at: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -20038,6 +20047,10 @@ export type Database = {
           allowed: boolean
           reason: string
         }[]
+      }
+      withdraw_attribution_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
       }
       zoho_reconciliation_stats: { Args: never; Returns: Json }
     }
