@@ -805,18 +805,36 @@ function AssignDialog({
 }
 
 function RequestDialog({
-  open, onOpenChange, orderId,
+  open, onOpenChange, orderId, existing,
 }: {
   open: boolean;
   onOpenChange: (b: boolean) => void;
   orderId: string;
+  /** When set, the dialog edits this still-pending request instead of creating one. */
+  existing?: AttributionRequest;
 }) {
-  const { requestAttribution } = useAttributionMutations();
+  const { requestAttribution, updateRequest } = useAttributionMutations();
   const { user } = useAuth(); // requests credit the requester themselves
-  const [reason, setReason] = useState('');
-  const [customReason, setCustomReason] = useState('');
-  const [leadSource, setLeadSource] = useState('');
-  const [evidence, setEvidence] = useState<AttributionEvidence[]>([]);
+  const isEdit = !!existing;
+  const prefill = useMemo(() => splitReasonCustom(existing?.reason_custom), [existing?.reason_custom]);
+  const [reason, setReason] = useState(existing?.reason ?? '');
+  const [customReason, setCustomReason] = useState(prefill.customReason);
+  const [leadSource, setLeadSource] = useState(prefill.leadSource);
+  const [evidence, setEvidence] = useState<AttributionEvidence[]>(
+    () => parseEvidence(existing?.evidence),
+  );
+
+  // Re-seed the form whenever the dialog is (re)opened on an existing request.
+  useEffect(() => {
+    if (!open || !existing) return;
+    const p = splitReasonCustom(existing.reason_custom);
+    setReason(existing.reason ?? '');
+    setCustomReason(p.customReason);
+    setLeadSource(p.leadSource);
+    setEvidence(parseEvidence(existing.evidence));
+  }, [open, existing]);
+
+  const pending = isEdit ? updateRequest.isPending : requestAttribution.isPending;
 
   // Evidence is mandatory — approvers won't credit a deal without proof, and
   // the RPC rejects an empty evidence array server-side.
@@ -829,23 +847,29 @@ function RequestDialog({
   const submit = async () => {
     try {
       const sourceNote = `Lead source: ${leadSource}`;
-      await requestAttribution.mutateAsync({
-        orderId,
-        reason,
-        reasonCustom: reason === 'other'
-          ? `${sourceNote} — ${customReason.trim()}`
-          : sourceNote,
-        evidence,
-      });
-      toast({
-        title: 'Request submitted',
-        description: 'Your request was sent to admins/sales managers.',
-      });
+      const reasonCustom = reason === 'other'
+        ? `${sourceNote} — ${customReason.trim()}`
+        : sourceNote;
+      if (isEdit) {
+        await updateRequest.mutateAsync({
+          requestId: existing!.id,
+          reason,
+          reasonCustom,
+          evidence,
+        });
+        toast({ title: 'Request updated', description: 'Your changes were saved.' });
+      } else {
+        await requestAttribution.mutateAsync({ orderId, reason, reasonCustom, evidence });
+        toast({
+          title: 'Request submitted',
+          description: 'Your request was sent to admins/sales managers.',
+        });
+      }
       onOpenChange(false);
-      setReason(''); setCustomReason(''); setLeadSource(''); setEvidence([]);
+      if (!isEdit) { setReason(''); setCustomReason(''); setLeadSource(''); setEvidence([]); }
     } catch (e) {
       toast({
-        title: 'Failed to send request',
+        title: isEdit ? 'Failed to update request' : 'Failed to send request',
         description: e instanceof Error ? e.message : 'Unknown error',
         variant: 'destructive',
       });
@@ -856,10 +880,11 @@ function RequestDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>Request to claim this order</DialogTitle>
+          <DialogTitle>{isEdit ? 'Edit your attribution request' : 'Request to claim this order'}</DialogTitle>
           <DialogDescription>
-            Tell your manager why this website order should be credited to you, and attach proof
-            you closed the deal. They will approve or reject.
+            {isEdit
+              ? 'Update the details or add/remove proof files while the request is still pending.'
+              : 'Tell your manager why this website order should be credited to you, and attach proof you closed the deal. They will approve or reject.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1 -mr-1">
@@ -877,12 +902,56 @@ function RequestDialog({
         </div>
         <DialogFooter className="shrink-0 border-t pt-3 mt-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={!canSubmit || requestAttribution.isPending}>
-            {requestAttribution.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Send request
+          <Button onClick={submit} disabled={!canSubmit || pending}>
+            {pending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isEdit ? 'Save changes' : 'Send request'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function WithdrawRequestButton({ requestId }: { requestId: string }) {
+  const { withdrawRequest } = useAttributionMutations();
+  const [open, setOpen] = useState(false);
+
+  const withdraw = async () => {
+    try {
+      await withdrawRequest.mutateAsync({ requestId });
+      toast({ title: 'Request withdrawn', description: 'You can raise a new one anytime.' });
+      setOpen(false);
+    } catch (e) {
+      toast({
+        title: 'Failed to withdraw',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <>
+      <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-destructive" onClick={() => setOpen(true)}>
+        <Trash2 className="h-3.5 w-3.5" /> Withdraw
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Withdraw request?</DialogTitle>
+            <DialogDescription>
+              This removes your pending claim on this order. You can submit a new request later.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Keep it</Button>
+            <Button variant="destructive" onClick={withdraw} disabled={withdrawRequest.isPending}>
+              {withdrawRequest.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Withdraw
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
