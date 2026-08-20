@@ -16,14 +16,23 @@ export interface ManychatCsvRow {
   manychat_created_at: string | null;
 }
 
-export type FieldKey = keyof Omit<ManychatCsvRow, "tags" | "custom_fields"> | "tags";
+export type FieldKey =
+  | keyof Omit<ManychatCsvRow, "tags" | "custom_fields">
+  | "tags"
+  | "whatsapp_phone";
 
 const ALIASES: Record<FieldKey, string[]> = {
   manychat_contact_id: ["manychat_contact_id", "subscriber id", "subscriber_id", "contact id", "contact_id", "id", "user id"],
   customer_name: ["customer_name", "name", "full name", "full_name"],
   first_name: ["first_name", "first name", "firstname"],
   last_name: ["last_name", "last name", "lastname"],
-  phone_number: ["phone_number", "phone", "phone number", "whatsapp phone", "whatsapp_phone", "mobile"],
+  // A raw ManyChat export carries BOTH a "Phone" column (empty for
+  // WhatsApp-only contacts) and a "WhatsApp Phone" column that holds the real
+  // number. They must be separate keys: detectMapping takes the first alias
+  // that matches, so folding them together silently mapped every WhatsApp
+  // contact to the empty Phone column.
+  phone_number: ["phone_number", "phone", "phone number", "mobile"],
+  whatsapp_phone: ["whatsapp_phone", "whatsapp phone", "wa phone", "whatsapp number", "wa_id", "whatsapp id"],
   country_code: ["country_code", "country code", "country"],
   email: ["email", "email address", "e-mail"],
   city: ["city", "town"],
@@ -97,7 +106,7 @@ export function mapCsvRows(headers: string[], dataRows: string[][]) {
       customer_name: val(cells, mapping.customer_name) ?? ([first, last].filter(Boolean).join(" ") || null),
       first_name: first,
       last_name: last,
-      phone_number: val(cells, mapping.phone_number),
+      phone_number: val(cells, mapping.phone_number) ?? val(cells, mapping.whatsapp_phone),
       country_code: val(cells, mapping.country_code),
       email: val(cells, mapping.email),
       city: val(cells, mapping.city),
@@ -117,6 +126,7 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
   first_name: "first_name",
   last_name: "last_name",
   phone_number: "phone_number",
+  whatsapp_phone: "whatsapp_phone (fallback)",
   country_code: "country_code",
   email: "email",
   city: "city",
