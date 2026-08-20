@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Award, UserPlus, Loader2, ArrowUp, ChevronDown, ChevronRight, Search, AlertCircle, Check, X, Inbox } from 'lucide-react';
+import { Award, UserPlus, Loader2, ArrowUp, ChevronDown, ChevronRight, Search, AlertCircle, Check, X, Inbox, Pencil, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +28,7 @@ import { AttributionEvidencePicker } from './AttributionEvidencePicker';
 import { LEAD_SOURCE_OPTIONS } from '@/components/LeadSourceBadge';
 import { AttributionEvidenceList } from './AttributionEvidenceList';
 import type { AttributionEvidence } from './attributionEvidence';
+import type { AttributionRequest } from '@/hooks/useAttributionRequests';
 
 export const ATTRIBUTION_REASONS: { value: string; label: string }[] = [
   { value: 'remote_customer_paid_online', label: 'Remote customer — paid via website' },
@@ -74,6 +75,7 @@ export function OrderAttributionPanel({
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
+  const [editRequestOpen, setEditRequestOpen] = useState(false);
 
   const isAttributed =
     !!order?.sales_attribution_locked && !!order?.sales_person_id && order?.sales_person_id !== SYSTEM_USER_ID;
@@ -190,6 +192,22 @@ export function OrderAttributionPanel({
         </div>
       )}
 
+      {myRequest && myRequest.status === 'pending' && (
+        <div className="rounded-md border border-border/60 bg-background/60 p-2.5 space-y-2">
+          <div className="text-[11px] text-muted-foreground">
+            Your pending request — you can still change the details or attached proof until a
+            manager decides.
+          </div>
+          <AttributionEvidenceList evidence={myRequest.evidence} orderAt={order.order_date ?? order.created_at} />
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={() => setEditRequestOpen(true)}>
+              <Pencil className="h-3.5 w-3.5" /> Edit request
+            </Button>
+            <WithdrawRequestButton requestId={myRequest.id} />
+          </div>
+        </div>
+      )}
+
       {canAttribute && (
         <PendingRequestsForOrder orderId={order.id} />
       )}
@@ -234,6 +252,14 @@ export function OrderAttributionPanel({
           open={requestOpen}
           onOpenChange={setRequestOpen}
           orderId={order.id}
+        />
+      )}
+      {myRequest && myRequest.status === 'pending' && order && (
+        <RequestDialog
+          open={editRequestOpen}
+          onOpenChange={setEditRequestOpen}
+          orderId={order.id}
+          existing={myRequest}
         />
       )}
 
