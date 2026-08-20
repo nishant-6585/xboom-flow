@@ -80,9 +80,22 @@ export function extractPhoneFromText(text: unknown): string | null {
 }
 
 /**
- * The number ManyChat itself holds, from every field it can live in. Kept
- * verbatim: these values already carry the country code and are what
- * de-duplication matches on.
+ * A number ManyChat supplied, reduced to digits. The API returns
+ * `whatsapp_phone` as "+919952240006" while a CSV export gives
+ * "919952240006"; storing digits keeps both routes writing the same string,
+ * which matters because de-duplication matches phone_number exactly. Values
+ * carrying fewer than 8 digits are junk (a custom field holding "hi") and are
+ * treated as absent so the next candidate is tried.
+ */
+const providerPhone = (value: unknown): string | null => {
+  const s = mcStr(value);
+  if (!s) return null;
+  const d = s.replace(/\D/g, "");
+  return d.length >= 8 ? d : null;
+};
+
+/**
+ * The number ManyChat itself holds, from every field it can live in.
  */
 export function manychatPhoneField(
   c: Record<string, any>,
@@ -90,18 +103,18 @@ export function manychatPhoneField(
   custom: Record<string, unknown>,
 ): string | null {
   return (
-    mcStr(c.phone) ??
-    mcStr(raw.phone) ??
-    mcStr(raw.phone_number) ??
-    mcStr(c.whatsapp_phone) ??
-    mcStr(raw.whatsapp_phone) ??
-    mcStr(c.wa_id) ??
-    mcStr(raw.wa_id) ??
-    mcStr(c.whatsapp_id) ??
-    mcStr(custom["phone"]) ??
-    mcStr(custom["phone_number"]) ??
-    mcStr(custom["mobile"]) ??
-    mcStr(custom["whatsapp"])
+    providerPhone(c.phone) ??
+    providerPhone(raw.phone) ??
+    providerPhone(raw.phone_number) ??
+    providerPhone(c.whatsapp_phone) ??
+    providerPhone(raw.whatsapp_phone) ??
+    providerPhone(c.wa_id) ??
+    providerPhone(raw.wa_id) ??
+    providerPhone(c.whatsapp_id) ??
+    providerPhone(custom["phone"]) ??
+    providerPhone(custom["phone_number"]) ??
+    providerPhone(custom["mobile"]) ??
+    providerPhone(custom["whatsapp"])
   );
 }
 
