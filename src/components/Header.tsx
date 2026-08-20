@@ -21,6 +21,8 @@ import { getRoleLabel } from "@/lib/nav";
 
 export function Header() {
   const { profile, role, signOut } = useAuth();
+  const { state, isMobile } = useSidebar();
+  const showTrigger = isMobile || state === "collapsed";
   const navigate = useNavigate();
 
   const getInitials = (name: string) =>
@@ -59,7 +61,7 @@ export function Header() {
     <header className="sticky top-0 z-50 glass-strong border-b border-border/60">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <SidebarTrigger className="h-9 w-9" />
+          {showTrigger && <SidebarTrigger className="h-9 w-9" />}
         </div>
 
         {/* Center - Pomodoro Timer */}
