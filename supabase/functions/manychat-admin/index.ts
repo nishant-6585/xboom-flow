@@ -234,3 +234,4 @@ Deno.serve(async (req) => {
 
   return json({ ok: false, error: "unknown action" }, 400);
 });
+// redeploy: bundle refresh 2026-08-20 (shared manychat-lead.ts whatsapp_phone fix)
