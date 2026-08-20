@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +97,11 @@ export function CCStatementDetail({
   const [reanalyzing, setReanalyzing] = useState(false);
   const [replacingFile, setReplacingFile] = useState(false);
   const [pageCount, setPageCount] = useState(0);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [pdfPassword, setPdfPassword] = useState('');
+  const [passwordDraft, setPasswordDraft] = useState('');
+  const [useNativeViewer, setUseNativeViewer] = useState(false);
   const replaceFileRef = useRef<HTMLInputElement>(null);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({ amount: '', payment_date: '', payment_mode: 'upi', reference_number: '', notes: '' });
