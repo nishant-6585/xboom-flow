@@ -13,6 +13,8 @@ export const LEAD_SOURCES = [
   "facebook",
   "indiamart",
   "walk_in",
+  "manychat",
+  "abandoned_cart",
 ] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
@@ -66,6 +68,8 @@ const SOURCE_TABLES: { source: LeadSource; table: string; filter?: string }[] = 
   { source: "email", table: "email_leads" },
   { source: "myoperator", table: "call_logs", filter: "lead_source=neq.ElevenLabs" },
   { source: "elevenlabs", table: "call_logs", filter: "lead_source=eq.ElevenLabs" },
+  { source: "manychat", table: "manychat_leads" },
+  { source: "abandoned_cart", table: "abandoned_carts_archive" },
 ];
 
 function escapeOr(v: string) {
@@ -174,6 +178,8 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
         facebook: 0,
         indiamart: 0,
         walk_in: 0,
+        manychat: 0,
+        abandoned_cart: 0,
       };
       for (const row of ((data ?? []) as unknown as { source: LeadSource }[])) {
         if (row.source in bySource) bySource[row.source]++;
@@ -185,7 +191,7 @@ export function useUnifiedLeadCounts(sinceIso?: string) {
 }
 
 /** All-time lead totals per channel. One grouped count query, cached. */
-export type LeadChannel = LeadSource | "manychat";
+export type LeadChannel = LeadSource;
 
 export function useUnifiedLeadTotals() {
   return useQuery({
@@ -220,4 +226,6 @@ export const SOURCE_META: Record<
   facebook: { label: "Facebook Leads", chipClass: "bg-blue-600/15 text-blue-700 dark:text-blue-300" },
   indiamart: { label: "IndiaMART", chipClass: "bg-orange-500/15 text-orange-700 dark:text-orange-300" },
   walk_in: { label: "Walk-in", chipClass: "bg-teal-500/15 text-teal-700 dark:text-teal-300" },
+  manychat: { label: "ManyChat", chipClass: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+  abandoned_cart: { label: "Abandoned Cart", chipClass: "bg-slate-500/15 text-slate-700 dark:text-slate-300" },
 };

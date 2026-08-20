@@ -17,6 +17,7 @@ import { CallButton } from "@/components/calls/CallButton";
 import {
   Inbox, RefreshCw, Search, CheckCheck,
   Globe, FileSpreadsheet, Megaphone, MessageCircle, Phone, Headphones, Mail, Facebook, Store, Users,
+  MessagesSquare, ShoppingCart,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -58,6 +59,8 @@ const SOURCE_TO_TAB: Record<LeadSource, string> = {
   facebook: "facebook-leads",
   indiamart: "indiamart",
   walk_in: "walk-in",
+  manychat: "manychat",
+  abandoned_cart: "xboom-website",
 };
 
 const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }>> = {
@@ -71,6 +74,8 @@ const SOURCE_ICON: Record<LeadSource, React.ComponentType<{ className?: string }
   facebook: Facebook,
   indiamart: Store,
   walk_in: Users,
+  manychat: MessagesSquare,
+  abandoned_cart: ShoppingCart,
 };
 
 function lastSeenKey(userId: string | undefined) {
