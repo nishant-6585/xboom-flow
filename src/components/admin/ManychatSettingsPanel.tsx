@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, RefreshCw, Copy, ExternalLink, Send, Trash2 } from "lucide-react";
+import { MessageCircle, RefreshCw, Copy, ExternalLink, Send, Trash2, PhoneMissed } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -12,6 +12,7 @@ import {
   useManychatSync,
   useManychatTestWebhook,
   useRemoveManychatTestLeads,
+  useManychatPhoneBackfill,
   type ManychatTestResult,
 } from "@/hooks/useManychatLeads";
 import { ManychatCsvImport } from "@/components/manychat/ManychatCsvImport";
@@ -24,6 +25,7 @@ export function ManychatSettingsPanel() {
   const sync = useManychatSync();
   const testWebhook = useManychatTestWebhook();
   const removeTests = useRemoveManychatTestLeads();
+  const backfillPhones = useManychatPhoneBackfill();
 
   const [testResult, setTestResult] = useState<ManychatTestResult | null>(null);
 
@@ -43,6 +45,7 @@ export function ManychatSettingsPanel() {
   };
 
   const last = log?.[0];
+  const missingPhones = leads?.filter((l) => !l.phone_number).length ?? 0;
 
   return (
     <Card>
@@ -76,8 +79,10 @@ export function ManychatSettingsPanel() {
           <p className="text-xs text-muted-foreground mt-2">
             Method <strong>POST</strong>, header <code>X-ManyChat-Secret</code> = your ManyChat webhook secret.
             Send fields like <code>name</code>, <code>phone</code>, <code>email</code>, <code>city</code>,
-            <code>product_name</code>, <code>message</code>. New leads are auto-assigned to the sales team in
-            round-robin order, and the hourly auto-sync refreshes contact details from the ManyChat API.
+            <code>product_name</code>, <code>message</code>. Map <code>whatsapp_phone</code> as well (or enable
+            &ldquo;Full Contact Data&rdquo;) — WhatsApp-only contacts leave <code>phone</code> empty, so without it
+            the lead arrives with no number. New leads are auto-assigned to the sales team in round-robin order,
+            and the hourly auto-sync refreshes contact details from the ManyChat API.
           </p>
         </div>
 
@@ -114,6 +119,27 @@ export function ManychatSettingsPanel() {
               </pre>
             </div>
           ) : null}
+        </div>
+
+        <div className="border-t pt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-sm font-medium">Recover missing phone numbers</p>
+            <Badge variant={missingPhones ? "destructive" : "secondary"}>{missingPhones} without a number</Badge>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => backfillPhones.mutate()}
+            disabled={backfillPhones.isPending || missingPhones === 0}
+          >
+            <PhoneMissed className={`w-3.5 h-3.5 mr-1 ${backfillPhones.isPending ? "animate-pulse" : ""}`} />
+            Backfill phone numbers
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2">
+            WhatsApp-only contacts leave ManyChat&apos;s <code>phone</code> field empty — their number sits in{" "}
+            <code>whatsapp_phone</code>. This scans up to 500 leads without a number, takes it from the stored
+            ManyChat payload, and otherwise looks for a number the lead typed into the chat.
+          </p>
         </div>
 
         <div className="border-t pt-4">

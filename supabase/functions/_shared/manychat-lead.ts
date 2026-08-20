@@ -33,6 +33,92 @@ export interface ManychatLeadRow {
   synced_at: string;
 }
 
+// ── Phone resolution ──────────────────────────────────────────────────────
+// WhatsApp-only ManyChat contacts leave the `phone` system field empty — the
+// number lives in `whatsapp_phone` / `wa_id`. When the contact record carries
+// no number at all, the lead has often typed a callback number into the chat
+// itself, so free text is mined as a last resort.
+
+const IN_MOBILE = /^[6-9]\d{9}$/;
+
+/**
+ * Digits-only form of a number found in free text. Bare 10-digit Indian
+ * mobiles get the `91` prefix so they match ManyChat's `whatsapp_phone`
+ * format. Returns null when the value cannot be a dialable number — this is
+ * deliberately strict, because chat text is full of prices, pincodes and
+ * model numbers. Non-Indian numbers are only accepted at 11-15 digits, so a
+ * bare 10-digit foreign number typed without a country code is not mined.
+ */
+export function normalisePhoneDigits(value: unknown): string | null {
+  const s = mcStr(value);
+  if (!s) return null;
+  let d = s.replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.length === 11 && d.startsWith("0")) d = d.slice(1);
+  if (d.length === 10) return IN_MOBILE.test(d) ? `91${d}` : null;
+  if (d.length === 12 && d.startsWith("91")) return IN_MOBILE.test(d.slice(2)) ? d : null;
+  return d.length >= 11 && d.length <= 15 ? d : null;
+}
+
+// Needs >= 10 characters, so grouped amounts ("1,77,000") cannot match.
+const PHONE_IN_TEXT = /(?:\+|00)?\d[\d\s().-]{8,18}\d/g;
+const CURRENCY_BEFORE = /(?:₹|rs\.?|inr|usd|\$)\s*$/i;
+
+/** Pulls a plausible callback number out of a chat message, or null. */
+export function extractPhoneFromText(text: unknown): string | null {
+  const s = mcStr(text);
+  if (!s) return null;
+  for (const m of s.matchAll(PHONE_IN_TEXT)) {
+    const start = m.index ?? 0;
+    const end = start + m[0].length;
+    if (CURRENCY_BEFORE.test(s.slice(Math.max(0, start - 6), start))) continue; // "₹ 1 77 000"
+    if (/^\s*\/-/.test(s.slice(end, end + 3))) continue;                        // "177000/-"
+    const phone = normalisePhoneDigits(m[0]);
+    if (phone) return phone;
+  }
+  return null;
+}
+
+/**
+ * The number ManyChat itself holds, from every field it can live in. Kept
+ * verbatim: these values already carry the country code and are what
+ * de-duplication matches on.
+ */
+export function manychatPhoneField(
+  c: Record<string, any>,
+  raw: Record<string, any>,
+  custom: Record<string, unknown>,
+): string | null {
+  return (
+    mcStr(c.phone) ??
+    mcStr(raw.phone) ??
+    mcStr(raw.phone_number) ??
+    mcStr(c.whatsapp_phone) ??
+    mcStr(raw.whatsapp_phone) ??
+    mcStr(c.wa_id) ??
+    mcStr(raw.wa_id) ??
+    mcStr(c.whatsapp_id) ??
+    mcStr(custom["phone"]) ??
+    mcStr(custom["phone_number"]) ??
+    mcStr(custom["mobile"]) ??
+    mcStr(custom["whatsapp"])
+  );
+}
+
+/** What ManyChat holds, else a number the lead typed into the chat. */
+export function resolveManychatPhone(
+  c: Record<string, any>,
+  raw: Record<string, any>,
+  custom: Record<string, unknown>,
+): string | null {
+  return (
+    manychatPhoneField(c, raw, custom) ??
+    extractPhoneFromText(c.last_input_text) ??
+    extractPhoneFromText(raw.message) ??
+    extractPhoneFromText(raw.notes)
+  );
+}
+
 /**
  * Normalises any ManyChat-shaped payload: a flat body mapped in the flow
  * builder, or the full subscriber object under `subscriber`/`contact`/`data`.
@@ -65,9 +151,7 @@ export function normaliseManychatContact(raw: Record<string, any>): ManychatLead
 
   const qtyRaw = raw.quantity ?? custom["quantity"];
 
-  // ManyChat "Full Contact Data" leaves `phone` null for WhatsApp-only
-  // contacts — the number lives in `whatsapp_phone`. Same idea for channel:
-  // infer it from channel-specific identifiers when not sent explicitly.
+  // Channel is inferred from channel-specific identifiers when not sent explicitly.
   const whatsappPhone = mcStr(c.whatsapp_phone) ?? mcStr(raw.whatsapp_phone);
   const igHandle = mcStr(c.ig_username) ?? mcStr(c.ig_id) ?? mcStr(raw.ig_username);
   const inferredChannel = whatsappPhone ? "whatsapp" : igHandle ? "instagram" : null;
@@ -79,8 +163,7 @@ export function normaliseManychatContact(raw: Record<string, any>): ManychatLead
     customer_name: name,
     first_name: first,
     last_name: last,
-    phone_number:
-      mcStr(c.phone) ?? mcStr(raw.phone) ?? mcStr(raw.phone_number) ?? whatsappPhone ?? mcStr(custom["phone"]),
+    phone_number: resolveManychatPhone(c, raw, custom),
     country_code: mcStr(raw.country_code) ?? null,
     email: mcStr(c.email) ?? mcStr(raw.email) ?? mcStr(custom["email"]),
     city: mcStr(raw.city) ?? mcStr(custom["city"]) ?? null,
@@ -178,7 +261,11 @@ export async function upsertManychatLead(
   }
 
   if (existingId) {
-    const { error } = await admin.from("manychat_leads").update(row).eq("id", existingId);
+    // A ManyChat flow can re-fire with only the fields of that step mapped
+    // (often just `message`). Dropping the nulls keeps a partial payload from
+    // clearing a phone number or email an earlier payload already captured.
+    const patch = Object.fromEntries(Object.entries(row).filter(([, v]) => v !== null));
+    const { error } = await admin.from("manychat_leads").update(patch).eq("id", existingId);
     return error ? { result: "error", error: error.message } : { result: "updated", leadId: existingId };
   }
   const { data: inserted, error } = await admin

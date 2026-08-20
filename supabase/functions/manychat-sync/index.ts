@@ -3,6 +3,7 @@
 // capture happens in `manychat-webhook`; this function re-pulls the latest
 // profile/tags/custom fields for stored contacts (manual button + hourly cron).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { extractPhoneFromText, resolveManychatPhone } from "../_shared/manychat-lead.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,24 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms = 15000) {
   } finally {
     clearTimeout(t);
   }
+}
+
+/** Scans a lead's logged incoming messages for a number they typed in chat. */
+async function phoneFromMessages(
+  admin: { from: (t: string) => any },
+  leadId: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("manychat_messages")
+    .select("message")
+    .eq("lead_id", leadId)
+    .order("received_at", { ascending: false })
+    .limit(50);
+  for (const m of data ?? []) {
+    const phone = extractPhoneFromText(m.message);
+    if (phone) return phone;
+  }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -82,7 +101,7 @@ Deno.serve(async (req) => {
 
   const { data: rows, error: rowsErr } = await admin
     .from("manychat_leads")
-    .select("id, manychat_contact_id")
+    .select("id, manychat_contact_id, phone_number, notes")
     .not("manychat_contact_id", "is", null)
     .order("updated_at", { ascending: true })
     .limit(cap);
@@ -117,15 +136,29 @@ Deno.serve(async (req) => {
       .map((t: any) => (typeof t === "string" ? t : t?.name))
       .filter(Boolean);
 
-    const patch = {
+    // `c.phone` is empty for WhatsApp-only contacts — the number is in
+    // `whatsapp_phone`, which resolveManychatPhone reads. Only when ManyChat
+    // holds no number at all, and none is stored yet, is the lead's own chat
+    // text mined: a number they typed must never override a real WhatsApp id.
+    let phone = resolveManychatPhone(c, {}, custom);
+    if (!phone && !row.phone_number) {
+      phone = extractPhoneFromText(row.notes) ?? (await phoneFromMessages(admin, row.id));
+    }
+
+    const candidate: Record<string, unknown> = {
       customer_name: str(c.name) ?? (str([str(c.first_name), str(c.last_name)].filter(Boolean).join(" ")) || null),
       first_name: str(c.first_name),
       last_name: str(c.last_name),
-      phone_number: str(c.phone) ?? str(custom["phone"]),
+      phone_number: phone,
       email: str(c.email) ?? str(custom["email"]),
+      last_interaction_at: str(c.last_interaction),
+    };
+    // A refresh only fills gaps — it must never clear a value the webhook or a
+    // CSV backfill already captured, so unresolved fields are left untouched.
+    const patch: Record<string, unknown> = {
+      ...Object.fromEntries(Object.entries(candidate).filter(([, v]) => v !== null)),
       tags,
       custom_fields: custom,
-      last_interaction_at: str(c.last_interaction),
       synced_at: new Date().toISOString(),
     };
 
