@@ -21,8 +21,10 @@ import { getRoleLabel } from "@/lib/nav";
 
 export function Header() {
   const { profile, role, signOut } = useAuth();
-  const { state, isMobile } = useSidebar();
-  const showTrigger = isMobile || state === "collapsed";
+  const { state, isMobile, openMobile } = useSidebar();
+  // Never show both triggers at once: on mobile/tablet the sidebar lives in a
+  // sheet, so the header button hides while that sheet (with its own button) is open.
+  const showTrigger = isMobile ? !openMobile : state === "collapsed";
   const navigate = useNavigate();
 
   const getInitials = (name: string) =>
