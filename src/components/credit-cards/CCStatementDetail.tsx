@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +97,11 @@ export function CCStatementDetail({
   const [reanalyzing, setReanalyzing] = useState(false);
   const [replacingFile, setReplacingFile] = useState(false);
   const [pageCount, setPageCount] = useState(0);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [pdfPassword, setPdfPassword] = useState('');
+  const [passwordDraft, setPasswordDraft] = useState('');
+  const [useNativeViewer, setUseNativeViewer] = useState(false);
   const replaceFileRef = useRef<HTMLInputElement>(null);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({ amount: '', payment_date: '', payment_mode: 'upi', reference_number: '', notes: '' });
@@ -155,6 +160,11 @@ export function CCStatementDetail({
   const closeViewer = (nextOpen: boolean) => {
     if (!nextOpen) {
       setViewerData(null);
+      setPdfError(null);
+      setNeedsPassword(false);
+      setPdfPassword('');
+      setPasswordDraft('');
+      setUseNativeViewer(false);
     }
     setViewerOpen(nextOpen);
   };
@@ -202,6 +212,11 @@ export function CCStatementDetail({
       blob: file.blob,
     });
     setPageCount(0);
+    setPdfError(null);
+    setNeedsPassword(false);
+    setPdfPassword('');
+    setPasswordDraft('');
+    setUseNativeViewer(false);
     setViewerOpen(true);
   };
 
@@ -260,6 +275,17 @@ export function CCStatementDetail({
   const outstanding = getStatementOutstanding(statement, card);
   const remaining = Math.max(0, statement.total_due - totalPaid);
   const canPreviewInline = !!viewerData && (viewerData.mimeType.includes('pdf') || viewerData.fileName.toLowerCase().endsWith('.pdf'));
+
+  // Blob URL for the browser's native PDF viewer (fallback when pdf.js cannot render).
+  const blobUrl = useMemo(
+    () => (viewerData?.blob ? URL.createObjectURL(viewerData.blob) : null),
+    [viewerData],
+  );
+  useEffect(() => {
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [blobUrl]);
 
   return (
     <>
@@ -497,18 +523,86 @@ export function CCStatementDetail({
 
           <div className="flex-1 rounded-lg border bg-muted/10 overflow-auto">
             {canPreviewInline && viewerData ? (
-              <div className="flex min-h-full flex-col items-center gap-4 p-4">
-                <Document
-                  file={viewerData.blob}
-                  onLoadSuccess={({ numPages }) => setPageCount(numPages)}
-                  onLoadError={() => toast({ title: 'Preview failed', description: 'Could not render this PDF preview.', variant: 'destructive' })}
-                  loading={<div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading preview…</div>}
-                >
-                  {Array.from({ length: pageCount || 0 }, (_, index) => (
-                    <Page key={index + 1} pageNumber={index + 1} width={980} renderTextLayer renderAnnotationLayer className="shadow-sm" />
-                  ))}
-                </Document>
-              </div>
+              useNativeViewer && blobUrl ? (
+                <iframe src={blobUrl} title={viewerData.fileName} className="w-full h-full min-h-[60vh]" />
+              ) : needsPassword ? (
+                <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+                  <p className="text-sm font-medium">This statement PDF is password protected</p>
+                  <p className="text-xs text-muted-foreground">Enter the bank PDF password to preview it here.</p>
+                  <div className="flex gap-2 w-full max-w-sm">
+                    <Input
+                      type="password"
+                      value={passwordDraft}
+                      onChange={(e) => setPasswordDraft(e.target.value)}
+                      placeholder="PDF password"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && passwordDraft) {
+                          setPdfPassword(passwordDraft);
+                          setNeedsPassword(false);
+                          setPdfError(null);
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={!passwordDraft}
+                      onClick={() => {
+                        setPdfPassword(passwordDraft);
+                        setNeedsPassword(false);
+                        setPdfError(null);
+                      }}
+                    >
+                      Unlock
+                    </Button>
+                  </div>
+                </div>
+              ) : pdfError ? (
+                <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+                  <p className="text-sm text-muted-foreground">{pdfError}</p>
+                  <div className="flex gap-2">
+                    {blobUrl && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => setUseNativeViewer(true)}>
+                        Open in built-in viewer
+                      </Button>
+                    )}
+                    <Button type="button" variant="outline" size="sm" onClick={handleDownloadFile} className="gap-1">
+                      <Download className="h-4 w-4" /> Download file
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex min-h-full flex-col items-center gap-4 p-4">
+                  <Document
+                    key={pdfPassword}
+                    file={viewerData.blob}
+                    options={pdfPassword ? { password: pdfPassword } : undefined}
+                    onLoadSuccess={({ numPages }) => {
+                      setPageCount(numPages);
+                      setPdfError(null);
+                    }}
+                    onPassword={(callback, reason) => {
+                      if (pdfPassword && reason === 2) {
+                        setPdfPassword('');
+                        setPasswordDraft('');
+                      }
+                      setNeedsPassword(true);
+                    }}
+                    onLoadError={(error: Error) => {
+                      setPdfError(
+                        error?.message
+                          ? `Could not render this PDF preview (${error.message}).`
+                          : 'Could not render this PDF preview.',
+                      );
+                    }}
+                    loading={<div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading preview…</div>}
+                  >
+                    {Array.from({ length: pageCount || 0 }, (_, index) => (
+                      <Page key={index + 1} pageNumber={index + 1} width={980} renderTextLayer renderAnnotationLayer className="shadow-sm" />
+                    ))}
+                  </Document>
+                </div>
+              )
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
                 <p className="text-sm text-muted-foreground">Inline preview is available for PDF statements. You can still download this file from here.</p>
