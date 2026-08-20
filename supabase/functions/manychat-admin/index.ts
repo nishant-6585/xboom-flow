@@ -4,9 +4,16 @@
 //   action = "remove_test_leads" -> deletes leads created by the test button
 //   action = "csv_import"        -> backfills historical subscribers from a
 //                                   ManyChat CSV export (rows mapped client-side)
+//   action = "backfill_phones"   -> recovers missing numbers for stored leads
+//                                   from raw_payload and the chat transcript
 // Normalisation + de-duplication is shared with manychat-webhook.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { normaliseManychatContact, upsertManychatLead } from "../_shared/manychat-lead.ts";
+import {
+  extractPhoneFromText,
+  manychatPhoneField,
+  normaliseManychatContact,
+  upsertManychatLead,
+} from "../_shared/manychat-lead.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -141,6 +148,86 @@ Deno.serve(async (req) => {
       updated,
       skipped,
       errored: errors.length,
+      errors: errors.slice(0, 5),
+    });
+  }
+
+  if (action === "backfill_phones") {
+    // Leads captured before `whatsapp_phone` was read — and leads ManyChat
+    // never had a number for — get one recovered from the stored payload or
+    // from what the lead typed in the conversation.
+    const cap = Math.min(Math.max(Number(body?.limit) || 500, 1), 2000);
+    const { data: rows, error: rowsErr } = await admin
+      .from("manychat_leads")
+      .select("id, notes, raw_payload")
+      .is("phone_number", null)
+      .order("created_at", { ascending: false })
+      .limit(cap);
+    if (rowsErr) return json({ ok: false, error: rowsErr.message }, 500);
+
+    let fromPayload = 0, fromChat = 0, stillMissing = 0;
+    const errors: string[] = [];
+
+    for (const row of rows ?? []) {
+      // 1. The number ManyChat sent us but an older build never read.
+      const raw = row.raw_payload;
+      let phone: string | null = null;
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        const r = raw as Record<string, any>;
+        const c = r.subscriber ?? r.contact ?? r.data ?? r;
+        const custom = normaliseManychatContact(r).custom_fields;
+        phone = manychatPhoneField(c, r, custom);
+      }
+      let via: "payload" | "chat" = "payload";
+
+      // 2. Otherwise, a number the lead typed into the conversation.
+      if (!phone) {
+        via = "chat";
+        phone = extractPhoneFromText(row.notes);
+      }
+      if (!phone) {
+        const { data: msgs } = await admin
+          .from("manychat_messages")
+          .select("message")
+          .eq("lead_id", row.id)
+          .order("received_at", { ascending: false })
+          .limit(50);
+        for (const m of msgs ?? []) {
+          phone = extractPhoneFromText(m.message);
+          if (phone) break;
+        }
+      }
+
+      if (!phone) { stillMissing++; continue; }
+
+      const { error } = await admin
+        .from("manychat_leads")
+        .update({ phone_number: phone })
+        .eq("id", row.id);
+      if (error) errors.push(error.message);
+      else if (via === "payload") fromPayload++;
+      else fromChat++;
+    }
+
+    const recovered = fromPayload + fromChat;
+    await admin.from("manychat_sync_log").insert({
+      trigger_source: "Phone backfill",
+      received: rows?.length ?? 0,
+      created: 0,
+      updated: recovered,
+      skipped: stillMissing,
+      error: errors.length ? errors.slice(0, 5).join(" | ") : null,
+      details: { run_by: userData.user.email ?? userData.user.id, from_payload: fromPayload, from_chat: fromChat },
+    });
+
+    return json({
+      ok: errors.length === 0,
+      action,
+      scanned: rows?.length ?? 0,
+      recovered,
+      fromPayload,
+      fromChat,
+      stillMissing,
       errors: errors.slice(0, 5),
     });
   }

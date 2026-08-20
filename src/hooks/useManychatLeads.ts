@@ -229,6 +229,38 @@ export function useRemoveManychatTestLeads() {
   });
 }
 
+export interface ManychatPhoneBackfillResult {
+  ok: boolean;
+  scanned: number;
+  recovered: number;
+  fromPayload: number;
+  fromChat: number;
+  stillMissing: number;
+  errors?: string[];
+}
+
+/** Recovers missing phone numbers from stored payloads and chat transcripts. */
+export function useManychatPhoneBackfill() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<ManychatPhoneBackfillResult> => {
+      const { data, error } = await supabase.functions.invoke("manychat-admin", {
+        body: { action: "backfill_phones", limit: 500 },
+      });
+      if (error) throw error;
+      return data as ManychatPhoneBackfillResult;
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["manychat-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["manychat-sync-log"] });
+      const detail = `${res.recovered} recovered (${res.fromPayload} from ManyChat, ${res.fromChat} from chat), ${res.stillMissing} still missing`;
+      if (res.ok) toast.success(`Phone backfill done — ${detail}`);
+      else toast.error(`Phone backfill finished with issues: ${res.errors?.[0] ?? "unknown error"}`);
+    },
+    onError: (e: Error) => toast.error(`Phone backfill failed: ${e.message}`),
+  });
+}
+
 export interface ManychatImportSummary {
   ok: boolean;
   received: number;
