@@ -102,3 +102,4 @@ Deno.serve(async (req) => {
 
   return json({ ok: errors.length === 0, received: items.length, created, updated, skipped, errors });
 });
+// redeploy: bundle refresh 2026-08-20 (shared manychat-lead.ts whatsapp_phone fix)
