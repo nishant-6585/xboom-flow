@@ -276,6 +276,17 @@ export function CCStatementDetail({
   const remaining = Math.max(0, statement.total_due - totalPaid);
   const canPreviewInline = !!viewerData && (viewerData.mimeType.includes('pdf') || viewerData.fileName.toLowerCase().endsWith('.pdf'));
 
+  // Blob URL for the browser's native PDF viewer (fallback when pdf.js cannot render).
+  const blobUrl = useMemo(
+    () => (viewerData?.blob ? URL.createObjectURL(viewerData.blob) : null),
+    [viewerData],
+  );
+  useEffect(() => {
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [blobUrl]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
