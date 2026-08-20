@@ -160,6 +160,11 @@ export function CCStatementDetail({
   const closeViewer = (nextOpen: boolean) => {
     if (!nextOpen) {
       setViewerData(null);
+      setPdfError(null);
+      setNeedsPassword(false);
+      setPdfPassword('');
+      setPasswordDraft('');
+      setUseNativeViewer(false);
     }
     setViewerOpen(nextOpen);
   };
@@ -207,6 +212,11 @@ export function CCStatementDetail({
       blob: file.blob,
     });
     setPageCount(0);
+    setPdfError(null);
+    setNeedsPassword(false);
+    setPdfPassword('');
+    setPasswordDraft('');
+    setUseNativeViewer(false);
     setViewerOpen(true);
   };
 
