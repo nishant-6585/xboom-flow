@@ -165,7 +165,7 @@ export function useManychatSync() {
   return useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("manychat-sync", {
-        body: { limit: 200 },
+        body: { limit: 500 },
       });
       if (error) throw error;
       return data as { ok: boolean; checked: number; updated: number; errors?: string[] };

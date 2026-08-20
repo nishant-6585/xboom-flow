@@ -103,6 +103,11 @@ Deno.serve(async (req) => {
     .from("manychat_leads")
     .select("id, manychat_contact_id, phone_number, notes")
     .not("manychat_contact_id", "is", null)
+    // Leads with no number come first. Ordering by updated_at alone meant a
+    // single run refreshed the 200 *least* recently touched leads — exactly
+    // the opposite of the ones that need it, since a lead missing its number
+    // has just arrived and so is among the most recently updated.
+    .order("phone_number", { ascending: true, nullsFirst: true })
     .order("updated_at", { ascending: true })
     .limit(cap);
 
