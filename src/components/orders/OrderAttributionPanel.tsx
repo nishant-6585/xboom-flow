@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,7 @@ import { toast } from '@/hooks/use-toast';
 import { AttributionEvidencePicker } from './AttributionEvidencePicker';
 import { LEAD_SOURCE_OPTIONS } from '@/components/LeadSourceBadge';
 import { AttributionEvidenceList } from './AttributionEvidenceList';
-import type { AttributionEvidence } from './attributionEvidence';
+import { parseEvidence, type AttributionEvidence } from './attributionEvidence';
 import type { AttributionRequest } from '@/hooks/useAttributionRequests';
 
 export const ATTRIBUTION_REASONS: { value: string; label: string }[] = [
