@@ -1035,10 +1035,13 @@ export function ImportFormDialog({
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={loading || items.length === 0 || !items[0].product_name}
+              disabled={loading}
+              aria-busy={loading}
             >
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {loading ? 'Saving...' : editingImport ? 'Update Import' : 'Create Import'}
             </Button>
+
           )}
         </div>
       </DialogContent>
