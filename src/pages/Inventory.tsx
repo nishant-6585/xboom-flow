@@ -180,76 +180,69 @@ function InventoryContent() {
 
       {/* Main Content */}
       <Tabs defaultValue="inventory" className="space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between gap-4">
-          <TabsList>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            <TabsTrigger value="low-stock">Low Stock Alerts</TabsTrigger>
-            <TabsTrigger value="forecast">Demand Forecast</TabsTrigger>
-          </TabsList>
+        <TabsList className="flex w-full overflow-x-auto gap-1 h-auto flex-nowrap justify-start">
+          <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="low-stock">Low Stock Alerts</TabsTrigger>
+          <TabsTrigger value="forecast">Demand Forecast</TabsTrigger>
+        </TabsList>
 
-          {canManage && (
-            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
+        {canManage && (
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Inventory Item</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Product Name *</Label>
+                  <ProductSelect
+                    value={newProductName}
+                    onChange={handleProductSelect}
+                    placeholder="Select or type product..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select value={newProductCategory} onValueChange={setNewProductCategory}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRODUCT_CATEGORIES.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Minimum Stock Level</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={newMinStock}
+                    onChange={(e) => setNewMinStock(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={newNotes}
+                    onChange={(e) => setNewNotes(e.target.value)}
+                    placeholder="Optional notes"
+                    rows={2}
+                  />
+                </div>
+                <Button onClick={handleAddItem} disabled={saving || !newProductName.trim()} className="w-full">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Add Item
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Inventory Item</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label>Product Name *</Label>
-                    <ProductSelect
-                      value={newProductName}
-                      onChange={handleProductSelect}
-                      placeholder="Select or type product..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Category</Label>
-                    <Select value={newProductCategory} onValueChange={setNewProductCategory}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PRODUCT_CATEGORIES.map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Minimum Stock Level</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={newMinStock}
-                      onChange={(e) => setNewMinStock(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={newNotes}
-                      onChange={(e) => setNewNotes(e.target.value)}
-                      placeholder="Optional notes"
-                      rows={2}
-                    />
-                  </div>
-                  <Button onClick={handleAddItem} disabled={saving || !newProductName.trim()} className="w-full">
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Add Item
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
