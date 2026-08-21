@@ -27,7 +27,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useImports, Import, ImportItem } from "@/hooks/useImports";
+import { useImports, Import, ImportItem, ImportWritable } from "@/hooks/useImports";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  formatCurrency,
+  formatINR,
+  sumByCurrency,
+  formatCurrencyTotals,
+  describeCurrencyTotals,
+} from "@/lib/currency";
 import { ImportFormDialog } from "./ImportFormDialog";
 import { ImportStatusBadge } from "./ImportStatusBadge";
 import { 
@@ -42,13 +50,21 @@ import {
   Package,
   Clock,
   CheckCircle2,
-  DollarSign,
-  RefreshCcw
+  Wallet,
+  RefreshCcw,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export function ImportsList() {
-  const { imports, loading, createImport, updateImport, deleteImport, refetch } = useImports();
+  const { imports, loading, createImport, updateImport, deleteImport, refetch, getSignedUrl } = useImports();
+  const { role } = useAuth();
+  // Mirrors the imports RLS policies: supply_chain and admin manage imports,
+  // finance reads them. Gating here keeps the UI from offering actions the
+  // database will reject.
+  const canManage = role === 'admin' || role === 'supply_chain';
+  const canDelete = role === 'admin' || role === 'supply_chain';
   const [searchQuery, setSearchQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingImport, setEditingImport] = useState<Import | null>(null);
@@ -79,7 +95,9 @@ export function ImportsList() {
     }
   };
 
-  const handleSubmit = async (data: Omit<Import, 'id' | 'created_at' | 'updated_at'>, items: ImportItem[]) => {
+  // main's result-aware flow (only clears the edit target on success) with the
+  // narrower writable type.
+  const handleSubmit = async (data: ImportWritable, items: ImportItem[]) => {
     const result = editingImport
       ? await updateImport(editingImport.id, data, items)
       : await createImport(data, items);
@@ -94,8 +112,27 @@ export function ImportsList() {
     inTransit: imports.filter(i => ['shipped', 'in_transit', 'at_port'].includes(i.status)).length,
     customs: imports.filter(i => i.status === 'customs_clearance').length,
     delivered: imports.filter(i => i.status === 'delivered').length,
-    totalValue: imports.reduce((sum, i) => sum + (i.total_amount || 0), 0),
+
+    // Each import carries an FX rate captured at booking, so base_amount is a
+    // genuinely comparable INR figure and these can be summed. Rows predating
+    // the FX columns fall back to their own currency bucket rather than being
+    // added in blind.
+    baseTotal: imports.reduce((sum, i) => sum + (i.base_amount ?? 0), 0),
+    landedTotal: imports.reduce((sum, i) => sum + (i.total_landed_cost ?? 0), 0),
+    unconverted: sumByCurrency(
+      imports.filter(i => i.base_amount == null),
+      i => i.total_amount,
+      i => i.currency
+    ),
   };
+
+  const unconvertedCount = Object.keys(stats.unconverted).length;
+
+  // base_amount/total_landed_cost are generated columns. Until migration
+  // 20260821093000 has run they come back undefined, and summing them would
+  // render a confident ₹0. Fall back to per-currency buckets in that window.
+  const hasConvertedValues = imports.some(i => i.total_landed_cost != null || i.base_amount != null);
+  const fallbackTotals = formatCurrencyTotals(stats.unconverted);
 
   const getPaymentBadge = (status: string) => {
     switch (status) {
@@ -172,11 +209,39 @@ export function ImportsList() {
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <Wallet className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">${stats.totalValue.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Total Value</p>
+              <div className="min-w-0">
+                <p
+                  className="text-2xl font-bold truncate"
+                  title={
+                    hasConvertedValues
+                      ? formatINR(stats.landedTotal)
+                      : describeCurrencyTotals(stats.unconverted)
+                  }
+                >
+                  {hasConvertedValues ? formatINR(stats.landedTotal) : fallbackTotals.primary}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {hasConvertedValues ? 'Landed Cost' : 'Total Value'}
+                  {!hasConvertedValues && fallbackTotals.extraCount > 0 && (
+                    <span
+                      className="ml-1 text-amber-600 dark:text-amber-400"
+                      title={describeCurrencyTotals(stats.unconverted)}
+                    >
+                      +{fallbackTotals.extraCount} more{' '}
+                      {fallbackTotals.extraCount === 1 ? 'currency' : 'currencies'}
+                    </span>
+                  )}
+                  {hasConvertedValues && unconvertedCount > 0 && (
+                    <span
+                      className="ml-1 text-amber-600 dark:text-amber-400"
+                      title={`Not converted to INR:\n${describeCurrencyTotals(stats.unconverted)}`}
+                    >
+                      · {unconvertedCount} unconverted
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -204,10 +269,12 @@ export function ImportsList() {
               <Button variant="outline" size="icon" onClick={refetch}>
                 <RefreshCcw className="w-4 h-4" />
               </Button>
-              <Button onClick={() => { setEditingImport(null); setFormOpen(true); }}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Import
-              </Button>
+              {canManage && (
+                <Button onClick={() => { setEditingImport(null); setFormOpen(true); }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Import
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -224,7 +291,7 @@ export function ImportsList() {
               <p className="text-muted-foreground mb-4">
                 {searchQuery ? 'Try a different search term' : 'Get started by adding your first import'}
               </p>
-              {!searchQuery && (
+              {!searchQuery && canManage && (
                 <Button onClick={() => setFormOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Import
@@ -281,9 +348,25 @@ export function ImportsList() {
                         {getPaymentBadge(imp.payment_status)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="font-medium">
-                          {imp.currency} {(imp.total_amount || 0).toLocaleString()}
-                        </span>
+                        <div>
+                          <p className="font-medium">
+                            {formatCurrency(imp.total_amount ?? 0, imp.currency)}
+                          </p>
+                          {imp.total_landed_cost != null &&
+                            imp.total_landed_cost !== imp.base_amount && (
+                              <p
+                                className="text-xs text-muted-foreground"
+                                title="Goods value plus freight, duty, clearing and port charges"
+                              >
+                                landed {formatINR(imp.total_landed_cost)}
+                              </p>
+                            )}
+                          {imp.currency !== imp.base_currency && imp.base_amount != null && (
+                            <p className="text-xs text-muted-foreground">
+                              ≈ {formatINR(imp.base_amount)}
+                            </p>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {imp.expected_arrival ? (
@@ -294,43 +377,47 @@ export function ImportsList() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          {imp.po_document_url && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                              <a href={imp.po_document_url} target="_blank" rel="noopener noreferrer" title="PO">
-                                <FileText className="w-4 h-4" />
-                              </a>
-                            </Button>
-                          )}
-                          {imp.bill_of_entry_url && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                              <a href={imp.bill_of_entry_url} target="_blank" rel="noopener noreferrer" title="Bill of Entry">
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            </Button>
-                          )}
+                          <ImportDocumentButton
+                            path={imp.po_document_url}
+                            label="Purchase Order"
+                            icon={FileText}
+                            resolve={getSignedUrl}
+                          />
+                          <ImportDocumentButton
+                            path={imp.bill_of_entry_url}
+                            label="Bill of Entry"
+                            icon={ExternalLink}
+                            resolve={getSignedUrl}
+                          />
                         </div>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(imp)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(imp)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {(canManage || canDelete) && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Import actions">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {canManage && (
+                                <DropdownMenuItem onClick={() => handleEdit(imp)}>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                              )}
+                              {canDelete && (
+                                <DropdownMenuItem
+                                  onClick={() => handleDelete(imp)}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -370,5 +457,53 @@ export function ImportsList() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+/**
+ * Import documents live in a private bucket. Rather than persisting a long-lived
+ * signed URL, mint a short-lived one at click time.
+ */
+function ImportDocumentButton({
+  path,
+  label,
+  icon: Icon,
+  resolve,
+}: {
+  path: string | null;
+  label: string;
+  icon: typeof FileText;
+  resolve: (path: string) => Promise<string | null>;
+}) {
+  const [opening, setOpening] = useState(false);
+
+  if (!path) return null;
+
+  const handleOpen = async () => {
+    setOpening(true);
+    try {
+      const url = await resolve(path);
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error(`Could not open ${label}`);
+      }
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8"
+      title={label}
+      aria-label={label}
+      disabled={opening}
+      onClick={handleOpen}
+    >
+      {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}
+    </Button>
   );
 }

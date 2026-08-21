@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useOrders } from "@/hooks/useOrders";
 import { useSuppliers, useSupplierPayments } from "@/hooks/useSuppliers";
+import { useImports } from "@/hooks/useImports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isWithinInterval } from "date-fns";
-import { TrendingUp, IndianRupee, Package, Building2, Calendar, Download, FileSpreadsheet, FileText, CalendarCheck, AlertTriangle } from "lucide-react";
+import { TrendingUp, IndianRupee, Package, Building2, Calendar, Download, FileSpreadsheet, FileText, CalendarCheck, AlertTriangle, Ship } from "lucide-react";
 import { exportProcurementAnalyticsToExcel, exportProcurementAnalyticsToPDF, ProcurementAnalyticsExportData } from "@/lib/exportUtils";
 import { toast } from "sonner";
 import { ExpenseSummaryByOrders } from "./OrderLinkedExpenses";
+import { formatINR } from "@/lib/currency";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
@@ -19,6 +21,7 @@ export function ProcurementDashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { suppliers, loading: suppliersLoading } = useSuppliers();
   const { payments, loading: paymentsLoading } = useSupplierPayments();
+  const { imports, loading: importsLoading } = useImports();
   const [dateRange, setDateRange] = useState<string>("30");
 
   const dateInterval = useMemo(() => {
@@ -35,6 +38,18 @@ export function ProcurementDashboard() {
       return isWithinInterval(orderDate, dateInterval);
     });
   }, [orders, dateInterval]);
+
+  /**
+   * Imports in the selected window. Previously the dashboard read only orders,
+   * so a month spent entirely on imports showed as zero procurement spend.
+   * Valued at landed cost in INR, which is comparable with order values.
+   */
+  const filteredImports = useMemo(() => {
+    return imports.filter(imp => {
+      const date = imp.order_date ? parseISO(imp.order_date) : parseISO(imp.created_at);
+      return isWithinInterval(date, dateInterval);
+    });
+  }, [imports, dateInterval]);
 
   const filteredPayments = useMemo(() => {
     return payments.filter(payment => {
@@ -121,8 +136,21 @@ export function ProcurementDashboard() {
     const totalProcurement = filteredOrders.reduce((sum, o) => 
       sum + ((o.procurement_rate || 0) * (o.quantity || 1)), 0
     );
+    const totalImportValue = filteredImports.reduce(
+      (sum, imp) => sum + (imp.total_landed_cost ?? imp.base_amount ?? 0),
+      0
+    );
     const totalPayments = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
-    const activeSuppliers = new Set(filteredOrders.map(o => o.supplier_name).filter(Boolean)).size;
+    const activeSuppliers = new Set(
+      [
+        ...filteredOrders.map(o => o.supplier_name),
+        ...filteredImports.map(i => i.supplier_name),
+      ].filter(Boolean)
+    ).size;
+
+    const importsInTransit = filteredImports.filter(i =>
+      ['shipped', 'in_transit', 'at_port', 'customs_clearance'].includes(i.status)
+    ).length;
     
     // Pending orders (not delivery_done or cancelled)
     const pendingOrders = filteredOrders.filter(o => 
@@ -145,13 +173,17 @@ export function ProcurementDashboard() {
       plannedOrders,
       unplannedOrders,
       totalProcurement,
+      totalImports: filteredImports.length,
+      totalImportValue,
+      importsInTransit,
       totalPayments,
       activeSuppliers,
-      pendingAmount: totalProcurement - totalPayments,
+      // Payables now span both rails: order-linked procurement and imports.
+      pendingAmount: totalProcurement + totalImportValue - totalPayments,
     };
-  }, [filteredOrders, filteredPayments]);
+  }, [filteredOrders, filteredImports, filteredPayments]);
 
-  const loading = ordersLoading || suppliersLoading || paymentsLoading;
+  const loading = ordersLoading || suppliersLoading || paymentsLoading || importsLoading;
 
   // Prepare export data
   const getExportData = (): ProcurementAnalyticsExportData => {
@@ -270,7 +302,7 @@ export function ProcurementDashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -287,12 +319,29 @@ export function ProcurementDashboard() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-500/10 rounded-lg">
+                <Ship className="w-5 h-5 text-orange-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">Imports</p>
+                <p className="text-2xl font-bold">{formatINR(stats.totalImportValue, { compact: true })}</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.totalImports} total
+                  {stats.importsInTransit > 0 && ` · ${stats.importsInTransit} in transit`}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-500/10 rounded-lg">
                 <TrendingUp className="w-5 h-5 text-blue-500" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Procurement</p>
-                <p className="text-2xl font-bold">₹{(stats.totalProcurement / 100000).toFixed(1)}L</p>
+                <p className="text-2xl font-bold">{formatINR(stats.totalProcurement, { compact: true })}</p>
               </div>
             </div>
           </CardContent>
@@ -305,7 +354,7 @@ export function ProcurementDashboard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Paid</p>
-                <p className="text-2xl font-bold text-green-600">₹{(stats.totalPayments / 100000).toFixed(1)}L</p>
+                <p className="text-2xl font-bold text-green-600">{formatINR(stats.totalPayments, { compact: true })}</p>
               </div>
             </div>
           </CardContent>
@@ -318,7 +367,7 @@ export function ProcurementDashboard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold text-red-600">₹{(stats.pendingAmount / 100000).toFixed(1)}L</p>
+                <p className="text-2xl font-bold text-red-600">{formatINR(stats.pendingAmount, { compact: true })}</p>
               </div>
             </div>
           </CardContent>

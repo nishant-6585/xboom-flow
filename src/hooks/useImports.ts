@@ -7,7 +7,7 @@ import {
   mapImportServerError,
   type ImportFieldErrors,
 } from "@/lib/importValidation";
-
+import { recordProcurementAudit, PROCUREMENT_AUDIT_ACTIONS } from "@/lib/procurementAudit";
 
 export interface ImportItem {
   id?: string;
@@ -33,6 +33,28 @@ export interface Import {
   unit_price: number | null;
   total_amount: number | null;
   currency: string;
+
+  // FX — captured at booking so reported value does not move with the market.
+  base_currency: string;
+  /** Units of base_currency per 1 unit of `currency`. 1 when they match. */
+  fx_rate: number;
+  fx_rate_date: string | null;
+  /** Generated in Postgres: total_amount * fx_rate. Read-only. */
+  base_amount: number | null;
+
+  // Landed cost. All local charges, already in base_currency.
+  freight_cost: number;
+  insurance_cost: number;
+  customs_duty: number;
+  clearing_agent_fee: number;
+  port_charges: number;
+  other_landed_costs: number;
+  /** IGST paid at the port. Recorded for the return; an input credit, not a cost. */
+  igst_amount: number;
+  assessable_value: number | null;
+  /** Generated in Postgres: base_amount + local charges, excluding IGST. Read-only. */
+  total_landed_cost: number | null;
+
   origin_country: string | null;
   port_of_origin: string | null;
   port_of_destination: string | null;
@@ -62,6 +84,50 @@ export interface Import {
   created_by_name: string | null;
   items?: ImportItem[];
 }
+
+/** True for an http(s) link that is not one of our storage objects. */
+export function isExternalUrl(value: string | null | undefined): boolean {
+  if (!value) return false;
+  return /^https?:\/\//i.test(value.trim()) && !/\/import-documents\//.test(value);
+}
+
+/** Generated columns — Postgres computes these; sending them back is an error. */
+export const IMPORT_GENERATED_COLUMNS = ['base_amount', 'total_landed_cost'] as const;
+
+export function stripGeneratedColumns<T extends Record<string, any>>(payload: T): T {
+  const clean = { ...payload };
+  for (const column of IMPORT_GENERATED_COLUMNS) delete clean[column];
+  return clean;
+}
+
+export const IMPORT_DOCUMENTS_BUCKET = 'import-documents';
+
+/** Signed links live 10 minutes — long enough to open, short enough to not leak. */
+export const SIGNED_URL_TTL_SECONDS = 600;
+
+/**
+ * Import documents were originally persisted as full 1-year signed URLs, which
+ * put a long-lived bearer token in a table every authenticated user can read.
+ * New uploads persist the bare storage path instead. This accepts either form so
+ * historical rows keep resolving.
+ */
+export function toImportStoragePath(pathOrUrl: string | null | undefined): string | null {
+  if (!pathOrUrl) return null;
+  const trimmed = pathOrUrl.trim();
+  if (!trimmed) return null;
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+  const match = trimmed.match(/\/import-documents\/(.+?)(?:\?|$)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * The shape a caller may write. Excludes DB-managed columns and the generated
+ * FX/landed-cost totals, so a form cannot accidentally try to set them.
+ */
+export type ImportWritable = Omit<
+  Import,
+  'id' | 'created_at' | 'updated_at' | 'base_amount' | 'total_landed_cost' | 'items'
+>;
 
 export type ImportStatus = 'pending' | 'shipped' | 'in_transit' | 'at_port' | 'customs_clearance' | 'cleared' | 'delivered' | 'cancelled';
 
@@ -98,6 +164,30 @@ export const SHIPPING_METHODS = [
   { value: 'land', label: 'Land Transport' },
 ];
 
+/**
+ * Mint a short-lived link for an import document. Accepts a storage path (new
+ * rows), a legacy full signed URL, or an externally hosted link the user pasted.
+ * Standalone so components can resolve a document without subscribing to the
+ * whole imports query.
+ */
+export async function getImportDocumentUrl(pathOrUrl: string): Promise<string | null> {
+  const path = toImportStoragePath(pathOrUrl);
+  // A link pointing somewhere other than our bucket — nothing to sign.
+  if (!path) return isExternalUrl(pathOrUrl) ? pathOrUrl : null;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(IMPORT_DOCUMENTS_BUCKET)
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+
+    if (error) throw error;
+    return data.signedUrl;
+  } catch (error: any) {
+    console.error('Error getting signed URL:', error);
+    return null;
+  }
+}
+
 export function useImports() {
   const fetchImports = useCallback(async (): Promise<Import[]> => {
     try {
@@ -108,20 +198,31 @@ export function useImports() {
 
       if (error) throw error;
       
-      // Fetch items for each import
-      const importsWithItems = await Promise.all(
-        (data || []).map(async (imp: any) => {
-          const { data: items } = await supabase
-            .from('import_items')
-            .select('*')
-            .eq('import_id', imp.id)
-            .order('created_at', { ascending: true });
-          
-          return { ...imp, items: items || [] } as Import;
-        })
-      );
-      
-      return importsWithItems;
+      const rows = data || [];
+      if (rows.length === 0) return [];
+
+      // One batched query for every import's line items. This used to fan out
+      // into a separate request per import (N+1).
+      const { data: allItems, error: itemsError } = await supabase
+        .from('import_items')
+        .select('*')
+        .in('import_id', rows.map(imp => imp.id))
+        .order('created_at', { ascending: true });
+
+      if (itemsError) throw itemsError;
+
+      const itemsByImport = new Map<string, ImportItem[]>();
+      for (const item of (allItems ?? []) as ImportItem[]) {
+        if (!item.import_id) continue;
+        const bucket = itemsByImport.get(item.import_id) ?? [];
+        bucket.push(item);
+        itemsByImport.set(item.import_id, bucket);
+      }
+
+      return rows.map(imp => ({
+        ...imp,
+        items: itemsByImport.get(imp.id) ?? [],
+      })) as unknown as Import[];
     } catch (error: any) {
       console.error('Error fetching imports:', error);
       toast.error('Failed to fetch imports');
@@ -143,7 +244,7 @@ export function useImports() {
   const refetch = useCallback(() => importsQuery.refetch(), [importsQuery]);
 
   const createImport = async (
-    importData: Omit<Import, 'id' | 'created_at' | 'updated_at'>, 
+    importData: ImportWritable, 
     items: ImportItem[]
   ): Promise<ImportSaveResult> => {
 
@@ -165,8 +266,10 @@ export function useImports() {
 
       const { data, error } = await supabase
         .from('imports')
+        // Strip the Postgres-generated columns first, then let
+        // sanitizeImportPayload turn '' into null for date/uuid/numeric columns.
         .insert(sanitizeImportPayload({
-          ...importData,
+          ...stripGeneratedColumns(importData),
           import_number: importNumber,
           product_name: productNames || importData.product_name,
           quantity: totalQuantity || importData.quantity,
@@ -201,6 +304,20 @@ export function useImports() {
         if (itemsError) throw itemsError;
       }
       
+      recordProcurementAudit(
+        { id: userData.user?.id, name: profile?.name },
+        PROCUREMENT_AUDIT_ACTIONS.IMPORT_CREATED,
+        {
+          import_id: data.id,
+          import_number: importNumber,
+          supplier_id: importData.supplier_id ?? null,
+          supplier_name: importData.supplier_name ?? null,
+          total_amount: totalAmount || importData.total_amount || null,
+          currency: importData.currency,
+          item_count: items.length,
+        }
+      );
+
       toast.success('Import created successfully');
       await refetch();
       return { ok: true, data: data as Import };
@@ -234,11 +351,27 @@ export function useImports() {
 
       const { error } = await supabase
         .from('imports')
-        .update(sanitizeImportPayload(updates))
+        .update(sanitizeImportPayload(stripGeneratedColumns(updates)))
         .eq('id', id);
 
 
       if (error) throw error;
+
+      const { data: actor } = await supabase.auth.getUser();
+      recordProcurementAudit(
+        { id: actor.user?.id },
+        PROCUREMENT_AUDIT_ACTIONS.IMPORT_UPDATED,
+        {
+          import_id: id,
+          // Field names only — values can carry supplier pricing, and the log is
+          // readable well beyond procurement.
+          fields: Object.keys(updates),
+          total_amount: updates.total_amount ?? null,
+          currency: updates.currency ?? null,
+          status: updates.status ?? null,
+          payment_status: updates.payment_status ?? null,
+        }
+      );
 
       // Update items if provided
       if (items) {
@@ -284,12 +417,26 @@ export function useImports() {
 
   const deleteImport = async (id: string) => {
     try {
+      // Deleting an import cascades its line items — capture what is going.
+      const { data: existing } = await supabase
+        .from('imports')
+        .select('import_number, supplier_name, total_amount, currency, status')
+        .eq('id', id)
+        .maybeSingle();
+
       const { error } = await supabase
         .from('imports')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      const { data: actor } = await supabase.auth.getUser();
+      recordProcurementAudit(
+        { id: actor.user?.id },
+        PROCUREMENT_AUDIT_ACTIONS.IMPORT_DELETED,
+        { import_id: id, ...(existing ?? {}) }
+      );
       
       toast.success('Import deleted successfully');
       await refetch();
@@ -315,11 +462,10 @@ export function useImports() {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('import-documents')
-        .getPublicUrl(fileName);
-
-      return urlData.publicUrl;
+      // Return the storage PATH, not a URL. `import-documents` is a private
+      // bucket, so getPublicUrl() would have produced a permanently 400-ing
+      // link. Callers mint a short-lived URL via getSignedUrl().
+      return fileName;
     } catch (error: any) {
       console.error('Error uploading document:', error);
       toast.error('Failed to upload document');
@@ -327,19 +473,7 @@ export function useImports() {
     }
   };
 
-  const getSignedUrl = async (path: string) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('import-documents')
-        .createSignedUrl(path, 3600);
-
-      if (error) throw error;
-      return data.signedUrl;
-    } catch (error: any) {
-      console.error('Error getting signed URL:', error);
-      return null;
-    }
-  };
+  const getSignedUrl = getImportDocumentUrl;
 
   return {
     imports,
