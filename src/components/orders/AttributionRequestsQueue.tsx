@@ -24,6 +24,8 @@ import {
 import { ATTRIBUTION_REASONS } from './OrderAttributionPanel';
 import { AttributionEvidenceList } from './AttributionEvidenceList';
 import { toast } from '@/hooks/use-toast';
+import { OrderDialog } from '@/components/OrderDialog';
+
 
 function reasonLabel(v?: string | null) {
   if (!v) return '—';
