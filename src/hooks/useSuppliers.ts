@@ -433,12 +433,20 @@ export function useSupplierPayments(supplierId?: string) {
         .eq('id', id)
         .maybeSingle();
 
-      const { error } = await supabase
+      // See useImports.deleteImport: an RLS-refused DELETE is not an error, so
+      // the row count is the only way to know it actually happened.
+      const { data: deleted, error } = await supabase
         .from('supplier_payments')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!deleted || deleted.length === 0) {
+        throw new Error(
+          'Payment was not deleted — you may not have permission to remove this record.'
+        );
+      }
 
       recordProcurementAudit(
         actor,
@@ -644,12 +652,18 @@ export function useSupplierPayments(supplierId?: string) {
         .eq('id', id)
         .maybeSingle();
 
-      const { error } = await supabase
+      const { data: deleted, error } = await supabase
         .from('supplier_payments')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!deleted || deleted.length === 0) {
+        throw new Error(
+          'Request was not rejected — you may not have permission to remove it.'
+        );
+      }
 
       recordProcurementAudit(
         actor,

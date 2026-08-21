@@ -446,12 +446,21 @@ export function useImports() {
         .eq('id', id)
         .maybeSingle();
 
-      const { error } = await supabase
+      // .select() so we can tell a real deletion from a no-op. A DELETE the
+      // RLS policy refuses comes back with no error and zero rows, so checking
+      // `error` alone reports success while the row is still there.
+      const { data: deleted, error } = await supabase
         .from('imports')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!deleted || deleted.length === 0) {
+        throw new Error(
+          'Import was not deleted — you may not have permission to remove this record.'
+        );
+      }
 
       recordProcurementAudit(
         await getAuditActor(),
@@ -464,7 +473,7 @@ export function useImports() {
       return true;
     } catch (error: any) {
       console.error('Error deleting import:', error);
-      toast.error('Failed to delete import');
+      toast.error(error.message || 'Failed to delete import');
       return false;
     }
   };
