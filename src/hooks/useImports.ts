@@ -277,7 +277,7 @@ export function useImports() {
       return true;
     } catch (error: any) {
       console.error('Error updating import:', error);
-      toast.error('Failed to update import');
+      toast.error(error?.message ? `Failed to update import: ${error.message}` : 'Failed to update import');
       return false;
     }
   };
