@@ -5,16 +5,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { recordProcurementAudit, PROCUREMENT_AUDIT_ACTIONS } from '@/lib/procurementAudit';
 
-/**
- * `goods_receipts`, `goods_receipt_items` and `import_three_way_match` are new in
- * migration 20260821094000 and are not yet in the generated Supabase types.
- * Follows the existing convention in this codebase for not-yet-generated objects
- * (see useManychatLeads, usePortalTicketAssignees).
- *
- * TODO: drop this alias after running `supabase gen types typescript`.
- */
-const db = supabase as any;
-
 export type GoodsReceiptStatus = 'draft' | 'posted' | 'cancelled';
 
 export interface GoodsReceiptItem {
@@ -112,7 +102,7 @@ export function useGoodsReceipts(importId?: string) {
   const actor = { id: user?.id, name: profile?.name };
 
   const fetchReceipts = useCallback(async (): Promise<GoodsReceipt[]> => {
-    let query = db.from('goods_receipts')
+    let query = supabase.from('goods_receipts')
       .select('*, items:goods_receipt_items(*)')
       .order('created_at', { ascending: false });
 
@@ -136,7 +126,7 @@ export function useGoodsReceipts(importId?: string) {
   const matchQuery = useQuery({
     queryKey: ['import_three_way_match'],
     queryFn: async (): Promise<ThreeWayMatch[]> => {
-      const { data, error } = await db
+      const { data, error } = await supabase
         .from('import_three_way_match')
         .select('*')
         .order('import_number', { ascending: false });
@@ -165,7 +155,7 @@ export function useGoodsReceipts(importId?: string) {
     }
 
     try {
-      const { data, error } = await db.from('goods_receipts')
+      const { data, error } = await supabase.from('goods_receipts')
         .insert({
           import_id: receipt.import_id ?? null,
           order_id: receipt.order_id ?? null,
@@ -186,7 +176,7 @@ export function useGoodsReceipts(importId?: string) {
       if (error) throw error;
 
       if (items.length > 0) {
-        const { error: itemsError } = await db.from('goods_receipt_items').insert(
+        const { error: itemsError } = await supabase.from('goods_receipt_items').insert(
           items.map(item => ({
             goods_receipt_id: data.id,
             import_item_id: item.import_item_id ?? null,
@@ -221,7 +211,7 @@ export function useGoodsReceipts(importId?: string) {
     if (!user) return false;
 
     try {
-      const { data, error } = await db.from('goods_receipts')
+      const { data, error } = await supabase.from('goods_receipts')
         .update({
           status: 'posted',
           posted_at: new Date().toISOString(),
@@ -260,7 +250,7 @@ export function useGoodsReceipts(importId?: string) {
     if (!user) return false;
 
     try {
-      const { data, error } = await db.from('goods_receipts')
+      const { data, error } = await supabase.from('goods_receipts')
         .update({
           status: 'cancelled',
           inspection_notes: reason ?? null,
