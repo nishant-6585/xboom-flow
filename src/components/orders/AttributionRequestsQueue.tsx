@@ -563,6 +563,22 @@ export function AttributionRequestsQueue() {
         </>
       )}
 
+      {orderLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="animate-pulse text-muted-foreground text-sm">Loading order…</div>
+        </div>
+      )}
+
+      {selectedOrder && orderDialogOpen && (
+        <OrderDialog
+          order={selectedOrder}
+          open={orderDialogOpen}
+          onOpenChange={(open) => { setOrderDialogOpen(open); if (!open) setSelectedOrder(null); }}
+          onUpdate={handleOrderUpdate as any}
+          onDelete={async () => false}
+        />
+      )}
+
       <AttributionDetailsSheet
         log={detailsLog}
         order={detailsLog ? allHistory?.orders.get(detailsLog.order_id) ?? null : null}
