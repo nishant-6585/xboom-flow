@@ -203,12 +203,14 @@ export function useImports() {
       
       toast.success('Import created successfully');
       await refetch();
-      return data as Import;
+      return { ok: true, data: data as Import };
     } catch (error: any) {
       console.error('Error creating import:', error);
-      toast.error(error?.message ? `Failed to create import: ${error.message}` : 'Failed to create import');
-      return null;
+      const { message, fieldErrors } = mapImportServerError(error);
+      toast.error(`Failed to create import: ${message}`);
+      return { ok: false, message, fieldErrors };
     }
+
 
   };
 
