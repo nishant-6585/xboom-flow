@@ -218,7 +218,8 @@ export function useImports() {
     id: string, 
     updates: Partial<Import>,
     items?: ImportItem[]
-  ) => {
+  ): Promise<ImportSaveResult> => {
+
     try {
       // Calculate totals from items if provided
       if (items && items.length > 0) {
