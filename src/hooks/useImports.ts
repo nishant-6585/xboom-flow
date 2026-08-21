@@ -145,7 +145,8 @@ export function useImports() {
   const createImport = async (
     importData: Omit<Import, 'id' | 'created_at' | 'updated_at'>, 
     items: ImportItem[]
-  ) => {
+  ): Promise<ImportSaveResult> => {
+
     try {
       const { data: userData } = await supabase.auth.getUser();
       const { data: profile } = await supabase
