@@ -511,8 +511,16 @@ export function AttributionRequestsQueue() {
                     return (
                       <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => setDetailsLog(r)}>
                         <TableCell className="font-mono font-semibold text-primary">
-                          #{o?.order_number ?? o?.external_id ?? '—'}
+                          <button
+                            type="button"
+                            className="hover:underline"
+                            title="Open order details"
+                            onClick={(e) => { e.stopPropagation(); openOrderDialog(r.order_id); }}
+                          >
+                            #{o?.order_number ?? o?.external_id ?? '—'}
+                          </button>
                         </TableCell>
+
                         <TableCell className="max-w-[180px] truncate">{o?.customer_name ?? '—'}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {o?.total_sales_amount != null
