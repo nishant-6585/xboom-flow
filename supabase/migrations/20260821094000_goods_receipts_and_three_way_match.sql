@@ -183,6 +183,21 @@ CREATE POLICY "GRN items follow parent delete access"
     WHERE g.id = goods_receipt_items.goods_receipt_id AND g.status = 'draft'
   ));
 
+-- ---------- Table / sequence privileges ----------
+-- RLS constrains which rows each role may touch; these grants make the objects
+-- reachable through PostgREST in the first place. The two are independent —
+-- policies alone are not enough.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_receipts TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_receipt_items TO authenticated;
+GRANT ALL ON public.goods_receipts TO service_role;
+GRANT ALL ON public.goods_receipt_items TO service_role;
+
+-- generate_grn_number() is NOT security definer, so nextval() runs as the
+-- calling user. Without this, inserting a goods receipt fails with
+-- "permission denied for sequence grn_number_seq".
+GRANT USAGE, SELECT ON SEQUENCE public.grn_number_seq TO authenticated;
+GRANT ALL ON SEQUENCE public.grn_number_seq TO service_role;
+
 -- =====================================================
 -- Pay imports through the same rail as everything else
 -- =====================================================
@@ -277,3 +292,6 @@ LEFT JOIN (
 
 COMMENT ON VIEW public.import_three_way_match IS
   'Ordered vs received vs paid per import. Only POSTED receipts and COMPLETED payments count.';
+
+GRANT SELECT ON public.import_three_way_match TO authenticated;
+GRANT SELECT ON public.import_three_way_match TO service_role;

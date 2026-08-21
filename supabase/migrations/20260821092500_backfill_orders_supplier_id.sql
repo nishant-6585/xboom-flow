@@ -12,7 +12,10 @@
 -- supplier. Ambiguous names are deliberately left NULL rather than guessed —
 -- the ledger falls back to name matching for those and flags them.
 WITH unique_matches AS (
-  SELECT lower(btrim(name)) AS norm_name, min(id) AS supplier_id
+  -- (array_agg(id))[1] rather than min(id): Postgres has no min() aggregate for
+  -- uuid. The HAVING below guarantees the group holds exactly one row, so this
+  -- picks that row rather than an arbitrary one.
+  SELECT lower(btrim(name)) AS norm_name, (array_agg(id))[1] AS supplier_id
   FROM public.suppliers
   WHERE name IS NOT NULL AND btrim(name) <> ''
   GROUP BY lower(btrim(name))

@@ -30,6 +30,15 @@ CREATE POLICY "Status history follows parent import read access"
 -- No INSERT/UPDATE/DELETE policies: this table is append-only via trigger and
 -- must not be editable from the client. An audit trail you can rewrite is not one.
 
+-- Table privileges. RLS decides which ROWS are visible; grants decide whether
+-- the table is reachable through PostgREST at all — without them the API
+-- returns permission denied regardless of policy.
+--
+-- SELECT only for authenticated: this table is append-only and written solely
+-- by the SECURITY DEFINER trigger below, which does not need a grant.
+GRANT SELECT ON public.import_status_history TO authenticated;
+GRANT ALL ON public.import_status_history TO service_role;
+
 CREATE OR REPLACE FUNCTION public.record_import_status_change()
 RETURNS trigger
 LANGUAGE plpgsql
