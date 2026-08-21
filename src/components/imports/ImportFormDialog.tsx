@@ -70,6 +70,8 @@ export function ImportFormDialog({
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<ImportFieldErrors>({});
+
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [items, setItems] = useState<ImportItem[]>([{ ...emptyItem }]);
   
