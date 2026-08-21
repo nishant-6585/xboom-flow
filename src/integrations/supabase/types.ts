@@ -6278,6 +6278,182 @@ export type Database = {
           },
         ]
       }
+      goods_receipt_items: {
+        Row: {
+          created_at: string
+          goods_receipt_id: string
+          hsn_code: string | null
+          id: string
+          import_item_id: string | null
+          product_code: string | null
+          product_name: string
+          quantity_accepted: number
+          quantity_ordered: number
+          quantity_received: number
+          quantity_rejected: number | null
+          rejection_reason: string | null
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          goods_receipt_id: string
+          hsn_code?: string | null
+          id?: string
+          import_item_id?: string | null
+          product_code?: string | null
+          product_name: string
+          quantity_accepted?: number
+          quantity_ordered?: number
+          quantity_received?: number
+          quantity_rejected?: number | null
+          rejection_reason?: string | null
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          goods_receipt_id?: string
+          hsn_code?: string | null
+          id?: string
+          import_item_id?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity_accepted?: number
+          quantity_ordered?: number
+          quantity_received?: number
+          quantity_rejected?: number | null
+          rejection_reason?: string | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipt_items_goods_receipt_id_fkey"
+            columns: ["goods_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "goods_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipt_items_import_item_id_fkey"
+            columns: ["import_item_id"]
+            isOneToOne: false
+            referencedRelation: "import_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goods_receipts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          grn_number: string | null
+          id: string
+          import_id: string | null
+          inspection_notes: string | null
+          inventory_procurement_id: string | null
+          notes: string | null
+          order_id: string | null
+          posted_at: string | null
+          posted_by: string | null
+          posted_by_name: string | null
+          received_date: string
+          status: string
+          supplier_id: string | null
+          supplier_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          grn_number?: string | null
+          id?: string
+          import_id?: string | null
+          inspection_notes?: string | null
+          inventory_procurement_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          posted_at?: string | null
+          posted_by?: string | null
+          posted_by_name?: string | null
+          received_date?: string
+          status?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          grn_number?: string | null
+          id?: string
+          import_id?: string | null
+          inspection_notes?: string | null
+          inventory_procurement_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          posted_at?: string | null
+          posted_by?: string | null
+          posted_by_name?: string | null
+          received_date?: string
+          status?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipts_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "import_three_way_match"
+            referencedColumns: ["import_id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_inventory_procurement_id_fkey"
+            columns: ["inventory_procurement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_procurements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_integrity_violations"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders_missing_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_ads_leads: {
         Row: {
           ad_group_id: string | null
@@ -6844,6 +7020,13 @@ export type Database = {
             foreignKeyName: "import_items_import_id_fkey"
             columns: ["import_id"]
             isOneToOne: false
+            referencedRelation: "import_three_way_match"
+            referencedColumns: ["import_id"]
+          },
+          {
+            foreignKeyName: "import_items_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
             referencedRelation: "imports"
             referencedColumns: ["id"]
           },
@@ -6881,6 +7064,13 @@ export type Database = {
           to_status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "import_status_history_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "import_three_way_match"
+            referencedColumns: ["import_id"]
+          },
           {
             foreignKeyName: "import_status_history_import_id_fkey"
             columns: ["import_id"]
@@ -15574,6 +15764,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          import_id: string | null
           inventory_procurement_id: string | null
           notes: string | null
           order_id: string | null
@@ -15600,6 +15791,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          import_id?: string | null
           inventory_procurement_id?: string | null
           notes?: string | null
           order_id?: string | null
@@ -15626,6 +15818,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          import_id?: string | null
           inventory_procurement_id?: string | null
           notes?: string | null
           order_id?: string | null
@@ -15642,6 +15835,20 @@ export type Database = {
           supplier_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_payments_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "import_three_way_match"
+            referencedColumns: ["import_id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "imports"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplier_payments_inventory_procurement_id_fkey"
             columns: ["inventory_procurement_id"]
@@ -17873,6 +18080,38 @@ export type Database = {
           name?: string | null
         }
         Relationships: []
+      }
+      import_three_way_match: {
+        Row: {
+          accepted_value: number | null
+          amount_paid: number | null
+          base_currency: string | null
+          currency: string | null
+          import_id: string | null
+          import_number: string | null
+          last_received_date: string | null
+          match_status: string | null
+          ordered_value: number | null
+          overpayment_exposure: number | null
+          quantity_accepted: number | null
+          quantity_ordered: number | null
+          quantity_received: number | null
+          quantity_rejected: number | null
+          receipt_count: number | null
+          status: string | null
+          supplier_id: string | null
+          supplier_name: string | null
+          total_landed_cost: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imports_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_aging_view: {
         Row: {
