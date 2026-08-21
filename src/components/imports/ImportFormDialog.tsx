@@ -282,11 +282,25 @@ export function ImportFormDialog({
   };
 
   const handleSubmit = async () => {
-    if (items.length === 0 || !items[0].product_name) return;
-    
+    const clientErrors = validateImportForm({ ...formData, items });
+    setErrors(clientErrors);
+    const target = firstErrorStep(clientErrors);
+    if (target !== null) {
+      setStep(target);
+      toast.error("Please fix the highlighted fields before saving");
+      return;
+    }
+
     setLoading(true);
     try {
-      await onSubmit(formData, items);
+      const result = await onSubmit(sanitizeImportPayload({ ...formData }) as typeof formData, items);
+      if (result && result.ok === false) {
+        const serverErrors = result.fieldErrors ?? {};
+        setErrors(serverErrors);
+        const serverStep = firstErrorStep(serverErrors);
+        if (serverStep !== null) setStep(serverStep);
+        return;
+      }
       onOpenChange(false);
       resetForm();
     } finally {
@@ -298,10 +312,20 @@ export function ImportFormDialog({
     switch (step) {
       case 1:
         return items.length > 0 && items[0].product_name.trim() !== '';
+      case 2:
+        return !!formData.supplier_id && !!formData.order_date;
       default:
         return true;
     }
   };
+
+  const fieldError = (key: string) => errors[key];
+
+  const ErrorText = ({ name }: { name: string }) =>
+    errors[name] ? (
+      <p className="mt-1 text-xs text-destructive" role="alert">{errors[name]}</p>
+    ) : null;
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
