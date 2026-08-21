@@ -6852,9 +6852,13 @@ export type Database = {
       imports: {
         Row: {
           actual_arrival: string | null
+          assessable_value: number | null
+          base_amount: number | null
+          base_currency: string
           bill_of_entry_url: string | null
           bl_number: string | null
           clearance_date: string | null
+          clearing_agent_fee: number
           commercial_invoice_url: string | null
           container_number: string | null
           courier_document_url: string | null
@@ -6862,19 +6866,27 @@ export type Database = {
           created_by: string | null
           created_by_name: string | null
           currency: string
+          customs_duty: number
           expected_arrival: string | null
+          freight_cost: number
+          fx_rate: number
+          fx_rate_date: string | null
           id: string
+          igst_amount: number
           import_number: string | null
+          insurance_cost: number
           notes: string | null
           order_date: string | null
           origin_country: string | null
           other_documents_urls: string[] | null
+          other_landed_costs: number
           packing_list_url: string | null
           payment_amount: number | null
           payment_date: string | null
           payment_proof_url: string | null
           payment_status: string | null
           po_document_url: string | null
+          port_charges: number
           port_of_destination: string | null
           port_of_origin: string | null
           product_category: string | null
@@ -6886,14 +6898,19 @@ export type Database = {
           supplier_id: string | null
           supplier_name: string | null
           total_amount: number | null
+          total_landed_cost: number | null
           unit_price: number | null
           updated_at: string
         }
         Insert: {
           actual_arrival?: string | null
+          assessable_value?: number | null
+          base_amount?: number | null
+          base_currency?: string
           bill_of_entry_url?: string | null
           bl_number?: string | null
           clearance_date?: string | null
+          clearing_agent_fee?: number
           commercial_invoice_url?: string | null
           container_number?: string | null
           courier_document_url?: string | null
@@ -6901,19 +6918,27 @@ export type Database = {
           created_by?: string | null
           created_by_name?: string | null
           currency?: string
+          customs_duty?: number
           expected_arrival?: string | null
+          freight_cost?: number
+          fx_rate?: number
+          fx_rate_date?: string | null
           id?: string
+          igst_amount?: number
           import_number?: string | null
+          insurance_cost?: number
           notes?: string | null
           order_date?: string | null
           origin_country?: string | null
           other_documents_urls?: string[] | null
+          other_landed_costs?: number
           packing_list_url?: string | null
           payment_amount?: number | null
           payment_date?: string | null
           payment_proof_url?: string | null
           payment_status?: string | null
           po_document_url?: string | null
+          port_charges?: number
           port_of_destination?: string | null
           port_of_origin?: string | null
           product_category?: string | null
@@ -6925,14 +6950,19 @@ export type Database = {
           supplier_id?: string | null
           supplier_name?: string | null
           total_amount?: number | null
+          total_landed_cost?: number | null
           unit_price?: number | null
           updated_at?: string
         }
         Update: {
           actual_arrival?: string | null
+          assessable_value?: number | null
+          base_amount?: number | null
+          base_currency?: string
           bill_of_entry_url?: string | null
           bl_number?: string | null
           clearance_date?: string | null
+          clearing_agent_fee?: number
           commercial_invoice_url?: string | null
           container_number?: string | null
           courier_document_url?: string | null
@@ -6940,19 +6970,27 @@ export type Database = {
           created_by?: string | null
           created_by_name?: string | null
           currency?: string
+          customs_duty?: number
           expected_arrival?: string | null
+          freight_cost?: number
+          fx_rate?: number
+          fx_rate_date?: string | null
           id?: string
+          igst_amount?: number
           import_number?: string | null
+          insurance_cost?: number
           notes?: string | null
           order_date?: string | null
           origin_country?: string | null
           other_documents_urls?: string[] | null
+          other_landed_costs?: number
           packing_list_url?: string | null
           payment_amount?: number | null
           payment_date?: string | null
           payment_proof_url?: string | null
           payment_status?: string | null
           po_document_url?: string | null
+          port_charges?: number
           port_of_destination?: string | null
           port_of_origin?: string | null
           product_category?: string | null
@@ -6964,6 +7002,7 @@ export type Database = {
           supplier_id?: string | null
           supplier_name?: string | null
           total_amount?: number | null
+          total_landed_cost?: number | null
           unit_price?: number | null
           updated_at?: string
         }
