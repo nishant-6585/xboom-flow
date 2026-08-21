@@ -24,6 +24,13 @@ import { Import, ImportItem, IMPORT_STATUSES, PAYMENT_STATUSES, SHIPPING_METHODS
 import { Package, Building2, Ship, FileText, CreditCard, CheckCircle2, Plus, Trash2, X, Upload, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  validateImportForm,
+  firstErrorStep,
+  sanitizeImportPayload,
+  type ImportFieldErrors,
+} from "@/lib/importValidation";
+
 
 interface ImportFormDialogProps {
   open: boolean;
