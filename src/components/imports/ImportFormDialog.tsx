@@ -550,12 +550,12 @@ export function ImportFormDialog({
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label htmlFor="supplier">Select Supplier</Label>
+                  <Label htmlFor="supplier">Select Supplier *</Label>
                   <Select
                     value={formData.supplier_id}
                     onValueChange={handleSupplierChange}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={cn(fieldError("supplier_id") && "border-destructive")}>
                       <SelectValue placeholder="Select a supplier" />
                     </SelectTrigger>
                     <SelectContent>
@@ -566,6 +566,7 @@ export function ImportFormDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  <ErrorText name="supplier_id" />
                 </div>
                 
                 <div>
@@ -579,14 +580,18 @@ export function ImportFormDialog({
                 </div>
                 
                 <div>
-                  <Label htmlFor="order_date">Order Date</Label>
+                  <Label htmlFor="order_date">Order Date *</Label>
                   <Input
                     id="order_date"
                     type="date"
                     value={formData.order_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, order_date: e.target.value }))}
+                    aria-invalid={!!fieldError("order_date")}
+                    className={cn(fieldError("order_date") && "border-destructive")}
                   />
+                  <ErrorText name="order_date" />
                 </div>
+
               </div>
             </div>
           )}
