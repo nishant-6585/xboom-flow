@@ -272,12 +272,14 @@ export function useImports() {
       
       toast.success('Import updated successfully');
       await refetch();
-      return true;
+      return { ok: true };
     } catch (error: any) {
       console.error('Error updating import:', error);
-      toast.error(error?.message ? `Failed to update import: ${error.message}` : 'Failed to update import');
-      return false;
+      const { message, fieldErrors } = mapImportServerError(error);
+      toast.error(`Failed to update import: ${message}`);
+      return { ok: false, message, fieldErrors };
     }
+
   };
 
   const deleteImport = async (id: string) => {
