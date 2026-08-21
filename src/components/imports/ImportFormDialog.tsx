@@ -421,9 +421,12 @@ export function ImportFormDialog({
                           value={item.product_name}
                           onChange={(e) => updateItem(index, 'product_name', e.target.value)}
                           placeholder="Enter product name"
-                          className="mt-1"
+                          aria-invalid={!!fieldError(`items.${index}.product_name`)}
+                          className={cn("mt-1", fieldError(`items.${index}.product_name`) && "border-destructive")}
                         />
+                        <ErrorText name={`items.${index}.product_name`} />
                       </div>
+
                       
                       <div className="col-span-6 sm:col-span-3">
                         <Label className="text-xs">Category</Label>
