@@ -129,9 +129,25 @@ function InventoryContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Inventory Management</h1>
+          <p className="text-muted-foreground">
+            Track stock levels and movements
+          </p>
+        </div>
+        {canManage && (
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+        )}
+      </div>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
