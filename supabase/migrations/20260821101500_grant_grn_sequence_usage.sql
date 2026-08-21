@@ -1,21 +1,27 @@
 -- =====================================================
--- Grant sequence usage for GRN numbering
+-- Make GRN sequence access explicit
 -- =====================================================
 -- public.generate_grn_number() is a BEFORE INSERT trigger on goods_receipts and
--- is deliberately NOT security definer, so nextval('grn_number_seq') is executed
--- with the privileges of the user performing the insert.
+-- is deliberately NOT security definer, so nextval('grn_number_seq') executes
+-- with the privileges of whoever is inserting.
 --
--- The goods-receipt tables were granted explicitly because this project narrows
--- the default privileges Supabase would otherwise apply to new objects in
--- public. The sequence was missed, which leaves every goods-receipt insert
--- failing with:
+-- This is a NO-OP on the current database. `authenticated` already holds
+-- USAGE + SELECT on the sequence through Supabase's default privileges for new
+-- objects in public:
+--
+--   has_sequence_privilege('authenticated','public.grn_number_seq','USAGE') -> t
+--
+-- An earlier version of this file claimed the project narrows those defaults.
+-- It does not: pg_default_acl shows Supabase's defaults intact for both tables
+-- and sequences, so every new object in public is granted automatically.
+--
+-- The grant is kept so GRN numbering does not silently depend on that default.
+-- Locking down public default privileges is a common hardening step, and the
+-- failure it would cause is easy to misdiagnose — RLS passes, then the trigger
+-- fires and the sequence read is refused, surfacing as
 --
 --   permission denied for sequence grn_number_seq
 --
--- Note this is not reachable through RLS: the policy passes, then the trigger
--- fires and the sequence read is refused.
---
--- Granting the sequence is preferred over making the trigger security definer —
--- it is the narrower change, and it keeps the function running as the caller.
+-- on insert rather than as a policy failure.
 GRANT USAGE, SELECT ON SEQUENCE public.grn_number_seq TO authenticated;
 GRANT ALL ON SEQUENCE public.grn_number_seq TO service_role;
