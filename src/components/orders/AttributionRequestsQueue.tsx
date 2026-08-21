@@ -24,6 +24,8 @@ import {
 import { ATTRIBUTION_REASONS } from './OrderAttributionPanel';
 import { AttributionEvidenceList } from './AttributionEvidenceList';
 import { toast } from '@/hooks/use-toast';
+import { OrderDialog } from '@/components/OrderDialog';
+
 
 function reasonLabel(v?: string | null) {
   if (!v) return '—';
@@ -77,6 +79,32 @@ export function AttributionRequestsQueue() {
   const [sortCol, setSortCol] = useState<SortColumn>('when');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [detailsLog, setDetailsLog] = useState<AttributionLogEntry | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const [orderLoading, setOrderLoading] = useState(false);
+
+  const openOrderDialog = async (orderId: string) => {
+    setOrderLoading(true);
+    const { data: ord, error } = await supabase.from('orders').select('*').eq('id', orderId).single();
+    setOrderLoading(false);
+    if (error || !ord) {
+      toast({ title: 'Failed to load order details', variant: 'destructive' });
+      return;
+    }
+    setSelectedOrder(ord);
+    setOrderDialogOpen(true);
+  };
+
+  const handleOrderUpdate = async (orderId: string, updates: Record<string, unknown>) => {
+    const { error } = await supabase.from('orders').update(updates as never).eq('id', orderId);
+    if (error) {
+      toast({ title: 'Failed to update order', variant: 'destructive' });
+      return false;
+    }
+    setSelectedOrder((prev: any) => (prev ? { ...prev, ...updates } : prev));
+    return true;
+  };
+
 
   const analytics = useMemo(() => {
     const logs = allHistory?.rows ?? [];
@@ -370,7 +398,15 @@ export function AttributionRequestsQueue() {
                 <CardContent className="p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="font-mono font-semibold text-primary">#{o?.order_number ?? o?.external_id ?? '—'}</span>
+                      <button
+                        type="button"
+                        className="font-mono font-semibold text-primary hover:underline"
+                        title="Open order details"
+                        onClick={(e) => { e.stopPropagation(); openOrderDialog(r.order_id); }}
+                      >
+                        #{o?.order_number ?? o?.external_id ?? '—'}
+                      </button>
+
                       <span className="text-muted-foreground">·</span>
                       <span className="font-medium">{o?.customer_name ?? '—'}</span>
                       {o?.total_sales_amount != null && (
@@ -485,8 +521,16 @@ export function AttributionRequestsQueue() {
                     return (
                       <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => setDetailsLog(r)}>
                         <TableCell className="font-mono font-semibold text-primary">
-                          #{o?.order_number ?? o?.external_id ?? '—'}
+                          <button
+                            type="button"
+                            className="hover:underline"
+                            title="Open order details"
+                            onClick={(e) => { e.stopPropagation(); openOrderDialog(r.order_id); }}
+                          >
+                            #{o?.order_number ?? o?.external_id ?? '—'}
+                          </button>
                         </TableCell>
+
                         <TableCell className="max-w-[180px] truncate">{o?.customer_name ?? '—'}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {o?.total_sales_amount != null
@@ -519,6 +563,22 @@ export function AttributionRequestsQueue() {
 
           <PaginationBar />
         </>
+      )}
+
+      {orderLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="animate-pulse text-muted-foreground text-sm">Loading order…</div>
+        </div>
+      )}
+
+      {selectedOrder && orderDialogOpen && (
+        <OrderDialog
+          order={selectedOrder}
+          open={orderDialogOpen}
+          onOpenChange={(open) => { setOrderDialogOpen(open); if (!open) setSelectedOrder(null); }}
+          onUpdate={handleOrderUpdate as any}
+          onDelete={async () => false}
+        />
       )}
 
       <AttributionDetailsSheet
