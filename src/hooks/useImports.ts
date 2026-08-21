@@ -58,6 +58,27 @@ export interface Import {
 }
 
 export type ImportStatus = 'pending' | 'shipped' | 'in_transit' | 'at_port' | 'customs_clearance' | 'cleared' | 'delivered' | 'cancelled';
+
+// Columns that Postgres rejects when given an empty string ('' is not a valid date/uuid)
+const NULLABLE_EMPTY_FIELDS = [
+  'supplier_id',
+  'order_date',
+  'expected_arrival',
+  'actual_arrival',
+  'clearance_date',
+  'payment_date',
+] as const;
+
+function sanitizeImportPayload<T extends Record<string, any>>(payload: T): T {
+  const cleaned: Record<string, any> = { ...payload };
+  for (const field of NULLABLE_EMPTY_FIELDS) {
+    if (cleaned[field] === '' || cleaned[field] === undefined) {
+      cleaned[field] = null;
+    }
+  }
+  return cleaned as T;
+}
+
 export type PaymentStatus = 'pending' | 'partial' | 'paid';
 
 export const IMPORT_STATUSES: { value: ImportStatus; label: string }[] = [
