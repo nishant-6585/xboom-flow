@@ -236,8 +236,9 @@ export function useImports() {
 
       const { error } = await supabase
         .from('imports')
-        .update(updates)
+        .update(sanitizeImportPayload(updates))
         .eq('id', id);
+
 
       if (error) throw error;
 
