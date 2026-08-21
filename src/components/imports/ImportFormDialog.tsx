@@ -459,27 +459,32 @@ export function ImportFormDialog({
                       </div>
                       
                       <div className="col-span-4 sm:col-span-2">
-                        <Label className="text-xs">Quantity</Label>
+                        <Label className="text-xs">Quantity *</Label>
                         <Input
                           type="number"
                           min={1}
                           value={item.quantity}
                           onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                          className="mt-1"
+                          aria-invalid={!!fieldError(`items.${index}.quantity`)}
+                          className={cn("mt-1", fieldError(`items.${index}.quantity`) && "border-destructive")}
                         />
+                        <ErrorText name={`items.${index}.quantity`} />
                       </div>
                       
                       <div className="col-span-4 sm:col-span-3">
-                        <Label className="text-xs">Unit Price</Label>
+                        <Label className="text-xs">Unit Price *</Label>
                         <Input
                           type="number"
                           min={0}
                           step={0.01}
                           value={item.unit_price}
                           onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                          className="mt-1"
+                          aria-invalid={!!fieldError(`items.${index}.unit_price`)}
+                          className={cn("mt-1", fieldError(`items.${index}.unit_price`) && "border-destructive")}
                         />
+                        <ErrorText name={`items.${index}.unit_price`} />
                       </div>
+
                       
                       <div className="col-span-12 sm:col-span-3">
                         <Label className="text-xs">Total</Label>
