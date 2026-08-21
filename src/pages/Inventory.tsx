@@ -272,7 +272,7 @@ function InventoryContent() {
             />
           </div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
@@ -287,7 +287,7 @@ function InventoryContent() {
         {/* Inventory Tab */}
         <TabsContent value="inventory">
           <Card>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -365,7 +365,7 @@ function InventoryContent() {
               <CardTitle className="text-lg">Recent Transactions</CardTitle>
               <CardDescription>Stock movements across all inventory items</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
