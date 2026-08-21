@@ -206,6 +206,8 @@ export function ImportFormDialog({
     });
     setItems([{ ...emptyItem }]);
     setStep(1);
+    setErrors({});
+
   };
 
   const handleSupplierChange = (supplierId: string) => {
