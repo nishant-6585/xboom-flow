@@ -170,6 +170,29 @@ export const SHIPPING_METHODS = [
  * Standalone so components can resolve a document without subscribing to the
  * whole imports query.
  */
+/**
+ * The acting user, for audit entries.
+ *
+ * createImport already looked the profile name up; updateImport and
+ * deleteImport passed only the id, so recordProcurementAudit fell back to
+ * 'Unknown' and every import edit/delete landed in the audit log unattributed.
+ * The user_id was still recorded, so history is recoverable by joining
+ * profiles — but the log is meant to be readable on its own.
+ */
+async function getAuditActor(): Promise<{ id: string | undefined; name: string | null }> {
+  const { data: userData } = await supabase.auth.getUser();
+  const id = userData.user?.id;
+  if (!id) return { id: undefined, name: null };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('user_id', id)
+    .maybeSingle();
+
+  return { id, name: profile?.name ?? null };
+}
+
 export async function getImportDocumentUrl(pathOrUrl: string): Promise<string | null> {
   const path = toImportStoragePath(pathOrUrl);
   // A link pointing somewhere other than our bucket — nothing to sign.
@@ -357,9 +380,8 @@ export function useImports() {
 
       if (error) throw error;
 
-      const { data: actor } = await supabase.auth.getUser();
       recordProcurementAudit(
-        { id: actor.user?.id },
+        await getAuditActor(),
         PROCUREMENT_AUDIT_ACTIONS.IMPORT_UPDATED,
         {
           import_id: id,
@@ -424,16 +446,24 @@ export function useImports() {
         .eq('id', id)
         .maybeSingle();
 
-      const { error } = await supabase
+      // .select() so we can tell a real deletion from a no-op. A DELETE the
+      // RLS policy refuses comes back with no error and zero rows, so checking
+      // `error` alone reports success while the row is still there.
+      const { data: deleted, error } = await supabase
         .from('imports')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!deleted || deleted.length === 0) {
+        throw new Error(
+          'Import was not deleted — you may not have permission to remove this record.'
+        );
+      }
 
-      const { data: actor } = await supabase.auth.getUser();
       recordProcurementAudit(
-        { id: actor.user?.id },
+        await getAuditActor(),
         PROCUREMENT_AUDIT_ACTIONS.IMPORT_DELETED,
         { import_id: id, ...(existing ?? {}) }
       );
@@ -443,7 +473,7 @@ export function useImports() {
       return true;
     } catch (error: any) {
       console.error('Error deleting import:', error);
-      toast.error('Failed to delete import');
+      toast.error(error.message || 'Failed to delete import');
       return false;
     }
   };
