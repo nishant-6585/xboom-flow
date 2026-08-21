@@ -396,7 +396,15 @@ export function AttributionRequestsQueue() {
                 <CardContent className="p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="font-mono font-semibold text-primary">#{o?.order_number ?? o?.external_id ?? '—'}</span>
+                      <button
+                        type="button"
+                        className="font-mono font-semibold text-primary hover:underline"
+                        title="Open order details"
+                        onClick={(e) => { e.stopPropagation(); openOrderDialog(r.order_id); }}
+                      >
+                        #{o?.order_number ?? o?.external_id ?? '—'}
+                      </button>
+
                       <span className="text-muted-foreground">·</span>
                       <span className="font-medium">{o?.customer_name ?? '—'}</span>
                       {o?.total_sales_amount != null && (
