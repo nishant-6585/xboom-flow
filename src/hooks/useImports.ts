@@ -170,7 +170,7 @@ export function useImports() {
 
       const { data, error } = await supabase
         .from('imports')
-        .insert({
+        .insert(sanitizeImportPayload({
           ...importData,
           import_number: importNumber,
           product_name: productNames || importData.product_name,
@@ -178,9 +178,10 @@ export function useImports() {
           total_amount: totalAmount || importData.total_amount,
           created_by: userData.user?.id,
           created_by_name: profile?.name || 'Unknown',
-        })
+        }))
         .select()
         .single();
+
 
       if (error) throw error;
 
