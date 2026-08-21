@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Header } from '@/components/Header';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useInventory, InventoryItem, TRANSACTION_TYPES } from '@/hooks/useInventory';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -517,17 +516,15 @@ function InventoryContent() {
 
 export default function Inventory() {
   return (
-    <ProtectedRoute>
-      <div className="min-h-[100dvh] bg-background flex flex-col">
-        <Header />
-        <main className="container mx-auto px-4 py-4 sm:py-8 flex-1 overflow-x-hidden">
-          <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold">Inventory Management</h1>
-            <p className="text-muted-foreground">Track stock levels and movements</p>
-          </div>
-          <InventoryContent />
-        </main>
-      </div>
-    </ProtectedRoute>
+    <div className="min-h-[100dvh] bg-background flex flex-col">
+      <Header />
+      <main className="container mx-auto px-4 py-4 sm:py-6 flex-1 overflow-x-hidden">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Inventory Management</h1>
+          <p className="text-muted-foreground">Track stock levels and movements</p>
+        </div>
+        <InventoryContent />
+      </main>
+    </div>
   );
 }
