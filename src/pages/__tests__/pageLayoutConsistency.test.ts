@@ -10,7 +10,7 @@ const read = (p: string) => readFileSync(path.resolve(__dirname, "..", p), "utf8
 
 const MAIN_CLASS = /<main className="([^"]+)"/;
 const HEADER_CLASS = /<div className="(mb-6 [^"]*)"/;
-const CONTAINER_CLASS = /className="(min-h-\[100dvh\][^"]*)"/;
+const CONTAINER_CLASS = /className="(min-h-\[100dvh\] bg-background[^"]*)"/;
 
 describe("Inventory / Procurement layout parity", () => {
   const inventory = read("Inventory.tsx");
