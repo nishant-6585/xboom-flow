@@ -211,9 +211,10 @@ export function useImports() {
       return data as Import;
     } catch (error: any) {
       console.error('Error creating import:', error);
-      toast.error('Failed to create import');
+      toast.error(error?.message ? `Failed to create import: ${error.message}` : 'Failed to create import');
       return null;
     }
+
   };
 
   const updateImport = async (
