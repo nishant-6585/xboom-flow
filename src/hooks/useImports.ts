@@ -170,6 +170,29 @@ export const SHIPPING_METHODS = [
  * Standalone so components can resolve a document without subscribing to the
  * whole imports query.
  */
+/**
+ * The acting user, for audit entries.
+ *
+ * createImport already looked the profile name up; updateImport and
+ * deleteImport passed only the id, so recordProcurementAudit fell back to
+ * 'Unknown' and every import edit/delete landed in the audit log unattributed.
+ * The user_id was still recorded, so history is recoverable by joining
+ * profiles — but the log is meant to be readable on its own.
+ */
+async function getAuditActor(): Promise<{ id: string | undefined; name: string | null }> {
+  const { data: userData } = await supabase.auth.getUser();
+  const id = userData.user?.id;
+  if (!id) return { id: undefined, name: null };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('user_id', id)
+    .maybeSingle();
+
+  return { id, name: profile?.name ?? null };
+}
+
 export async function getImportDocumentUrl(pathOrUrl: string): Promise<string | null> {
   const path = toImportStoragePath(pathOrUrl);
   // A link pointing somewhere other than our bucket — nothing to sign.
@@ -357,9 +380,8 @@ export function useImports() {
 
       if (error) throw error;
 
-      const { data: actor } = await supabase.auth.getUser();
       recordProcurementAudit(
-        { id: actor.user?.id },
+        await getAuditActor(),
         PROCUREMENT_AUDIT_ACTIONS.IMPORT_UPDATED,
         {
           import_id: id,
@@ -431,9 +453,8 @@ export function useImports() {
 
       if (error) throw error;
 
-      const { data: actor } = await supabase.auth.getUser();
       recordProcurementAudit(
-        { id: actor.user?.id },
+        await getAuditActor(),
         PROCUREMENT_AUDIT_ACTIONS.IMPORT_DELETED,
         { import_id: id, ...(existing ?? {}) }
       );
