@@ -13,7 +13,8 @@ import { InventoryProcurementsList } from "@/components/procurement/InventoryPro
 import { MultiProductProcurementForm } from "@/components/procurement/MultiProductProcurementForm";
 import { OrderProcurementTracker } from "@/components/procurement/OrderProcurementTracker";
 import { ImportsList } from "@/components/imports/ImportsList";
-import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee, Package, Plus, Link2, Ship } from "lucide-react";
+import { GoodsReceiptPanel } from "@/components/procurement/GoodsReceiptPanel";
+import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee, Package, Plus, Link2, Ship, ClipboardCheck } from "lucide-react";
 import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
 import { Badge } from "@/components/ui/badge";
 
@@ -69,6 +70,10 @@ export default function Procurement() {
               <Ship className="w-4 h-4" />
               <span className="hidden sm:inline">Imports</span>
             </TabsTrigger>
+            <TabsTrigger value="receiving" className="gap-2">
+              <ClipboardCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">Receiving</span>
+            </TabsTrigger>
             <TabsTrigger value="inventory" className="gap-2">
               <Package className="w-4 h-4" />
               <span className="hidden sm:inline">Inventory</span>
@@ -110,6 +115,12 @@ export default function Procurement() {
             <div className={activeTab !== "imports" ? "hidden" : undefined}>
               <ImportsList />
             </div>
+          </TabsContent>
+
+          {/* Not forceMount: the match view is a heavier query and only matters
+              when someone is actually receiving. */}
+          <TabsContent value="receiving" className="mt-6">
+            <GoodsReceiptPanel />
           </TabsContent>
 
           <TabsContent value="inventory" className="mt-6" forceMount>

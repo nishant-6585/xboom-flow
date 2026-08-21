@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { ProcurementOrderItems } from "./ProcurementOrderItems";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
 import { calculatePaymentDueDate } from "@/lib/paymentTerms";
+import { recordProcurementAudit, PROCUREMENT_AUDIT_ACTIONS } from "@/lib/procurementAudit";
 import { EditHistoryPanel } from "@/components/EditHistoryPanel";
 import { ProcurementPlanningDialog } from "./ProcurementPlanningDialog";
 import { SupplierPreferenceTag } from "./SupplierPreferenceTag";
@@ -222,6 +223,9 @@ export function ProcurementOrderDialog({
       if (order.supplier_name !== (supplier?.name || null)) {
         changes.supplier_name = { old: order.supplier_name, new: supplier?.name || null };
       }
+      if (order.supplier_id !== (supplier?.id || null)) {
+        changes.supplier_id = { old: order.supplier_id, new: supplier?.id || null };
+      }
       if (order.procurement_rate !== (procurementRate ? parseFloat(procurementRate) : null)) {
         changes.procurement_rate = { old: order.procurement_rate, new: procurementRate ? parseFloat(procurementRate) : null };
       }
@@ -275,6 +279,26 @@ export function ProcurementOrderDialog({
       // Record edit history
       if (Object.keys(changes).length > 0) {
         await recordChanges('orders', order.id, changes, profile?.name || 'Unknown');
+      }
+
+      // Rate and currency edits move money — they belong in the security audit
+      // log as well as the per-order edit history, which is scoped to the order
+      // and not queryable across the business.
+      const financialChanges = Object.fromEntries(
+        Object.entries(changes).filter(([field]) =>
+          ['procurement_rate', 'procurement_currency', 'supplier_id', 'supplier_name'].includes(field)
+        )
+      );
+      if (Object.keys(financialChanges).length > 0) {
+        recordProcurementAudit(
+          { id: user?.id, name: profile?.name },
+          PROCUREMENT_AUDIT_ACTIONS.RATE_CHANGED,
+          {
+            order_id: order.id,
+            order_number: (order as any).order_number ?? null,
+            changes: financialChanges,
+          }
+        );
       }
 
       onOpenChange(false);

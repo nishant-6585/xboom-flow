@@ -40,6 +40,11 @@ import {
   Warehouse,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  multiProductProcurementSchema,
+  PROCUREMENT_STEP_FIELDS,
+} from '@/lib/schemas/procurement';
+import { validate, errorsForFields, firstError } from '@/lib/schemas/formErrors';
 
 interface MultiProductProcurementFormProps {
   open: boolean;
@@ -667,24 +672,55 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
     setPaymentReferenceNumber('');
   };
 
-  const canGoNext = () => {
-    switch (currentStep) {
-      case 1:
-        return items.every(item => {
-          if (!item.productName.trim()) return false;
-          if (item.linkType === 'order' && !item.orderId) return false;
-          return true;
-        });
-      case 2:
-        return true;
-      case 3:
-        return true;
-      case 4:
-        return true;
-      default:
-        return false;
-    }
-  };
+  /**
+   * Every field in this form is a string in state. Rather than hand-checking a
+   * few of them per step, parse the whole thing with zod and slice the errors
+   * by step — so quantity/price/GST, order links and payment amounts are all
+   * validated before anything reaches the database.
+   */
+  const validation = useMemo(
+    () =>
+      validate(multiProductProcurementSchema, {
+        items,
+        supplierId,
+        paymentTerms,
+        paymentStatus,
+        paymentAmount,
+        paymentMode,
+        paymentReferenceNumber,
+        procurementDate,
+        paymentDueDate,
+        notes,
+      }),
+    [
+      items,
+      supplierId,
+      paymentTerms,
+      paymentStatus,
+      paymentAmount,
+      paymentMode,
+      paymentReferenceNumber,
+      procurementDate,
+      paymentDueDate,
+      notes,
+    ]
+  );
+
+  const stepErrors = useMemo(
+    () => errorsForFields(validation.errors, PROCUREMENT_STEP_FIELDS[currentStep] ?? []),
+    [validation.errors, currentStep]
+  );
+
+  // Errors from any step at or before this one — the review step must not let a
+  // problem on step 1 through just because step 4 owns no fields.
+  const blockingErrors = useMemo(() => {
+    const prefixes = Object.entries(PROCUREMENT_STEP_FIELDS)
+      .filter(([step]) => Number(step) <= currentStep)
+      .flatMap(([, fields]) => fields);
+    return errorsForFields(validation.errors, prefixes);
+  }, [validation.errors, currentStep]);
+
+  const canGoNext = () => Object.keys(blockingErrors).length === 0;
 
   const goToStep = (step: number) => {
     if (step < currentStep || canGoNext()) {
@@ -697,7 +733,13 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
     
     // Only allow submission from the final review step (step 4)
     if (currentStep !== 4) return;
-    if (!canGoNext()) return;
+
+    // Re-validate the complete form at the boundary. The step gates above are a
+    // convenience; this is the guarantee.
+    if (!validation.success) {
+      toast.error(firstError(validation.errors) ?? 'Please fix the highlighted fields');
+      return;
+    }
 
     setLoading(true);
     
@@ -1229,6 +1271,20 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
 
           {/* Footer Navigation */}
           <div className="border-t bg-muted/30 px-6 py-4">
+            {Object.keys(currentStep === 4 ? blockingErrors : stepErrors).length > 0 && (
+              <div
+                role="alert"
+                className="mb-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2"
+              >
+                <ul className="space-y-0.5 text-sm text-destructive">
+                  {Object.entries(currentStep === 4 ? blockingErrors : stepErrors)
+                    .slice(0, 4)
+                    .map(([field, message]) => (
+                      <li key={field}>{message}</li>
+                    ))}
+                </ul>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <Button
                 type="button"
@@ -1245,6 +1301,7 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                   type="button"
                   onClick={() => canGoNext() && setCurrentStep(currentStep + 1)}
                   disabled={!canGoNext()}
+                  title={firstError(stepErrors) ?? undefined}
                   className="gap-2"
                 >
                   Continue

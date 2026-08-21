@@ -1,13 +1,15 @@
 import { useState, useMemo } from "react";
 import { useSuppliers, useSupplierPayments, Supplier } from "@/hooks/useSuppliers";
 import { useOrders } from "@/hooks/useOrders";
+import { useImports } from "@/hooks/useImports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Building2, TrendingUp, TrendingDown, Eye, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { Search, Building2, TrendingUp, TrendingDown, Eye, Download, FileSpreadsheet, FileText, AlertTriangle } from "lucide-react";
+import { formatINR } from "@/lib/currency";
 import { SupplierLedgerDialog } from "@/components/SupplierLedgerDialog";
 import { exportSupplierLedgerToExcel, exportSupplierLedgerToPDF, SupplierLedgerExportData } from "@/lib/exportUtils";
 import { toast } from "sonner";
@@ -16,6 +18,7 @@ import { format } from "date-fns";
 interface SupplierSummary {
   supplier: Supplier;
   totalOrders: number;
+  totalImports: number;
   totalProcurementValue: number;
   totalPaid: number;
   pendingAmount: number;
@@ -25,33 +28,116 @@ export function ProcurementLedger() {
   const { suppliers, loading: suppliersLoading } = useSuppliers();
   const { payments, loading: paymentsLoading } = useSupplierPayments();
   const { orders, loading: ordersLoading } = useOrders();
+  const { imports, loading: importsLoading } = useImports();
   const [search, setSearch] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [ledgerDialogOpen, setLedgerDialogOpen] = useState(false);
 
+  /**
+   * Group orders by supplier ONCE, keyed on supplier_id.
+   *
+   * This used to be `orders.filter(o => o.supplier_name === supplier.name)`
+   * evaluated per supplier: O(suppliers x orders), and matched on a display
+   * string while payments matched on supplier_id. A supplier rename, a trailing
+   * space, or a difference in case silently dropped orders out of that
+   * supplier's payable balance — while their payments stayed, showing a credit
+   * that did not exist.
+   *
+   * Orders raised before the picker started writing supplier_id (and orders
+   * whose supplier was typed free-hand in the order form) still carry only a
+   * name, so a normalised-name index backs the id lookup up. Anything that
+   * resolves by neither is reported as unattributed rather than dropped.
+   */
+  const { ordersBySupplier, unattributedOrders, unattributedValue } = useMemo(() => {
+    const byId = new Map<string, typeof orders>();
+    const idByNormalisedName = new Map<string, string>();
+    const ambiguousNames = new Set<string>();
+
+    for (const supplier of suppliers) {
+      byId.set(supplier.id, []);
+      const key = supplier.name?.trim().toLowerCase();
+      if (!key) continue;
+      if (idByNormalisedName.has(key)) ambiguousNames.add(key);
+      else idByNormalisedName.set(key, supplier.id);
+    }
+
+    const unattributed: typeof orders = [];
+
+    for (const order of orders) {
+      let supplierId = order.supplier_id && byId.has(order.supplier_id)
+        ? order.supplier_id
+        : null;
+
+      if (!supplierId && order.supplier_name) {
+        const key = order.supplier_name.trim().toLowerCase();
+        // A name shared by two suppliers cannot be attributed safely.
+        if (!ambiguousNames.has(key)) supplierId = idByNormalisedName.get(key) ?? null;
+      }
+
+      if (supplierId) byId.get(supplierId)!.push(order);
+      else if (order.procurement_rate) unattributed.push(order);
+    }
+
+    return {
+      ordersBySupplier: byId,
+      unattributedOrders: unattributed.length,
+      unattributedValue: unattributed.reduce(
+        (sum, o) => sum + (o.procurement_rate || 0) * (o.quantity || 1),
+        0
+      ),
+    };
+  }, [suppliers, orders]);
+
+  /**
+   * Imports are a payable to the same suppliers as orders, and their payments
+   * already land in supplier_payments — so leaving them out of the value side
+   * made every importing supplier look overpaid. Valued at landed cost, which
+   * is what the business is actually out of pocket for.
+   */
+  const importsBySupplier = useMemo(() => {
+    const map = new Map<string, { count: number; value: number }>();
+    for (const imp of imports) {
+      if (!imp.supplier_id) continue;
+      const current = map.get(imp.supplier_id) ?? { count: 0, value: 0 };
+      map.set(imp.supplier_id, {
+        count: current.count + 1,
+        value: current.value + (imp.total_landed_cost ?? imp.base_amount ?? 0),
+      });
+    }
+    return map;
+  }, [imports]);
+
+  const paymentsBySupplier = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const payment of payments) {
+      if (!payment.supplier_id) continue;
+      map.set(payment.supplier_id, (map.get(payment.supplier_id) ?? 0) + payment.amount);
+    }
+    return map;
+  }, [payments]);
+
   const supplierSummaries = useMemo((): SupplierSummary[] => {
     return suppliers.map(supplier => {
-      // Orders linked to this supplier
-      const supplierOrders = orders.filter(o => o.supplier_name === supplier.name);
-      
-      // Payments to this supplier
-      const supplierPayments = payments.filter(p => p.supplier_id === supplier.id);
-      
-      const totalProcurementValue = supplierOrders.reduce((sum, o) => {
+      const supplierOrders = ordersBySupplier.get(supplier.id) ?? [];
+      const supplierImports = importsBySupplier.get(supplier.id) ?? { count: 0, value: 0 };
+
+      const orderValue = supplierOrders.reduce((sum, o) => {
         return sum + ((o.procurement_rate || 0) * (o.quantity || 1));
       }, 0);
-      
-      const totalPaid = supplierPayments.reduce((sum, p) => sum + p.amount, 0);
-      
+
+      const totalProcurementValue = orderValue + supplierImports.value;
+      const totalPaid = paymentsBySupplier.get(supplier.id) ?? 0;
+
       return {
         supplier,
         totalOrders: supplierOrders.length,
+        totalImports: supplierImports.count,
         totalProcurementValue,
         totalPaid,
         pendingAmount: totalProcurementValue - totalPaid,
       };
     });
-  }, [suppliers, orders, payments]);
+  }, [suppliers, ordersBySupplier, importsBySupplier, paymentsBySupplier]);
 
   const filteredSummaries = useMemo(() => {
     return supplierSummaries.filter(summary => 
@@ -112,7 +198,7 @@ export function ProcurementLedger() {
     toast.success("PDF exported successfully");
   };
 
-  const loading = suppliersLoading || paymentsLoading || ordersLoading;
+  const loading = suppliersLoading || paymentsLoading || ordersLoading || importsLoading;
 
   if (loading) {
     return (
@@ -124,6 +210,22 @@ export function ProcurementLedger() {
 
   return (
     <div className="space-y-6">
+      {unattributedOrders > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-700 dark:text-amber-400">
+              {unattributedOrders} procurement {unattributedOrders === 1 ? 'order is' : 'orders are'} not
+              attributed to any supplier ({formatINR(unattributedValue)})
+            </p>
+            <p className="text-muted-foreground">
+              Their supplier name does not resolve to a supplier record, so this value is missing
+              from every balance below. Assign a supplier from the Procurements tab to include them.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -147,7 +249,7 @@ export function ProcurementLedger() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Procurement</p>
-                <p className="text-2xl font-bold">₹{totals.procurement.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatINR(totals.procurement)}</p>
               </div>
             </div>
           </CardContent>
@@ -160,7 +262,7 @@ export function ProcurementLedger() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Paid</p>
-                <p className="text-2xl font-bold text-green-600">₹{totals.paid.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">{formatINR(totals.paid)}</p>
               </div>
             </div>
           </CardContent>
@@ -173,7 +275,7 @@ export function ProcurementLedger() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Pending</p>
-                <p className="text-2xl font-bold text-red-600">₹{totals.pending.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-red-600">{formatINR(totals.pending)}</p>
               </div>
             </div>
           </CardContent>
@@ -238,7 +340,7 @@ export function ProcurementLedger() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredSummaries.map(({ supplier, totalOrders, totalProcurementValue, totalPaid, pendingAmount }) => (
+                  filteredSummaries.map(({ supplier, totalOrders, totalImports, totalProcurementValue, totalPaid, pendingAmount }) => (
                     <TableRow key={supplier.id}>
                       <TableCell>
                         <div>
@@ -250,17 +352,24 @@ export function ProcurementLedger() {
                         <Badge variant="outline">{supplier.product_category}</Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="secondary">{totalOrders}</Badge>
+                        <div className="flex items-center justify-center gap-1">
+                          <Badge variant="secondary">{totalOrders}</Badge>
+                          {totalImports > 0 && (
+                            <Badge variant="outline" title={`${totalImports} import(s), valued at landed cost`}>
+                              +{totalImports} imp
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        ₹{totalProcurementValue.toLocaleString()}
+                        {formatINR(totalProcurementValue)}
                       </TableCell>
                       <TableCell className="text-right font-medium text-green-600">
-                        ₹{totalPaid.toLocaleString()}
+                        {formatINR(totalPaid)}
                       </TableCell>
                       <TableCell className="text-right">
                         <span className={pendingAmount > 0 ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
-                          ₹{pendingAmount.toLocaleString()}
+                          {formatINR(pendingAmount)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">

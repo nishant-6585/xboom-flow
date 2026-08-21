@@ -4,6 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { sendSlackNotification } from '@/hooks/useSlackSettings';
+import {
+  recordProcurementAudit,
+  summarisePayment,
+  PROCUREMENT_AUDIT_ACTIONS,
+} from '@/lib/procurementAudit';
 
 export type SupplierPreference = 'low' | 'medium' | 'high';
 
@@ -288,7 +293,8 @@ export function useSuppliers() {
 }
 
 export function useSupplierPayments(supplierId?: string) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const actor = { id: user?.id, name: profile?.name };
 
   const fetchPayments = useCallback(async (): Promise<SupplierPayment[]> => {
     if (!user) {
@@ -384,16 +390,26 @@ export function useSupplierPayments(supplierId?: string) {
         screenshot_urls = await uploadScreenshots(screenshots);
       }
 
-      const { error } = await supabase.from('supplier_payments').insert({
-        ...paymentData,
-        screenshot_urls,
-        payment_request_status: 'done',
-        completed_at: new Date().toISOString(),
-        completed_by: user.id,
-        created_by: user.id,
-      });
+      const { data: inserted, error } = await supabase
+        .from('supplier_payments')
+        .insert({
+          ...paymentData,
+          screenshot_urls,
+          payment_request_status: 'done',
+          completed_at: new Date().toISOString(),
+          completed_by: user.id,
+          created_by: user.id,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      recordProcurementAudit(actor, PROCUREMENT_AUDIT_ACTIONS.PAYMENT_RECORDED, {
+        ...summarisePayment(inserted),
+        // Recorded directly as done — it never went through request/approve.
+        bypassed_approval: true,
+      });
 
       toast.success('Payment recorded successfully');
       await refetch();
@@ -409,12 +425,26 @@ export function useSupplierPayments(supplierId?: string) {
     if (!user) return false;
 
     try {
+      // Read the row before destroying it — a hard delete of a payment record is
+      // otherwise completely untraceable.
+      const { data: existing } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
       const { error } = await supabase
         .from('supplier_payments')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      recordProcurementAudit(
+        actor,
+        PROCUREMENT_AUDIT_ACTIONS.PAYMENT_DELETED,
+        summarisePayment(existing)
+      );
 
       toast.success('Payment deleted');
       await refetch();
@@ -437,17 +467,27 @@ export function useSupplierPayments(supplierId?: string) {
     }
 
     try {
-      const { error } = await supabase.from('supplier_payments').insert({
-        ...paymentData,
-        payment_request_status: 'requested',
-        requested_at: new Date().toISOString(),
-        requested_by: user.id,
-        requested_by_name: userName || 'Unknown',
-        request_notes: requestNotes || null,
-        created_by: user.id,
-      });
+      const { data: inserted, error } = await supabase
+        .from('supplier_payments')
+        .insert({
+          ...paymentData,
+          payment_request_status: 'requested',
+          requested_at: new Date().toISOString(),
+          requested_by: user.id,
+          requested_by_name: userName || 'Unknown',
+          request_notes: requestNotes || null,
+          created_by: user.id,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      recordProcurementAudit(
+        { id: user.id, name: userName || profile?.name },
+        PROCUREMENT_AUDIT_ACTIONS.PAYMENT_REQUESTED,
+        summarisePayment(inserted)
+      );
 
       toast.success('Payment request submitted');
       await refetch();
@@ -477,6 +517,12 @@ export function useSupplierPayments(supplierId?: string) {
         .eq('id', id);
 
       if (error) throw error;
+
+      recordProcurementAudit(
+        { id: user.id, name: userName || profile?.name },
+        PROCUREMENT_AUDIT_ACTIONS.PAYMENT_APPROVED,
+        { payment_id: id }
+      );
 
       toast.success('Payment request approved');
       await refetch();
@@ -564,6 +610,19 @@ export function useSupplierPayments(supplierId?: string) {
         }
       }
 
+      recordProcurementAudit(
+        { id: user.id, name: userName || profile?.name },
+        PROCUREMENT_AUDIT_ACTIONS.PAYMENT_COMPLETED,
+        {
+          payment_id: id,
+          order_id: paymentData?.order_id ?? null,
+          inventory_procurement_id: paymentData?.inventory_procurement_id ?? null,
+          payment_mode: paymentDetails?.payment_mode ?? null,
+          reference_number: paymentDetails?.reference_number ?? null,
+          payment_date: paymentDetails?.payment_date ?? null,
+        }
+      );
+
       toast.success('Payment marked as done');
       await refetch();
       return true;
@@ -578,12 +637,25 @@ export function useSupplierPayments(supplierId?: string) {
     if (!user) return false;
 
     try {
+      // Rejection is implemented as a hard delete, so capture the request first.
+      const { data: existing } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
       const { error } = await supabase
         .from('supplier_payments')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      recordProcurementAudit(
+        actor,
+        PROCUREMENT_AUDIT_ACTIONS.PAYMENT_REJECTED,
+        summarisePayment(existing)
+      );
 
       toast.success('Payment request rejected');
       await refetch();
