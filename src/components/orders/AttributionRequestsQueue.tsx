@@ -77,6 +77,32 @@ export function AttributionRequestsQueue() {
   const [sortCol, setSortCol] = useState<SortColumn>('when');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [detailsLog, setDetailsLog] = useState<AttributionLogEntry | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const [orderLoading, setOrderLoading] = useState(false);
+
+  const openOrderDialog = async (orderId: string) => {
+    setOrderLoading(true);
+    const { data: ord, error } = await supabase.from('orders').select('*').eq('id', orderId).single();
+    setOrderLoading(false);
+    if (error || !ord) {
+      toast({ title: 'Failed to load order details', variant: 'destructive' });
+      return;
+    }
+    setSelectedOrder(ord);
+    setOrderDialogOpen(true);
+  };
+
+  const handleOrderUpdate = async (orderId: string, updates: Record<string, unknown>) => {
+    const { error } = await supabase.from('orders').update(updates as never).eq('id', orderId);
+    if (error) {
+      toast({ title: 'Failed to update order', variant: 'destructive' });
+      return false;
+    }
+    setSelectedOrder((prev: any) => (prev ? { ...prev, ...updates } : prev));
+    return true;
+  };
+
 
   const analytics = useMemo(() => {
     const logs = allHistory?.rows ?? [];
