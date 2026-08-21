@@ -1,0 +1,21 @@
+-- =====================================================
+-- Grant sequence usage for GRN numbering
+-- =====================================================
+-- public.generate_grn_number() is a BEFORE INSERT trigger on goods_receipts and
+-- is deliberately NOT security definer, so nextval('grn_number_seq') is executed
+-- with the privileges of the user performing the insert.
+--
+-- The goods-receipt tables were granted explicitly because this project narrows
+-- the default privileges Supabase would otherwise apply to new objects in
+-- public. The sequence was missed, which leaves every goods-receipt insert
+-- failing with:
+--
+--   permission denied for sequence grn_number_seq
+--
+-- Note this is not reachable through RLS: the policy passes, then the trigger
+-- fires and the sequence read is refused.
+--
+-- Granting the sequence is preferred over making the trigger security definer —
+-- it is the narrower change, and it keeps the function running as the caller.
+GRANT USAGE, SELECT ON SEQUENCE public.grn_number_seq TO authenticated;
+GRANT ALL ON SEQUENCE public.grn_number_seq TO service_role;
