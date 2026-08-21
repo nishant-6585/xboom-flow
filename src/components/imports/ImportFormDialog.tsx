@@ -24,6 +24,13 @@ import { Import, ImportItem, IMPORT_STATUSES, PAYMENT_STATUSES, SHIPPING_METHODS
 import { Package, Building2, Ship, FileText, CreditCard, CheckCircle2, Plus, Trash2, X, Upload, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  validateImportForm,
+  firstErrorStep,
+  sanitizeImportPayload,
+  type ImportFieldErrors,
+} from "@/lib/importValidation";
+
 
 interface ImportFormDialogProps {
   open: boolean;
@@ -63,6 +70,8 @@ export function ImportFormDialog({
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<ImportFieldErrors>({});
+
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [items, setItems] = useState<ImportItem[]>([{ ...emptyItem }]);
   
@@ -197,6 +206,8 @@ export function ImportFormDialog({
     });
     setItems([{ ...emptyItem }]);
     setStep(1);
+    setErrors({});
+
   };
 
   const handleSupplierChange = (supplierId: string) => {
@@ -282,11 +293,25 @@ export function ImportFormDialog({
   };
 
   const handleSubmit = async () => {
-    if (items.length === 0 || !items[0].product_name) return;
-    
+    const clientErrors = validateImportForm({ ...formData, items });
+    setErrors(clientErrors);
+    const target = firstErrorStep(clientErrors);
+    if (target !== null) {
+      setStep(target);
+      toast.error("Please fix the highlighted fields before saving");
+      return;
+    }
+
     setLoading(true);
     try {
-      await onSubmit(formData, items);
+      const result = await onSubmit(sanitizeImportPayload({ ...formData }) as typeof formData, items);
+      if (result && result.ok === false) {
+        const serverErrors = result.fieldErrors ?? {};
+        setErrors(serverErrors);
+        const serverStep = firstErrorStep(serverErrors);
+        if (serverStep !== null) setStep(serverStep);
+        return;
+      }
       onOpenChange(false);
       resetForm();
     } finally {
@@ -298,10 +323,20 @@ export function ImportFormDialog({
     switch (step) {
       case 1:
         return items.length > 0 && items[0].product_name.trim() !== '';
+      case 2:
+        return !!formData.supplier_id && !!formData.order_date;
       default:
         return true;
     }
   };
+
+  const fieldError = (key: string) => errors[key];
+
+  const ErrorText = ({ name }: { name: string }) =>
+    errors[name] ? (
+      <p className="mt-1 text-xs text-destructive" role="alert">{errors[name]}</p>
+    ) : null;
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -386,9 +421,12 @@ export function ImportFormDialog({
                           value={item.product_name}
                           onChange={(e) => updateItem(index, 'product_name', e.target.value)}
                           placeholder="Enter product name"
-                          className="mt-1"
+                          aria-invalid={!!fieldError(`items.${index}.product_name`)}
+                          className={cn("mt-1", fieldError(`items.${index}.product_name`) && "border-destructive")}
                         />
+                        <ErrorText name={`items.${index}.product_name`} />
                       </div>
+
                       
                       <div className="col-span-6 sm:col-span-3">
                         <Label className="text-xs">Category</Label>
@@ -421,27 +459,32 @@ export function ImportFormDialog({
                       </div>
                       
                       <div className="col-span-4 sm:col-span-2">
-                        <Label className="text-xs">Quantity</Label>
+                        <Label className="text-xs">Quantity *</Label>
                         <Input
                           type="number"
                           min={1}
                           value={item.quantity}
                           onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                          className="mt-1"
+                          aria-invalid={!!fieldError(`items.${index}.quantity`)}
+                          className={cn("mt-1", fieldError(`items.${index}.quantity`) && "border-destructive")}
                         />
+                        <ErrorText name={`items.${index}.quantity`} />
                       </div>
                       
                       <div className="col-span-4 sm:col-span-3">
-                        <Label className="text-xs">Unit Price</Label>
+                        <Label className="text-xs">Unit Price *</Label>
                         <Input
                           type="number"
                           min={0}
                           step={0.01}
                           value={item.unit_price}
                           onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                          className="mt-1"
+                          aria-invalid={!!fieldError(`items.${index}.unit_price`)}
+                          className={cn("mt-1", fieldError(`items.${index}.unit_price`) && "border-destructive")}
                         />
+                        <ErrorText name={`items.${index}.unit_price`} />
                       </div>
+
                       
                       <div className="col-span-12 sm:col-span-3">
                         <Label className="text-xs">Total</Label>
@@ -507,12 +550,12 @@ export function ImportFormDialog({
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label htmlFor="supplier">Select Supplier</Label>
+                  <Label htmlFor="supplier">Select Supplier *</Label>
                   <Select
                     value={formData.supplier_id}
                     onValueChange={handleSupplierChange}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={cn(fieldError("supplier_id") && "border-destructive")}>
                       <SelectValue placeholder="Select a supplier" />
                     </SelectTrigger>
                     <SelectContent>
@@ -523,6 +566,7 @@ export function ImportFormDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  <ErrorText name="supplier_id" />
                 </div>
                 
                 <div>
@@ -536,14 +580,18 @@ export function ImportFormDialog({
                 </div>
                 
                 <div>
-                  <Label htmlFor="order_date">Order Date</Label>
+                  <Label htmlFor="order_date">Order Date *</Label>
                   <Input
                     id="order_date"
                     type="date"
                     value={formData.order_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, order_date: e.target.value }))}
+                    aria-invalid={!!fieldError("order_date")}
+                    className={cn(fieldError("order_date") && "border-destructive")}
                   />
+                  <ErrorText name="order_date" />
                 </div>
+
               </div>
             </div>
           )}
@@ -987,10 +1035,13 @@ export function ImportFormDialog({
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={loading || items.length === 0 || !items[0].product_name}
+              disabled={loading}
+              aria-busy={loading}
             >
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {loading ? 'Saving...' : editingImport ? 'Update Import' : 'Create Import'}
             </Button>
+
           )}
         </div>
       </DialogContent>

@@ -80,13 +80,13 @@ export function ImportsList() {
   };
 
   const handleSubmit = async (data: Omit<Import, 'id' | 'created_at' | 'updated_at'>, items: ImportItem[]) => {
-    if (editingImport) {
-      await updateImport(editingImport.id, data, items);
-    } else {
-      await createImport(data, items);
-    }
-    setEditingImport(null);
+    const result = editingImport
+      ? await updateImport(editingImport.id, data, items)
+      : await createImport(data, items);
+    if (result?.ok) setEditingImport(null);
+    return result;
   };
+
 
   // Stats calculations
   const stats = {

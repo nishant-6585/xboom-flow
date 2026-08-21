@@ -2,6 +2,12 @@ import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  sanitizeImportPayload,
+  mapImportServerError,
+  type ImportFieldErrors,
+} from "@/lib/importValidation";
+
 
 export interface ImportItem {
   id?: string;
@@ -59,25 +65,13 @@ export interface Import {
 
 export type ImportStatus = 'pending' | 'shipped' | 'in_transit' | 'at_port' | 'customs_clearance' | 'cleared' | 'delivered' | 'cancelled';
 
-// Columns that Postgres rejects when given an empty string ('' is not a valid date/uuid)
-const NULLABLE_EMPTY_FIELDS = [
-  'supplier_id',
-  'order_date',
-  'expected_arrival',
-  'actual_arrival',
-  'clearance_date',
-  'payment_date',
-] as const;
-
-function sanitizeImportPayload<T extends Record<string, any>>(payload: T): T {
-  const cleaned: Record<string, any> = { ...payload };
-  for (const field of NULLABLE_EMPTY_FIELDS) {
-    if (cleaned[field] === '' || cleaned[field] === undefined) {
-      cleaned[field] = null;
-    }
-  }
-  return cleaned as T;
+export interface ImportSaveResult {
+  ok: boolean;
+  data?: Import | null;
+  message?: string;
+  fieldErrors?: ImportFieldErrors;
 }
+
 
 export type PaymentStatus = 'pending' | 'partial' | 'paid';
 
@@ -151,7 +145,8 @@ export function useImports() {
   const createImport = async (
     importData: Omit<Import, 'id' | 'created_at' | 'updated_at'>, 
     items: ImportItem[]
-  ) => {
+  ): Promise<ImportSaveResult> => {
+
     try {
       const { data: userData } = await supabase.auth.getUser();
       const { data: profile } = await supabase
@@ -208,12 +203,14 @@ export function useImports() {
       
       toast.success('Import created successfully');
       await refetch();
-      return data as Import;
+      return { ok: true, data: data as Import };
     } catch (error: any) {
       console.error('Error creating import:', error);
-      toast.error(error?.message ? `Failed to create import: ${error.message}` : 'Failed to create import');
-      return null;
+      const { message, fieldErrors } = mapImportServerError(error);
+      toast.error(`Failed to create import: ${message}`);
+      return { ok: false, message, fieldErrors };
     }
+
 
   };
 
@@ -221,7 +218,8 @@ export function useImports() {
     id: string, 
     updates: Partial<Import>,
     items?: ImportItem[]
-  ) => {
+  ): Promise<ImportSaveResult> => {
+
     try {
       // Calculate totals from items if provided
       if (items && items.length > 0) {
@@ -274,12 +272,14 @@ export function useImports() {
       
       toast.success('Import updated successfully');
       await refetch();
-      return true;
+      return { ok: true };
     } catch (error: any) {
       console.error('Error updating import:', error);
-      toast.error(error?.message ? `Failed to update import: ${error.message}` : 'Failed to update import');
-      return false;
+      const { message, fieldErrors } = mapImportServerError(error);
+      toast.error(`Failed to update import: ${message}`);
+      return { ok: false, message, fieldErrors };
     }
+
   };
 
   const deleteImport = async (id: string) => {
