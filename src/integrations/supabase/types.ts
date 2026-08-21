@@ -6861,7 +6861,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           created_by_name: string | null
-          currency: string | null
+          currency: string
           expected_arrival: string | null
           id: string
           import_number: string | null
@@ -6900,7 +6900,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_name?: string | null
-          currency?: string | null
+          currency?: string
           expected_arrival?: string | null
           id?: string
           import_number?: string | null
@@ -6939,7 +6939,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_name?: string | null
-          currency?: string | null
+          currency?: string
           expected_arrival?: string | null
           id?: string
           import_number?: string | null
