@@ -54,6 +54,9 @@ Deno.serve(async (req) => {
 
   // Shared-secret auth: accept MyOperator API Key authentication, a custom
   // secret header, Bearer authentication, or a ?secret= / ?token= parameter.
+  // MyOperator delivers through HookRelay, which in some setups strips both
+  // custom headers and query strings. As a documented fallback we then verify
+  // the payload carries our own configured MyOperator company_id.
   if (req.method === 'POST') {
     const expected = Deno.env.get('MYOPERATOR_WEBHOOK_SECRET');
     if (!expected) {
@@ -65,15 +68,39 @@ Deno.serve(async (req) => {
     }
     const provided = (headerSecret || querySecret || '').trim();
     if (provided !== expected.trim()) {
-      console.warn('MyOperator webhook auth failed', {
-        secret_source: headerSecret ? 'header' : querySecret ? 'query' : 'none',
-      });
-      return new Response(JSON.stringify({ error: 'unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      let companyIdVerified = false;
+      try {
+        const admin = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        );
+        const { data: cfg } = await admin
+          .from('myoperator_config')
+          .select('company_id, is_connected')
+          .limit(1)
+          .maybeSingle();
+        const companyId = (cfg?.company_id || '').trim();
+        if (cfg?.is_connected && companyId.length >= 6 && rawBody.includes(companyId)) {
+          companyIdVerified = true;
+        }
+      } catch (e) {
+        console.error('company_id fallback verification failed', e instanceof Error ? e.message : e);
+      }
+
+      if (!companyIdVerified) {
+        console.warn('MyOperator webhook auth failed', {
+          secret_source: headerSecret ? 'header' : querySecret ? 'query' : 'none',
+          company_id_match: false,
+        });
+        return new Response(JSON.stringify({ error: 'unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.log('MyOperator webhook authenticated via payload company_id fallback');
     }
   }
+
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
