@@ -96,6 +96,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [closureDateStart, setClosureDateStart] = useState<Date | undefined>(undefined);
   const [closureDateEnd, setClosureDateEnd] = useState<Date | undefined>(undefined);
   const [closureSortDir, setClosureSortDir] = useState<'asc' | 'desc' | null>(null);
+  const [createdSortDir, setCreatedSortDir] = useState<'asc' | 'desc'>('desc');
   const lastAutoOpenedId = useRef<string | null>(null);
   const [orderWonDialog, setOrderWonDialog] = useState<PipelineOrder | null>(null);
   const [logCallOrder, setLogCallOrder] = useState<PipelineOrder | null>(null);
