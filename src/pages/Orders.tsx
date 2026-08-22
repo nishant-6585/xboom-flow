@@ -299,14 +299,9 @@ export default function Orders() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <Select value={dashTimePeriod} onValueChange={(v) => setDashTimePeriod(v as typeof dashTimePeriod)}>
-                  <SelectTrigger className="h-8 w-[140px] text-[12.5px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="this_week">This week</SelectItem>
-                    <SelectItem value="this_month">This month</SelectItem>
-                    <SelectItem value="prev_month">Previous month</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Date filtering lives in the shared preset bar below — it
+                    drives the list AND the summary cards. */}
+
                 <OrdersExportButton
                   activeTab={activeTab}
                   manualOrders={filteredOrders}
