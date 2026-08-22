@@ -558,18 +558,18 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <TableHead className="w-[120px]">Actions</TableHead>
-                      <TableHead className="w-[90px]">Date</TableHead>
-                      <TableHead className="w-[140px]">Assigned To</TableHead>
+                      <SortableHeader label="Date" field="created_at" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[90px]" />
+                      <SortableHeader label="Assigned To" field="created_by_name" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[140px]" />
                       <TableHead className="w-[40px]">A</TableHead>
-                      <TableHead className="w-[80px]">Source</TableHead>
-                      <TableHead className="w-[160px]">Customer</TableHead>
-                      <TableHead className="w-[120px]">Phone</TableHead>
-                      <TableHead className="w-[120px]">Company</TableHead>
-                      <TableHead className="w-[100px]">City</TableHead>
-                      <TableHead className="w-[120px]">Product</TableHead>
-                      <TableHead className="w-[130px]">Product Category</TableHead>
-                      <TableHead className="w-[80px]">Type</TableHead>
-                      <TableHead className="w-[90px]">Status</TableHead>
+                      <SortableHeader label="Source" field="source_type" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[80px]" />
+                      <SortableHeader label="Customer" field="customer_name" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[160px]" />
+                      <SortableHeader label="Phone" field="phone_number" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[120px]" />
+                      <SortableHeader label="Company" field="company" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[120px]" />
+                      <SortableHeader label="City" field="city" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[100px]" />
+                      <SortableHeader label="Product" field="product_name" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[120px]" />
+                      <SortableHeader label="Product Category" field="product_category" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[130px]" />
+                      <SortableHeader label="Type" field="prospect_type" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[80px]" />
+                      <SortableHeader label="Status" field="status" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[90px]" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
