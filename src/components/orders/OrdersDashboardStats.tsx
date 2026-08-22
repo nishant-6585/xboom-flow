@@ -33,11 +33,6 @@ const fmt = (v: number) => {
   return `₹${v.toLocaleString("en-IN")}`;
 };
 
-const PERIOD_LABELS: Record<TimePeriod, string> = {
-  this_week: "This week",
-  this_month: "This month",
-  prev_month: "Previous month",
-};
 
 type ProfitRow = { order_id: string; profit: number | string | null; total_sales: number | string | null };
 type ChartPayloadItem = { color?: string; name?: string; value?: number | string };
