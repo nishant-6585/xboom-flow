@@ -77,6 +77,25 @@ serve(async (req) => {
 
     // serviceClient already created above for role check
 
+    // `refresh` re-pulls orders already in shopify_orders_raw and overwrites
+    // their stored payload, instead of skipping them as duplicates.
+    //
+    // Needed because the default backfill only ever adds orders it has not seen.
+    // If Shopify was withholding customer data when an order first arrived —
+    // which it does until the app is granted protected customer data access —
+    // re-running the plain backfill can never repair those rows: they are
+    // already present, so they are skipped, payload and all.
+    //
+    // Refreshed rows are marked orders/updated so shopify-order-processor takes
+    // its update branch and writes the customer fields back onto the existing
+    // shopify_orders row rather than treating it as a new order.
+    let refresh = false;
+    try {
+      const body = await req.clone().json();
+      refresh = body?.refresh === true;
+    } catch (_) { /* no body — plain backfill */ }
+    console.log(`Backfill mode: ${refresh ? 'refresh (overwrite existing)' : 'insert-only'}`);
+
     let totalFetched = 0;
     let totalInserted = 0;
     let totalSkipped = 0;
@@ -120,16 +139,15 @@ serve(async (req) => {
         payload: order,
         processing_status: 'pending',
         retry_count: 0,
-        webhook_topic: 'backfill',
+        webhook_topic: refresh ? 'orders/updated' : 'backfill',
       }));
 
       if (rows.length > 0) {
-        // Batch upsert with ON CONFLICT DO NOTHING
         const { data: upsertData, error: upsertError } = await serviceClient
           .from('shopify_orders_raw')
           .upsert(rows, {
             onConflict: 'shop_domain,order_id',
-            ignoreDuplicates: true,
+            ignoreDuplicates: !refresh,
           })
           .select('id');
 
