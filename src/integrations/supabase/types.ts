@@ -18172,6 +18172,16 @@ export type Database = {
         }
         Relationships: []
       }
+      myoperator_unmapped_agents: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          agent_phone: string | null
+          call_count: number | null
+          last_seen_at: string | null
+        }
+        Relationships: []
+      }
       notification_metrics_today: {
         Row: {
           avg_latency_ms: number | null
