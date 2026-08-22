@@ -606,7 +606,20 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <TableHeader>
               <TableRow>
                 <TableHead>Lead</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-medium hover:bg-transparent"
+                    onClick={() => setCreatedSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    title={createdSortDir === 'desc' ? 'Newest first (click to ascending)' : 'Oldest first (click to descending)'}
+                  >
+                    Created
+                    {createdSortDir === 'asc'
+                      ? <ArrowUp className="ml-1 h-3.5 w-3.5 text-primary" />
+                      : <ArrowDown className="ml-1 h-3.5 w-3.5 text-primary" />}
+                  </Button>
+                </TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Product</TableHead>
