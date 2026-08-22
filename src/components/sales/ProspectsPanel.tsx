@@ -80,11 +80,14 @@ function SortableHeader({ label, field, sortField, sortDir, onSort, className }:
         title={active ? (sortDir === 'asc' ? 'Ascending — click to descending' : 'Descending — click to ascending') : 'Click to sort'}
       >
         {label}
-        {active && (
+        {active ? (
           sortDir === 'asc'
             ? <ArrowUp className="h-3 w-3 text-primary" />
             : <ArrowDown className="h-3 w-3 text-primary" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />
         )}
+
       </Button>
     </TableHead>
   );
