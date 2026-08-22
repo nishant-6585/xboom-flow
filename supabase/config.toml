@@ -134,6 +134,13 @@ verify_jwt = false
     verify_jwt = false
   [functions.shopify-config]
     verify_jwt = false
+  # Admin CSV repair of redacted customer PII — JWT + admin role checked in-code.
+  [functions.shopify-customer-import]
+    verify_jwt = false
+  # Enriches Shopify orders from order-confirmation emails — auth in-code.
+  [functions.shopify-order-email-sync]
+    verify_jwt = false
+
   [functions.shopify-monitor]
     verify_jwt = false
   [functions.shopify-order-backfill]
