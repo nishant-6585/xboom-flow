@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing, ShoppingCart } from 'lucide-react';
+import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing, ShoppingCart } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays, subDays, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subYears } from 'date-fns';
 
