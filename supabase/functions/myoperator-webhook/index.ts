@@ -492,3 +492,192 @@ async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise
     return { byId: new Map(), list: [] };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Payload normalization: supports MyOperator Webhooks v1 (shorthand `_xx`
+// keys) and Webhooks v2 (readable / nested keys, optionally wrapped in
+// `data` / `call` / `payload`). Unknown v2 field names fall back through a
+// list of candidates so a provider rename does not break ingestion.
+// ---------------------------------------------------------------------------
+
+type NormalizedEvent = {
+  version: 'v1' | 'v2';
+  callId: string;
+  callerNumber: string | null;
+  fullNumber: string | null;
+  duration: number;
+  recordingUrl: string | null;
+  callType: string;
+  department: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  callStatus: string;
+  agentName: string | null;
+  agentPhone: string | null;
+  agentId: string | null;
+  allAgents: string[];
+};
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** First non-empty string found among the given (possibly dotted) paths. */
+function pick(obj: Record<string, unknown>, paths: string[]): string | null {
+  for (const path of paths) {
+    let cur: unknown = obj;
+    for (const seg of path.split('.')) {
+      if (!isRecord(cur)) { cur = undefined; break; }
+      cur = cur[seg];
+    }
+    if (typeof cur === 'string' && cur.trim()) return cur.trim();
+    if (typeof cur === 'number' && Number.isFinite(cur)) return String(cur);
+  }
+  return null;
+}
+
+function extractEvent(raw: Record<string, unknown>): NormalizedEvent {
+  const isV1 = Object.keys(raw).some((k) => k.startsWith('_'));
+  return isV1 ? extractV1(raw) : extractV2(raw);
+}
+
+function extractV1(body: Record<string, unknown>): NormalizedEvent {
+  let agentName: string | null = null;
+  let agentPhone: string | null = null;
+  let agentId: string | null = null;
+  const allAgents: string[] = [];
+  const legs = Array.isArray(body._ld) ? (body._ld as Record<string, unknown>[]) : [];
+
+  for (const leg of legs) {
+    const receivers = leg._rr;
+    if (Array.isArray(receivers)) {
+      for (const r of receivers as Record<string, unknown>[]) {
+        const name = getString(r, '_na');
+        if (name) allAgents.push(name);
+      }
+    }
+  }
+  const answered = legs.find((l) => l._ac === 'received') || legs[0];
+  if (answered && Array.isArray(answered._rr) && answered._rr.length > 0) {
+    const first = answered._rr[0] as Record<string, unknown>;
+    agentName = getString(first, '_na');
+    agentPhone = getString(first, '_ct');
+    agentId = getString(first, '_id');
+  }
+
+  let callStatus = 'unknown';
+  if (legs.length > 0) {
+    if (legs.some((l) => l._ac === 'received')) callStatus = 'answered';
+    else if (legs.every((l) => l._ac === 'missed')) callStatus = 'missed';
+    else callStatus = mapCallStatus(getString(body, '_ac') || 'unknown');
+  } else {
+    callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
+  }
+
+  return {
+    version: 'v1',
+    callId: getString(body, '_ai') || getString(body, '_id') || crypto.randomUUID(),
+    callerNumber: getString(body, '_cr') || getString(body, '_cl'),
+    fullNumber: getString(body, '_cl'),
+    duration: parseDuration(getString(body, '_dr')),
+    recordingUrl: getString(body, '_fu'),
+    callType: mapCallType(body._ty),
+    department: getString(body, '_dn'),
+    startTime: getString(body, '_st'),
+    endTime: getString(body, '_et'),
+    callStatus,
+    agentName,
+    agentPhone,
+    agentId,
+    allAgents,
+  };
+}
+
+function extractV2(raw: Record<string, unknown>): NormalizedEvent {
+  // v2 commonly wraps the call object.
+  const body = (['data', 'call', 'payload', 'call_details'] as const)
+    .map((k) => raw[k])
+    .find(isRecord) ?? raw;
+
+  // Agent legs may appear under several names.
+  const legsRaw =
+    (['legs', 'call_legs', 'agents', 'receivers', 'users', 'call_flow'] as const)
+      .map((k) => body[k])
+      .find((v) => Array.isArray(v)) as Record<string, unknown>[] | undefined;
+  const legs = (legsRaw ?? []).filter(isRecord);
+
+  const allAgents: string[] = [];
+  for (const leg of legs) {
+    const name = pick(leg, ['name', 'agent_name', 'agent.name', 'user_name', 'user.name']);
+    if (name) allAgents.push(name);
+  }
+
+  const answeredLeg =
+    legs.find((l) => {
+      const s = (pick(l, ['status', 'call_status', 'answer_status', 'state']) || '').toLowerCase();
+      return s === 'received' || s === 'answered' || s === 'completed' || s === 'connected';
+    }) || legs[0];
+
+  const agentSource: Record<string, unknown> = isRecord(body.agent)
+    ? (body.agent as Record<string, unknown>)
+    : answeredLeg ?? body;
+
+  const agentName =
+    pick(agentSource, ['name', 'agent_name', 'agent.name', 'user_name', 'user.name']) ??
+    pick(body, ['agent_name', 'agent.name']);
+  const agentPhone =
+    pick(agentSource, ['number', 'phone', 'contact', 'agent_number', 'agent.number', 'mobile']) ??
+    pick(body, ['agent_number', 'agent.number']);
+  const agentId =
+    pick(agentSource, ['id', 'agent_id', 'agent.id', 'user_id', 'uid']) ??
+    pick(body, ['agent_id', 'agent.id']);
+
+  const statusRaw =
+    pick(body, ['status', 'call_status', 'call.status', 'disposition', 'answer_status', 'state']) ||
+    (answeredLeg ? pick(answeredLeg, ['status', 'call_status']) : null) ||
+    'unknown';
+
+  let callStatus = mapCallStatus(statusRaw);
+  if (callStatus === 'unknown' && legs.length > 0) {
+    const anyAnswered = legs.some((l) => {
+      const s = (pick(l, ['status', 'call_status']) || '').toLowerCase();
+      return s === 'received' || s === 'answered';
+    });
+    callStatus = anyAnswered ? 'answered' : 'missed';
+  }
+
+  const durationStr = pick(body, [
+    'duration', 'call_duration', 'talk_time', 'talktime', 'duration_seconds', 'total_duration',
+  ]);
+
+  return {
+    version: 'v2',
+    callId:
+      pick(body, ['call_id', 'callId', 'uuid', 'unique_id', 'uid', 'id']) ??
+      pick(raw, ['call_id', 'uuid', 'id']) ??
+      crypto.randomUUID(),
+    callerNumber: pick(body, [
+      'customer.number', 'customer.phone', 'customer_number', 'caller_number',
+      'caller', 'from', 'from_number', 'contact_number', 'client_number',
+    ]),
+    fullNumber: pick(body, [
+      'did', 'did_number', 'to', 'to_number', 'virtual_number',
+      'company_number', 'ivr_number', 'customer.number',
+    ]),
+    duration: parseDuration(durationStr),
+    recordingUrl: pick(body, [
+      'recording_url', 'recording', 'call_recording_url', 'recording.url', 'audio_url', 'file_url',
+    ]),
+    callType: mapCallType(
+      pick(body, ['direction', 'call_type', 'type', 'call.direction']) ?? 'incoming',
+    ),
+    department: pick(body, ['department.name', 'department_name', 'department', 'team', 'group_name']),
+    startTime: pick(body, ['start_time', 'started_at', 'call_time', 'start', 'created_at']),
+    endTime: pick(body, ['end_time', 'ended_at', 'end', 'hangup_time']),
+    callStatus,
+    agentName,
+    agentPhone,
+    agentId,
+    allAgents,
+  };
+}
