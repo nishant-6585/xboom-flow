@@ -175,20 +175,9 @@ Deno.serve(async (req) => {
       const normalizedCaller = normalizePhone(callerNumber || '');
       const storedCallerNumber = normalizedCaller || `unknown:${crypto.randomUUID()}`;
 
-      // Determine call status: check _ld legs for overall status
-      let callStatus = 'unknown';
-      if (body._ld && Array.isArray(body._ld)) {
-        const hasReceived = (body._ld as Record<string, unknown>[]).some((l) => l._ac === 'received');
-        const allMissed = (body._ld as Record<string, unknown>[]).every((l) => l._ac === 'missed');
-        if (hasReceived) callStatus = 'answered';
-        else if (allMissed) callStatus = 'missed';
-        else callStatus = mapCallStatus(getString(body, '_ac') || 'unknown');
-      } else {
-        callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
-      }
+      const callStatus = evt.callStatus;
+      const callId = evt.callId;
 
-      // Use _ai as unique call ID (MyOperator's unique identifier)
-      const callId = getString(body, '_ai') || getString(body, '_id') || getString(body, 'call_id') || crypto.randomUUID();
       
       // Build agent display string
       let agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
