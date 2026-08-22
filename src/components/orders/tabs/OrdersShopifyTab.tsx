@@ -9,9 +9,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { ShopifyOrderDetailDialog } from '@/components/orders/ShopifyOrderDetailDialog';
+import { ShopifyCustomerImportDialog } from '@/components/orders/ShopifyCustomerImportDialog';
 import {
   Loader2, ShoppingBag, Search, Filter, X, ChevronDown, LayoutGrid, Table,
-  ArrowUp, ArrowDown, ArrowUpDown,
+  ArrowUp, ArrowDown, ArrowUpDown, Upload,
 } from 'lucide-react';
 import type { ShopifyOrder } from '@/hooks/useShopifyOrders';
 
@@ -58,6 +59,7 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
 
   // Locally-owned: detail dialog state — only consumed in this tab
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
+  const [customerImportOpen, setCustomerImportOpen] = useState(false);
   const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<ShopifyOrder | null>(null);
   const [shopifyDetailOpen, setShopifyDetailOpen] = useState(false);
 
@@ -181,6 +183,18 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
                   <Button variant="ghost" size="default" onClick={clearShopifyFilters} className="gap-2 h-11 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl">
                     <X className="h-4 w-4" />
                     <span className="hidden sm:inline">Clear All</span>
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={() => setCustomerImportOpen(true)}
+                    className="gap-2 h-11 px-4 rounded-xl border-muted-foreground/20 hover:bg-muted/50"
+                    title="Fill in customer names, emails, phones and addresses from a Shopify CSV export"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Import customer details
                   </Button>
                 )}
                 <div className="flex items-center gap-1 border border-muted-foreground/20 rounded-xl p-1 bg-muted/30">
@@ -425,6 +439,12 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
         open={shopifyDetailOpen}
         onOpenChange={setShopifyDetailOpen}
         onUpdated={() => refetchShopifyOrders()}
+      />
+
+      <ShopifyCustomerImportDialog
+        open={customerImportOpen}
+        onOpenChange={setCustomerImportOpen}
+        onImported={() => refetchShopifyOrders()}
       />
     </TabsContent>
   );
