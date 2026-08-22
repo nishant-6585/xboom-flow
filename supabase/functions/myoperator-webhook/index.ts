@@ -9,6 +9,13 @@ Deno.serve(async (req) => {
   const timestamp = new Date().toISOString();
   const rawBody = req.method === 'POST' ? await req.text() : '';
   const url = new URL(req.url);
+  const headers: Record<string, string> = {};
+  for (const [k, v] of req.headers.entries()) {
+    headers[k] = /secret|token|authorization|apikey|x-api-key/i.test(k) ? '[redacted]' : v;
+  }
+  // v2 webhooks can send the shared secret in a custom header; v1 config only
+  // lets you set a URL, so a ?secret= / ?token= query param is also accepted.
+
   // MyOperator's webhook config only lets you set a URL (no custom headers),
   // so the shared secret may arrive either as a header or a query parameter.
   const headerSecret = req.headers.get('x-myoperator-secret');
