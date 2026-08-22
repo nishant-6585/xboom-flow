@@ -18,11 +18,15 @@ Deno.serve(async (req) => {
 
   // MyOperator's webhook config only lets you set a URL (no custom headers),
   // so the shared secret may arrive either as a header or a query parameter.
+  const authorization = req.headers.get('authorization');
+  const bearerSecret = authorization?.match(/^Bearer\s+(.+)$/i)?.[1] || null;
   const headerSecret =
     req.headers.get('x-myoperator-secret') ||
     req.headers.get('myoperator-secret') ||
     req.headers.get('x-webhook-secret') ||
     req.headers.get('x-secret') ||
+    req.headers.get('x-api-key') ||
+    bearerSecret ||
     null;
   const querySecret =
     url.searchParams.get('secret') || url.searchParams.get('token');
@@ -48,8 +52,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Shared-secret auth: require the MYOPERATOR_WEBHOOK_SECRET value in either
-  // the x-myoperator-secret header or a ?secret= / ?token= query parameter.
+  // Shared-secret auth: accept MyOperator API Key authentication, a custom
+  // secret header, Bearer authentication, or a ?secret= / ?token= parameter.
   if (req.method === 'POST') {
     const expected = Deno.env.get('MYOPERATOR_WEBHOOK_SECRET');
     if (!expected) {
