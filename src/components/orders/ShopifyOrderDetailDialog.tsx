@@ -377,12 +377,12 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
               <div className="mt-3 flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>
-                  Shopify did not send customer details for this order. This is what a
-                  redacted payload looks like when the app has not been granted
-                  <strong> protected customer data </strong> access — name, email, phone,
-                  street, city and PIN are stripped while state and country remain.
-                  Grant access in the Shopify admin, then re-run the order backfill in
-                  refresh mode to repair existing orders.
+                  Shopify withheld the customer details for this order — name, email,
+                  phone, street, city and PIN are stripped while state and country
+                  remain. API access to this data (Shopify's{' '}
+                  <strong>protected customer data</strong>) is only offered on the
+                  Shopify, Advanced and Plus plans, so it cannot be enabled from our
+                  side. Use <em>Open in Shopify</em> above to see the full details.
                 </span>
               </div>
             )}
