@@ -482,8 +482,13 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     });
   };
 
-  const handleAssignChange = async (logId: string, newName: string) => {
-    setUpdatingAssign(logId);
+  // Lead ownership is per-caller, not per-call: a number has one owner, and the
+  // sync's sticky assignment reuses it for every future call. So reassigning a
+  // merged row has to move the whole call history for that number — otherwise
+  // the earlier rows keep crediting the previous owner in SalespersonCallStats
+  // and MyOperatorAnalytics.
+  const handleAssignChange = async (log: CallLog, newName: string) => {
+    setUpdatingAssign(log.id);
     try {
       const trimmed = newName.trim();
       const matched = allowedSalesUsers.find(
@@ -493,13 +498,29 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         sales_person_name: trimmed || null,
         sales_person_id: matched?.user_id ?? null,
       };
-      const { error } = await supabase
-        .from('call_logs')
-        .update(updatePayload)
-        .eq('id', logId);
+
+      // Match on the trailing 10 digits — the same key the merge grouping uses —
+      // so rows stored with and without the country code (+918894656913 vs
+      // 8894656913) are both caught.
+      const last10 = (log.caller_number || '').replace(/\D/g, '').slice(-10);
+      const builder = supabase.from('call_logs').update(updatePayload);
+      const { error } = last10
+        ? await builder.ilike('caller_number', `%${last10}`)
+        : await builder.eq('id', log.id);
       if (error) throw error;
-      setLogs(prev => prev.map(l => l.id === logId ? { ...l, ...updatePayload } : l));
-      toast.success('Assigned person updated');
+
+      // Count and patch from local state rather than a returning select: a sales
+      // rep reassigning a lead away from themselves loses read access to those
+      // rows under RLS, so the server would report back fewer rows than it wrote.
+      const isTouched = (l: CallLog) =>
+        last10 ? (l.caller_number || '').replace(/\D/g, '').slice(-10) === last10 : l.id === log.id;
+      const touchedCount = logs.filter(isTouched).length;
+      setLogs(prev => prev.map(l => (isTouched(l) ? { ...l, ...updatePayload } : l)));
+      toast.success(
+        touchedCount > 1
+          ? `Assigned person updated across ${touchedCount} calls from this number`
+          : 'Assigned person updated'
+      );
     } catch (err: any) {
       toast.error(err.message || 'Failed to update');
     } finally {
@@ -949,21 +970,41 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                           )}
                         </TableCell>
                         <TableCell className="text-sm" onClick={(e) => e.stopPropagation()}>
-                          <Select
-                            value={(log.sales_person_name || '').trim() || 'unassigned'}
-                            onValueChange={(v) => handleAssignChange(log.id, v === 'unassigned' ? '' : v)}
-                            disabled={updatingAssign === log.id}
-                          >
-                            <SelectTrigger className="h-8 w-36 text-xs">
-                              <SelectValue placeholder="Assign..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">— Unassigned —</SelectItem>
-                              {SALES_PERSONS_LIST.map(sp => (
-                                <SelectItem key={sp} value={sp}>{sp}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {(() => {
+                            // A row can carry an owner who isn't in the assignable
+                            // pool — the webhook assigns from every role='sales'
+                            // user, which is a wider set than assignableReps. Radix
+                            // renders a blank trigger when the value has no matching
+                            // item, which reads as "unassigned" and hides the
+                            // problem. Surface the name instead so it can be fixed.
+                            const assigned = (log.sales_person_name || '').trim();
+                            const outOfPool =
+                              assigned !== '' &&
+                              !SALES_PERSONS_LIST.some(sp => sp.toLowerCase() === assigned.toLowerCase());
+                            return (
+                              <Select
+                                value={assigned || 'unassigned'}
+                                onValueChange={(v) => handleAssignChange(log, v === 'unassigned' ? '' : v)}
+                                disabled={updatingAssign === log.id}
+                              >
+                                <SelectTrigger
+                                  className={`h-8 w-36 text-xs ${outOfPool ? 'border-amber-500/60 text-amber-300' : ''}`}
+                                  title={outOfPool ? `${assigned} is not in the assignable rep pool` : undefined}
+                                >
+                                  <SelectValue placeholder="Assign..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="unassigned">— Unassigned —</SelectItem>
+                                  {outOfPool && (
+                                    <SelectItem value={assigned}>{assigned} (outside pool)</SelectItem>
+                                  )}
+                                  {SALES_PERSONS_LIST.map(sp => (
+                                    <SelectItem key={sp} value={sp}>{sp}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           <div>{formatCallTime(info.startTime, log.created_at)}</div>

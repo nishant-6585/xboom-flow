@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { isAssignableRepName } from '../_shared/assignable-reps.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -153,21 +154,41 @@ Deno.serve(async (req) => {
 
       // Load active sales-team pool (role='sales', approved profiles). The
       // receiving agent must belong to this pool — if not, we discard the
-      // resolution and randomly assign to one of the sales reps so the lead
+      // resolution and hand the lead to the next rep in round-robin order so it
       // never ends up owned by a non-sales user.
       const salesPool = await loadSalesPool(supabase);
       let salesPersonNameOverride: string | null = null;
-      let assignmentReason: 'receiver_in_sales' | 'random_fallback' | 'unresolved' = 'unresolved';
+      let assignmentReason:
+        | 'sticky_owner'
+        | 'receiver_in_sales'
+        | 'round_robin_fallback'
+        | 'unresolved' = 'unresolved';
 
-      if (resolvedSalesPersonId && salesPool.byId.has(resolvedSalesPersonId)) {
+      // Same ladder as sync-myoperator-logs: sticky owner first, then the agent
+      // who actually took the call, then round-robin.
+      const stickyOwner = await findStickyOwner(supabase, callerNumber);
+      if (stickyOwner) {
+        resolvedSalesPersonId = stickyOwner.user_id;
+        salesPersonNameOverride = stickyOwner.name;
+        assignmentReason = 'sticky_owner';
+      } else if (resolvedSalesPersonId && salesPool.byId.has(resolvedSalesPersonId)) {
         salesPersonNameOverride = salesPool.byId.get(resolvedSalesPersonId)!;
         assignmentReason = 'receiver_in_sales';
       } else if (salesPool.list.length > 0) {
-        // Either receiver not in sales team, or no resolution at all → random pick.
-        const pick = salesPool.list[Math.floor(Math.random() * salesPool.list.length)];
-        resolvedSalesPersonId = pick.user_id;
-        salesPersonNameOverride = pick.name;
-        assignmentReason = 'random_fallback';
+        // Either receiver not in the assignable pool, or resolve_agent_user found
+        // no mapping for them → next rep in rotation. Round-robin rather than a
+        // random pick so unattributed leads spread evenly and the choice stays
+        // reproducible under audit.
+        //
+        // Landing here on an answered call means agent_user_mapping is missing a
+        // row for the agent who picked up — the UNMAPPED_AGENT warning below is
+        // the signal to go add it, since a mapped agent keeps their own lead.
+        const pick = await nextPoolAssignee(supabase, salesPool.list);
+        if (pick) {
+          resolvedSalesPersonId = pick.user_id;
+          salesPersonNameOverride = pick.name;
+          assignmentReason = 'round_robin_fallback';
+        }
       }
 
       console.log('[myoperator-webhook] assignment debug', {
@@ -207,15 +228,16 @@ Deno.serve(async (req) => {
       // Use _ai as unique call ID (MyOperator's unique identifier)
       const callId = getString(body, '_ai') || getString(body, '_id') || getString(body, 'call_id') || crypto.randomUUID();
       
-      // Build agent display string
-      let agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
-
-      // If missed call with no known agent ("Unknown"), randomly assign to Narasimha or Mushtaq
-      if (callStatus === 'missed' && (!agentDisplay || agentDisplay === 'Unknown' || agentDisplay.trim() === '')) {
-        const missedCallAgents = ['Narasimha', 'Mushtaq'];
-        agentDisplay = missedCallAgents[Math.floor(Math.random() * missedCallAgents.length)];
-        assignedAgentName = agentDisplay;
-      }
+      // Build agent display string.
+      //
+      // This records who actually handled the call and nothing else. A missed
+      // call with no agent in the payload stays empty and renders as "Unknown".
+      // It used to be backfilled with a random pick of 'Narasimha' or 'Mushtaq',
+      // which wrote a real person's name onto a call they never touched and then
+      // counted it against them in SalespersonCallStats. Lead *ownership* for
+      // these calls is handled by the round-robin assignment above, which is the
+      // right place for it — agent_name is a record of fact, not a routing field.
+      const agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
 
       const rawPayloadForStorage = parseError
         ? { raw_body: rawBody, parse_error: parseError }
@@ -332,7 +354,11 @@ Deno.serve(async (req) => {
               product_category: 'General',
               quantity: 1,
               urgency: 'normal',
-              sales_person_name: salesPersonNameOverride || agentDisplay || 'Unassigned',
+              // Never fall back to agentDisplay here: that is the agent who
+              // handled the call (often support, sometimes a comma-joined list),
+              // not the owning rep, and using it puts a name on the enquiry that
+              // disagrees with sales_person_id.
+              sales_person_name: salesPersonNameOverride || 'Unassigned',
               sales_person_id: resolvedSalesPersonId,
               status: 'new',
               notes: [
@@ -480,7 +506,11 @@ async function insertDebugLog(
 /**
  * Fetch the active sales-team pool (role='sales', approved profiles).
  * Returns both a Set keyed by user_id (for membership checks) and a flat
- * list (for random fallback assignment).
+ * list (for round-robin fallback assignment).
+ *
+ * The list is sorted by user_id so the rotation order is stable across
+ * invocations — Postgres makes no ordering guarantee without an ORDER BY,
+ * and a pool that reshuffles between calls would break the round-robin.
  */
 async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise<{
   byId: Map<string, string>;
@@ -503,13 +533,91 @@ async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise
     const list: Array<{ user_id: string; name: string }> = [];
     for (const p of (profiles ?? []) as Array<{ user_id: string; name: string; is_approved: boolean }>) {
       if (p.is_approved === false) continue;
+      // role='sales' is far wider than the reps who actually work call leads —
+      // support staff and non-selling users hold it too. Without this filter the
+      // fallback hands leads to people who never touch them.
+      if (!isAssignableRepName(p.name)) continue;
       const name = p.name || 'Sales';
       byId.set(p.user_id, name);
       list.push({ user_id: p.user_id, name });
     }
+    list.sort((a, b) => a.user_id.localeCompare(b.user_id));
     return { byId, list };
   } catch (e) {
     console.error('[myoperator-webhook] loadSalesPool failed:', e);
     return { byId: new Map(), list: [] };
+  }
+}
+
+/**
+ * Return the rep who already owns this caller number, if any.
+ *
+ * Lead ownership is per-caller, not per-call: once a number belongs to a rep,
+ * every later call from it stays with them. sync-myoperator-logs has always
+ * worked this way, but this webhook — the real-time path that inserts nearly
+ * every row — had no equivalent lookup, so it picked a fresh owner on each call.
+ * That is how one number ended up split across six different reps.
+ *
+ * Ordered newest-first to match sync-myoperator-logs, so a manual reassignment
+ * in the UI wins over the original auto-assignment.
+ *
+ * Matches on the trailing 10 digits so rows stored with and without the country
+ * code (+918894656913 vs 8894656913) both count.
+ */
+async function findStickyOwner(
+  supabase: ReturnType<typeof createClient>,
+  callerNumber: string | null,
+): Promise<{ user_id: string; name: string } | null> {
+  const last10 = (callerNumber || '').replace(/\D/g, '').slice(-10);
+  if (last10.length < 10) return null;
+  try {
+    const { data } = await supabase
+      .from('call_logs')
+      .select('sales_person_id, sales_person_name')
+      .ilike('caller_number', `%${last10}`)
+      .not('sales_person_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const row = data as { sales_person_id: string | null; sales_person_name: string | null } | null;
+    if (row?.sales_person_id && row.sales_person_name) {
+      return { user_id: row.sales_person_id, name: row.sales_person_name };
+    }
+  } catch (e) {
+    console.error('[myoperator-webhook] findStickyOwner failed:', e);
+  }
+  return null;
+}
+
+/**
+ * Pick the next sales rep in round-robin order.
+ *
+ * The webhook handles one call per invocation, so there is no in-process cursor
+ * to advance the way sync-myoperator-logs does across a batch. The position is
+ * recovered from the database instead: find the most recent call assigned to
+ * anyone in the pool and take the rep after them.
+ *
+ * On any failure this falls back to the head of the pool rather than throwing —
+ * a slightly lopsided assignment is much better than dropping the lead.
+ */
+async function nextPoolAssignee(
+  supabase: ReturnType<typeof createClient>,
+  pool: Array<{ user_id: string; name: string }>,
+): Promise<{ user_id: string; name: string } | null> {
+  if (pool.length === 0) return null;
+  try {
+    const { data: last } = await supabase
+      .from('call_logs')
+      .select('sales_person_id')
+      .in('sales_person_id', pool.map((p) => p.user_id))
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastId = (last as { sales_person_id: string | null } | null)?.sales_person_id;
+    const lastIdx = lastId ? pool.findIndex((p) => p.user_id === lastId) : -1;
+    return pool[(lastIdx + 1) % pool.length];
+  } catch (e) {
+    console.error('[myoperator-webhook] nextPoolAssignee failed:', e);
+    return pool[0];
   }
 }
