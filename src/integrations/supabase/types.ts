@@ -1762,11 +1762,13 @@ export type Database = {
           assigned_agent_phone: string | null
           assigned_to: string | null
           assigned_to_name: string | null
+          assignment_reason: string | null
           budget: string | null
           call_duration: number | null
           call_id: string | null
           call_status: string
           call_type: string | null
+          caller_last10: string | null
           caller_number: string
           city: string | null
           company: string | null
@@ -1827,11 +1829,13 @@ export type Database = {
           assigned_agent_phone?: string | null
           assigned_to?: string | null
           assigned_to_name?: string | null
+          assignment_reason?: string | null
           budget?: string | null
           call_duration?: number | null
           call_id?: string | null
           call_status?: string
           call_type?: string | null
+          caller_last10?: string | null
           caller_number: string
           city?: string | null
           company?: string | null
@@ -1892,11 +1896,13 @@ export type Database = {
           assigned_agent_phone?: string | null
           assigned_to?: string | null
           assigned_to_name?: string | null
+          assignment_reason?: string | null
           budget?: string | null
           call_duration?: number | null
           call_id?: string | null
           call_status?: string
           call_type?: string | null
+          caller_last10?: string | null
           caller_number?: string
           city?: string | null
           company?: string | null
