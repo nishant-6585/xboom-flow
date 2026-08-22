@@ -16,12 +16,8 @@ export interface ShopifyOrder {
   customer_email: string | null;
   customer_phone: string | null;
   shipping_address: string | null;
-  /**
-   * Optional because src/integrations/supabase/types.ts is generated from the
-   * live schema and will not know this column until migration 20260822180000
-   * has been applied. Drop the `?` once types are regenerated.
-   */
-  billing_address?: string | null;
+  billing_address: string | null;
+
   selling_price: number | null;
   total_sales_amount: number | null;
   amount_paid: number | null;
