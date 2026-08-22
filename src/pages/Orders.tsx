@@ -260,11 +260,13 @@ export default function Orders() {
     ? attributionRequests?.rows.length ?? 0
     : 0;
 
-  // Header summary — real numbers, one line. Sales reps keep the instructional
-  // wording since for a rep that sentence is the actual job.
-  const totalOrderCount = orders.length + wooTotalCount;
-  const totalOrderValue = orders.reduce((sum, o) => sum + (Number((o as any).total_amount) || 0), 0);
-  const awaitingProcurement = orders.filter(
+  // Header summary — reflects the currently applied filters (same state the
+  // summary cards and list use), not the raw unfiltered dataset.
+  const totalOrderCount = unifiedRows.length;
+  const totalOrderValue = filteredOrders
+    .filter((o) => o.status !== 'cancelled')
+    .reduce((sum, o) => sum + (Number(o.total_sales_amount) || 0), 0);
+  const awaitingProcurement = filteredOrders.filter(
     (o) => o.status === 'procurement_to_plan' || o.status === 'procurement_in_process',
   ).length;
   const compactValue = totalOrderValue >= 1e7
@@ -275,6 +277,7 @@ export default function Orders() {
   const headerSummary = role === 'sales'
     ? 'Track your order status and delivery'
     : `${totalOrderCount.toLocaleString()} orders · ${compactValue} · ${awaitingProcurement.toLocaleString()} awaiting procurement match`;
+
 
   return (
     <div className="min-h-[100dvh] flex flex-col">
