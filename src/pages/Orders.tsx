@@ -335,6 +335,19 @@ export default function Orders() {
                 )}
               </div>
             </div>
+            {activeTab === 'list' && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">Date:</span>
+                <DateRangeFilter
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
+                />
+              </div>
+            )}
+
             <div className="min-w-0">
               <OrdersTabsList
                 sourceFilter={sourceFilter}
