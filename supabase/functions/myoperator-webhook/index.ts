@@ -9,6 +9,13 @@ Deno.serve(async (req) => {
   const timestamp = new Date().toISOString();
   const rawBody = req.method === 'POST' ? await req.text() : '';
   const url = new URL(req.url);
+  const headers: Record<string, string> = {};
+  for (const [k, v] of req.headers.entries()) {
+    headers[k] = /secret|token|authorization|apikey|x-api-key/i.test(k) ? '[redacted]' : v;
+  }
+  // v2 webhooks can send the shared secret in a custom header; v1 config only
+  // lets you set a URL, so a ?secret= / ?token= query param is also accepted.
+
   // MyOperator's webhook config only lets you set a URL (no custom headers),
   // so the shared secret may arrive either as a header or a query parameter.
   const headerSecret = req.headers.get('x-myoperator-secret');
@@ -90,49 +97,25 @@ Deno.serve(async (req) => {
 
       console.log('MyOperator webhook received, parsed body keys:', Object.keys(body));
 
-      // Extract fields from actual MyOperator payload structure
-      const callerNumber = getString(body, '_cr') || getString(body, '_cl') || null;
-      const fullNumber = getString(body, '_cl') || null;
-      const durationStr = getString(body, '_dr') || null;
-      const duration = parseDuration(durationStr);
-      const recordingUrl = getString(body, '_fu') || null;
-      const callTypeRaw = body._ty;
-      const callType = mapCallType(callTypeRaw);
-      const department = getString(body, '_dn') || null;
-      const startTime = getString(body, '_st') || null;
-      const endTime = getString(body, '_et') || null;
+      // MyOperator Webhooks v1 uses shorthand keys (_cr, _ld, _ai ...) while
+      // Webhooks v2 sends readable, often nested JSON. Normalize both here.
+      const evt = extractEvent(body);
+      console.log('[myoperator-webhook] payload version:', evt.version);
 
-      // Extract ALL agents from _ld array (not just "received")
-      let assignedAgentName: string | null = null;
-      let assignedAgentPhone: string | null = null;
-      let assignedAgentId: string | null = null;
-      const allAgents: string[] = [];
+      const callerNumber = evt.callerNumber;
+      const fullNumber = evt.fullNumber;
+      const duration = evt.duration;
+      const recordingUrl = evt.recordingUrl;
+      const callType = evt.callType;
+      const department = evt.department;
+      const startTime = evt.startTime;
+      const endTime = evt.endTime;
 
-      if (body._ld && Array.isArray(body._ld)) {
-        for (const leg of body._ld as Record<string, unknown>[]) {
-          const receivers = leg._rr;
-          if (Array.isArray(receivers)) {
-            for (const r of receivers as Record<string, unknown>[]) {
-              const name = getString(r, '_na');
-              if (name) allAgents.push(name);
-            }
-          }
-        }
-        // Try to find "received" leg first, fallback to first leg
-        const answeredCall = (body._ld as Record<string, unknown>[]).find(
-          (item) => item._ac === 'received'
-        ) || (body._ld as Record<string, unknown>[])[0];
-        
-        if (answeredCall) {
-          const receivers = answeredCall._rr;
-          if (Array.isArray(receivers) && receivers.length > 0) {
-            const firstReceiver = receivers[0] as Record<string, unknown>;
-            assignedAgentName = getString(firstReceiver, '_na') || null;
-            assignedAgentPhone = getString(firstReceiver, '_ct') || null;
-            assignedAgentId = getString(firstReceiver, '_id') || null;
-          }
-        }
-      }
+      let assignedAgentName: string | null = evt.agentName;
+      const assignedAgentPhone: string | null = evt.agentPhone;
+      const assignedAgentId: string | null = evt.agentId;
+      const allAgents: string[] = evt.allAgents;
+
 
       // === Phase 2: resolve sales_person_id via centralized agent_user_mapping ===
       let resolvedSalesPersonId: string | null = null;
@@ -199,20 +182,9 @@ Deno.serve(async (req) => {
       const normalizedCaller = normalizePhone(callerNumber || '');
       const storedCallerNumber = normalizedCaller || `unknown:${crypto.randomUUID()}`;
 
-      // Determine call status: check _ld legs for overall status
-      let callStatus = 'unknown';
-      if (body._ld && Array.isArray(body._ld)) {
-        const hasReceived = (body._ld as Record<string, unknown>[]).some((l) => l._ac === 'received');
-        const allMissed = (body._ld as Record<string, unknown>[]).every((l) => l._ac === 'missed');
-        if (hasReceived) callStatus = 'answered';
-        else if (allMissed) callStatus = 'missed';
-        else callStatus = mapCallStatus(getString(body, '_ac') || 'unknown');
-      } else {
-        callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
-      }
+      const callStatus = evt.callStatus;
+      const callId = evt.callId;
 
-      // Use _ai as unique call ID (MyOperator's unique identifier)
-      const callId = getString(body, '_ai') || getString(body, '_id') || getString(body, 'call_id') || crypto.randomUUID();
       
       // Build agent display string
       let agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
@@ -519,4 +491,193 @@ async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise
     console.error('[myoperator-webhook] loadSalesPool failed:', e);
     return { byId: new Map(), list: [] };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Payload normalization: supports MyOperator Webhooks v1 (shorthand `_xx`
+// keys) and Webhooks v2 (readable / nested keys, optionally wrapped in
+// `data` / `call` / `payload`). Unknown v2 field names fall back through a
+// list of candidates so a provider rename does not break ingestion.
+// ---------------------------------------------------------------------------
+
+type NormalizedEvent = {
+  version: 'v1' | 'v2';
+  callId: string;
+  callerNumber: string | null;
+  fullNumber: string | null;
+  duration: number;
+  recordingUrl: string | null;
+  callType: string;
+  department: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  callStatus: string;
+  agentName: string | null;
+  agentPhone: string | null;
+  agentId: string | null;
+  allAgents: string[];
+};
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** First non-empty string found among the given (possibly dotted) paths. */
+function pick(obj: Record<string, unknown>, paths: string[]): string | null {
+  for (const path of paths) {
+    let cur: unknown = obj;
+    for (const seg of path.split('.')) {
+      if (!isRecord(cur)) { cur = undefined; break; }
+      cur = cur[seg];
+    }
+    if (typeof cur === 'string' && cur.trim()) return cur.trim();
+    if (typeof cur === 'number' && Number.isFinite(cur)) return String(cur);
+  }
+  return null;
+}
+
+function extractEvent(raw: Record<string, unknown>): NormalizedEvent {
+  const isV1 = Object.keys(raw).some((k) => k.startsWith('_'));
+  return isV1 ? extractV1(raw) : extractV2(raw);
+}
+
+function extractV1(body: Record<string, unknown>): NormalizedEvent {
+  let agentName: string | null = null;
+  let agentPhone: string | null = null;
+  let agentId: string | null = null;
+  const allAgents: string[] = [];
+  const legs = Array.isArray(body._ld) ? (body._ld as Record<string, unknown>[]) : [];
+
+  for (const leg of legs) {
+    const receivers = leg._rr;
+    if (Array.isArray(receivers)) {
+      for (const r of receivers as Record<string, unknown>[]) {
+        const name = getString(r, '_na');
+        if (name) allAgents.push(name);
+      }
+    }
+  }
+  const answered = legs.find((l) => l._ac === 'received') || legs[0];
+  if (answered && Array.isArray(answered._rr) && answered._rr.length > 0) {
+    const first = answered._rr[0] as Record<string, unknown>;
+    agentName = getString(first, '_na');
+    agentPhone = getString(first, '_ct');
+    agentId = getString(first, '_id');
+  }
+
+  let callStatus = 'unknown';
+  if (legs.length > 0) {
+    if (legs.some((l) => l._ac === 'received')) callStatus = 'answered';
+    else if (legs.every((l) => l._ac === 'missed')) callStatus = 'missed';
+    else callStatus = mapCallStatus(getString(body, '_ac') || 'unknown');
+  } else {
+    callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
+  }
+
+  return {
+    version: 'v1',
+    callId: getString(body, '_ai') || getString(body, '_id') || crypto.randomUUID(),
+    callerNumber: getString(body, '_cr') || getString(body, '_cl'),
+    fullNumber: getString(body, '_cl'),
+    duration: parseDuration(getString(body, '_dr')),
+    recordingUrl: getString(body, '_fu'),
+    callType: mapCallType(body._ty),
+    department: getString(body, '_dn'),
+    startTime: getString(body, '_st'),
+    endTime: getString(body, '_et'),
+    callStatus,
+    agentName,
+    agentPhone,
+    agentId,
+    allAgents,
+  };
+}
+
+function extractV2(raw: Record<string, unknown>): NormalizedEvent {
+  // v2 commonly wraps the call object.
+  const body = (['data', 'call', 'payload', 'call_details'] as const)
+    .map((k) => raw[k])
+    .find(isRecord) ?? raw;
+
+  // Agent legs may appear under several names.
+  const legsRaw =
+    (['legs', 'call_legs', 'agents', 'receivers', 'users', 'call_flow'] as const)
+      .map((k) => body[k])
+      .find((v) => Array.isArray(v)) as Record<string, unknown>[] | undefined;
+  const legs = (legsRaw ?? []).filter(isRecord);
+
+  const allAgents: string[] = [];
+  for (const leg of legs) {
+    const name = pick(leg, ['name', 'agent_name', 'agent.name', 'user_name', 'user.name']);
+    if (name) allAgents.push(name);
+  }
+
+  const answeredLeg =
+    legs.find((l) => {
+      const s = (pick(l, ['status', 'call_status', 'answer_status', 'state']) || '').toLowerCase();
+      return s === 'received' || s === 'answered' || s === 'completed' || s === 'connected';
+    }) || legs[0];
+
+  const agentSource: Record<string, unknown> = isRecord(body.agent)
+    ? (body.agent as Record<string, unknown>)
+    : answeredLeg ?? body;
+
+  const agentName =
+    pick(agentSource, ['name', 'agent_name', 'agent.name', 'user_name', 'user.name']) ??
+    pick(body, ['agent_name', 'agent.name']);
+  const agentPhone =
+    pick(agentSource, ['number', 'phone', 'contact', 'agent_number', 'agent.number', 'mobile']) ??
+    pick(body, ['agent_number', 'agent.number']);
+  const agentId =
+    pick(agentSource, ['id', 'agent_id', 'agent.id', 'user_id', 'uid']) ??
+    pick(body, ['agent_id', 'agent.id']);
+
+  const statusRaw =
+    pick(body, ['status', 'call_status', 'call.status', 'disposition', 'answer_status', 'state']) ||
+    (answeredLeg ? pick(answeredLeg, ['status', 'call_status']) : null) ||
+    'unknown';
+
+  let callStatus = mapCallStatus(statusRaw);
+  if (callStatus === 'unknown' && legs.length > 0) {
+    const anyAnswered = legs.some((l) => {
+      const s = (pick(l, ['status', 'call_status']) || '').toLowerCase();
+      return s === 'received' || s === 'answered';
+    });
+    callStatus = anyAnswered ? 'answered' : 'missed';
+  }
+
+  const durationStr = pick(body, [
+    'duration', 'call_duration', 'talk_time', 'talktime', 'duration_seconds', 'total_duration',
+  ]);
+
+  return {
+    version: 'v2',
+    callId:
+      pick(body, ['call_id', 'callId', 'uuid', 'unique_id', 'uid', 'id']) ??
+      pick(raw, ['call_id', 'uuid', 'id']) ??
+      crypto.randomUUID(),
+    callerNumber: pick(body, [
+      'customer.number', 'customer.phone', 'customer_number', 'caller_number',
+      'caller', 'from', 'from_number', 'contact_number', 'client_number',
+    ]),
+    fullNumber: pick(body, [
+      'did', 'did_number', 'to', 'to_number', 'virtual_number',
+      'company_number', 'ivr_number', 'customer.number',
+    ]),
+    duration: parseDuration(durationStr),
+    recordingUrl: pick(body, [
+      'recording_url', 'recording', 'call_recording_url', 'recording.url', 'audio_url', 'file_url',
+    ]),
+    callType: mapCallType(
+      pick(body, ['direction', 'call_type', 'type', 'call.direction']) ?? 'incoming',
+    ),
+    department: pick(body, ['department.name', 'department_name', 'department', 'team', 'group_name']),
+    startTime: pick(body, ['start_time', 'started_at', 'call_time', 'start', 'created_at']),
+    endTime: pick(body, ['end_time', 'ended_at', 'end', 'hangup_time']),
+    callStatus,
+    agentName,
+    agentPhone,
+    agentId,
+    allAgents,
+  };
 }
