@@ -205,23 +205,44 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Query existing assignments for these numbers
-    const stickyMap = new Map<string, { id: string; name: string }>();
+    // Query existing owners for these numbers.
+    //
+    // Ownership comes in three strengths, mirroring myoperator-webhook:
+    //   manual      — a human assigned it; never overridden.
+    //   earned      — a pool rep answered a call. The FIRST such rep holds it.
+    //   provisional — round-robined off a missed call. A placeholder that the
+    //                 first rep to actually answer takes over.
+    // Rows predating assignment_reason have NULL and count as provisional.
+    type OwnerKind = 'manual' | 'earned' | 'provisional';
+    const stickyMap = new Map<string, { id: string; name: string; kind: OwnerKind }>();
     if (batchCallerNumbers.length > 0) {
       const uniqueNumbers = [...new Set(batchCallerNumbers)];
       const { data: existingAssignments } = await supabase
         .from('call_logs')
-        .select('caller_number, sales_person_id, sales_person_name')
+        .select('caller_number, sales_person_id, sales_person_name, assignment_reason, created_at')
         .in('caller_number', uniqueNumbers)
         .not('sales_person_id', 'is', null)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
-      if (existingAssignments) {
-        for (const row of existingAssignments) {
-          // First match wins (most recent due to ordering)
-          if (!stickyMap.has(row.caller_number) && row.sales_person_id && row.sales_person_name) {
-            stickyMap.set(row.caller_number, { id: row.sales_person_id, name: row.sales_person_name });
-          }
+      const rank = (k: OwnerKind) => (k === 'manual' ? 2 : k === 'earned' ? 1 : 0);
+      for (const row of existingAssignments ?? []) {
+        if (!row.sales_person_id || !row.sales_person_name) continue;
+        const kind: OwnerKind =
+          row.assignment_reason === 'manual'
+            ? 'manual'
+            : row.assignment_reason === 'receiver_in_sales'
+              ? 'earned'
+              : 'provisional';
+        const held = stickyMap.get(row.caller_number);
+        // Rows arrive oldest-first, so for equal strength the earliest wins —
+        // which is what "first rep to answer owns it" means. A stronger claim
+        // (manual) still displaces a weaker one whenever it turns up.
+        if (!held || rank(kind) > rank(held.kind)) {
+          stickyMap.set(row.caller_number, {
+            id: row.sales_person_id,
+            name: row.sales_person_name,
+            kind,
+          });
         }
       }
     }
@@ -326,15 +347,22 @@ Deno.serve(async (req) => {
         const agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
         const effectiveCallId = callId || crypto.randomUUID();
 
-        // === LEAD ASSIGNMENT LOGIC (Sticky first, then fallback) ===
+        // === LEAD ASSIGNMENT LOGIC ===
+        // The first rep to actually answer owns the number. A round-robin owner
+        // from an earlier missed call is only a placeholder and gets displaced.
         let salesPersonId: string | null = null;
         let salesPersonName: string | null = null;
+        let assignmentReason: string | null = null;
 
-        // 1. Sticky assignment: if this caller was previously assigned, reuse same salesperson
-        const stickyAssignment = stickyMap.get(storedCaller);
-        if (stickyAssignment) {
-          salesPersonId = stickyAssignment.id;
-          salesPersonName = stickyAssignment.name;
+        const held = stickyMap.get(storedCaller);
+        // A manual or already-earned claim is final; only a placeholder can be
+        // displaced, and only by someone who answered.
+        const heldIsFirm = !!held && held.kind !== 'provisional';
+
+        if (heldIsFirm) {
+          salesPersonId = held!.id;
+          salesPersonName = held!.name;
+          assignmentReason = 'sticky_owner';
         } else if (callStatus === 'answered') {
           // 2a. Resolve answering agent via centralized agent_user_mapping (phone is most reliable)
           if (assignedAgentPhone) {
@@ -385,23 +413,70 @@ Deno.serve(async (req) => {
           // clustering them by chance, and it stays reproducible when someone
           // audits why a lead landed where it did.
           const salesPoolIds = new Set(missedCallAssignees.map((a) => a.user_id));
-          if (!salesPersonId || !salesPoolIds.has(salesPersonId)) {
+          if (salesPersonId && salesPoolIds.has(salesPersonId)) {
+            // A pool rep answered. They earn the number outright — displacing any
+            // provisional placeholder from an earlier missed call.
+            assignmentReason = 'receiver_in_sales';
+          } else if (held) {
+            // Nobody assignable answered, but the number already has a
+            // placeholder owner. Keep them rather than rotating again.
+            salesPersonId = held.id;
+            salesPersonName = held.name;
+            assignmentReason = 'sticky_owner';
+          } else {
             const pick = missedCallAssignees[roundRobinIndex % missedCallAssignees.length];
             salesPersonId = pick.user_id;
             salesPersonName = pick.name;
+            assignmentReason = 'round_robin_fallback';
             roundRobinIndex++;
           }
+        } else if (held) {
+          // Missed call on a number that already has a placeholder owner.
+          salesPersonId = held.id;
+          salesPersonName = held.name;
+          assignmentReason = 'sticky_owner';
         } else if (callStatus === 'missed') {
           // 3. Round-robin only for brand new missed callers
           const assignee = missedCallAssignees[roundRobinIndex % missedCallAssignees.length];
           salesPersonId = assignee.user_id;
           salesPersonName = assignee.name;
+          assignmentReason = 'round_robin_fallback';
           roundRobinIndex++;
         }
 
-        // Update sticky map so subsequent calls in the same batch also get the same person
-        if (salesPersonId && salesPersonName && !stickyMap.has(storedCaller)) {
-          stickyMap.set(storedCaller, { id: salesPersonId, name: salesPersonName });
+        // Record the decision for the rest of this batch, and — when a rep has
+        // just earned the number — hand them every earlier call from it, so the
+        // lead moves rather than leaving the number split between the
+        // placeholder owner and the rep who actually spoke to the caller.
+        if (salesPersonId && salesPersonName) {
+          const kind =
+            assignmentReason === 'manual'
+              ? 'manual'
+              : assignmentReason === 'receiver_in_sales'
+                ? 'earned'
+                : 'provisional';
+          const previous = stickyMap.get(storedCaller);
+          stickyMap.set(storedCaller, { id: salesPersonId, name: salesPersonName, kind });
+
+          if (kind === 'earned' && previous && previous.id !== salesPersonId) {
+            console.log('[sync-myoperator-logs] lead takeover', {
+              caller: storedCaller,
+              from: previous.name,
+              to: salesPersonName,
+            });
+            const { error: transferError } = await supabase
+              .from('call_logs')
+              .update({
+                sales_person_id: salesPersonId,
+                sales_person_name: salesPersonName,
+                assignment_reason: 'sticky_owner',
+              })
+              .eq('caller_number', storedCaller)
+              .or('assignment_reason.is.null,assignment_reason.neq.manual');
+            if (transferError) {
+              console.error('[sync-myoperator-logs] takeover transfer failed:', transferError.message);
+            }
+          }
         }
 
         const record: Record<string, unknown> = {
@@ -426,6 +501,7 @@ Deno.serve(async (req) => {
         if (!existingId && salesPersonId) {
           record.sales_person_id = salesPersonId;
           record.sales_person_name = salesPersonName;
+          record.assignment_reason = assignmentReason;
         }
 
         if (existingId) {
