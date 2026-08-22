@@ -112,6 +112,18 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
   const [orderWonProspect, setOrderWonProspect] = useState<Prospect | null>(null);
   const [logCallProspect, setLogCallProspect] = useState<Prospect | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
+  const [sortField, setSortField] = useState<string | null>('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      // Dates default to newest-first; text fields default to A→Z.
+      setSortDir(field === 'created_at' ? 'desc' : 'asc');
+    }
+  };
 
   // Auto-open prospect when selectedLeadId is provided
   useEffect(() => {
