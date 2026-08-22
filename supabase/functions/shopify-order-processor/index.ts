@@ -27,9 +27,20 @@ function classifyError(error: string): "temporary" | "permanent" {
   return "temporary";
 }
 
-function extractShippingAddress(payload: Record<string, unknown>): string | null {
-  const addr = payload.shipping_address as Record<string, unknown> | null;
+/**
+ * Format one Shopify address block into a single line.
+ *
+ * Returns null when nothing but province/country survives. Shopify redacts
+ * protected customer data — name, phone, address1, address2, city, zip — from
+ * order payloads unless the app has been granted access to it, while leaving
+ * province and country in place. An address of "Uttar Pradesh, India" is not a
+ * partial address, it is the shape of a redacted one, and storing it as though
+ * it were real makes the gap invisible in the UI.
+ */
+function formatAddress(addr: Record<string, unknown> | null | undefined): string | null {
   if (!addr) return null;
+  const specific = [addr.address1, addr.address2, addr.city, addr.zip].filter(Boolean);
+  if (specific.length === 0) return null;
   const parts = [
     addr.address1,
     addr.address2,
@@ -41,6 +52,14 @@ function extractShippingAddress(payload: Record<string, unknown>): string | null
   return parts.join(", ") || null;
 }
 
+function extractShippingAddress(payload: Record<string, unknown>): string | null {
+  return formatAddress(payload.shipping_address as Record<string, unknown> | null);
+}
+
+function extractBillingAddress(payload: Record<string, unknown>): string | null {
+  return formatAddress(payload.billing_address as Record<string, unknown> | null);
+}
+
 function mapShopifyToShopifyOrder(
   payload: Record<string, unknown>,
   shopDomain: string
@@ -48,6 +67,10 @@ function mapShopifyToShopifyOrder(
   const customer = (payload.customer as Record<string, unknown>) || {};
   const lineItems = (payload.line_items as Array<Record<string, unknown>>) || [];
   const shippingAddress = extractShippingAddress(payload);
+  const billingAddress = extractBillingAddress(payload);
+  const shipTo = (payload.shipping_address as Record<string, unknown>) || {};
+  const billTo = (payload.billing_address as Record<string, unknown>) || {};
+  const defaultAddr = (customer.default_address as Record<string, unknown>) || {};
 
   const primaryItem = lineItems[0] || {};
   const totalQuantity = lineItems.reduce(
@@ -90,12 +113,19 @@ function mapShopifyToShopifyOrder(
         ""
     ),
     customer_email: String(payload.contact_email || payload.email || (customer.email as string) || ""),
+    // Shopify scatters the phone across the order, both address blocks and the
+    // customer record, and fills different ones depending on how the order was
+    // placed — checkout, draft order, POS. Take whichever is present.
     customer_phone: String(
-      (payload.shipping_address as Record<string, unknown>)?.phone ||
+      shipTo.phone ||
+      billTo.phone ||
       (customer.phone as string) ||
+      defaultAddr.phone ||
+      (payload.phone as string) ||
       ""
     ) || null,
     shipping_address: shippingAddress,
+    billing_address: billingAddress,
     selling_price: Number(payload.total_price) || 0,
     total_sales_amount: Number(payload.total_price) || 0,
     amount_paid: Number(payload.total_price) || 0,
@@ -329,9 +359,11 @@ serve(async (req) => {
             .from("shopify_orders")
             .update({
               customer_name: orderData.customer_name,
+              customer_company: orderData.customer_company,
               customer_email: orderData.customer_email,
               customer_phone: orderData.customer_phone,
               shipping_address: orderData.shipping_address,
+              billing_address: orderData.billing_address,
               selling_price: orderData.selling_price,
               total_sales_amount: orderData.total_sales_amount,
               amount_paid: orderData.amount_paid,

@@ -312,6 +312,8 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
                       <td className="p-3">
                         <div className="font-medium">{order.customer_name}</div>
                         {order.customer_company && <div className="text-xs text-muted-foreground">{order.customer_company}</div>}
+                        {order.customer_phone && <div className="text-xs text-muted-foreground">{order.customer_phone}</div>}
+                        {order.customer_email && <div className="text-xs text-muted-foreground truncate max-w-[220px]">{order.customer_email}</div>}
                       </td>
                       <td className="p-3">
                         <div className="font-medium">{order.product_name}</div>
@@ -356,9 +358,27 @@ export default function OrdersShopifyTab(props: OrdersShopifyTabProps) {
                       {order.payment_status || 'pending'}
                     </Badge>
                   </div>
-                  <div>
+                  <div className="space-y-0.5">
                     <p className="font-semibold text-sm leading-tight">{order.customer_name}</p>
                     {order.customer_company && <p className="text-xs text-muted-foreground">{order.customer_company}</p>}
+                    {order.customer_phone && (
+                      <a
+                        href={`tel:${order.customer_phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="block text-xs text-primary hover:underline"
+                      >
+                        {order.customer_phone}
+                      </a>
+                    )}
+                    {order.customer_email && (
+                      <a
+                        href={`mailto:${order.customer_email}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="block text-xs text-primary hover:underline truncate"
+                      >
+                        {order.customer_email}
+                      </a>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground space-y-1">
                     <p className="font-medium text-foreground/80 truncate">{order.product_name}</p>

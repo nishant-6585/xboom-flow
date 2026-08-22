@@ -205,6 +205,19 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
 
   if (!order) return null;
 
+  // The ingest falls back to "Shopify Order <n>" when every name source in the
+  // payload is empty, so that exact string means "Shopify sent us no name",
+  // not "the customer is called that".
+  const placeholderName =
+    !order.customer_name ||
+    order.customer_name === `Shopify Order ${order.order_number}` ||
+    order.customer_name === `Shopify Order ${order.shopify_order_id}`;
+
+  // Shopify strips protected customer data as a block, so a nameless order with
+  // no email and no phone is a redacted payload rather than a customer who
+  // declined to share anything.
+  const customerDataMissing = placeholderName && !order.customer_email && !order.customer_phone;
+
   const handleManualSaveNotes = async () => {
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     const ok = await persistSalesNotes(form.sales_notes ?? '');
@@ -331,13 +344,47 @@ export function ShopifyOrderDetailDialog({ order, open, onOpenChange, onUpdated 
           <section>
             <h3 className="font-semibold mb-2">Customer</h3>
             <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-              <div><span className="text-foreground">Name:</span> {order.customer_name}</div>
+              <div><span className="text-foreground">Name:</span> {placeholderName ? <span className="italic">Not provided</span> : order.customer_name}</div>
               {order.customer_company && <div><span className="text-foreground">Company:</span> {order.customer_company}</div>}
-              {order.customer_email && <div><span className="text-foreground">Email:</span> {order.customer_email}</div>}
-              {order.customer_phone && <div><span className="text-foreground">Phone:</span> {order.customer_phone}</div>}
+              <div>
+                <span className="text-foreground">Email:</span>{' '}
+                {order.customer_email
+                  ? <a href={`mailto:${order.customer_email}`} className="text-primary hover:underline break-all">{order.customer_email}</a>
+                  : <span className="italic">—</span>}
+              </div>
+              <div>
+                <span className="text-foreground">Phone:</span>{' '}
+                {order.customer_phone
+                  ? <a href={`tel:${order.customer_phone}`} className="text-primary hover:underline">{order.customer_phone}</a>
+                  : <span className="italic">—</span>}
+              </div>
             </div>
-            {order.shipping_address && (
-              <div className="mt-2"><span className="text-foreground font-medium">Ship to:</span> <span className="text-muted-foreground">{order.shipping_address}</span></div>
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <div className="text-foreground font-medium">Shipping address</div>
+                <div className="text-muted-foreground whitespace-pre-line">{order.shipping_address || <span className="italic">—</span>}</div>
+              </div>
+              <div>
+                <div className="text-foreground font-medium">Billing address</div>
+                <div className="text-muted-foreground whitespace-pre-line">
+                  {order.billing_address
+                    ? (order.billing_address === order.shipping_address ? 'Same as shipping address' : order.billing_address)
+                    : <span className="italic">—</span>}
+                </div>
+              </div>
+            </div>
+            {customerDataMissing && (
+              <div className="mt-3 flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  Shopify did not send customer details for this order. This is what a
+                  redacted payload looks like when the app has not been granted
+                  <strong> protected customer data </strong> access — name, email, phone,
+                  street, city and PIN are stripped while state and country remain.
+                  Grant access in the Shopify admin, then re-run the order backfill in
+                  refresh mode to repair existing orders.
+                </span>
+              </div>
             )}
           </section>
 
