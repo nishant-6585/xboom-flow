@@ -200,7 +200,11 @@ Deno.serve(async (req) => {
       const callerLast10 = (callerNumber || '').replace(/\D/g, '').slice(-10);
       const owner = await findOwner(supabase, callerLast10);
 
-      if (answererId && (!owner || owner.kind === 'provisional')) {
+      // A placeholder owner only loses the lead while it is still untouched. Once
+      // they have worked it, it is theirs regardless of who answers next.
+      const canDisplace = !owner || (owner.kind === 'provisional' && !(await isLeadTouched(supabase, callerLast10)));
+
+      if (answererId && canDisplace) {
         // Nobody had spoken to this caller yet — whoever just answered earns the
         // lead and inherits the number's earlier calls, displacing the
         // round-robin placeholder.
@@ -661,6 +665,48 @@ async function findOwner(
     console.error('[myoperator-webhook] findOwner failed:', e);
   }
   return null;
+}
+
+/**
+ * Has anyone actually worked this lead yet?
+ *
+ * A provisional owner can normally be displaced by the first rep to answer —
+ * but not once someone has done real work on the number. If the round-robin
+ * gave suman das a missed call and he rang the caller back, dispositioned it or
+ * converted it, the lead is his; a later inbound call that Musthak happens to
+ * pick up must not take it away from him.
+ *
+ * The signals are all human actions. `disposition` is the canonical one:
+ * lead_disposition is NOT NULL DEFAULT 'untouched', so anything else means a
+ * person moved it. Neither this webhook nor sync-myoperator-logs writes any of
+ * these fields on ingest, so none of them can fire on their own.
+ */
+async function isLeadTouched(
+  supabase: ReturnType<typeof createClient>,
+  last10: string,
+): Promise<boolean> {
+  if (last10.length < 10) return false;
+  try {
+    const { data } = await supabase
+      .from('call_logs')
+      .select('id')
+      .eq('caller_last10', last10)
+      .or(
+        'disposition.neq.untouched,' +
+        'last_contacted_at.not.is.null,' +
+        'is_enquiry_converted.is.true,' +
+        'is_prospect.is.true',
+      )
+      .limit(1)
+      .maybeSingle();
+    return !!data;
+  } catch (e) {
+    // Fail closed: if we cannot tell, assume worked and leave ownership alone.
+    // Wrongly keeping a lead is recoverable by hand; wrongly moving a worked
+    // lead loses the rep's context and their claim to it.
+    console.error('[myoperator-webhook] isLeadTouched failed:', e);
+    return true;
+  }
 }
 
 /**

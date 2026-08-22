@@ -215,17 +215,31 @@ Deno.serve(async (req) => {
     // Rows predating assignment_reason have NULL and count as provisional.
     type OwnerKind = 'manual' | 'earned' | 'provisional';
     const stickyMap = new Map<string, { id: string; name: string; kind: OwnerKind }>();
+    // Numbers somebody has actually worked. A placeholder owner keeps a lead
+    // they have already touched, even if a different rep answers the next call.
+    const touchedNumbers = new Set<string>();
     if (batchCallerNumbers.length > 0) {
       const uniqueNumbers = [...new Set(batchCallerNumbers)];
       const { data: existingAssignments } = await supabase
         .from('call_logs')
-        .select('caller_number, sales_person_id, sales_person_name, assignment_reason, created_at')
+        .select(
+          'caller_number, sales_person_id, sales_person_name, assignment_reason, created_at, ' +
+          'disposition, last_contacted_at, is_enquiry_converted, is_prospect',
+        )
         .in('caller_number', uniqueNumbers)
-        .not('sales_person_id', 'is', null)
         .order('created_at', { ascending: true });
 
       const rank = (k: OwnerKind) => (k === 'manual' ? 2 : k === 'earned' ? 1 : 0);
       for (const row of existingAssignments ?? []) {
+        // Human-action signals only — nothing on the ingest path writes these.
+        if (
+          (row.disposition && row.disposition !== 'untouched') ||
+          row.last_contacted_at ||
+          row.is_enquiry_converted === true ||
+          row.is_prospect === true
+        ) {
+          touchedNumbers.add(row.caller_number);
+        }
         if (!row.sales_person_id || !row.sales_person_name) continue;
         const kind: OwnerKind =
           row.assignment_reason === 'manual'
@@ -355,9 +369,12 @@ Deno.serve(async (req) => {
         let assignmentReason: string | null = null;
 
         const held = stickyMap.get(storedCaller);
-        // A manual or already-earned claim is final; only a placeholder can be
-        // displaced, and only by someone who answered.
-        const heldIsFirm = !!held && held.kind !== 'provisional';
+        // A manual or already-earned claim is final. A placeholder can be
+        // displaced by whoever answers first — but only while the lead is still
+        // untouched. Once the placeholder owner has worked it (called back,
+        // dispositioned, converted), it is theirs.
+        const heldIsFirm =
+          !!held && (held.kind !== 'provisional' || touchedNumbers.has(storedCaller));
 
         if (heldIsFirm) {
           salesPersonId = held!.id;

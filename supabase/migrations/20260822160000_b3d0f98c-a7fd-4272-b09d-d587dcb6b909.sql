@@ -21,6 +21,14 @@
 -- other reps do NOT steal it: first answerer wins. A manual assignment
 -- outranks everything and is never overridden automatically.
 --
+-- A provisional owner is only displaced while the lead is still UNTOUCHED. Once
+-- they have worked it — called the lead back, dispositioned it, converted it to
+-- an enquiry or marked it a prospect — the lead is theirs, and a later inbound
+-- call answered by someone else does not take it away. `disposition` is the
+-- canonical signal here: lead_disposition is NOT NULL DEFAULT 'untouched', so
+-- anything else means a person moved it. Nothing on the ingest path writes any
+-- of those fields, so none of them can fire on their own.
+--
 -- This adds the two things that model needs:
 --   1. assignment_reason — how the current owner got the number, which is what
 --      distinguishes provisional from earned.
