@@ -254,6 +254,8 @@ export default function OrdersListTab(props: OrdersListTabProps) {
         onTimePeriodChange={setDashTimePeriod}
         salesPersonFilter={dashSalesPersonFilter}
         onSalesPersonFilterChange={setDashSalesPersonFilter}
+        startDate={startDate}
+        endDate={endDate}
       />
 
       {canViewProcurementWidget && (
