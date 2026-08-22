@@ -264,14 +264,25 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson && matchesLead && matchesClosureDate;
   });
 
-  // Apply closure date sorting
-  const sortedOrders = closureSortDir
-    ? [...filteredOrders].sort((a, b) => {
+  // Sort: closure date sort takes precedence when active; otherwise default to
+  // created date descending (latest first), togglable to ascending.
+  const sortedOrders = (() => {
+    const arr = [...filteredOrders];
+    if (closureSortDir) {
+      arr.sort((a, b) => {
         const dateA = a.expected_closure_date || '';
         const dateB = b.expected_closure_date || '';
         return closureSortDir === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
-      })
-    : filteredOrders;
+      });
+      return arr;
+    }
+    arr.sort((a, b) => {
+      const dateA = a.created_at || '';
+      const dateB = b.created_at || '';
+      return createdSortDir === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+    });
+    return arr;
+  })();
 
   const handleEditClick = (order: PipelineOrder) => {
     setEditOrder(order);
