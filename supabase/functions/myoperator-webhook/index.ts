@@ -18,7 +18,12 @@ Deno.serve(async (req) => {
 
   // MyOperator's webhook config only lets you set a URL (no custom headers),
   // so the shared secret may arrive either as a header or a query parameter.
-  const headerSecret = req.headers.get('x-myoperator-secret');
+  const headerSecret =
+    req.headers.get('x-myoperator-secret') ||
+    req.headers.get('myoperator-secret') ||
+    req.headers.get('x-webhook-secret') ||
+    req.headers.get('x-secret') ||
+    null;
   const querySecret =
     url.searchParams.get('secret') || url.searchParams.get('token');
 
@@ -26,9 +31,11 @@ Deno.serve(async (req) => {
     timestamp,
     method: req.method,
     secret_source: headerSecret ? 'header' : querySecret ? 'query' : 'none',
+    header_keys: Object.keys(headers).join(','),
     content_type: req.headers.get('content-type'),
     body_len: rawBody.length,
   });
+
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
