@@ -34,6 +34,15 @@ type Mismatch = {
   agent_phone: string | null;
 };
 
+/** A MyOperator agent seen in call payloads with no active mapping row. */
+type UnmappedAgent = {
+  agent_name: string | null;
+  agent_id: string | null;
+  agent_phone: string | null;
+  call_count: number;
+  last_seen_at: string | null;
+};
+
 const PROVIDERS = ["myoperator", "exotel", "manual"];
 
 export default function AgentMappingPanel() {
@@ -42,6 +51,7 @@ export default function AgentMappingPanel() {
   const [loading, setLoading] = useState(true);
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [mismatches, setMismatches] = useState<Mismatch[]>([]);
+  const [unmapped, setUnmapped] = useState<UnmappedAgent[]>([]);
   const [providerFilter, setProviderFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Partial<Mapping> | null>(null);
@@ -54,12 +64,14 @@ export default function AgentMappingPanel() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: maps }, { data: mm }] = await Promise.all([
+    const [{ data: maps }, { data: mm }, { data: un }] = await Promise.all([
       supabase.from("agent_user_mapping" as any).select("*").order("provider").order("agent_id"),
       supabase.from("lead_assignment_mismatches" as any).select("*").limit(500),
+      supabase.from("myoperator_unmapped_agents" as any).select("*").limit(200),
     ]);
     setMappings((maps as any) ?? []);
     setMismatches((mm as any) ?? []);
+    setUnmapped((un as any) ?? []);
     setLoading(false);
   };
 
@@ -234,6 +246,68 @@ export default function AgentMappingPanel() {
                     <TableCell className="text-right">
                       <Button size="sm" variant="ghost" onClick={() => setEditing(m)}><Pencil className="w-4 h-4" /></Button>
                       <Button size="sm" variant="ghost" onClick={() => handleDelete(m.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-warning" />
+            Unmapped MyOperator Agents
+            <Badge variant="secondary">{unmapped.length}</Badge>
+          </CardTitle>
+          <CardDescription>
+            Agents who have handled calls but have no mapping row. Every call they take
+            falls through to round-robin instead of going to them — map them to close the gap.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {unmapped.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Every agent seen in call payloads is mapped.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agent</TableHead>
+                  <TableHead>Agent ID</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead className="text-right">Calls</TableHead>
+                  <TableHead>Last seen</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unmapped.map((u) => (
+                  <TableRow key={`${u.agent_id ?? ""}-${u.agent_phone ?? ""}-${u.agent_name ?? ""}`}>
+                    <TableCell className="font-medium">{u.agent_name || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{u.agent_id || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{u.agent_phone || "—"}</TableCell>
+                    <TableCell className="text-right">{u.call_count}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {u.last_seen_at ? new Date(u.last_seen_at).toLocaleDateString() : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setEditing({
+                            provider: "myoperator",
+                            agent_id: u.agent_id,
+                            agent_phone: u.agent_phone,
+                            is_active: true,
+                            notes: u.agent_name ? `MyOperator agent: ${u.agent_name}` : null,
+                          })
+                        }
+                      >
+                        Map
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

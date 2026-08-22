@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { isAssignableRepName } from '../_shared/assignable-reps.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -181,21 +182,41 @@ Deno.serve(async (req) => {
 
       // Load active sales-team pool (role='sales', approved profiles). The
       // receiving agent must belong to this pool — if not, we discard the
-      // resolution and randomly assign to one of the sales reps so the lead
+      // resolution and hand the lead to the next rep in round-robin order so it
       // never ends up owned by a non-sales user.
       const salesPool = await loadSalesPool(supabase);
       let salesPersonNameOverride: string | null = null;
-      let assignmentReason: 'receiver_in_sales' | 'random_fallback' | 'unresolved' = 'unresolved';
+      let assignmentReason:
+        | 'sticky_owner'
+        | 'receiver_in_sales'
+        | 'round_robin_fallback'
+        | 'unresolved' = 'unresolved';
 
-      if (resolvedSalesPersonId && salesPool.byId.has(resolvedSalesPersonId)) {
+      // Same ladder as sync-myoperator-logs: sticky owner first, then the agent
+      // who actually took the call, then round-robin.
+      const stickyOwner = await findStickyOwner(supabase, callerNumber);
+      if (stickyOwner) {
+        resolvedSalesPersonId = stickyOwner.user_id;
+        salesPersonNameOverride = stickyOwner.name;
+        assignmentReason = 'sticky_owner';
+      } else if (resolvedSalesPersonId && salesPool.byId.has(resolvedSalesPersonId)) {
         salesPersonNameOverride = salesPool.byId.get(resolvedSalesPersonId)!;
         assignmentReason = 'receiver_in_sales';
       } else if (salesPool.list.length > 0) {
-        // Either receiver not in sales team, or no resolution at all → random pick.
-        const pick = salesPool.list[Math.floor(Math.random() * salesPool.list.length)];
-        resolvedSalesPersonId = pick.user_id;
-        salesPersonNameOverride = pick.name;
-        assignmentReason = 'random_fallback';
+        // Either receiver not in the assignable pool, or resolve_agent_user found
+        // no mapping for them → next rep in rotation. Round-robin rather than a
+        // random pick so unattributed leads spread evenly and the choice stays
+        // reproducible under audit.
+        //
+        // Landing here on an answered call means agent_user_mapping is missing a
+        // row for the agent who picked up — the UNMAPPED_AGENT warning below is
+        // the signal to go add it, since a mapped agent keeps their own lead.
+        const pick = await nextPoolAssignee(supabase, salesPool.list);
+        if (pick) {
+          resolvedSalesPersonId = pick.user_id;
+          salesPersonNameOverride = pick.name;
+          assignmentReason = 'round_robin_fallback';
+        }
       }
 
       console.log('[myoperator-webhook] assignment debug', {
@@ -224,15 +245,16 @@ Deno.serve(async (req) => {
       const callId = evt.callId;
 
       
-      // Build agent display string
-      let agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
-
-      // If missed call with no known agent ("Unknown"), randomly assign to Narasimha or Mushtaq
-      if (callStatus === 'missed' && (!agentDisplay || agentDisplay === 'Unknown' || agentDisplay.trim() === '')) {
-        const missedCallAgents = ['Narasimha', 'Mushtaq'];
-        agentDisplay = missedCallAgents[Math.floor(Math.random() * missedCallAgents.length)];
-        assignedAgentName = agentDisplay;
-      }
+      // Build agent display string.
+      //
+      // This records who actually handled the call and nothing else. A missed
+      // call with no agent in the payload stays empty and renders as "Unknown".
+      // It used to be backfilled with a random pick of 'Narasimha' or 'Mushtaq',
+      // which wrote a real person's name onto a call they never touched and then
+      // counted it against them in SalespersonCallStats. Lead *ownership* for
+      // these calls is handled by the round-robin assignment above, which is the
+      // right place for it — agent_name is a record of fact, not a routing field.
+      const agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
 
       const rawPayloadForStorage = parseError
         ? { raw_body: rawBody, parse_error: parseError }
@@ -349,7 +371,11 @@ Deno.serve(async (req) => {
               product_category: 'General',
               quantity: 1,
               urgency: 'normal',
-              sales_person_name: salesPersonNameOverride || agentDisplay || 'Unassigned',
+              // Never fall back to agentDisplay here: that is the agent who
+              // handled the call (often support, sometimes a comma-joined list),
+              // not the owning rep, and using it puts a name on the enquiry that
+              // disagrees with sales_person_id.
+              sales_person_name: salesPersonNameOverride || 'Unassigned',
               sales_person_id: resolvedSalesPersonId,
               status: 'new',
               notes: [
@@ -497,7 +523,11 @@ async function insertDebugLog(
 /**
  * Fetch the active sales-team pool (role='sales', approved profiles).
  * Returns both a Set keyed by user_id (for membership checks) and a flat
- * list (for random fallback assignment).
+ * list (for round-robin fallback assignment).
+ *
+ * The list is sorted by user_id so the rotation order is stable across
+ * invocations — Postgres makes no ordering guarantee without an ORDER BY,
+ * and a pool that reshuffles between calls would break the round-robin.
  */
 async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise<{
   byId: Map<string, string>;
@@ -520,10 +550,15 @@ async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise
     const list: Array<{ user_id: string; name: string }> = [];
     for (const p of (profiles ?? []) as Array<{ user_id: string; name: string; is_approved: boolean }>) {
       if (p.is_approved === false) continue;
+      // role='sales' is far wider than the reps who actually work call leads —
+      // support staff and non-selling users hold it too. Without this filter the
+      // fallback hands leads to people who never touch them.
+      if (!isAssignableRepName(p.name)) continue;
       const name = p.name || 'Sales';
       byId.set(p.user_id, name);
       list.push({ user_id: p.user_id, name });
     }
+    list.sort((a, b) => a.user_id.localeCompare(b.user_id));
     return { byId, list };
   } catch (e) {
     console.error('[myoperator-webhook] loadSalesPool failed:', e);
@@ -531,191 +566,75 @@ async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise
   }
 }
 
-// ---------------------------------------------------------------------------
-// Payload normalization: supports MyOperator Webhooks v1 (shorthand `_xx`
-// keys) and Webhooks v2 (readable / nested keys, optionally wrapped in
-// `data` / `call` / `payload`). Unknown v2 field names fall back through a
-// list of candidates so a provider rename does not break ingestion.
-// ---------------------------------------------------------------------------
-
-type NormalizedEvent = {
-  version: 'v1' | 'v2';
-  callId: string;
-  callerNumber: string | null;
-  fullNumber: string | null;
-  duration: number;
-  recordingUrl: string | null;
-  callType: string;
-  department: string | null;
-  startTime: string | null;
-  endTime: string | null;
-  callStatus: string;
-  agentName: string | null;
-  agentPhone: string | null;
-  agentId: string | null;
-  allAgents: string[];
-};
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-/** First non-empty string found among the given (possibly dotted) paths. */
-function pick(obj: Record<string, unknown>, paths: string[]): string | null {
-  for (const path of paths) {
-    let cur: unknown = obj;
-    for (const seg of path.split('.')) {
-      if (!isRecord(cur)) { cur = undefined; break; }
-      cur = cur[seg];
+/**
+ * Return the rep who already owns this caller number, if any.
+ *
+ * Lead ownership is per-caller, not per-call: once a number belongs to a rep,
+ * every later call from it stays with them. sync-myoperator-logs has always
+ * worked this way, but this webhook — the real-time path that inserts nearly
+ * every row — had no equivalent lookup, so it picked a fresh owner on each call.
+ * That is how one number ended up split across six different reps.
+ *
+ * Ordered newest-first to match sync-myoperator-logs, so a manual reassignment
+ * in the UI wins over the original auto-assignment.
+ *
+ * Matches on the trailing 10 digits so rows stored with and without the country
+ * code (+918894656913 vs 8894656913) both count.
+ */
+async function findStickyOwner(
+  supabase: ReturnType<typeof createClient>,
+  callerNumber: string | null,
+): Promise<{ user_id: string; name: string } | null> {
+  const last10 = (callerNumber || '').replace(/\D/g, '').slice(-10);
+  if (last10.length < 10) return null;
+  try {
+    const { data } = await supabase
+      .from('call_logs')
+      .select('sales_person_id, sales_person_name')
+      .ilike('caller_number', `%${last10}`)
+      .not('sales_person_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const row = data as { sales_person_id: string | null; sales_person_name: string | null } | null;
+    if (row?.sales_person_id && row.sales_person_name) {
+      return { user_id: row.sales_person_id, name: row.sales_person_name };
     }
-    if (typeof cur === 'string' && cur.trim()) return cur.trim();
-    if (typeof cur === 'number' && Number.isFinite(cur)) return String(cur);
+  } catch (e) {
+    console.error('[myoperator-webhook] findStickyOwner failed:', e);
   }
   return null;
 }
 
-function extractEvent(raw: Record<string, unknown>): NormalizedEvent {
-  const isV1 = Object.keys(raw).some((k) => k.startsWith('_'));
-  return isV1 ? extractV1(raw) : extractV2(raw);
-}
-
-function extractV1(body: Record<string, unknown>): NormalizedEvent {
-  let agentName: string | null = null;
-  let agentPhone: string | null = null;
-  let agentId: string | null = null;
-  const allAgents: string[] = [];
-  const legs = Array.isArray(body._ld) ? (body._ld as Record<string, unknown>[]) : [];
-
-  for (const leg of legs) {
-    const receivers = leg._rr;
-    if (Array.isArray(receivers)) {
-      for (const r of receivers as Record<string, unknown>[]) {
-        const name = getString(r, '_na');
-        if (name) allAgents.push(name);
-      }
-    }
+/**
+ * Pick the next sales rep in round-robin order.
+ *
+ * The webhook handles one call per invocation, so there is no in-process cursor
+ * to advance the way sync-myoperator-logs does across a batch. The position is
+ * recovered from the database instead: find the most recent call assigned to
+ * anyone in the pool and take the rep after them.
+ *
+ * On any failure this falls back to the head of the pool rather than throwing —
+ * a slightly lopsided assignment is much better than dropping the lead.
+ */
+async function nextPoolAssignee(
+  supabase: ReturnType<typeof createClient>,
+  pool: Array<{ user_id: string; name: string }>,
+): Promise<{ user_id: string; name: string } | null> {
+  if (pool.length === 0) return null;
+  try {
+    const { data: last } = await supabase
+      .from('call_logs')
+      .select('sales_person_id')
+      .in('sales_person_id', pool.map((p) => p.user_id))
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastId = (last as { sales_person_id: string | null } | null)?.sales_person_id;
+    const lastIdx = lastId ? pool.findIndex((p) => p.user_id === lastId) : -1;
+    return pool[(lastIdx + 1) % pool.length];
+  } catch (e) {
+    console.error('[myoperator-webhook] nextPoolAssignee failed:', e);
+    return pool[0];
   }
-  const answered = legs.find((l) => l._ac === 'received') || legs[0];
-  if (answered && Array.isArray(answered._rr) && answered._rr.length > 0) {
-    const first = answered._rr[0] as Record<string, unknown>;
-    agentName = getString(first, '_na');
-    agentPhone = getString(first, '_ct');
-    agentId = getString(first, '_id');
-  }
-
-  let callStatus = 'unknown';
-  if (legs.length > 0) {
-    if (legs.some((l) => l._ac === 'received')) callStatus = 'answered';
-    else if (legs.every((l) => l._ac === 'missed')) callStatus = 'missed';
-    else callStatus = mapCallStatus(getString(body, '_ac') || 'unknown');
-  } else {
-    callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
-  }
-
-  return {
-    version: 'v1',
-    callId: getString(body, '_ai') || getString(body, '_id') || crypto.randomUUID(),
-    callerNumber: getString(body, '_cr') || getString(body, '_cl'),
-    fullNumber: getString(body, '_cl'),
-    duration: parseDuration(getString(body, '_dr')),
-    recordingUrl: getString(body, '_fu'),
-    callType: mapCallType(body._ty),
-    department: getString(body, '_dn'),
-    startTime: getString(body, '_st'),
-    endTime: getString(body, '_et'),
-    callStatus,
-    agentName,
-    agentPhone,
-    agentId,
-    allAgents,
-  };
-}
-
-function extractV2(raw: Record<string, unknown>): NormalizedEvent {
-  // v2 commonly wraps the call object.
-  const body = (['data', 'call', 'payload', 'call_details'] as const)
-    .map((k) => raw[k])
-    .find(isRecord) ?? raw;
-
-  // Agent legs may appear under several names.
-  const legsRaw =
-    (['legs', 'call_legs', 'agents', 'receivers', 'users', 'call_flow'] as const)
-      .map((k) => body[k])
-      .find((v) => Array.isArray(v)) as Record<string, unknown>[] | undefined;
-  const legs = (legsRaw ?? []).filter(isRecord);
-
-  const allAgents: string[] = [];
-  for (const leg of legs) {
-    const name = pick(leg, ['name', 'agent_name', 'agent.name', 'user_name', 'user.name']);
-    if (name) allAgents.push(name);
-  }
-
-  const answeredLeg =
-    legs.find((l) => {
-      const s = (pick(l, ['status', 'call_status', 'answer_status', 'state']) || '').toLowerCase();
-      return s === 'received' || s === 'answered' || s === 'completed' || s === 'connected';
-    }) || legs[0];
-
-  const agentSource: Record<string, unknown> = isRecord(body.agent)
-    ? (body.agent as Record<string, unknown>)
-    : answeredLeg ?? body;
-
-  const agentName =
-    pick(agentSource, ['name', 'agent_name', 'agent.name', 'user_name', 'user.name']) ??
-    pick(body, ['agent_name', 'agent.name']);
-  const agentPhone =
-    pick(agentSource, ['number', 'phone', 'contact', 'agent_number', 'agent.number', 'mobile']) ??
-    pick(body, ['agent_number', 'agent.number']);
-  const agentId =
-    pick(agentSource, ['id', 'agent_id', 'agent.id', 'user_id', 'uid']) ??
-    pick(body, ['agent_id', 'agent.id']);
-
-  const statusRaw =
-    pick(body, ['status', 'call_status', 'call.status', 'disposition', 'answer_status', 'state']) ||
-    (answeredLeg ? pick(answeredLeg, ['status', 'call_status']) : null) ||
-    'unknown';
-
-  let callStatus = mapCallStatus(statusRaw);
-  if (callStatus === 'unknown' && legs.length > 0) {
-    const anyAnswered = legs.some((l) => {
-      const s = (pick(l, ['status', 'call_status']) || '').toLowerCase();
-      return s === 'received' || s === 'answered';
-    });
-    callStatus = anyAnswered ? 'answered' : 'missed';
-  }
-
-  const durationStr = pick(body, [
-    'duration', 'call_duration', 'talk_time', 'talktime', 'duration_seconds', 'total_duration',
-  ]);
-
-  return {
-    version: 'v2',
-    callId:
-      pick(body, ['call_id', 'callId', 'uuid', 'unique_id', 'uid', 'id']) ??
-      pick(raw, ['call_id', 'uuid', 'id']) ??
-      crypto.randomUUID(),
-    callerNumber: pick(body, [
-      'customer.number', 'customer.phone', 'customer_number', 'caller_number',
-      'caller', 'from', 'from_number', 'contact_number', 'client_number',
-    ]),
-    fullNumber: pick(body, [
-      'did', 'did_number', 'to', 'to_number', 'virtual_number',
-      'company_number', 'ivr_number', 'customer.number',
-    ]),
-    duration: parseDuration(durationStr),
-    recordingUrl: pick(body, [
-      'recording_url', 'recording', 'call_recording_url', 'recording.url', 'audio_url', 'file_url',
-    ]),
-    callType: mapCallType(
-      pick(body, ['direction', 'call_type', 'type', 'call.direction']) ?? 'incoming',
-    ),
-    department: pick(body, ['department.name', 'department_name', 'department', 'team', 'group_name']),
-    startTime: pick(body, ['start_time', 'started_at', 'call_time', 'start', 'created_at']),
-    endTime: pick(body, ['end_time', 'ended_at', 'end', 'hangup_time']),
-    callStatus,
-    agentName,
-    agentPhone,
-    agentId,
-    allAgents,
-  };
 }

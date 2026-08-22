@@ -164,7 +164,11 @@ Deno.serve(async (req) => {
       { user_id: '7bc60110-5d57-4ae1-bc9f-bf4dd3787a90', name: 'Manoj Kumar' },
     ];
 
-    // Get last assigned missed call to determine round-robin position
+    // Seed the round-robin cursor from the last missed call we assigned, so the
+    // rotation resumes where the previous sync run left off instead of restarting
+    // at the top of the pool every batch. One shared cursor now drives both
+    // fallback paths below (unresolved answered calls and new missed callers) so
+    // the two can't hand consecutive unattributed leads to the same rep.
     const { data: lastMissedAssignment } = await supabase
       .from('call_logs')
       .select('sales_person_id')
@@ -175,12 +179,12 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    let missedRoundRobinIndex = 0;
+    let roundRobinIndex = 0;
     if (lastMissedAssignment?.sales_person_id) {
       const lastIdx = missedCallAssignees.findIndex(
         (a) => a.user_id === lastMissedAssignment.sales_person_id,
       );
-      if (lastIdx >= 0) missedRoundRobinIndex = (lastIdx + 1) % missedCallAssignees.length;
+      if (lastIdx >= 0) roundRobinIndex = (lastIdx + 1) % missedCallAssignees.length;
     }
 
     // Pre-fetch all sales profiles for answered call matching
@@ -375,20 +379,24 @@ Deno.serve(async (req) => {
 
           // 2c. Validate receiver is in the sales pool. If not (e.g. an
           // admin / support agent picked up the call) OR if no resolution
-          // was found at all, randomly assign to one of the sales reps so
-          // the lead always belongs to sales.
+          // was found at all, hand the lead to the next rep in round-robin
+          // order so it always belongs to sales. Round-robin rather than a
+          // random pick: it spreads unattributed leads evenly instead of
+          // clustering them by chance, and it stays reproducible when someone
+          // audits why a lead landed where it did.
           const salesPoolIds = new Set(missedCallAssignees.map((a) => a.user_id));
           if (!salesPersonId || !salesPoolIds.has(salesPersonId)) {
-            const pick = missedCallAssignees[Math.floor(Math.random() * missedCallAssignees.length)];
+            const pick = missedCallAssignees[roundRobinIndex % missedCallAssignees.length];
             salesPersonId = pick.user_id;
             salesPersonName = pick.name;
+            roundRobinIndex++;
           }
         } else if (callStatus === 'missed') {
           // 3. Round-robin only for brand new missed callers
-          const assignee = missedCallAssignees[missedRoundRobinIndex % missedCallAssignees.length];
+          const assignee = missedCallAssignees[roundRobinIndex % missedCallAssignees.length];
           salesPersonId = assignee.user_id;
           salesPersonName = assignee.name;
-          missedRoundRobinIndex++;
+          roundRobinIndex++;
         }
 
         // Update sticky map so subsequent calls in the same batch also get the same person
