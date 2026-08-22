@@ -152,6 +152,27 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
     return matchesSearch && matchesSource && matchesStatus && matchesA && matchesType && matchesSalesperson && matchesDate;
   });
 
+  // Apply column sorting (default: created_at desc = newest first)
+  const sortedProspects = useMemo(() => {
+    if (!sortField) return filtered;
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      const av = (a as any)[sortField];
+      const bv = (b as any)[sortField];
+      let cmp = 0;
+      if (av == null && bv == null) cmp = 0;
+      else if (av == null) cmp = -1;
+      else if (bv == null) cmp = 1;
+      else if (sortField === 'created_at') {
+        cmp = new Date(av).getTime() - new Date(bv).getTime();
+      } else {
+        cmp = String(av).toLowerCase().localeCompare(String(bv).toLowerCase());
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, sortField, sortDir]);
+
   // Unique salesperson list derived from prospects
   const salespeopleOptions = useMemo(() => {
     const names = new Set<string>();
