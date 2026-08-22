@@ -9,14 +9,38 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   const timestamp = new Date().toISOString();
   const rawBody = req.method === 'POST' ? await req.text() : '';
+  const url = new URL(req.url);
+  const headers: Record<string, string> = {};
+  for (const [k, v] of req.headers.entries()) {
+    headers[k] = /secret|token|authorization|apikey|x-api-key/i.test(k) ? '[redacted]' : v;
+  }
+  // v2 webhooks can send the shared secret in a custom header; v1 config only
+  // lets you set a URL, so a ?secret= / ?token= query param is also accepted.
+
+  // MyOperator's webhook config only lets you set a URL (no custom headers),
+  // so the shared secret may arrive either as a header or a query parameter.
+  const authorization = req.headers.get('authorization');
+  const bearerSecret = authorization?.match(/^Bearer\s+(.+)$/i)?.[1] || null;
+  const headerSecret =
+    req.headers.get('x-myoperator-secret') ||
+    req.headers.get('myoperator-secret') ||
+    req.headers.get('x-webhook-secret') ||
+    req.headers.get('x-secret') ||
+    req.headers.get('x-api-key') ||
+    bearerSecret ||
+    null;
+  const querySecret =
+    url.searchParams.get('secret') || url.searchParams.get('token');
 
   console.log('Webhook hit:', {
     timestamp,
     method: req.method,
-    has_secret: !!req.headers.get('x-myoperator-secret'),
+    secret_source: headerSecret ? 'header' : querySecret ? 'query' : 'none',
+    header_keys: Object.keys(headers).join(','),
     content_type: req.headers.get('content-type'),
     body_len: rawBody.length,
   });
+
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,9 +53,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Shared-secret auth: require x-myoperator-secret header to match
-  // MYOPERATOR_WEBHOOK_SECRET env var. Configure the same value in
-  // MyOperator's webhook headers / query setup.
+  // Shared-secret auth: accept MyOperator API Key authentication, a custom
+  // secret header, Bearer authentication, or a ?secret= / ?token= parameter.
+  // MyOperator delivers through HookRelay, which in some setups strips both
+  // custom headers and query strings. As a documented fallback we then verify
+  // the payload carries our own configured MyOperator company_id.
   if (req.method === 'POST') {
     const expected = Deno.env.get('MYOPERATOR_WEBHOOK_SECRET');
     if (!expected) {
@@ -41,15 +67,41 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const provided = req.headers.get('x-myoperator-secret') || '';
-    if (provided !== expected) {
-      console.warn('MyOperator webhook auth failed');
-      return new Response(JSON.stringify({ error: 'unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const provided = (headerSecret || querySecret || '').trim();
+    if (provided !== expected.trim()) {
+      let companyIdVerified = false;
+      try {
+        const admin = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        );
+        const { data: cfg } = await admin
+          .from('myoperator_config')
+          .select('company_id, is_connected')
+          .limit(1)
+          .maybeSingle();
+        const companyId = (cfg?.company_id || '').trim();
+        if (cfg?.is_connected && companyId.length >= 6 && rawBody.includes(companyId)) {
+          companyIdVerified = true;
+        }
+      } catch (e) {
+        console.error('company_id fallback verification failed', e instanceof Error ? e.message : e);
+      }
+
+      if (!companyIdVerified) {
+        console.warn('MyOperator webhook auth failed', {
+          secret_source: headerSecret ? 'header' : querySecret ? 'query' : 'none',
+          company_id_match: false,
+        });
+        return new Response(JSON.stringify({ error: 'unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.log('MyOperator webhook authenticated via payload company_id fallback');
     }
   }
+
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -84,49 +136,25 @@ Deno.serve(async (req) => {
 
       console.log('MyOperator webhook received, parsed body keys:', Object.keys(body));
 
-      // Extract fields from actual MyOperator payload structure
-      const callerNumber = getString(body, '_cr') || getString(body, '_cl') || null;
-      const fullNumber = getString(body, '_cl') || null;
-      const durationStr = getString(body, '_dr') || null;
-      const duration = parseDuration(durationStr);
-      const recordingUrl = getString(body, '_fu') || null;
-      const callTypeRaw = body._ty;
-      const callType = mapCallType(callTypeRaw);
-      const department = getString(body, '_dn') || null;
-      const startTime = getString(body, '_st') || null;
-      const endTime = getString(body, '_et') || null;
+      // MyOperator Webhooks v1 uses shorthand keys (_cr, _ld, _ai ...) while
+      // Webhooks v2 sends readable, often nested JSON. Normalize both here.
+      const evt = extractEvent(body);
+      console.log('[myoperator-webhook] payload version:', evt.version);
 
-      // Extract ALL agents from _ld array (not just "received")
-      let assignedAgentName: string | null = null;
-      let assignedAgentPhone: string | null = null;
-      let assignedAgentId: string | null = null;
-      const allAgents: string[] = [];
+      const callerNumber = evt.callerNumber;
+      const fullNumber = evt.fullNumber;
+      const duration = evt.duration;
+      const recordingUrl = evt.recordingUrl;
+      const callType = evt.callType;
+      const department = evt.department;
+      const startTime = evt.startTime;
+      const endTime = evt.endTime;
 
-      if (body._ld && Array.isArray(body._ld)) {
-        for (const leg of body._ld as Record<string, unknown>[]) {
-          const receivers = leg._rr;
-          if (Array.isArray(receivers)) {
-            for (const r of receivers as Record<string, unknown>[]) {
-              const name = getString(r, '_na');
-              if (name) allAgents.push(name);
-            }
-          }
-        }
-        // Try to find "received" leg first, fallback to first leg
-        const answeredCall = (body._ld as Record<string, unknown>[]).find(
-          (item) => item._ac === 'received'
-        ) || (body._ld as Record<string, unknown>[])[0];
-        
-        if (answeredCall) {
-          const receivers = answeredCall._rr;
-          if (Array.isArray(receivers) && receivers.length > 0) {
-            const firstReceiver = receivers[0] as Record<string, unknown>;
-            assignedAgentName = getString(firstReceiver, '_na') || null;
-            assignedAgentPhone = getString(firstReceiver, '_ct') || null;
-            assignedAgentId = getString(firstReceiver, '_id') || null;
-          }
-        }
-      }
+      let assignedAgentName: string | null = evt.agentName;
+      const assignedAgentPhone: string | null = evt.agentPhone;
+      const assignedAgentId: string | null = evt.agentId;
+      const allAgents: string[] = evt.allAgents;
+
 
       // === Phase 2: resolve sales_person_id via centralized agent_user_mapping ===
       let resolvedSalesPersonId: string | null = null;
@@ -213,20 +241,9 @@ Deno.serve(async (req) => {
       const normalizedCaller = normalizePhone(callerNumber || '');
       const storedCallerNumber = normalizedCaller || `unknown:${crypto.randomUUID()}`;
 
-      // Determine call status: check _ld legs for overall status
-      let callStatus = 'unknown';
-      if (body._ld && Array.isArray(body._ld)) {
-        const hasReceived = (body._ld as Record<string, unknown>[]).some((l) => l._ac === 'received');
-        const allMissed = (body._ld as Record<string, unknown>[]).every((l) => l._ac === 'missed');
-        if (hasReceived) callStatus = 'answered';
-        else if (allMissed) callStatus = 'missed';
-        else callStatus = mapCallStatus(getString(body, '_ac') || 'unknown');
-      } else {
-        callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
-      }
+      const callStatus = evt.callStatus;
+      const callId = evt.callId;
 
-      // Use _ai as unique call ID (MyOperator's unique identifier)
-      const callId = getString(body, '_ai') || getString(body, '_id') || getString(body, 'call_id') || crypto.randomUUID();
       
       // Build agent display string.
       //

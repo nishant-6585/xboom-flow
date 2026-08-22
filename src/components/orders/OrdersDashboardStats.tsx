@@ -21,6 +21,9 @@ interface OrdersDashboardStatsProps {
   onTimePeriodChange: (v: TimePeriod) => void;
   salesPersonFilter: string;
   onSalesPersonFilterChange: (v: string) => void;
+  /** Active list date filter — used only for the card sub-label. */
+  startDate?: Date;
+  endDate?: Date;
 }
 
 const fmt = (v: number) => {
@@ -30,11 +33,6 @@ const fmt = (v: number) => {
   return `₹${v.toLocaleString("en-IN")}`;
 };
 
-const PERIOD_LABELS: Record<TimePeriod, string> = {
-  this_week: "This week",
-  this_month: "This month",
-  prev_month: "Previous month",
-};
 
 type ProfitRow = { order_id: string; profit: number | string | null; total_sales: number | string | null };
 type ChartPayloadItem = { color?: string; name?: string; value?: number | string };
@@ -60,6 +58,8 @@ export function OrdersDashboardStats({
   onTimePeriodChange,
   salesPersonFilter,
   onSalesPersonFilterChange,
+  startDate,
+  endDate,
 }: OrdersDashboardStatsProps) {
   // These cards should match the currently visible Orders list filters exactly.
   // Website (Auto) is controlled by the source filter, not by the global
@@ -199,7 +199,9 @@ export function OrdersDashboardStats({
 
   const currentMonthLabel = format(new Date(), "MMM yyyy");
   const prevMonthLabel = format(subMonths(new Date(), 1), "MMM yyyy");
-  const periodLabel = PERIOD_LABELS[timePeriod];
+  const periodLabel = startDate || endDate
+    ? [startDate ? format(startDate, "dd MMM") : "…", endDate ? format(endDate, "dd MMM yyyy") : "…"].join(" – ")
+    : "All time";
 
   const formatChartValue = (value: number) => {
     if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
