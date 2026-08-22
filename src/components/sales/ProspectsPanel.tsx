@@ -59,6 +59,37 @@ const STATUS_COLORS: Record<string, string> = {
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const TOOLTIP_STYLE = { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' };
 
+interface SortableHeaderProps {
+  label: string;
+  field: string;
+  sortField: string | null;
+  sortDir: 'asc' | 'desc';
+  onSort: (field: string) => void;
+  className?: string;
+}
+
+function SortableHeader({ label, field, sortField, sortDir, onSort, className }: SortableHeaderProps) {
+  const active = sortField === field;
+  return (
+    <TableHead className={className}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-auto p-0 font-medium hover:bg-transparent gap-1"
+        onClick={() => onSort(field)}
+        title={active ? (sortDir === 'asc' ? 'Ascending — click to descending' : 'Descending — click to ascending') : 'Click to sort'}
+      >
+        {label}
+        {active && (
+          sortDir === 'asc'
+            ? <ArrowUp className="h-3 w-3 text-primary" />
+            : <ArrowDown className="h-3 w-3 text-primary" />
+        )}
+      </Button>
+    </TableHead>
+  );
+}
+
 interface ProspectsPanelProps {
   selectedLeadId?: string | null;
 }
