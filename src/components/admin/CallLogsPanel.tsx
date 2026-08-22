@@ -494,9 +494,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       const matched = allowedSalesUsers.find(
         u => u.name.trim().toLowerCase() === trimmed.toLowerCase()
       );
-      const updatePayload: { sales_person_name: string | null; sales_person_id: string | null } = {
+      const updatePayload: {
+        sales_person_name: string | null;
+        sales_person_id: string | null;
+        assignment_reason: string | null;
+      } = {
         sales_person_name: trimmed || null,
         sales_person_id: matched?.user_id ?? null,
+        // 'manual' is the strongest claim on a number: it stops the webhook from
+        // handing the lead to the next rep who answers a call from it. Clearing
+        // the owner clears the claim too, so the number is up for grabs again.
+        assignment_reason: trimmed ? 'manual' : null,
       };
 
       // Match on the trailing 10 digits — the same key the merge grouping uses —

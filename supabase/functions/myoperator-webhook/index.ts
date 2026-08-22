@@ -192,25 +192,46 @@ Deno.serve(async (req) => {
         | 'round_robin_fallback'
         | 'unresolved' = 'unresolved';
 
-      // Same ladder as sync-myoperator-logs: sticky owner first, then the agent
-      // who actually took the call, then round-robin.
-      const stickyOwner = await findStickyOwner(supabase, callerNumber);
-      if (stickyOwner) {
-        resolvedSalesPersonId = stickyOwner.user_id;
-        salesPersonNameOverride = stickyOwner.name;
-        assignmentReason = 'sticky_owner';
-      } else if (resolvedSalesPersonId && salesPool.byId.has(resolvedSalesPersonId)) {
-        salesPersonNameOverride = salesPool.byId.get(resolvedSalesPersonId)!;
+      // Did a rep who can actually own leads pick up this call?
+      const answeredByPoolRep = !!resolvedSalesPersonId && salesPool.byId.has(resolvedSalesPersonId);
+      const answererId = answeredByPoolRep ? resolvedSalesPersonId! : null;
+      const answererName = answererId ? salesPool.byId.get(answererId)! : null;
+
+      const callerLast10 = (callerNumber || '').replace(/\D/g, '').slice(-10);
+      const owner = await findOwner(supabase, callerLast10);
+
+      if (answererId && (!owner || owner.kind === 'provisional')) {
+        // Nobody had spoken to this caller yet — whoever just answered earns the
+        // lead and inherits the number's earlier calls, displacing the
+        // round-robin placeholder.
+        resolvedSalesPersonId = answererId;
+        salesPersonNameOverride = answererName;
         assignmentReason = 'receiver_in_sales';
+        if (owner && owner.user_id !== answererId) {
+          console.log('[myoperator-webhook] lead takeover', {
+            caller_last10: callerLast10,
+            from: owner.name,
+            to: answererName,
+          });
+        }
+        await transferEarlierCalls(supabase, callerLast10, answererId, answererName!);
+
+      } else if (owner) {
+        // Held manually, or already earned by the first rep who answered. Later
+        // answers by anyone else do not take it.
+        resolvedSalesPersonId = owner.user_id;
+        salesPersonNameOverride = owner.name;
+        assignmentReason = owner.user_id === answererId ? 'receiver_in_sales' : 'sticky_owner';
+
       } else if (salesPool.list.length > 0) {
-        // Either receiver not in the assignable pool, or resolve_agent_user found
-        // no mapping for them → next rep in rotation. Round-robin rather than a
-        // random pick so unattributed leads spread evenly and the choice stays
-        // reproducible under audit.
+        // Unowned, and nobody in the pool answered — missed call, support pickup,
+        // AI agent, or an agent with no agent_user_mapping row. Round-robin a
+        // provisional owner so the lead is never left unattended; the first rep
+        // to actually answer will take it over.
         //
         // Landing here on an answered call means agent_user_mapping is missing a
-        // row for the agent who picked up — the UNMAPPED_AGENT warning below is
-        // the signal to go add it, since a mapped agent keeps their own lead.
+        // row for whoever picked up — the UNMAPPED_AGENT warning below is the
+        // signal to go add it.
         const pick = await nextPoolAssignee(supabase, salesPool.list);
         if (pick) {
           resolvedSalesPersonId = pick.user_id;
@@ -280,6 +301,7 @@ Deno.serve(async (req) => {
             assigned_agent_phone: assignedAgentPhone,
             ...(resolvedSalesPersonId ? { sales_person_id: resolvedSalesPersonId } : {}),
             ...(salesPersonNameOverride ? { sales_person_name: salesPersonNameOverride } : {}),
+            ...(resolvedSalesPersonId ? { assignment_reason: assignmentReason } : {}),
             department,
             start_time: startTime,
             end_time: endTime,
@@ -315,6 +337,7 @@ Deno.serve(async (req) => {
           assigned_agent_phone: assignedAgentPhone,
           sales_person_id: resolvedSalesPersonId,
           sales_person_name: salesPersonNameOverride,
+          assignment_reason: resolvedSalesPersonId ? assignmentReason : null,
           call_status: callStatus,
           call_duration: duration,
           call_type: callType,
@@ -566,44 +589,110 @@ async function loadSalesPool(supabase: ReturnType<typeof createClient>): Promise
   }
 }
 
+/** How firmly a number is held. See findOwner(). */
+type OwnerKind = 'manual' | 'earned' | 'provisional';
+type Owner = { user_id: string; name: string; kind: OwnerKind };
+
 /**
- * Return the rep who already owns this caller number, if any.
+ * Return who currently owns this caller number, and how firmly.
  *
- * Lead ownership is per-caller, not per-call: once a number belongs to a rep,
- * every later call from it stays with them. sync-myoperator-logs has always
- * worked this way, but this webhook — the real-time path that inserts nearly
- * every row — had no equivalent lookup, so it picked a fresh owner on each call.
- * That is how one number ended up split across six different reps.
+ * Ownership is per-caller, not per-call, and comes in three strengths:
  *
- * Ordered newest-first to match sync-myoperator-logs, so a manual reassignment
- * in the UI wins over the original auto-assignment.
+ *   manual      — a human assigned it. Outranks everything, never overridden.
+ *   earned      — a pool rep answered a call from this number. The FIRST such
+ *                 rep holds it; later answerers do not take it from them.
+ *   provisional — round-robined off a missed or unattributable call. Nobody has
+ *                 spoken to this caller yet, so it is only a placeholder and the
+ *                 first rep to actually answer takes it over.
  *
- * Matches on the trailing 10 digits so rows stored with and without the country
- * code (+918894656913 vs 8894656913) both count.
+ * Rows written before assignment_reason existed have NULL and count as
+ * provisional — those owners were picked at random and never spoke to the
+ * caller, so letting a real answerer claim them is the correction, not a loss.
  */
-async function findStickyOwner(
+async function findOwner(
   supabase: ReturnType<typeof createClient>,
-  callerNumber: string | null,
-): Promise<{ user_id: string; name: string } | null> {
-  const last10 = (callerNumber || '').replace(/\D/g, '').slice(-10);
+  last10: string,
+): Promise<Owner | null> {
   if (last10.length < 10) return null;
+
+  const pick = async (kind: OwnerKind): Promise<Owner | null> => {
+    let q = supabase
+      .from('call_logs')
+      .select('sales_person_id, sales_person_name')
+      .eq('caller_last10', last10)
+      .not('sales_person_id', 'is', null);
+
+    if (kind === 'manual') {
+      // Latest human decision wins.
+      q = q.eq('assignment_reason', 'manual').order('created_at', { ascending: false });
+    } else {
+      // First rep to answer wins, so oldest first.
+      q = q.eq('assignment_reason', 'receiver_in_sales').order('created_at', { ascending: true });
+    }
+
+    const { data } = await q.limit(1).maybeSingle();
+    const row = data as { sales_person_id: string | null; sales_person_name: string | null } | null;
+    return row?.sales_person_id && row.sales_person_name
+      ? { user_id: row.sales_person_id, name: row.sales_person_name, kind }
+      : null;
+  };
+
   try {
+    const manual = await pick('manual');
+    if (manual) return manual;
+
+    const earned = await pick('earned');
+    if (earned) return earned;
+
+    // Anything else: the most recent owner, held provisionally.
     const { data } = await supabase
       .from('call_logs')
       .select('sales_person_id, sales_person_name')
-      .ilike('caller_number', `%${last10}`)
+      .eq('caller_last10', last10)
       .not('sales_person_id', 'is', null)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     const row = data as { sales_person_id: string | null; sales_person_name: string | null } | null;
     if (row?.sales_person_id && row.sales_person_name) {
-      return { user_id: row.sales_person_id, name: row.sales_person_name };
+      return { user_id: row.sales_person_id, name: row.sales_person_name, kind: 'provisional' };
     }
   } catch (e) {
-    console.error('[myoperator-webhook] findStickyOwner failed:', e);
+    console.error('[myoperator-webhook] findOwner failed:', e);
   }
   return null;
+}
+
+/**
+ * Hand every earlier call from this number to the rep who just answered.
+ *
+ * The lead moves, not just this call — otherwise the call log shows one number
+ * split between the placeholder owner and the real one, and SalespersonCallStats
+ * keeps crediting the earlier calls to someone who never spoke to the caller.
+ *
+ * Manual assignments are left alone; they outrank an answered call.
+ */
+async function transferEarlierCalls(
+  supabase: ReturnType<typeof createClient>,
+  last10: string,
+  userId: string,
+  userName: string,
+): Promise<void> {
+  if (last10.length < 10) return;
+  try {
+    const { error } = await supabase
+      .from('call_logs')
+      .update({
+        sales_person_id: userId,
+        sales_person_name: userName,
+        assignment_reason: 'sticky_owner',
+      })
+      .eq('caller_last10', last10)
+      .or('assignment_reason.is.null,assignment_reason.neq.manual');
+    if (error) throw error;
+  } catch (e) {
+    console.error('[myoperator-webhook] transferEarlierCalls failed:', e);
+  }
 }
 
 /**
