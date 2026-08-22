@@ -573,7 +573,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((p) => (
+                    {sortedProspects.map((p) => (
                       <TableRow key={p.id} className={`hover:bg-muted/50 cursor-pointer ${p.is_a_category ? 'bg-destructive/5' : ''}`} onClick={() => setEditingProspect(p)}>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
