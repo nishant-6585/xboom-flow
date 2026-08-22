@@ -90,49 +90,25 @@ Deno.serve(async (req) => {
 
       console.log('MyOperator webhook received, parsed body keys:', Object.keys(body));
 
-      // Extract fields from actual MyOperator payload structure
-      const callerNumber = getString(body, '_cr') || getString(body, '_cl') || null;
-      const fullNumber = getString(body, '_cl') || null;
-      const durationStr = getString(body, '_dr') || null;
-      const duration = parseDuration(durationStr);
-      const recordingUrl = getString(body, '_fu') || null;
-      const callTypeRaw = body._ty;
-      const callType = mapCallType(callTypeRaw);
-      const department = getString(body, '_dn') || null;
-      const startTime = getString(body, '_st') || null;
-      const endTime = getString(body, '_et') || null;
+      // MyOperator Webhooks v1 uses shorthand keys (_cr, _ld, _ai ...) while
+      // Webhooks v2 sends readable, often nested JSON. Normalize both here.
+      const evt = extractEvent(body);
+      console.log('[myoperator-webhook] payload version:', evt.version);
 
-      // Extract ALL agents from _ld array (not just "received")
-      let assignedAgentName: string | null = null;
-      let assignedAgentPhone: string | null = null;
-      let assignedAgentId: string | null = null;
-      const allAgents: string[] = [];
+      const callerNumber = evt.callerNumber;
+      const fullNumber = evt.fullNumber;
+      const duration = evt.duration;
+      const recordingUrl = evt.recordingUrl;
+      const callType = evt.callType;
+      const department = evt.department;
+      const startTime = evt.startTime;
+      const endTime = evt.endTime;
 
-      if (body._ld && Array.isArray(body._ld)) {
-        for (const leg of body._ld as Record<string, unknown>[]) {
-          const receivers = leg._rr;
-          if (Array.isArray(receivers)) {
-            for (const r of receivers as Record<string, unknown>[]) {
-              const name = getString(r, '_na');
-              if (name) allAgents.push(name);
-            }
-          }
-        }
-        // Try to find "received" leg first, fallback to first leg
-        const answeredCall = (body._ld as Record<string, unknown>[]).find(
-          (item) => item._ac === 'received'
-        ) || (body._ld as Record<string, unknown>[])[0];
-        
-        if (answeredCall) {
-          const receivers = answeredCall._rr;
-          if (Array.isArray(receivers) && receivers.length > 0) {
-            const firstReceiver = receivers[0] as Record<string, unknown>;
-            assignedAgentName = getString(firstReceiver, '_na') || null;
-            assignedAgentPhone = getString(firstReceiver, '_ct') || null;
-            assignedAgentId = getString(firstReceiver, '_id') || null;
-          }
-        }
-      }
+      let assignedAgentName: string | null = evt.agentName;
+      const assignedAgentPhone: string | null = evt.agentPhone;
+      const assignedAgentId: string | null = evt.agentId;
+      const allAgents: string[] = evt.allAgents;
+
 
       // === Phase 2: resolve sales_person_id via centralized agent_user_mapping ===
       let resolvedSalesPersonId: string | null = null;
