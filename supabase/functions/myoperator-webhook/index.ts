@@ -8,11 +8,17 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   const timestamp = new Date().toISOString();
   const rawBody = req.method === 'POST' ? await req.text() : '';
+  const url = new URL(req.url);
+  // MyOperator's webhook config only lets you set a URL (no custom headers),
+  // so the shared secret may arrive either as a header or a query parameter.
+  const headerSecret = req.headers.get('x-myoperator-secret');
+  const querySecret =
+    url.searchParams.get('secret') || url.searchParams.get('token');
 
   console.log('Webhook hit:', {
     timestamp,
     method: req.method,
-    has_secret: !!req.headers.get('x-myoperator-secret'),
+    secret_source: headerSecret ? 'header' : querySecret ? 'query' : 'none',
     content_type: req.headers.get('content-type'),
     body_len: rawBody.length,
   });
@@ -28,9 +34,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Shared-secret auth: require x-myoperator-secret header to match
-  // MYOPERATOR_WEBHOOK_SECRET env var. Configure the same value in
-  // MyOperator's webhook headers / query setup.
+  // Shared-secret auth: require the MYOPERATOR_WEBHOOK_SECRET value in either
+  // the x-myoperator-secret header or a ?secret= / ?token= query parameter.
   if (req.method === 'POST') {
     const expected = Deno.env.get('MYOPERATOR_WEBHOOK_SECRET');
     if (!expected) {
@@ -40,9 +45,11 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const provided = req.headers.get('x-myoperator-secret') || '';
-    if (provided !== expected) {
-      console.warn('MyOperator webhook auth failed');
+    const provided = (headerSecret || querySecret || '').trim();
+    if (provided !== expected.trim()) {
+      console.warn('MyOperator webhook auth failed', {
+        secret_source: headerSecret ? 'header' : querySecret ? 'query' : 'none',
+      });
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
