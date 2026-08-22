@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing, ShoppingCart } from 'lucide-react';
+import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing, ShoppingCart } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays, subDays, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subYears } from 'date-fns';
 
@@ -96,6 +96,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [closureDateStart, setClosureDateStart] = useState<Date | undefined>(undefined);
   const [closureDateEnd, setClosureDateEnd] = useState<Date | undefined>(undefined);
   const [closureSortDir, setClosureSortDir] = useState<'asc' | 'desc' | null>(null);
+  const [createdSortDir, setCreatedSortDir] = useState<'asc' | 'desc'>('desc');
   const lastAutoOpenedId = useRef<string | null>(null);
   const [orderWonDialog, setOrderWonDialog] = useState<PipelineOrder | null>(null);
   const [logCallOrder, setLogCallOrder] = useState<PipelineOrder | null>(null);
@@ -263,14 +264,25 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson && matchesLead && matchesClosureDate;
   });
 
-  // Apply closure date sorting
-  const sortedOrders = closureSortDir
-    ? [...filteredOrders].sort((a, b) => {
+  // Sort: closure date sort takes precedence when active; otherwise default to
+  // created date descending (latest first), togglable to ascending.
+  const sortedOrders = (() => {
+    const arr = [...filteredOrders];
+    if (closureSortDir) {
+      arr.sort((a, b) => {
         const dateA = a.expected_closure_date || '';
         const dateB = b.expected_closure_date || '';
         return closureSortDir === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
-      })
-    : filteredOrders;
+      });
+      return arr;
+    }
+    arr.sort((a, b) => {
+      const dateA = a.created_at || '';
+      const dateB = b.created_at || '';
+      return createdSortDir === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+    });
+    return arr;
+  })();
 
   const handleEditClick = (order: PipelineOrder) => {
     setEditOrder(order);
@@ -594,7 +606,20 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <TableHeader>
               <TableRow>
                 <TableHead>Lead</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-medium hover:bg-transparent"
+                    onClick={() => setCreatedSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    title={createdSortDir === 'desc' ? 'Newest first (click to ascending)' : 'Oldest first (click to descending)'}
+                  >
+                    Created
+                    {createdSortDir === 'asc'
+                      ? <ArrowUp className="ml-1 h-3.5 w-3.5 text-primary" />
+                      : <ArrowDown className="ml-1 h-3.5 w-3.5 text-primary" />}
+                  </Button>
+                </TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Product</TableHead>
