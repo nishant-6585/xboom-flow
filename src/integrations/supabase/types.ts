@@ -15220,6 +15220,7 @@ export type Database = {
       shopify_orders: {
         Row: {
           amount_paid: number | null
+          billing_address: string | null
           created_at: string
           currency: string | null
           customer_company: string | null
@@ -15251,6 +15252,7 @@ export type Database = {
         }
         Insert: {
           amount_paid?: number | null
+          billing_address?: string | null
           created_at?: string
           currency?: string | null
           customer_company?: string | null
@@ -15282,6 +15284,7 @@ export type Database = {
         }
         Update: {
           amount_paid?: number | null
+          billing_address?: string | null
           created_at?: string
           currency?: string | null
           customer_company?: string | null
