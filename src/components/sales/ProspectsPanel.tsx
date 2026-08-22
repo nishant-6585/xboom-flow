@@ -11,7 +11,7 @@ import { useProspects, Prospect } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrders } from '@/hooks/useOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, UserCheck, FileText, Trash2, PhoneOutgoing } from 'lucide-react';
+import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, UserCheck, FileText, Trash2, PhoneOutgoing, ArrowUp, ArrowDown } from 'lucide-react';
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth } from 'date-fns';
@@ -59,6 +59,37 @@ const STATUS_COLORS: Record<string, string> = {
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const TOOLTIP_STYLE = { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' };
 
+interface SortableHeaderProps {
+  label: string;
+  field: string;
+  sortField: string | null;
+  sortDir: 'asc' | 'desc';
+  onSort: (field: string) => void;
+  className?: string;
+}
+
+function SortableHeader({ label, field, sortField, sortDir, onSort, className }: SortableHeaderProps) {
+  const active = sortField === field;
+  return (
+    <TableHead className={className}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-auto p-0 font-medium hover:bg-transparent gap-1"
+        onClick={() => onSort(field)}
+        title={active ? (sortDir === 'asc' ? 'Ascending — click to descending' : 'Descending — click to ascending') : 'Click to sort'}
+      >
+        {label}
+        {active && (
+          sortDir === 'asc'
+            ? <ArrowUp className="h-3 w-3 text-primary" />
+            : <ArrowDown className="h-3 w-3 text-primary" />
+        )}
+      </Button>
+    </TableHead>
+  );
+}
+
 interface ProspectsPanelProps {
   selectedLeadId?: string | null;
 }
@@ -81,6 +112,18 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
   const [orderWonProspect, setOrderWonProspect] = useState<Prospect | null>(null);
   const [logCallProspect, setLogCallProspect] = useState<Prospect | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
+  const [sortField, setSortField] = useState<string | null>('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      // Dates default to newest-first; text fields default to A→Z.
+      setSortDir(field === 'created_at' ? 'desc' : 'asc');
+    }
+  };
 
   // Auto-open prospect when selectedLeadId is provided
   useEffect(() => {
@@ -108,6 +151,27 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
     const matchesDate = (!dateStart || d >= startOfDay(dateStart)) && (!dateEnd || d <= endOfDay(dateEnd));
     return matchesSearch && matchesSource && matchesStatus && matchesA && matchesType && matchesSalesperson && matchesDate;
   });
+
+  // Apply column sorting (default: created_at desc = newest first)
+  const sortedProspects = useMemo(() => {
+    if (!sortField) return filtered;
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      const av = (a as any)[sortField];
+      const bv = (b as any)[sortField];
+      let cmp = 0;
+      if (av == null && bv == null) cmp = 0;
+      else if (av == null) cmp = -1;
+      else if (bv == null) cmp = 1;
+      else if (sortField === 'created_at') {
+        cmp = new Date(av).getTime() - new Date(bv).getTime();
+      } else {
+        cmp = String(av).toLowerCase().localeCompare(String(bv).toLowerCase());
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, sortField, sortDir]);
 
   // Unique salesperson list derived from prospects
   const salespeopleOptions = useMemo(() => {
@@ -494,22 +558,22 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <TableHead className="w-[120px]">Actions</TableHead>
-                      <TableHead className="w-[90px]">Date</TableHead>
-                      <TableHead className="w-[140px]">Assigned To</TableHead>
+                      <SortableHeader label="Date" field="created_at" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[90px]" />
+                      <SortableHeader label="Assigned To" field="created_by_name" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[140px]" />
                       <TableHead className="w-[40px]">A</TableHead>
-                      <TableHead className="w-[80px]">Source</TableHead>
-                      <TableHead className="w-[160px]">Customer</TableHead>
-                      <TableHead className="w-[120px]">Phone</TableHead>
-                      <TableHead className="w-[120px]">Company</TableHead>
-                      <TableHead className="w-[100px]">City</TableHead>
-                      <TableHead className="w-[120px]">Product</TableHead>
-                      <TableHead className="w-[130px]">Product Category</TableHead>
-                      <TableHead className="w-[80px]">Type</TableHead>
-                      <TableHead className="w-[90px]">Status</TableHead>
+                      <SortableHeader label="Source" field="source_type" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[80px]" />
+                      <SortableHeader label="Customer" field="customer_name" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[160px]" />
+                      <SortableHeader label="Phone" field="phone_number" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[120px]" />
+                      <SortableHeader label="Company" field="company" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[120px]" />
+                      <SortableHeader label="City" field="city" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[100px]" />
+                      <SortableHeader label="Product" field="product_name" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[120px]" />
+                      <SortableHeader label="Product Category" field="product_category" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[130px]" />
+                      <SortableHeader label="Type" field="prospect_type" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[80px]" />
+                      <SortableHeader label="Status" field="status" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="w-[90px]" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((p) => (
+                    {sortedProspects.map((p) => (
                       <TableRow key={p.id} className={`hover:bg-muted/50 cursor-pointer ${p.is_a_category ? 'bg-destructive/5' : ''}`} onClick={() => setEditingProspect(p)}>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
